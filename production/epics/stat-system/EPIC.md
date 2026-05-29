@@ -4,7 +4,7 @@
 > **GDD**: design/gdd/stat-system.md
 > **Architecture Module**: StatSystem (`src/autoload/stat_system.gd`)
 > **Status**: Ready
-> **Stories**: Not yet created — run `/create-stories stat-system`
+> **Stories**: 13 stories — 12 Ready, 1 Blocked (ADR-003 + ADR-005 Proposed)
 
 ## Overview
 
@@ -40,6 +40,27 @@ This epic is complete when:
 - VOLUME_TICK batching test: accumulate N reps, flush on set_completed → single stat update
 - Cross-formula invariants (4) verified: no formula produces negative stat values
 
+## Stories
+
+| # | Story | Type | Status | ADR |
+|---|-------|------|--------|-----|
+| 001 | [ci-lints-closed-api](story-001-ci-lints-closed-api.md) | Static | Ready | ADR-0006 C12 |
+| 002 | [stat-surface-enum-allow-list](story-002-stat-surface-enum-allow-list.md) | Logic | Ready | ADR-0006 C3 + ADR-0007 |
+| 003 | [equipment-modifier-layer](story-003-equipment-modifier-layer.md) | Integration | Ready | ADR-0006 C3 |
+| 004 | [boot-reconciliation](story-004-boot-reconciliation.md) | Logic | Ready | ADR-0006 C4 |
+| 005 | [observer-connect-for-initial-state](story-005-observer-connect-for-initial-state.md) | Logic | Ready | ADR-0006 C6 |
+| 006 | [persistence-atomic-write-reentrance](story-006-persistence-atomic-write-reentrance.md) | Integration | Ready | ADR-0006 C11 |
+| 007 | [anti-decay-clamping](story-007-anti-decay-clamping.md) | Logic | Ready | ADR-0006 |
+| 008 | [debug-override-release-guard](story-008-debug-override-release-guard.md) | Logic | Ready | ADR-0006 C12 |
+| 009 | [gsm-suspended-gate-reconciling](story-009-gsm-suspended-gate-reconciling.md) | Integration | Ready | ADR-0006 C6/C13 |
+| 010 | [derived-stat-formulas](story-010-derived-stat-formulas.md) | Logic | Ready | ADR-0006 |
+| 011 | [mutation-formulas](story-011-mutation-formulas.md) | Logic | Ready | ADR-0005 ⚠️ (provisional) |
+| 012 | [cross-knob-invariants](story-012-cross-knob-invariants.md) | Logic | Ready | ADR-0006 |
+| 013 | [adr-ratification-gated](story-013-adr-ratification-gated.md) | Mixed | **Blocked** | ADR-0003 ⚠️ + ADR-0005 ⚠️ |
+
 ## Next Step
 
-Run `/create-stories stat-system` to break this epic into implementable stories.
+Run `/story-readiness production/epics/stat-system/story-001-ci-lints-closed-api.md` then `/dev-story` to begin implementation.
+
+> Work through stories in dependency order: 001 → 002 → 003 → 004 → 005 → 006 → 007 → 008 → 009 → 010 → 011 → 012. Story 013 is BLOCKED until ADR-0003 + ADR-0005 Accepted.
+> Story 011 (mutation formulas) uses PR_BASE=6.0 as a VS-tier provisional value — retune after ADR-0005 ratification.

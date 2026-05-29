@@ -31,7 +31,7 @@ Created by: /create-epics Foundation + Core (16 systems)
 
 | Epic | Layer | System # | GDD | Stories | Status |
 |------|-------|----------|-----|---------|--------|
-| [Stat System](stat-system/EPIC.md) | Core | #11 | stat-system.md ✅ | Not yet created | Ready |
+| [Stat System](stat-system/EPIC.md) | Core | #11 | stat-system.md ✅ | **13 stories** (12 Ready, 1 Blocked ADR-003+ADR-005) | Ready — START Phase 2 |
 | [Ability System](ability-system/EPIC.md) | Core | #12 | ability-system.md ✅ | Not yet created | Ready (ADR-0007 required for class-enum stories) |
 | [Combat Resolver](combat-resolver/EPIC.md) | Core | #13 | combat-resolver.md ✅ | Not yet created | Ready |
 | [Enemy Director](enemy-director/EPIC.md) | Core | #14 | enemy-director.md ✅ | Not yet created | Ready (ADR-0007 required for wave archetype stories) |
