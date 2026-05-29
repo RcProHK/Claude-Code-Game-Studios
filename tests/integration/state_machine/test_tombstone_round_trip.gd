@@ -59,8 +59,6 @@ func test_tombstone_boss_payload_round_trip() -> void:
 
 ## AC-21: forward-recovery uses persisted transition_id verbatim.
 func test_forward_recovery_reuses_persisted_transition_id() -> void:
-	pending("BLOCKED: GameStateMachine implementation epic — game_state_machine.gd is a Foundation-chain skeleton (awaiting step 5+). Un-pend when GSM is implemented.")
-	return  # remove with GSM impl
 	# Arrange — craft a tombstone with a known transition_id
 	var known_tid: String = "preserved_tid_12345"
 	var tombstone: Dictionary = {
@@ -74,17 +72,17 @@ func test_forward_recovery_reuses_persisted_transition_id() -> void:
 	}
 	PersistenceLayer.write("gsm.pending_transition", tombstone, true)
 
-	# Capture state_changed emission to confirm transition replayed
-	var emit_count: int = 0
-	GameStateMachine.state_changed.connect(
-		func(_f, _t, _p) -> void: emit_count += 1
-	)
+	# Watch state_changed to confirm transition replayed. A capture-by-value
+	# counter inside a connected lambda would NOT survive to the outer assert —
+	# GUT's signal watcher is the correct verification path.
+	watch_signals(GameStateMachine)
 
 	# Act
 	GameStateMachine._forward_recover_from_tombstone(tombstone)
 
 	# Assert — transition replayed; tombstone removed
-	assert_eq(emit_count, 1, "Forward-recovery must emit state_changed")
+	assert_signal_emit_count(GameStateMachine, "state_changed", 1,
+		"Forward-recovery must emit state_changed")
 	assert_null(PersistenceLayer.read("gsm.pending_transition"),
 		"Forward-recovery must remove the tombstone")
 	assert_eq(GameStateMachine.get_current_state(), GameStateMachine.GameState.IDLE,

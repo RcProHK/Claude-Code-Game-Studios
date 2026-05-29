@@ -15,7 +15,11 @@ const QUEUE_VAR: StringName = &"_event_queue"
 
 
 func before_each() -> void:
-	GameStateMachine.set(QUEUE_VAR, [])
+	# Clear the queue IN PLACE: `set(QUEUE_VAR, [])` silently no-ops because
+	# _event_queue is typed Array[Dictionary] and an untyped [] cannot be
+	# assigned to it in Godot 4.6 — leaving prior tests' events as residue on
+	# this shared autoload singleton. `.get(...).clear()` empties the live array.
+	GameStateMachine.get(QUEUE_VAR).clear()
 	GameStateMachine.set(&"_current_state", GameStateMachine.GameState.BOOTING)
 	GameStateMachine.set(&"_transitioning", false)
 
@@ -37,8 +41,6 @@ func test_event_queue_priority_order_respected() -> void:
 
 ## AC-gsm-queue-3: only 1 event drained per _process call.
 func test_event_queue_one_per_frame_drain() -> void:
-	pending("BLOCKED: GameStateMachine implementation epic — game_state_machine.gd is a Foundation-chain skeleton (awaiting step 5+). Un-pend when GSM is implemented.")
-	return  # remove with GSM impl
 	# Arrange
 	GameStateMachine.enqueue_event("e1", GameStateMachine.GameState.IDLE, 2)
 	GameStateMachine.enqueue_event("e2", GameStateMachine.GameState.WORKOUT_ACTIVE, 2)
@@ -54,8 +56,6 @@ func test_event_queue_one_per_frame_drain() -> void:
 
 ## AC-gsm-queue-2: stale event (already in target state) skipped.
 func test_event_queue_skips_stale_event() -> void:
-	pending("BLOCKED: GameStateMachine implementation epic — game_state_machine.gd is a Foundation-chain skeleton (awaiting step 5+). Un-pend when GSM is implemented.")
-	return  # remove with GSM impl
 	# Arrange — current state is IDLE, enqueue event targeting IDLE
 	GameStateMachine.set(&"_current_state", GameStateMachine.GameState.IDLE)
 	GameStateMachine.enqueue_event("stale", GameStateMachine.GameState.IDLE, 2)
@@ -75,8 +75,6 @@ func test_event_queue_skips_stale_event() -> void:
 
 ## Additional: empty queue process is a no-op.
 func test_event_queue_empty_process_noop() -> void:
-	pending("BLOCKED: GameStateMachine implementation epic — game_state_machine.gd is a Foundation-chain skeleton (awaiting step 5+). Un-pend when GSM is implemented.")
-	return  # remove with GSM impl
 	# Act — process with empty queue
 	GameStateMachine._process(0.016)
 

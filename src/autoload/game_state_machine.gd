@@ -1,10 +1,15 @@
 ## GameStateMachine — Autoload position 2 (LOCKED per ADR-0006 Contract 4)
 ##
-## Status: Foundation chain step 4 skeleton (2026-05-28) — Contract 4 boot
-## discipline + Contract 6/7 sentinel-delivery + Contract 14 spy hooks wired.
-## Full Rule 2 transition primitive (Contract 1 lock), Contract 2 transition_id
-## generation, Contract 3 tombstone writer, Contract 8 knob asserts, Contract 12
-## CI scanner — all deferred to subsequent Foundation chain steps + VS stories.
+## Status: Implemented (2026-05-29) — game-state-machine epic stories 001-016
+## Complete. Wired: Contract 1 generational-lock transition primitive
+## (_request_transition + _force_clear_lock), Contract 2 transition_id
+## generation, Contract 3 tombstone write/remove + forward-recovery, Contract 4
+## boot discipline, Contract 6/7 sentinel-delivery + race guard, Contract 8 knob
+## asserts, Contract 14 spy hooks, event-intake priority queue (1-per-frame
+## drain), Rule 5 boot reconciliation (priorities 1/2/5), Rule 5.5 weekly-tick
+## replay, Rule 7 workout_completed force-transition, Rule 13 loot-reveal gating.
+## Deferred post-VS: full Rule 5 priority cascade (0/0.5/1.5/3/4), Contract 10
+## migration-chain guard, Story 017 bfcache resume spike.
 ##
 ## Driving GDD: design/gdd/game-state-machine.md (Approved 2026-05-26; 51 ACs)
 ## Governing ADRs: ADR-0006 State Machine Contract (Accepted 2026-05-28) — 15 contracts
@@ -216,13 +221,14 @@ func _ready() -> void:
 	_initial_state_payload.data = {}
 	# Rule 5 boot reconciliation (Story 011 — simplified priority cascade).
 	_run_rule5_reconciliation()
-	# Full boot reconciliation (Rule 5 priority cascade) lands in a later step
-	# along with Contract 8 knob asserts, Contract 2 transition_id counter
-	# bootstrap, and Contract 10 migration-chain guard. This skeleton only
-	# satisfies Contract 4 + Contract 6/7 wiring so downstream foundation
-	# autoloads (#5 Particle System Wrapper, #6 Screen Effects — both cited at
-	# GDD line 370-371 as using connect_for_initial_state) can register safely.
-	print("[GameStateMachine] skeleton ready — pos 2; state=%s; awaiting step 5+ implementation" % GameState.find_key(_current_state))
+	# Rule 5 reconciliation here covers priorities 1/2/5 (tombstone forward-
+	# recovery, explicit stored state, default IDLE). The remaining priority
+	# cascade rungs (0/0.5/1.5/3/4 — 401 invalidation, LootDrop TTL) and the
+	# Contract 10 migration-chain guard are deferred post-VS. Downstream
+	# foundation autoloads (#5 Particle System Wrapper, #6 Screen Effects — both
+	# cited at GDD line 370-371 as using connect_for_initial_state) can register
+	# safely against the wired Contract 4 + Contract 6/7 boot model.
+	print("[GameStateMachine] ready — pos 2; state=%s" % GameState.find_key(_current_state))
 
 
 ## Read-only accessor for the current game state.

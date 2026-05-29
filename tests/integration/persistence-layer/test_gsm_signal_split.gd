@@ -38,23 +38,19 @@ func before_each() -> void:
 
 ## AC-30 core: write("pending_transition") triggers mock GSM's tombstone signal.
 func test_gsm_tombstone_write_completed_fires_on_pending_transition_write() -> void:
-	pending("BLOCKED: GameStateMachine implementation epic — game_state_machine.gd is a Foundation-chain skeleton (awaiting step 5+). Un-pend when GSM is implemented.")
-	return  # remove with GSM impl
-	# Arrange
-	var tombstone_count: int = 0
-	var tombstone_tid: String = ""
-	_gsm.tombstone_write_completed.connect(
-		func(tid: String, _ms: int) -> void:
-			tombstone_count += 1
-			tombstone_tid = tid
-	)
+	# Arrange — watch the mock GSM's tombstone signal. A capture-by-value counter
+	# inside a connected lambda would not survive to the outer assert; GUT's
+	# signal watcher records emissions + parameters reliably.
+	watch_signals(_gsm)
 
 	# Act
 	_mock.write("pending_transition", {"transition_id": "test_tid_123"})
 
-	# Assert — GSM's tombstone signal fired
-	assert_eq(tombstone_count, 1, "tombstone_write_completed must fire exactly once")
-	assert_eq(tombstone_tid, "test_tid_123", "transition_id propagated to tombstone signal")
+	# Assert — GSM's tombstone signal fired with the propagated transition_id
+	assert_signal_emit_count(_gsm, "tombstone_write_completed", 1,
+		"tombstone_write_completed must fire exactly once")
+	var tomb_params: Array = get_signal_parameters(_gsm, "tombstone_write_completed")
+	assert_eq(tomb_params[0], "test_tid_123", "transition_id propagated to tombstone signal")
 
 
 ## AC-30 domain isolation: non-pending_transition writes don't fire tombstone signal.
