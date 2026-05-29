@@ -128,12 +128,31 @@ jobs:
 
       - name: Run GUT tests
         run: |
+          # All tests live in SUBDIRECTORIES (tests/unit/streak, tests/unit/
+          # persistence-layer, …) so -ginclude_subdirs is REQUIRED — without it
+          # GUT scans only the top level of each -gdir, finds nothing, and exits 0
+          # ("nothing did anything") = a vacuous pass.
+          # No -gjunit_xml_timestamp: it appends a timestamp to the filename
+          # (junit_<ts>.xml) which no longer matches the report_paths glob below.
+          mkdir -p test-results
           godot --headless -s addons/gut/gut_cmdln.gd \
             -gdir=res://tests/unit,res://tests/integration \
+            -ginclude_subdirs \
             -gexit \
             -glog=2 \
-            -gjunit_xml_file=test-results/junit.xml \
-            -gjunit_xml_timestamp
+            -gjunit_xml_file=test-results/junit.xml
+          # Guard against a vacuous pass: GUT exits 0 even when it discovers 0
+          # tests. Fail loudly if no report was produced or zero tests ran.
+          if [ ! -f test-results/junit.xml ]; then
+            echo "::error::No GUT junit report produced — 0 tests discovered"
+            exit 1
+          fi
+          total=$(grep -oE 'tests="[0-9]+"' test-results/junit.xml | head -1 | grep -oE '[0-9]+')
+          echo "GUT discovered ${total:-0} test(s)."
+          if [ -z "$total" ] || [ "$total" -eq 0 ]; then
+            echo "::error::GUT discovered 0 tests — check -gdir / -ginclude_subdirs"
+            exit 1
+          fi
 
       - name: Upload Test Results
         if: always()
