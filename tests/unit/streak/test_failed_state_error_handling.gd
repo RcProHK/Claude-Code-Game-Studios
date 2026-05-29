@@ -12,7 +12,7 @@ const StreakSystemScript := preload("res://src/autoload/streak_system.gd")
 
 
 ## Minimal mock PersistenceLayer (only needs to satisfy the injection seam).
-class MockPersistenceLayer extends RefCounted:
+class StubPersistence extends RefCounted:
 	signal critical_save_failed(error_code: String, key: String)
 	func write(_key: String, _value: Variant, _flush: bool = false) -> bool:
 		return true
@@ -21,7 +21,7 @@ class MockPersistenceLayer extends RefCounted:
 func _make_streak() -> StreakSystemScript:
 	var s := StreakSystemScript.new()
 	autofree(s)  # not in tree → _ready() does not run
-	s._persistence = MockPersistenceLayer.new()
+	s._persistence = StubPersistence.new()
 	return s
 
 

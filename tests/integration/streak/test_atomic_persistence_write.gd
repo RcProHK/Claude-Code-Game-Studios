@@ -12,7 +12,7 @@ const StreakSystemScript := preload("res://src/autoload/streak_system.gd")
 
 
 ## Mock PersistenceLayer — records every write; can fail a chosen key's write.
-class MockPersistenceLayer extends RefCounted:
+class StubPersistence extends RefCounted:
 	signal critical_save_failed(error_code: String, key: String)
 	## Each entry: { "key": String, "value": Variant, "flush": bool }
 	var write_log: Array = []
@@ -24,7 +24,7 @@ class MockPersistenceLayer extends RefCounted:
 		return key != fail_on_key
 
 
-func _make_streak(mock_p: MockPersistenceLayer) -> StreakSystemScript:
+func _make_streak(mock_p: StubPersistence) -> StreakSystemScript:
 	var s := StreakSystemScript.new()
 	autofree(s)  # not in tree → _ready() does not run
 	s._persistence = mock_p
@@ -36,7 +36,7 @@ func _make_streak(mock_p: MockPersistenceLayer) -> StreakSystemScript:
 # ---------------------------------------------------------------------------
 
 func test_persist_streak_writes_count_before_date() -> void:
-	var p := MockPersistenceLayer.new()
+	var p := StubPersistence.new()
 	var s := _make_streak(p)
 
 	s._persist_streak(3, 20240101)
@@ -55,7 +55,7 @@ func test_persist_streak_writes_count_before_date() -> void:
 # ---------------------------------------------------------------------------
 
 func test_persist_streak_flush_failure_enters_failed_and_emits() -> void:
-	var p := MockPersistenceLayer.new()
+	var p := StubPersistence.new()
 	p.fail_on_key = "streak.last_workout_date_local"  # the critical (second) write fails
 	var s := _make_streak(p)
 	watch_signals(s)
@@ -77,7 +77,7 @@ func test_persist_streak_flush_failure_enters_failed_and_emits() -> void:
 # ---------------------------------------------------------------------------
 
 func test_persist_streak_count_write_failure_aborts_before_date() -> void:
-	var p := MockPersistenceLayer.new()
+	var p := StubPersistence.new()
 	p.fail_on_key = "streak.streak_count"  # the FIRST (count) write fails
 	var s := _make_streak(p)
 	watch_signals(s)
@@ -97,7 +97,7 @@ func test_persist_streak_count_write_failure_aborts_before_date() -> void:
 # ---------------------------------------------------------------------------
 
 func test_record_today_workout_idempotent_same_day() -> void:
-	var p := MockPersistenceLayer.new()
+	var p := StubPersistence.new()
 	var s := _make_streak(p)
 	s._substate = StreakSystemScript.Substate.READY  # _ready() not run; force READY
 	s._tz_offset_seconds = 0

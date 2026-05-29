@@ -40,7 +40,7 @@ class MockGSM extends RefCounted:
 
 ## Minimal mock PersistenceLayer — satisfies the _ready() critical_save_failed
 ## connect + keeps boot tests hermetic (no real autoload coupling).
-class MockPersistenceLayer extends RefCounted:
+class StubPersistence extends RefCounted:
 	signal critical_save_failed(error_code: String, key: String)
 	func write(_key: String, _value: Variant, _flush: bool = false) -> bool:
 		return true
@@ -50,7 +50,7 @@ class MockPersistenceLayer extends RefCounted:
 func _make_streak(mock_gsm: MockGSM) -> StreakSystemScript:
 	var streak := StreakSystemScript.new()
 	streak._gsm = mock_gsm
-	streak._persistence = MockPersistenceLayer.new()
+	streak._persistence = StubPersistence.new()
 	return streak
 
 

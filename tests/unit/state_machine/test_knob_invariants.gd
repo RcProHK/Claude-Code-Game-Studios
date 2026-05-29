@@ -116,8 +116,10 @@ func test_gsm_ac20a_invariant1_math_catches_violating_value() -> void:
 		"AC-20a: FALLBACK=1501 with default MIN_REVEAL=15 must FAIL Invariant 1"
 	)
 	# Verify our default is safe:
-	var default_passes: bool = GameStateMachine.STATE_TRANSITION_FALLBACK_MS <=
-		GameStateMachine.MIN_REVEAL_WINDOW_SECONDS * 100
+	var default_passes: bool = (
+		GameStateMachine.STATE_TRANSITION_FALLBACK_MS
+		<= GameStateMachine.MIN_REVEAL_WINDOW_SECONDS * 100
+	)
 	assert_true(default_passes, "Production defaults must always pass Invariant 1")
 
 
