@@ -3,13 +3,36 @@
 Indie game development managed through 49 coordinated Claude Code subagents.
 Each agent owns a specific domain, enforcing separation of concerns and quality.
 
+## Communication Language (MANDATORY)
+
+**All user-facing responses MUST be written in 廣東話 / 繁體中文 (Cantonese / Traditional Chinese).**
+
+This rule applies to:
+- The main Claude session
+- ALL spawned subagents (every agent in `.claude/agents/`)
+- ALL skills (every skill in `.claude/skills/`)
+- ALL Task tool invocations
+- AskUserQuestion prompts and option labels
+- Tool call status updates and end-of-turn summaries
+
+**Exceptions (keep in English):**
+- Technical terms: GDD, ADR, API, SSE, signal, node, scene, etc.
+- File paths, skill names, agent names, command names
+- Code identifiers (variable names, function names, class names)
+- Code blocks and shell commands
+- Frontmatter keys and YAML field names
+
+**Document content** (GDDs, ADRs, design docs, code comments): 混用中文 + 英文 tech term — 跟 user 既有 production system（GymSys、studiosys）風格。
+
+**Reason**: User 母語廣東話，呢個 project 全程用中文溝通。違反呢條 rule 等於忽略 user 嘅明確指示。
+
 ## Technology Stack
 
-- **Engine**: [CHOOSE: Godot 4 / Unity / Unreal Engine 5]
-- **Language**: [CHOOSE: GDScript / C# / C++ / Blueprint]
+- **Engine**: Godot 4.6
+- **Language**: GDScript
 - **Version Control**: Git with trunk-based development
-- **Build System**: [SPECIFY after choosing engine]
-- **Asset Pipeline**: [SPECIFY after choosing engine]
+- **Build System**: SCons (engine), Godot Export Templates
+- **Asset Pipeline**: Godot Import System + custom resource pipeline
 
 > **Note**: Engine-specialist agents exist for Godot, Unity, and Unreal with
 > dedicated sub-specialists. Use the set matching your engine.

@@ -1,0 +1,87 @@
+; Mirror Hero — Godot 4.6 Project Configuration
+;
+; Created: 2026-05-28 by /setup-engine (Foundation chain step 2 of 6)
+; Engine: Godot 4.6 (pinned 2026-02-12 per docs/engine-reference/godot/VERSION.md)
+;
+; Autoload boot order LOCKED per ADR-0006 Contract 4 (sequential per-autoload _enter_tree → _ready;
+; NOT batched). See design/gdd/game-state-machine.md line 418-421 for canonical ordering.
+;
+; ⚠️ Follow-up F-SETUP-1: Ability GDD line 151 claims AbilitySystem=pos 5 (authored before
+; PlatformDetect was added). Effective position with PlatformDetect at pos 3 = pos 6.
+; GDD sync needed on Ability/Stat autoload prose.
+
+config_version=5
+
+[application]
+
+config/name="Mirror Hero"
+config/description="Gym-integrated 2D RPG — real workout data drives avatar progression. Web Export primary target."
+config/version="0.1.0-dev"
+run/main_scene=""
+config/features=PackedStringArray("4.6", "GL Compatibility")
+config/icon="res://icon.svg"
+
+[autoload]
+
+; Foundation layer (positions 1-2 LOCKED by ADR-0006 Contract 4)
+PersistenceLayer="*res://src/autoload/persistence_layer.gd"
+GameStateMachine="*res://src/autoload/game_state_machine.gd"
+
+; Platform detection (must boot before any web-export-sensitive autoload — ADR-001)
+PlatformDetect="*res://src/autoload/platform_detect.gd"
+
+; Backend / external data sources (after Persistence + GSM + PlatformDetect)
+GymSysBackendClient="*res://src/autoload/gym_sys_backend_client.gd"
+
+; Core gameplay state (depends on Persistence + GSM + GymSys)
+StatSystem="*res://src/autoload/stat_system.gd"
+AbilitySystem="*res://src/autoload/ability_system.gd"
+StreakSystem="*res://src/autoload/streak_system.gd"
+WorkoutStateTracker="*res://src/autoload/workout_state_tracker.gd"
+
+; Combat orchestration (LootDrop MUST boot before EnemyDirector per #13 EC-43 + Rule 9)
+LootDropSystem="*res://src/autoload/loot_drop_system.gd"
+EnemyDirector="*res://src/autoload/enemy_director.gd"
+
+; Presentation layer (Avatar at pos 11 per avatar-renderer.md F-5)
+AvatarRenderer="*res://src/autoload/avatar_renderer.gd"
+ParticleSystemWrapper="*res://src/autoload/particle_system_wrapper.gd"
+CameraController="*res://src/autoload/camera_controller.gd"
+ScreenEffects="*res://src/autoload/screen_effects.gd"
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+window/stretch/aspect="keep"
+
+[rendering]
+
+; Per technical-preferences.md: Forward+ for Desktop, Compatibility for Web Export
+renderer/rendering_method="forward_plus"
+renderer/rendering_method.mobile="gl_compatibility"
+renderer/rendering_method.web="gl_compatibility"
+textures/canvas_textures/default_texture_filter=0
+2d/snap/snap_2d_transforms_to_pixel=true
+2d/snap/snap_2d_vertices_to_pixel=true
+
+[physics]
+
+; Godot Jolt is default in 4.6 (3D); 2D uses Godot Physics (default)
+common/physics_ticks_per_second=60
+
+[debug]
+
+gdscript/warnings/untyped_declaration=2
+gdscript/warnings/unsafe_property_access=2
+gdscript/warnings/unsafe_method_access=2
+gdscript/warnings/unsafe_cast=2
+gdscript/warnings/unsafe_call_argument=2
+gdscript/warnings/return_value_discarded=1
+gdscript/warnings/unused_signal=1
+gdscript/warnings/integer_division=1
+
+[input]
+
+; No bindings yet — touch + keyboard/mouse will be defined per UX spec

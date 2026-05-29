@@ -2,7 +2,7 @@
 name: sound-designer
 description: "The Sound Designer creates detailed specifications for sound effects, documents audio events, and defines mixing parameters. Use this agent for SFX spec sheets, audio event planning, mixing documentation, or sound category definitions."
 tools: Read, Glob, Grep, Write, Edit
-model: sonnet
+model: opus
 maxTurns: 10
 disallowedTools: Bash
 ---

@@ -1,32 +1,48 @@
 #!/usr/bin/env bash
-# Claude Code Game Studios — Status Line
+# Claude Code Game Studios — Status Line (claude-hud integrated)
 # Receives JSON on stdin, outputs a single-line status.
 #
-# Segments: ctx% | model | production stage [| Epic > Feature > Task]
+# Format: [claude-hud output] | production stage [| Epic > Feature > Task]
+# Fallback (if claude-hud unavailable): ctx% | model | stage [| breadcrumb]
 
 input=$(cat)
 
-# --- Parse JSON (jq with grep fallback) ---
+# --- Try claude-hud first (global plugin) ---
+hud_output=""
+hud_plugin_dir=$(ls -d "${CLAUDE_CONFIG_DIR:-$HOME/.claude}"/plugins/cache/claude-hud/claude-hud/*/ 2>/dev/null \
+  | awk -F/ '{ print $(NF-1) "\t" $(0) }' \
+  | sort -t. -k1,1n -k2,2n -k3,3n -k4,4n \
+  | tail -1 | cut -f2-)
+if [ -n "$hud_plugin_dir" ] && [ -f "${hud_plugin_dir}dist/index.js" ]; then
+  hud_output=$(printf '%s' "$input" | "/c/Program Files/nodejs/node" "${hud_plugin_dir}dist/index.js" 2>/dev/null)
+fi
+
+# --- Parse JSON for cwd (always needed for stage detection) ---
 if command -v jq &>/dev/null; then
-  model=$(echo "$input" | jq -r '.model.display_name // "Unknown"')
-  used_pct=$(echo "$input" | jq -r '.context_window.used_percentage // empty')
   cwd=$(echo "$input" | jq -r '.workspace.current_dir // .cwd // ""')
 else
-  model=$(echo "$input" | grep -oE '"display_name"\s*:\s*"[^"]*"' | head -1 | sed 's/.*: *"//;s/"//')
-  used_pct=$(echo "$input" | grep -oE '"used_percentage"\s*:\s*[0-9]+' | head -1 | sed 's/.*: *//')
   cwd=$(echo "$input" | grep -oE '"current_dir"\s*:\s*"[^"]*"' | head -1 | sed 's/.*: *"//;s/"//')
-  [ -z "$model" ] && model="Unknown"
 fi
 
 # Normalize Windows paths
 cwd=$(echo "$cwd" | sed 's|\\|/|g')
 [ -z "$cwd" ] && cwd="."
 
-# --- Context usage ---
-if [ -n "$used_pct" ]; then
-  ctx_label="ctx: ${used_pct}%"
-else
-  ctx_label="ctx: --"
+# --- Fallback parse (only if claude-hud failed) ---
+if [ -z "$hud_output" ]; then
+  if command -v jq &>/dev/null; then
+    model=$(echo "$input" | jq -r '.model.display_name // "Unknown"')
+    used_pct=$(echo "$input" | jq -r '.context_window.used_percentage // empty')
+  else
+    model=$(echo "$input" | grep -oE '"display_name"\s*:\s*"[^"]*"' | head -1 | sed 's/.*: *"//;s/"//')
+    used_pct=$(echo "$input" | grep -oE '"used_percentage"\s*:\s*[0-9]+' | head -1 | sed 's/.*: *//')
+    [ -z "$model" ] && model="Unknown"
+  fi
+  if [ -n "$used_pct" ]; then
+    hud_output="ctx: ${used_pct}% | ${model}"
+  else
+    hud_output="ctx: -- | ${model}"
+  fi
 fi
 
 # --- Production stage ---
@@ -118,4 +134,4 @@ if [ "$stage" = "Production" ] || [ "$stage" = "Polish" ] || [ "$stage" = "Relea
 fi
 
 # --- Assemble ---
-printf "%s" "${ctx_label} | ${model} | ${stage}${breadcrumb}"
+printf "%s | %s%s" "$hud_output" "$stage" "$breadcrumb"

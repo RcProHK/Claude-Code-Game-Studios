@@ -5,49 +5,54 @@
 
 ## Engine & Language
 
-- **Engine**: [TO BE CONFIGURED — run /setup-engine]
-- **Language**: [TO BE CONFIGURED]
-- **Rendering**: [TO BE CONFIGURED]
-- **Physics**: [TO BE CONFIGURED]
+- **Engine**: Godot 4.6
+- **Language**: GDScript
+- **Rendering**: Godot Forward+ (Desktop), Compatibility (Web Export)
+- **Physics**: Godot Jolt (default in 4.6)
 
 ## Input & Platform
 
 <!-- Written by /setup-engine. Read by /ux-design, /ux-review, /test-setup, /team-ui, and /dev-story -->
 <!-- to scope interaction specs, test helpers, and implementation to the correct input methods. -->
 
-- **Target Platforms**: [TO BE CONFIGURED — e.g., PC, Console, Mobile, Web]
-- **Input Methods**: [TO BE CONFIGURED — e.g., Keyboard/Mouse, Gamepad, Touch, Mixed]
-- **Primary Input**: [TO BE CONFIGURED — the dominant input for this game]
-- **Gamepad Support**: [TO BE CONFIGURED — Full / Partial / None]
-- **Touch Support**: [TO BE CONFIGURED — Full / Partial / None]
-- **Platform Notes**: [TO BE CONFIGURED — any platform-specific UX constraints]
+- **Target Platforms**: Web (primary), Desktop (secondary)
+- **Input Methods**: Keyboard/Mouse, Touch
+- **Primary Input**: Touch (single-tap — next exercise selection during gym session)
+- **Gamepad Support**: None
+- **Touch Support**: Partial (web mobile/tablet)
+- **Platform Notes**: Web Export (HTML5/WASM) is primary target; Godot Compatibility renderer required for web; one-tap input design — no hover-only interactions; browser memory budget applies (~512MB ceiling)
 
 ## Naming Conventions
 
-- **Classes**: [TO BE CONFIGURED]
-- **Variables**: [TO BE CONFIGURED]
-- **Signals/Events**: [TO BE CONFIGURED]
-- **Files**: [TO BE CONFIGURED]
-- **Scenes/Prefabs**: [TO BE CONFIGURED]
-- **Constants**: [TO BE CONFIGURED]
+- **Classes**: PascalCase (e.g., `PlayerController`)
+- **Variables**: snake_case (e.g., `move_speed`)
+- **Signals/Events**: snake_case past tense (e.g., `health_changed`)
+- **Files**: snake_case matching class (e.g., `player_controller.gd`)
+- **Scenes/Prefabs**: PascalCase matching root node (e.g., `PlayerController.tscn`)
+- **Constants**: UPPER_SNAKE_CASE (e.g., `MAX_HEALTH`)
 
 ## Performance Budgets
 
-- **Target Framerate**: [TO BE CONFIGURED]
-- **Frame Budget**: [TO BE CONFIGURED]
-- **Draw Calls**: [TO BE CONFIGURED]
-- **Memory Ceiling**: [TO BE CONFIGURED]
+- **Target Framerate**: 60 fps
+- **Frame Budget**: 16.6 ms
+- **Draw Calls**: ≤ 200 (2D web target)
+- **Memory Ceiling**: 512 MB (browser constraint)
 
 ## Testing
 
-- **Framework**: [TO BE CONFIGURED]
+- **Framework**: GUT (Godot Unit Testing) v7.x
 - **Minimum Coverage**: [TO BE CONFIGURED]
 - **Required Tests**: Balance formulas, gameplay systems, networking (if applicable)
 
 ## Forbidden Patterns
 
-<!-- Add patterns that should never appear in this project's codebase -->
-- [None configured yet — add as architectural decisions are made]
+<!-- Updated by ADR-003 + ADR-001 (2026-05-26) -->
+- `window.localStorage` — use `user://` (FileAccess / PersistenceLayer) instead. ~5MB quota + requires JavaScriptBridge. CI: `tools/ci/check_local_storage_calls.gd`. (ADR-003)
+- `SubViewport.stretch_shrink = [float]` — integer property; float silently truncates. Use code-set `SubViewport.size = display_size * Vector2(1.05, 1.05)`. (ADR-001)
+- Direct `Camera2D.position/zoom/make_current()` mutation outside `src/autoload/camera_controller.gd`. CI: `tools/ci/check_camera_callers.gd`. (ADR-001)
+- Direct `Camera2D.offset` mutation outside `src/autoload/screen_effects.gd` — shake uses shader uniform path. CI: `tools/ci/check_screen_effects_callers.gd`. (ADR-001)
+- Direct `GPUParticles2D` instantiation outside `src/autoload/particle_system_wrapper.gd`. CI: `tools/ci/check_particle_callers.gd`. (ADR-001)
+- Raw `JavaScriptBridge.eval()` calls outside `src/autoload/platform_detect.gd`. CI: `tools/ci/check_platform_detect_callers.gd`. (ADR-001)
 
 ## Allowed Libraries / Addons
 
@@ -56,8 +61,13 @@
 
 ## Architecture Decisions Log
 
-<!-- Quick reference linking to full ADRs in docs/architecture/ -->
-- [No ADRs yet — use /architecture-decision to create one]
+<!-- Quick reference linking to full ADRs in docs/architecture/ — last updated 2026-05-26 -->
+- ADR-0001: Godot Web Export Budget Caps — two-tier GPU/CPU budgets (mobile 200/2ms, desktop 400/3ms); CanvasLayer topology; SubViewport oversample fix; CI scripts; WASM bundle ≤50MB. [docs/architecture/adr-0001-web-export-budget-caps.md]
+- ADR-0002: GymSys Integration Protocol — HTTP polling (5s ±0.5s); differential event cursor (DB BIGINT + server_epoch_id); session lock (POST /session/claim + X-Session-Token); LootDrop endpoints (per-table UNIQUE); SSE v0.2 path (JavaScriptBridge EventSource). [docs/architecture/adr-0002-gymsys-integration-protocol.md]
+- ADR-0003: Save State Strategy — backend-primary + IndexedDB (user://) secondary; unsynced-only LootDrop client wins; detect-and-gate for Private Mode (banner + loot disable); Safari ITP touch-refresh; schema migration 900ms ceiling; localStorage FORBIDDEN. [docs/architecture/adr-0003-save-state-strategy.md]
+- ADR-0006: State Machine Contract — transition atomicity (generational lock); transition_id collision-safety; tombstone forward-recovery; autoload sequential boot (Contract 4); connect_for_initial_state sentinel (Contract 6); IPersistence interface; 15 contracts total. [docs/architecture/adr-0006-state-machine-contract.md]
+- ADR-0004: CORS / Cross-Origin Auth Topology — nginx reverse proxy (same origin); /mirror-hero/ game static; /api/game/ proxy to GymSys:9120; relative URLs in HTTPRequest; FastAPI APIRouter /api/game prefix. Resolves game-concept.md Q1. Unblocks ADR-002 Accepted. [docs/architecture/adr-0004-cors-cross-origin-auth-topology.md]
+- ADR-0005: Loot Rarity Formula — loot_rarity_score = workout_score×0.75 + rng_roll×0.25; workout_score = clamp(volume×PR×streak, 0, 1); Pillar 3 floor final_tier=max(raw,COMMON); Pillar 1 proof: max RNG=0.25 < EPIC threshold(0.72); data-driven LootRarityConfig.tres; RNG seeded on transition_id. Resolves game-concept.md Q2. [docs/architecture/adr-0005-loot-rarity-formula.md]
 
 ## Engine Specialists
 
@@ -65,12 +75,12 @@
 <!-- Read by /code-review, /architecture-decision, /architecture-review, and team skills -->
 <!-- to know which specialist to spawn for engine-specific validation. -->
 
-- **Primary**: [TO BE CONFIGURED — run /setup-engine]
-- **Language/Code Specialist**: [TO BE CONFIGURED]
-- **Shader Specialist**: [TO BE CONFIGURED]
-- **UI Specialist**: [TO BE CONFIGURED]
-- **Additional Specialists**: [TO BE CONFIGURED]
-- **Routing Notes**: [TO BE CONFIGURED]
+- **Primary**: godot-specialist
+- **Language/Code Specialist**: godot-gdscript-specialist (all .gd files)
+- **Shader Specialist**: godot-shader-specialist (.gdshader files, VisualShader resources)
+- **UI Specialist**: godot-specialist (no dedicated UI specialist — primary covers all UI)
+- **Additional Specialists**: godot-gdextension-specialist (GDExtension / native C++ bindings only)
+- **Routing Notes**: Invoke primary for architecture decisions, ADR validation, and cross-cutting code review. Invoke GDScript specialist for code quality, signal architecture, static typing enforcement, and GDScript idioms. Invoke shader specialist for material design and shader code. Invoke GDExtension specialist only when native extensions are involved.
 
 ### File Extension Routing
 
@@ -79,9 +89,9 @@
 
 | File Extension / Type | Specialist to Spawn |
 |-----------------------|---------------------|
-| Game code (primary language) | [TO BE CONFIGURED] |
-| Shader / material files | [TO BE CONFIGURED] |
-| UI / screen files | [TO BE CONFIGURED] |
-| Scene / prefab / level files | [TO BE CONFIGURED] |
-| Native extension / plugin files | [TO BE CONFIGURED] |
-| General architecture review | Primary |
+| Game code (.gd files) | godot-gdscript-specialist |
+| Shader / material files (.gdshader, VisualShader) | godot-shader-specialist |
+| UI / screen files (Control nodes, CanvasLayer) | godot-specialist |
+| Scene / prefab / level files (.tscn, .tres) | godot-specialist |
+| Native extension / plugin files (.gdextension, C++) | godot-gdextension-specialist |
+| General architecture review | godot-specialist |
