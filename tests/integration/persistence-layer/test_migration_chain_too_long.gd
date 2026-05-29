@@ -48,6 +48,10 @@ func before_each() -> void:
 	PersistenceLayer.set(STEP_FAIL_VAR_NAME, false)
 	PersistenceLayer.set(STEP_MUTATE_KEY_VAR_NAME, "")
 	PersistenceLayer.set(STEP_MUTATE_VALUE_VAR_NAME, null)
+	# Clear any sticky CORRUPT substate leaked from boot (a stale user://state.json
+	# loaded during _ready) or a prior test — _trigger_corrupt() early-returns when
+	# already CORRUPT, which would suppress this test's expected corrupt emission.
+	PersistenceLayer._test_force_substate(&"READY")
 
 	_step_signals = []
 	_critical_signals = []

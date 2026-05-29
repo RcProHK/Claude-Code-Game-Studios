@@ -66,5 +66,7 @@ func test_substate_ready_after_first_boot_no_file() -> void:
 	# Assert
 	assert_eq(PersistenceLayer._test_get_substate(), "READY")
 	assert_signal_emit_count(PersistenceLayer, "critical_save_failed", 0)
-	assert_eq(PersistenceLayer.get(&"_cache"), {},
-		"First boot: empty cache (no disk file)")
+	# AC-26b: first-boot seeds the schema_version baseline (NOT empty) — cache
+	# contains ONLY {schema_version: SCHEMA_VERSION}. (Impl _load_from_disk line ~653.)
+	assert_eq(PersistenceLayer.get(&"_cache"), {"schema_version": PersistenceLayer.SCHEMA_VERSION},
+		"First boot: cache seeded with schema_version baseline (no disk file)")

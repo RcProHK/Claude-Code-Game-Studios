@@ -82,13 +82,14 @@ func test_deferred_events_are_drained_during_boot() -> void:
 	var mock_gsm := MockGSM.new()
 	var streak := _make_streak(mock_gsm)
 
-	# Queue a deferred event before _ready() runs
-	var was_called := false
-	streak._deferred_events.append(func() -> void: was_called = true)
+	# Queue a deferred event before _ready() runs. Array-wrapped: GDScript lambdas
+	# capture scalars by value, so a plain `was_called: bool` would never update.
+	var was_called := [false]
+	streak._deferred_events.append(func() -> void: was_called[0] = true)
 
 	add_child_autofree(streak)
 
-	assert_true(was_called, "Deferred event must be called during _drain_deferred_if_any()")
+	assert_true(was_called[0], "Deferred event must be called during _drain_deferred_if_any()")
 	assert_eq(streak._deferred_events.size(), 0, "Deferred event queue must be empty after drain")
 
 
@@ -202,26 +203,21 @@ func test_illegal_arcs_emit_signal_and_leave_state_unchanged() -> void:
 	var streak := _make_streak(mock_gsm)
 	add_child_autofree(streak)  # boots to READY
 
-	# Connect spy to invalid_transition_attempted
-	var invalid_from: StreakSystemScript.Substate
-	var invalid_to: StreakSystemScript.Substate
-	var signal_count := 0
-	streak.invalid_transition_attempted.connect(
-		func(f: StreakSystemScript.Substate, t: StreakSystemScript.Substate) -> void:
-			invalid_from = f
-			invalid_to = t
-			signal_count += 1
-	)
+	# Watch invalid_transition_attempted (NOT lambda counters — GDScript captures
+	# scalars by value, so invalid_from / signal_count would never update).
+	watch_signals(streak)
 
 	# Test READY → BOOTING (illegal)
 	streak._transition_to(StreakSystemScript.Substate.BOOTING)
 	assert_eq(streak._substate, StreakSystemScript.Substate.READY, "READY→BOOTING must NOT change state")
-	assert_eq(signal_count, 1, "invalid_transition_attempted must emit once for illegal arc")
-	assert_eq(invalid_from, StreakSystemScript.Substate.READY, "Signal 'from' must be READY")
-	assert_eq(invalid_to, StreakSystemScript.Substate.BOOTING, "Signal 'to' must be BOOTING")
+	assert_signal_emit_count(streak, "invalid_transition_attempted", 1,
+		"invalid_transition_attempted must emit once for illegal arc")
+	var p: Array = get_signal_parameters(streak, "invalid_transition_attempted")
+	assert_eq(p[0], StreakSystemScript.Substate.READY, "Signal 'from' must be READY")
+	assert_eq(p[1], StreakSystemScript.Substate.BOOTING, "Signal 'to' must be BOOTING")
 
 	# Test READY → FAILED (illegal — must go via UPDATING)
-	var count_before := signal_count
 	streak._transition_to(StreakSystemScript.Substate.FAILED)
 	assert_eq(streak._substate, StreakSystemScript.Substate.READY, "READY→FAILED must NOT change state")
-	assert_eq(signal_count, count_before + 1, "invalid_transition_attempted must emit again")
+	assert_signal_emit_count(streak, "invalid_transition_attempted", 2,
+		"invalid_transition_attempted must emit again")

@@ -72,11 +72,12 @@ func test_read_during_migrating_emits_migration_in_progress() -> void:
 
 ## Additional: migrate(0,1) sets Migrating during chain + clears to Ready.
 func test_migrate_sets_migrating_substate_then_clears_to_ready() -> void:
-	# Arrange — use a signal to capture substate mid-migration
-	var substate_during_migration: String = ""
+	# Arrange — capture substate mid-migration. Array-wrapped: GDScript lambdas
+	# capture scalars by value, so a plain String local would never update.
+	var substate_during_migration: Array = [""]
 	PersistenceLayer.migration_step_completed.connect(
 		func(_f, _t, _ms) -> void:
-			substate_during_migration = PersistenceLayer._test_get_substate()
+			substate_during_migration[0] = PersistenceLayer._test_get_substate()
 	)
 	PersistenceLayer._test_force_substate(&"READY")
 
@@ -84,7 +85,7 @@ func test_migrate_sets_migrating_substate_then_clears_to_ready() -> void:
 	PersistenceLayer.migrate(0, 1)
 
 	# Assert
-	assert_eq(substate_during_migration, "MIGRATING",
+	assert_eq(substate_during_migration[0], "MIGRATING",
 		"Substate must be MIGRATING while migration_step_completed fires")
 	assert_eq(PersistenceLayer._test_get_substate(), "READY",
 		"Substate must return to READY after successful migrate()")

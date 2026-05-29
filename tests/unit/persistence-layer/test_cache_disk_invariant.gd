@@ -40,6 +40,10 @@ func before_each() -> void:
 	# ADR-0006 Contract 14 affordance — see file header.
 	PersistenceLayer.get(CACHE_VAR_NAME).clear()
 	PersistenceLayer.set(DIRTY_VAR_NAME, false)
+	# Clear any sticky CORRUPT substate leaked from boot (stale user://state.json)
+	# or a prior test — _trigger_corrupt() early-returns when already CORRUPT, which
+	# would suppress the FLUSH_FAILED corrupt wipe + signal this suite asserts.
+	PersistenceLayer._test_force_substate(&"READY")
 
 	# Inject a fresh MockFileFactory so disk I/O routes through the mock.
 	_factory = MockFileFactory.new()

@@ -9,12 +9,13 @@ func before_each() -> void:
 		PersistenceLayer.write_completed.disconnect(conn.callable)
 
 func test_adr006_c11_write_completed_emits_synchronously() -> void:
-	var count: int = 0
-	PersistenceLayer.write_completed.connect(func(_k, _ms, _t) -> void: count += 1)
+	# watch_signals (NOT a lambda counter — GDScript captures scalars by value).
+	watch_signals(PersistenceLayer)
 
 	PersistenceLayer.write("c11_key", "value")
 
-	assert_eq(count, 1, "ADR-006 Contract 11: write_completed must emit synchronously (no await)")
+	assert_signal_emit_count(PersistenceLayer, "write_completed", 1,
+		"ADR-006 Contract 11: write_completed must emit synchronously (no await)")
 
 func test_adr006_c11_no_tombstone_write_completed_on_persistence_layer() -> void:
 	var names: Array = []

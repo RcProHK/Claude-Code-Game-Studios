@@ -673,8 +673,14 @@ func _load_from_disk() -> void:
 		_loaded_file_bytes = f.get_length()
 		f.close()
 
-	# Trigger 1+2: parse failure or non-Dictionary
-	var parsed: Variant = JSON.parse_string(content)
+	# Trigger 1+2: parse failure or non-Dictionary.
+	# Use JSON.new().parse() (returns an error code) rather than
+	# JSON.parse_string(), which ERR_PRINTs on malformed input. Corrupt
+	# detection EXPECTS parse failures here, so it must not spam engine
+	# errors for a handled condition (core/io/json.cpp parse_string prints).
+	var _json := JSON.new()
+	var _parse_err: int = _json.parse(content)
+	var parsed: Variant = _json.data if _parse_err == OK else null
 	if not parsed is Dictionary:
 		_trigger_corrupt("INVALID_JSON", "")
 		return

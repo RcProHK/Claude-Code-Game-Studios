@@ -69,9 +69,11 @@ func test_corrupt_wiped_byte_count_reflects_loaded_file_size() -> void:
 	# Simplest: set loaded_file_bytes manually, then trigger via direct _trigger_corrupt
 	PersistenceLayer.set(LOADED_BYTES_VAR_NAME, expected_bytes)
 
-	var recovered_bytes: int = -1
+	# Array-wrapped: GDScript lambdas capture scalars BY VALUE (a plain
+	# `var recovered_bytes: int` would never update). The Array is a reference.
+	var recovered_bytes: Array = [-1]
 	PersistenceLayer.corrupt_save_recovered.connect(
-		func(n: int) -> void: recovered_bytes = n
+		func(n: int) -> void: recovered_bytes[0] = n
 	)
 
 	# Act — trigger via _trigger_corrupt directly
@@ -79,7 +81,7 @@ func test_corrupt_wiped_byte_count_reflects_loaded_file_size() -> void:
 	PersistenceLayer._trigger_corrupt("INVALID_JSON", "")
 
 	# Assert
-	assert_eq(recovered_bytes, expected_bytes,
+	assert_eq(recovered_bytes[0], expected_bytes,
 		"wiped_byte_count must equal loaded file bytes (%d)" % expected_bytes)
 
 
@@ -87,9 +89,11 @@ func test_corrupt_wiped_byte_count_reflects_loaded_file_size() -> void:
 func test_corrupt_wiped_byte_count_zero_when_no_file_loaded() -> void:
 	# Arrange — no file loaded (_loaded_file_bytes stays 0)
 	PersistenceLayer.set(LOADED_BYTES_VAR_NAME, 0)
-	var recovered_bytes: int = -1
+	# Array-wrapped: GDScript lambdas capture scalars BY VALUE (a plain
+	# `var recovered_bytes: int` would never update). The Array is a reference.
+	var recovered_bytes: Array = [-1]
 	PersistenceLayer.corrupt_save_recovered.connect(
-		func(n: int) -> void: recovered_bytes = n
+		func(n: int) -> void: recovered_bytes[0] = n
 	)
 
 	# Act
@@ -97,4 +101,4 @@ func test_corrupt_wiped_byte_count_zero_when_no_file_loaded() -> void:
 	PersistenceLayer._trigger_corrupt("FLUSH_FAILED", "")
 
 	# Assert — in-memory JSON or 0 (either is acceptable; we test ≥ 0)
-	assert_gte(recovered_bytes, 0, "wiped_byte_count must be non-negative")
+	assert_gte(recovered_bytes[0], 0, "wiped_byte_count must be non-negative")
