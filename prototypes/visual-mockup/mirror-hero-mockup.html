@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>鏡像勇者 Mirror Hero — 視覺 Mockup (Art Bible spec)</title>
+<style>
+  /* ===== Palette baked from design/art/art-bible.md Section 4 ===== */
+  :root{
+    --world-moss:#3E5B3A; --world-bark:#5C4A36; --world-slate:#4A5A66; --world-ash:#7A7468;
+    --char-linen:#C9B89A;
+    --event-amber:#F2A93B; --event-white:#FFFFFF;
+    --ink-bg:#1A1D24; --ink-mid:#2D323D; --ink-hi:#4A5260;
+    --text-primary:#F5EFE0; --text-dim:#9A958A;
+    --strike:#E85A5A; --control:#A66BC9; --mobility:#5BA8E8;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#0d0f13;color:var(--text-primary);
+    font-family:"Courier New",ui-monospace,monospace;-webkit-font-smoothing:none;}
+  body{display:flex;flex-direction:column;align-items:center;gap:14px;padding:18px 12px 40px;}
+  h1{font-size:15px;letter-spacing:1px;color:var(--event-amber);text-shadow:1px 1px 0 var(--ink-bg);}
+  .sub{font-size:11px;color:var(--text-dim);text-align:center;line-height:1.6;max-width:560px;}
+
+  /* ===== Game viewport ===== */
+  #stage{position:relative;width:512px;height:288px;border:2px solid var(--ink-mid);
+    border-radius:3px;overflow:hidden;image-rendering:pixelated;box-shadow:0 8px 30px #000a;}
+  canvas{position:absolute;inset:0;width:512px;height:288px;image-rendering:pixelated;}
+  #worldCanvas{transition:filter .4s ease;}   /* mood saturation override */
+  #hud{position:absolute;inset:0;pointer-events:none;}
+
+  /* ===== Loot modal (Diegetic UI — Section 7.A) ===== */
+  #lootModal{position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+    flex-direction:column;gap:10px;}
+  #lootModal.show{display:flex;}
+  .loot-orb{width:84px;height:84px;border-radius:50%;
+    box-shadow:0 0 0 3px #fff8, 0 0 40px 10px var(--orbglow,#fff), inset 0 0 24px #fff6;
+    background:radial-gradient(circle at 38% 32%, #fff, var(--orbcol,#fff));
+    animation:orbpop .5s cubic-bezier(.2,1.4,.5,1);}
+  @keyframes orbpop{0%{transform:scale(.2);opacity:0}60%{transform:scale(1.12)}100%{transform:scale(1)}}
+  .loot-frame{border:2px solid var(--orbcol,#fff);background:var(--ink-bg)ee;padding:6px 18px;
+    font-size:13px;letter-spacing:2px;color:var(--orbcol,#fff);text-shadow:1px 1px 0 #000;}
+  .loot-sub{font-size:10px;color:var(--text-dim);}
+
+  /* ===== Controls ===== */
+  #panel{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;width:520px;}
+  button{font-family:inherit;font-size:11px;letter-spacing:.5px;cursor:pointer;
+    background:var(--ink-mid);color:var(--text-primary);border:1px solid var(--ink-hi);
+    padding:7px 11px;border-radius:2px;text-shadow:1px 1px 0 #000;}
+  button:hover{background:var(--ink-hi);}
+  button.amber{border-color:var(--event-amber);color:var(--event-amber);}
+  .group{display:flex;flex-direction:column;gap:4px;align-items:center;
+    background:#11141a;border:1px solid var(--ink-mid);border-radius:3px;padding:7px 9px;}
+  .group label{font-size:9px;color:var(--text-dim);letter-spacing:1px;}
+  .row{display:flex;gap:5px;}
+  .legend{font-size:9.5px;color:var(--text-dim);max-width:520px;text-align:center;line-height:1.7;}
+  .swatch{display:inline-block;width:9px;height:9px;border-radius:2px;vertical-align:middle;margin:0 2px;}
+</style>
+</head>
+<body>
+  <h1>鏡像勇者 — MIRROR HERO</h1>
+  <div class="sub">非真實 build,純 HTML mockup。所有顏色 / HUD 排位 / 剪影比例 / loot 儀式
+    完全跟足 <b>design/art/art-bible.md</b> 嘅 spec 砌出嚟,等你睇到隻 game 嘅大約 feel。</div>
+
+  <div id="stage">
+    <canvas id="worldCanvas" width="256" height="144"></canvas>
+    <canvas id="hud" width="256" height="144"></canvas>
+    <div id="lootModal">
+      <div class="loot-orb"></div>
+      <div class="loot-frame" id="lootName">EPIC</div>
+      <div class="loot-sub">符文護腕 · Runed Bracers</div>
+    </div>
+  </div>
+
+  <div id="panel">
+    <div class="group">
+      <label>AVATAR TIER (P1/P5)</label>
+      <div class="row">
+        <button onclick="setTier(1)">T1 蛋形</button>
+        <button onclick="setTier(2)">T2 沙漏</button>
+        <button onclick="setTier(3)">T3 三角</button>
+      </div>
+    </div>
+    <div class="group">
+      <label>ENEMY 類型 (P4 肌群)</label>
+      <div class="row">
+        <button onclick="setEnemy('push')">Push 推</button>
+        <button onclick="setEnemy('pull')">Pull 拉</button>
+        <button onclick="setEnemy('leg')">Leg 腿</button>
+      </div>
+    </div>
+    <div class="group">
+      <label>MOOD STATE</label>
+      <div class="row">
+        <button class="amber" onclick="lootDrop()">★ LOOT 爆裝儀式 (P3)</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    World layer 已 −30% 飽和(<span class="swatch" style="background:#3E5B3A"></span>moss
+    <span class="swatch" style="background:#5C4A36"></span>bark
+    <span class="swatch" style="background:#4A5A66"></span>slate) ·
+    Event layer 100% 飽和(<span class="swatch" style="background:#F2A93B"></span>amber HUD ·
+    <span class="swatch" style="background:#fff"></span>白爆光) ·
+    Loot rarity:<span class="swatch" style="background:#fff"></span>C
+    <span class="swatch" style="background:#6FB87A"></span>U
+    <span class="swatch" style="background:#4D8FD6"></span>R
+    <span class="swatch" style="background:#9B5FCC"></span>E
+    <span class="swatch" style="background:#FF8C42"></span>L
+    <br>核心張力:90% 時間安靜陪伴(During Set baseline)↔ 10% 時間爆裝儀式(Loot Drop time-stop 0.4s)。撳上面 ★ 試下。
+  </div>
+
+<script>
+const W=document.getElementById('worldCanvas'), wc=W.getContext('2d');
+const H=document.getElementById('hud'), hc=H.getContext('2d');
+wc.imageSmoothingEnabled=false; hc.imageSmoothingEnabled=false;
+const PAL={moss:'#3E5B3A',bark:'#5C4A36',slate:'#4A5A66',ash:'#7A7468',
+  linen:'#C9B89A',amber:'#F2A93B',white:'#FFFFFF',ink:'#1A1D24',
+  strike:'#E85A5A',control:'#A66BC9',mobility:'#5BA8E8'};
+
+let tier=2, enemy='push', t=0, particles=[], lootActive=false;
+let hp=0.72, exp=0.45, exRing=0.6; // exercise progress ring
+
+// ===== seeded ambient dust (Section 6 organic background) =====
+for(let i=0;i<24;i++) particles.push({x:Math.random()*256,y:Math.random()*144,
+  s:0.1+Math.random()*0.2,r:0.4+Math.random()*0.8,a:0.15+Math.random()*0.25});
+
+function rect(c,x,y,w,h,col){c.fillStyle=col;c.fillRect(x|0,y|0,w|0,h|0);}
+
+// ===== WORLD: Worn Wilderness grove (Section 6) =====
+function drawWorld(){
+  // sky void — ash gradient (low density, Section 6.B)
+  const g=wc.createLinearGradient(0,0,0,144);
+  g.addColorStop(0,'#2a2f28'); g.addColorStop(.6,'#222a26'); g.addColorStop(1,'#1c211d');
+  wc.fillStyle=g; wc.fillRect(0,0,256,144);
+  // distant mountains — organic, slate desat (background, low contrast P2)
+  wc.fillStyle='#33403d';
+  wc.beginPath();wc.moveTo(0,96);
+  for(let x=0;x<=256;x+=8){wc.lineTo(x,86+Math.sin(x*0.05)*8+Math.sin(x*0.13)*4);}
+  wc.lineTo(256,144);wc.lineTo(0,144);wc.fill();
+  // moss midground hills
+  wc.fillStyle='#2f4a2c';
+  wc.beginPath();wc.moveTo(0,114);
+  for(let x=0;x<=256;x+=6){wc.lineTo(x,108+Math.sin(x*0.08+2)*6);}
+  wc.lineTo(256,144);wc.lineTo(0,144);wc.fill();
+  // broken stone pillar (storytelling hook — "曾有英雄到過")
+  rect(wc,38,70,9,46,PAL.bark); rect(wc,37,68,11,3,'#6b5945');
+  rect(wc,40,82,5,2,'#2c241b'); rect(wc,39,98,7,2,'#2c241b'); // cracks
+  // ===== PLATFORM: angular 45/90, hard top edge (Section 3.B) =====
+  rect(wc,0,120,256,24,'#3a3530');        // platform body — bark/slate mix
+  rect(wc,0,120,256,2,PAL.slate);          // top band high-detail (P5)
+  for(let x=4;x<256;x+=12) rect(wc,x,120,1,1,'#5d6a72'); // edge detail dots
+  rect(wc,0,122,256,1,'#262b2e');
+  // moss ground tufts (organic, sparse 0-2 per region)
+  for(let x=18;x<256;x+=46){rect(wc,x,118,3,2,PAL.moss);rect(wc,x+1,116,1,2,'#4a6b44');}
+}
+
+// ===== AVATAR: tier silhouette (Section 3.A / 5.A) =====
+function drawAvatar(){
+  const baseX=150, footY=120;
+  const skill=PAL.mobility; // current class accent
+  // ratios: T1 egg 2.5:1, T2 hourglass 3:1, T3 triangle 3.5:1
+  let head,shoulder,hgt,wpScale,pose;
+  if(tier===1){head=7;shoulder=8;hgt=30;wpScale=0.4;pose=2;}     // 微駝
+  else if(tier===2){head=7;shoulder=11;hgt=36;wpScale=0.55;pose=0;}
+  else {head=8;shoulder=14;hgt=42;wpScale=0.7;pose=-2;}          // 仰首 swagger
+  const topY=footY-hgt;
+  // head
+  rect(wc,baseX-head/2+pose*0.4, topY, head, head, PAL.linen);
+  // torso silhouette — width tapers per tier shape
+  const bodyTop=topY+head, bodyH=hgt-head-6;
+  for(let i=0;i<bodyH;i++){
+    const k=i/bodyH; let w;
+    if(tier===1) w=shoulder*(1+0.5*k);                 // egg: widen downward
+    else if(tier===2) w=shoulder*(1-0.4*Math.abs(0.5-k)*2)+3; // hourglass pinch mid
+    else w=shoulder*(1-0.55*k)+4;                       // triangle: wide shoulders
+    rect(wc, baseX-w/2 + pose*(1-k)*0.5, bodyTop+i, w, 1, PAL.linen);
+  }
+  // legs
+  rect(wc,baseX-4,footY-6,3,6,PAL.linen); rect(wc,baseX+1,footY-6,3,6,PAL.linen);
+  // skill-family color accent (trim) — grows with tier
+  if(tier>=2){rect(wc,baseX-shoulder/2,bodyTop+2,shoulder,1,skill);}
+  if(tier===3){rect(wc,baseX-shoulder/2-1,bodyTop,2,bodyH,skill);rect(wc,baseX+shoulder/2-1,bodyTop,2,bodyH,skill);}
+  // weapon (scale per tier, posture per tier)
+  const wx=baseX+shoulder/2+2, wlen=18*wpScale+8;
+  if(tier===3){ // raised overhead
+    rect(wc,wx,topY-6,2,wlen,'#8a8275'); rect(wc,wx-2,topY-6,6,3,skill);
+  } else if(tier===2){ // side-held level
+    rect(wc,wx,bodyTop+4,wlen,2,'#8a8275'); rect(wc,wx+wlen-2,bodyTop+2,2,6,skill);
+  } else { // low / dragging
+    rect(wc,wx,footY-4,wlen*0.8,2,'#776f63');
+  }
+}
+
+// ===== ENEMY: type silhouette (Section 3.A / 5.B) =====
+function drawEnemy(){
+  const ex=70, footY=120;
+  if(enemy==='push'){ // wide T, 2:1, bark + ash
+    rect(wc,ex-14,footY-18,28,14,PAL.bark);   // wide body
+    rect(wc,ex-16,footY-22,32,5,'#6b6358');    // shoulder slab (T-top)
+    rect(wc,ex-3,footY-30,6,9,PAL.bark);       // head
+    rect(wc,ex-14,footY-16,28,1,PAL.ash);      // armor highlight
+    rect(wc,ex-10,footY-4,5,4,PAL.bark);rect(wc,ex+5,footY-4,5,4,PAL.bark);
+    tintAura(ex,footY-14,PAL.strike);
+  } else if(enemy==='pull'){ // tall V-down, 1:2, slate cool
+    rect(wc,ex-4,footY-38,8,30,PAL.slate);     // tall body
+    rect(wc,ex-9,footY-38,18,5,'#5a6e7a');     // V shoulders
+    rect(wc,ex-3,footY-46,6,8,PAL.slate);      // head
+    // hook/chain tendril motif
+    rect(wc,ex+6,footY-30,2,14,'#3a4750');rect(wc,ex+6,footY-16,5,2,'#3a4750');
+    rect(wc,ex-11,footY-26,2,10,'#3a4750');
+    rect(wc,ex-3,footY-8,7,8,PAL.slate);
+    tintAura(ex,footY-22,PAL.control);
+  } else { // leg trapezoid-down, 1.5:1, moss + warm
+    rect(wc,ex-12,footY-10,24,10,PAL.moss);    // wide lower base
+    rect(wc,ex-7,footY-22,14,12,'#476b41');    // narrower upper
+    rect(wc,ex-3,footY-30,6,8,PAL.moss);       // head
+    rect(wc,ex-12,footY-2,7,2,'#5a7a52');rect(wc,ex+5,footY-2,7,2,'#5a7a52'); // grounded feet
+    rect(wc,ex-7,footY-20,14,1,'#8a5040');     // warm tint accent
+    tintAura(ex,footY-14,PAL.mobility);
+  }
+}
+function tintAura(x,y,col){ // "骯髒粒子" aura hint
+  wc.globalAlpha=0.10; wc.fillStyle=col;
+  for(let i=0;i<5;i++){const a=t*0.05+i;wc.fillRect(x+Math.cos(a)*12|0,y+Math.sin(a*1.3)*9|0,1,1);}
+  wc.globalAlpha=1;
+}
+
+// ===== ambient dust particles (Section 2 baseline 1x) =====
+function drawParticles(mult){
+  wc.fillStyle=PAL.ash;
+  for(const p of particles){
+    p.x-=p.s*mult; if(p.x<0){p.x=256;p.y=Math.random()*120;}
+    wc.globalAlpha=p.a; wc.fillRect(p.x|0,p.y|0,p.r<0.7?1:1,1);
+  }
+  wc.globalAlpha=1;
+}
+
+// ===== HUD (Section 7) — screen-space, no frame, 1px ink shadow =====
+function roundBar(c,x,y,w,h,fill,col){
+  c.fillStyle='#1A1D2466'; c.fillRect(x+1,y+1,w,h); // shadow
+  c.fillStyle='#1A1D24'; c.fillRect(x,y,w,h);       // track
+  c.fillStyle=col; c.fillRect(x,y,Math.max(0,w*fill|0),h);
+}
+function drawHUD(){
+  hc.clearRect(0,0,256,144);
+  // health bar (6px) bottom-left  +  exp bar (3px) under it
+  roundBar(hc,8,128,90,5,hp,PAL.strike);
+  hc.fillStyle=PAL.amber;hc.font='6px monospace';
+  roundBar(hc,8,135,90,3,exp,PAL.amber);
+  // HP number — amber monospace + shadow (Section 7.B)
+  hc.fillStyle='#000';hc.fillText('72/100',101,133);
+  hc.fillStyle=PAL.amber;hc.fillText('72/100',100,132);
+  // exercise progress RING top-right (discrete countdown, Section 3.C)
+  const cx=238,cy=18,rad=9;
+  hc.strokeStyle='#1A1D24';hc.lineWidth=3;hc.beginPath();hc.arc(cx,cy,rad,0,Math.PI*2);hc.stroke();
+  hc.strokeStyle=PAL.amber;hc.lineWidth=2;hc.beginPath();
+  hc.arc(cx,cy,rad,-Math.PI/2,-Math.PI/2+Math.PI*2*exRing);hc.stroke();
+  hc.fillStyle=PAL.amber;hc.font='5px monospace';hc.fillText('3/5',cx-5,cy+2);
+  // skill cooldown squares bottom-right (16x16 → scaled, Section 3.C)
+  const sk=[['S',PAL.strike,1],['C',PAL.control,0.55],['M',PAL.mobility,0]];
+  sk.forEach((s,i)=>{const x=200+i*18,y=126;
+    hc.fillStyle='#1A1D24';hc.fillRect(x,y,14,14);
+    hc.fillStyle=s[1];hc.globalAlpha=0.9;hc.fillRect(x+1,y+1,12,12);hc.globalAlpha=1;
+    hc.fillStyle='#fff';hc.font='7px monospace';hc.fillText(s[0],x+4,y+10);
+    if(s[2]>0){hc.fillStyle='#000a';hc.fillRect(x+1,y+1,12,12*s[2]|0);} // cooldown sweep
+  });
+}
+
+// ===== Loot Drop ritual (Section 2.1 / 4.E) =====
+const RARITY=[
+  {n:'COMMON',col:'#FFFFFF',w:55},{n:'UNCOMMON',col:'#6FB87A',w:25},
+  {n:'RARE',col:'#4D8FD6',w:13},{n:'EPIC',col:'#9B5FCC',w:5},{n:'LEGENDARY',col:'#FF8C42',w:2}];
+function rollRarity(){let r=Math.random()*100,a=0;for(const x of RARITY){a+=x.w;if(r<=a)return x;}return RARITY[0];}
+let burst=[];
+function lootDrop(){
+  if(lootActive) return; lootActive=true;
+  const rar=rollRarity();
+  // 1. time-stop + world desaturate -60% (Section 2.1)
+  W.style.filter='saturate(0.4) brightness(0.85)';
+  // 2. 3x particle burst from drop point — white -> rarity tint
+  for(let i=0;i<70;i++){const a=Math.random()*6.28,sp=0.4+Math.random()*2.4;
+    burst.push({x:150,y:90,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-0.6,life:1,col:rar.col});}
+  // 3. modal reveal after 0.4s freeze
+  setTimeout(()=>{
+    const m=document.getElementById('lootModal');
+    m.style.setProperty('--orbcol',rar.col);
+    m.style.setProperty('--orbglow',rar.col);
+    document.getElementById('lootName').textContent=rar.n;
+    m.classList.add('show');
+  },400);
+  // 4. recover (Section 4.E Loot Drop Recover) — longer for higher rarity
+  const hold=1200 + RARITY.indexOf(rar)*350;
+  setTimeout(()=>{
+    document.getElementById('lootModal').classList.remove('show');
+    W.style.filter='saturate(0.7) brightness(1)'; // back to During-Set baseline
+    setTimeout(()=>{W.style.filter='saturate(0.7)';lootActive=false;},400);
+  },hold);
+}
+function drawBurst(){
+  for(const b of burst){
+    b.x+=b.vx;b.y+=b.vy;b.vy+=0.04;b.life-=0.018;
+    if(b.life<=0)continue;
+    wc.globalAlpha=Math.max(0,b.life);
+    wc.fillStyle = b.life>0.7 ? '#fff' : b.col;  // white burst -> rarity color
+    const s=b.life>0.5?2:1; wc.fillRect(b.x|0,b.y|0,s,s);
+  }
+  wc.globalAlpha=1;
+  burst=burst.filter(b=>b.life>0);
+  // light column during freeze (gold beam, Section 2.1)
+  if(lootActive){
+    const grad=wc.createLinearGradient(0,144,0,40);
+    grad.addColorStop(0,'#F2A93B00');grad.addColorStop(.5,'#F2A93B55');grad.addColorStop(1,'#FFFFFF88');
+    wc.fillStyle=grad; wc.fillRect(144,40,12,80);
+  }
+}
+
+// baseline During-Set world saturation -30% feel
+W.style.filter='saturate(0.7)';
+
+function loop(){
+  t++;
+  wc.clearRect(0,0,256,144);
+  drawWorld();
+  drawParticles(lootActive?3:1);   // 1x baseline -> 3x ritual
+  drawEnemy();
+  drawAvatar();
+  drawBurst();
+  drawHUD();
+  // gentle exercise ring tick + hp/exp drift for "live" feel
+  exRing=(exRing+0.0008)%1;
+  requestAnimationFrame(loop);
+}
+function setTier(n){tier=n;}
+function setEnemy(e){enemy=e;}
+loop();
+</script>
+</body>
+</html>
