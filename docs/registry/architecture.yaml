@@ -301,7 +301,7 @@ interfaces:
       - any-system-needing-ua-detection
     adr: docs/architecture/adr-0001-web-export-budget-caps.md
     methods: "is_mobile_web: bool (read-only after _ready(); set once via JavaScriptBridge.eval on Web target)"
-    note: "BINDING: all systems needing mobile/desktop tier branching MUST read PlatformDetect.is_mobile_web. Direct JavaScriptBridge.eval calls outside platform_detect.gd are FORBIDDEN (CI enforced via check_platform_detect_callers.gd). Autoload position 0 — boots before all other autoloads."
+    note: "BINDING: all systems needing mobile/desktop tier branching MUST read PlatformDetect.is_mobile_web. Direct JavaScriptBridge.eval calls outside platform_detect.gd are FORBIDDEN (CI enforced via check_platform_detect_callers.gd). Autoload position 3 (after Persistence + GSM locked by ADR-0006 C4; before web-export-sensitive autoloads per ADR-0001) — per project.godot ground truth (ADR-0008; corrected from stale 'position 0' 2026-05-29)."
     referenced_by:
       - docs/architecture/adr-0001-web-export-budget-caps.md
     added: 2026-05-26
