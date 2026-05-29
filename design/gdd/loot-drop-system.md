@@ -680,6 +680,8 @@ weighted_roll on rng_roll_3:
 
 **Auto-resolved OPEN**: `dominant_class == NULL` (Q-X — #9 returns NULL valid) → uniform 25% each (graceful fallback per economy-designer recommendation)。
 
+> **F-7 ADR-0007 enum-distinction clarification (ratified 2026-05-29)**: 呢度嘅 `ClassTag {STRIKE, CONTROL, MOBILITY, NEUTRAL}` 係 **loot item 嘅 class-affinity outcome enum**,同 #9 `AbilityClass {STRIKE, CONTROL, MOBILITY, UNKNOWN}`(player dominant class,sentinel = `UNKNOWN` per ADR-0007 Family B)係**兩個唔同 enum**,唔可以混用。`NEUTRAL` = 「任何 class 都用得」嘅 item tag(`W_NEUTRAL` weight outcome),**唔係**「player class 未定」嘅 sentinel —— 後者由上面 `dominant_class == NULL` branch 處理(消費 #9 `AbilityClass.UNKNOWN` → uniform 25% fallback,EC-35)。因此 ADR-0007 提出嘅 `NEUTRAL → UNKNOWN` rename 喺呢個 formula **唔適用**:本 `ClassTag.NEUTRAL` 係 weight-distribution outcome,按 ADR-0007 Option B 保留原名。registry `entities.yaml` 已正確反映兩個 enum(:668 #9 `UNKNOWN` / :801 #15 `ClassTag.NEUTRAL`)。
+
 ---
 
 ### Formula E3 — `expected_weekly_rarity_distribution`

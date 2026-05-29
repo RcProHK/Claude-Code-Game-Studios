@@ -796,7 +796,7 @@ formulas:
       # - design/gdd/workout-state-tracker.md  (#9 — dominant_class source; bidirectional sync flag for next-revision)
     variables:
       - item_type               # enum ItemType (CONSUMABLE/COSMETIC → return NEUTRAL)
-      - dominant_class          # enum ClassTag from #9.get_dominant_ability_class() — NULL → uniform 25% fallback
+      - dominant_class          # enum AbilityClass (input from #9.get_dominant_ability_class(), per ADR-0007 Family B; distinct from this formula's ClassTag output) — UNKNOWN/NULL → uniform 25% fallback
       - rng_roll_3              # float [0.0, 1.0) — seeded on hash(transition_id + "_classtag")
     output_range: enum ClassTag {STRIKE, CONTROL, MOBILITY, NEUTRAL}
     expression: |
