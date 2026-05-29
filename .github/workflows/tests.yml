@@ -1,0 +1,170 @@
+name: Automated Tests
+
+# CI: GUT (Godot Unit Testing) v9.x — Godot 4.6 headless
+# GUT 9.x is the Godot 4.x line; 7.x is Godot 3.x ONLY (uses removed APIs like
+# JSON.print / OS.exit_code) and cannot run on 4.6. Tests already use `extends GutTest`
+# (the 9.x convention). See tests/README.md for framework details.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  # setup-godot requires full semver (MAJOR.MINOR.PATCH) — "4.6" is rejected as
+  # "Invalid version". 4.6.0 maps to the Godot 4.6-stable release.
+  GODOT_VERSION: '4.6.0'
+  GUT_VERSION: 'v9.6.0'  # GUT 9.x = Godot 4.x line; bump to latest 9.x as needed
+
+jobs:
+  test:
+    name: Run GUT v9.x Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write          # mikepenz/action-junit-report creates check runs
+      pull-requests: write   # annotate PR with test results
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Install Godot ${{ env.GODOT_VERSION }} (headless)
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: ${{ env.GODOT_VERSION }}
+          use-dotnet: false  # GDScript-only project (per technical-preferences.md line 9)
+          include-templates: false  # CI doesn't export builds
+
+      - name: Verify Godot install
+        run: godot --version
+
+      - name: Ensure ripgrep (tools/ci/*.sh depend on rg)
+        run: |
+          # The shell CI lints use `rg`. Several scripts treat a missing rg as a
+          # silent failure (`if ! rg ... 2>/dev/null`), so a runner without rg
+          # makes every pattern check report a false violation. Install it
+          # explicitly rather than relying on the runner image.
+          if command -v rg >/dev/null 2>&1; then
+            echo "ripgrep already present: $(rg --version | head -1)"
+          else
+            echo "ripgrep not found — installing"
+            sudo apt-get update -qq && sudo apt-get install -y -qq ripgrep
+            rg --version | head -1
+          fi
+
+      - name: Run shell CI lints (tools/ci/*.sh — fast pre-Godot pattern checks)
+        run: |
+          # Shell lints run before Godot import for fast feedback.
+          # Each script must exit 0 on PASS, 1 on violation, 2 on internal error
+          # (matches the project-wide convention used by tools/ci/*.gd).
+          # Failed lint blocks merging — fix the violation, never disable the lint.
+          if ! ls tools/ci/*.sh >/dev/null 2>&1; then
+            echo "No shell CI lints found — skipping."
+            exit 0
+          fi
+          lint_failed=0
+          for lint in tools/ci/*.sh; do
+            echo "::group::Shell CI Lint — $lint"
+            sh "$lint"
+            exit_code=$?
+            if [ $exit_code -ne 0 ]; then
+              echo "::error file=$lint::Shell lint failed with exit code $exit_code"
+              lint_failed=1
+            fi
+            echo "::endgroup::"
+          done
+          if [ $lint_failed -ne 0 ]; then
+            echo ""
+            echo "One or more shell CI lints failed. See output above for violations."
+            exit 1
+          fi
+          echo ""
+          echo "All shell CI lints passed."
+
+      - name: Install GUT ${{ env.GUT_VERSION }} if not committed
+        run: |
+          if [ ! -f "addons/gut/gut_cmdln.gd" ]; then
+            echo "GUT not committed to repo — cloning ${{ env.GUT_VERSION }}"
+            git clone --branch ${{ env.GUT_VERSION }} --depth 1 \
+              https://github.com/bitwes/Gut.git addons/gut_temp
+            mkdir -p addons/gut
+            cp -r addons/gut_temp/addons/gut/* addons/gut/
+            rm -rf addons/gut_temp
+          else
+            echo "GUT already present in addons/ — using committed version"
+          fi
+          ls -la addons/gut/
+
+      - name: Import project (first-pass — generates .godot/imported/)
+        run: godot --headless --import || true
+
+      - name: Run CI lints (tools/ci/*.gd — ADR-001 + ADR-0006 forbidden-pattern enforcement)
+        run: |
+          # Each script must exit 0 on PASS, 1 on violation, 2 on internal error.
+          # Stubs push_warning + exit 0; real impls fail CI on any violation.
+          # Failed lint blocks merging — fix the violation, never disable the lint.
+          lint_failed=0
+          for lint in tools/ci/*.gd; do
+            echo "::group::CI Lint — $lint"
+            godot --headless --script "$lint"
+            exit_code=$?
+            if [ $exit_code -ne 0 ]; then
+              echo "::error file=$lint::Lint failed with exit code $exit_code"
+              lint_failed=1
+            fi
+            echo "::endgroup::"
+          done
+          if [ $lint_failed -ne 0 ]; then
+            echo ""
+            echo "One or more CI lints failed. See output above for violations."
+            exit 1
+          fi
+          echo ""
+          echo "All CI lints passed."
+
+      - name: Run GUT tests
+        run: |
+          # All tests live in SUBDIRECTORIES (tests/unit/streak, tests/unit/
+          # persistence-layer, …) so -ginclude_subdirs is REQUIRED — without it
+          # GUT scans only the top level of each -gdir, finds nothing, and exits 0
+          # ("nothing did anything") = a vacuous pass.
+          # No -gjunit_xml_timestamp: it appends a timestamp to the filename
+          # (junit_<ts>.xml) which no longer matches the report_paths glob below.
+          mkdir -p test-results
+          godot --headless -s addons/gut/gut_cmdln.gd \
+            -gdir=res://tests/unit,res://tests/integration \
+            -ginclude_subdirs \
+            -gexit \
+            -glog=2 \
+            -gjunit_xml_file=test-results/junit.xml
+          # Guard against a vacuous pass: GUT exits 0 even when it discovers 0
+          # tests. Fail loudly if no report was produced or zero tests ran.
+          if [ ! -f test-results/junit.xml ]; then
+            echo "::error::No GUT junit report produced — 0 tests discovered"
+            exit 1
+          fi
+          total=$(grep -oE 'tests="[0-9]+"' test-results/junit.xml | head -1 | grep -oE '[0-9]+')
+          echo "GUT discovered ${total:-0} test(s)."
+          if [ -z "$total" ] || [ "$total" -eq 0 ]; then
+            echo "::error::GUT discovered 0 tests — check -gdir / -ginclude_subdirs"
+            exit 1
+          fi
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: test-results/
+          retention-days: 30
+
+      - name: Publish Test Report
+        if: always()
+        uses: mikepenz/action-junit-report@v4
+        with:
+          report_paths: 'test-results/junit.xml'
+          fail_on_failure: true
