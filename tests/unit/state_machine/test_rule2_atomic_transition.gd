@@ -35,17 +35,12 @@ func before_each() -> void:
 # ===========================================================================
 
 func test_rule2_synchronous_reentry_emits_dropped_event() -> void:
-	pending("BLOCKED: GameStateMachine implementation epic — game_state_machine.gd is a Foundation-chain skeleton (awaiting step 5+). Un-pend when GSM is implemented.")
-	return  # remove with GSM impl
-	# Arrange — handler that tries to re-enter the transition primitive
-	# while still inside the `state_changed` emit.
-	var drop_count: int = 0
-	var drop_reason: String = ""
-	GameStateMachine.dropped_event.connect(
-		func(_e: Variant, reason: String) -> void:
-			drop_count += 1
-			drop_reason = reason
-	)
+	# Arrange — handler that tries to re-enter the transition primitive while
+	# still inside the `state_changed` emit. The re-entry must be rejected with
+	# dropped_event("lock_held") because the generational lock is held during
+	# emit. Verified via GUT watch_signals: a capture-by-value counter mutated
+	# inside a connected lambda would NOT survive to the outer assert.
+	watch_signals(GameStateMachine)
 	GameStateMachine.state_changed.connect(
 		func(_f: int, _t: int, _p: StateTransitionPayload) -> void:
 			# Synchronous re-entry attempt — lock is held during emit.
@@ -56,8 +51,10 @@ func test_rule2_synchronous_reentry_emits_dropped_event() -> void:
 	GameStateMachine._request_transition("test_event", GameStateMachine.GameState.IDLE)
 
 	# Assert — re-entry was rejected with lock_held reason
-	assert_eq(drop_count, 1, "AC-04a: synchronous re-entry must emit dropped_event exactly once")
-	assert_eq(drop_reason, "lock_held", "AC-04a: drop reason must be 'lock_held'")
+	assert_signal_emit_count(GameStateMachine, "dropped_event", 1,
+		"AC-04a: synchronous re-entry must emit dropped_event exactly once")
+	var drop_params: Array = get_signal_parameters(GameStateMachine, "dropped_event")
+	assert_eq(drop_params[1], "lock_held", "AC-04a: drop reason must be 'lock_held'")
 
 
 # ===========================================================================
@@ -147,15 +144,16 @@ func test_rule2_matching_timer_does_clear_held_lock() -> void:
 # ===========================================================================
 
 func test_rule2_deferred_reentry_fires_after_lock_release() -> void:
-	pending("BLOCKED: GameStateMachine implementation epic — game_state_machine.gd is a Foundation-chain skeleton (awaiting step 5+). Un-pend when GSM is implemented.")
-	return  # remove with GSM impl
 	# Arrange — handler that DEFERS re-entry via process_frame.connect ONE_SHOT.
-	var deferred_fired: int = 0
+	# deferred_fired is array-wrapped: GDScript lambdas capture locals BY VALUE,
+	# so a scalar counter mutated inside the nested lambda would not survive to
+	# the outer assert. An Array element mutation IS visible (reference type).
+	var deferred_fired: Array[int] = [0]
 	GameStateMachine.state_changed.connect(
 		func(_f: int, _t: int, _p: StateTransitionPayload) -> void:
 			get_tree().process_frame.connect(
 				func() -> void:
-					deferred_fired += 1
+					deferred_fired[0] += 1
 					# By the time this fires, the original transition's lock is released.
 					# Verify the lock is free (we don't need to re-call to prove the pattern).
 					assert_false(
@@ -172,4 +170,4 @@ func test_rule2_deferred_reentry_fires_after_lock_release() -> void:
 	await get_tree().process_frame  # ensure the deferred lambda landed
 
 	# Assert
-	assert_eq(deferred_fired, 1, "AC-32a: deferred re-entry must fire exactly once")
+	assert_eq(deferred_fired[0], 1, "AC-32a: deferred re-entry must fire exactly once")
