@@ -1,7 +1,7 @@
 # ADR-0007: Class & Domain Enum Convention
 
 ## Status
-Proposed
+**Accepted 2026-05-29** (ratified via `/architecture-review ratify` — cross-ADR conflict scan clean; engine audit clean (Godot 4.6, `find_key`/`get` post-cutoff APIs verified 224/224 green); no dependencies. Closes GAP-001.)
 
 ## Date
 2026-05-29

@@ -1,7 +1,7 @@
 # ADR-0009: Signal Payload Schema Convention
 
 ## Status
-Proposed
+**Accepted 2026-05-29** (ratified via `/architecture-review ratify` — cross-ADR conflict scan clean; engine audit clean (Godot 4.6); dependencies satisfied: ADR-0006 Accepted + ADR-0007 ratified same batch. Closes GAP-003.)
 
 ## Date
 2026-05-29
