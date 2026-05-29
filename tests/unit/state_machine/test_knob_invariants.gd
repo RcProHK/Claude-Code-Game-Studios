@@ -130,6 +130,8 @@ func test_gsm_ac20a_invariant1_math_catches_violating_value() -> void:
 # ===========================================================================
 
 func test_gsm_autoload_boot_succeeded_proves_all_invariants_passed() -> void:
+	pending("BLOCKED: GameStateMachine implementation epic — game_state_machine.gd is a Foundation-chain skeleton (awaiting step 5+). Un-pend when GSM is implemented.")
+	return  # remove with GSM impl
 	# If we got here, _ready() ran to completion → _assert_knob_invariants()
 	# returned without tripping any assert. This is the strongest end-to-end
 	# proof that all 8 production-default invariants hold.

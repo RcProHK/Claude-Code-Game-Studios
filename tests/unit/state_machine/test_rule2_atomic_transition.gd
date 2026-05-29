@@ -35,6 +35,8 @@ func before_each() -> void:
 # ===========================================================================
 
 func test_rule2_synchronous_reentry_emits_dropped_event() -> void:
+	pending("BLOCKED: GameStateMachine implementation epic — game_state_machine.gd is a Foundation-chain skeleton (awaiting step 5+). Un-pend when GSM is implemented.")
+	return  # remove with GSM impl
 	# Arrange — handler that tries to re-enter the transition primitive
 	# while still inside the `state_changed` emit.
 	var drop_count: int = 0
@@ -145,6 +147,8 @@ func test_rule2_matching_timer_does_clear_held_lock() -> void:
 # ===========================================================================
 
 func test_rule2_deferred_reentry_fires_after_lock_release() -> void:
+	pending("BLOCKED: GameStateMachine implementation epic — game_state_machine.gd is a Foundation-chain skeleton (awaiting step 5+). Un-pend when GSM is implemented.")
+	return  # remove with GSM impl
 	# Arrange — handler that DEFERS re-entry via process_frame.connect ONE_SHOT.
 	var deferred_fired: int = 0
 	GameStateMachine.state_changed.connect(

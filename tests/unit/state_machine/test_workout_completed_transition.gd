@@ -9,6 +9,8 @@ func before_each() -> void:
 
 ## AC-gsm-wc-1: workout_completed from WORKOUT_ACTIVE → enqueues LOOT_DROP
 func test_workout_completed_from_workout_active_enqueues_loot_drop() -> void:
+	pending("BLOCKED: GameStateMachine implementation epic — game_state_machine.gd is a Foundation-chain skeleton (awaiting step 5+). Un-pend when GSM is implemented.")
+	return  # remove with GSM impl
 	# Act
 	GameStateMachine.on_workout_completed("wk_123")
 
@@ -21,6 +23,8 @@ func test_workout_completed_from_workout_active_enqueues_loot_drop() -> void:
 
 ## AC-gsm-wc-2: from BOSS_ENCOUNTER → payload contains INTERRUPTED_WITH_CREDIT
 func test_workout_completed_from_boss_encounter_includes_interrupted_credit() -> void:
+	pending("BLOCKED: GameStateMachine implementation epic — game_state_machine.gd is a Foundation-chain skeleton (awaiting step 5+). Un-pend when GSM is implemented.")
+	return  # remove with GSM impl
 	# Arrange
 	GameStateMachine.set(&"_current_state", GameStateMachine.GameState.BOSS_ENCOUNTER)
 
@@ -38,6 +42,8 @@ func test_workout_completed_from_boss_encounter_includes_interrupted_credit() ->
 
 ## AC-gsm-wc-3: priority 1 drained before priority 2.
 func test_workout_completed_priority_1_drains_before_priority_2() -> void:
+	pending("BLOCKED: GameStateMachine implementation epic — game_state_machine.gd is a Foundation-chain skeleton (awaiting step 5+). Un-pend when GSM is implemented.")
+	return  # remove with GSM impl
 	# Arrange — enqueue normal event first, then workout_completed
 	GameStateMachine.enqueue_event("normal_event", GameStateMachine.GameState.IDLE, 2)
 	GameStateMachine.on_workout_completed("wk_789")

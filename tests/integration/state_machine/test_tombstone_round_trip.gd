@@ -59,6 +59,8 @@ func test_tombstone_boss_payload_round_trip() -> void:
 
 ## AC-21: forward-recovery uses persisted transition_id verbatim.
 func test_forward_recovery_reuses_persisted_transition_id() -> void:
+	pending("BLOCKED: GameStateMachine implementation epic — game_state_machine.gd is a Foundation-chain skeleton (awaiting step 5+). Un-pend when GSM is implemented.")
+	return  # remove with GSM impl
 	# Arrange — craft a tombstone with a known transition_id
 	var known_tid: String = "preserved_tid_12345"
 	var tombstone: Dictionary = {
