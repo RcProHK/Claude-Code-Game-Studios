@@ -40,7 +40,7 @@
 
 ## Testing
 
-- **Framework**: GUT (Godot Unit Testing) v7.x
+- **Framework**: GUT (Godot Unit Testing) v9.x (pinned v9.6.0) — 9.x is the Godot 4.x line; 7.x is Godot 3.x only
 - **Minimum Coverage**: [TO BE CONFIGURED]
 - **Required Tests**: Balance formulas, gameplay systems, networking (if applicable)
 

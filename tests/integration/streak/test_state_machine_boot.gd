@@ -1,4 +1,4 @@
-## Integration tests for StreakSystem Story 001 — State Machine + Boot Subscription.
+## Integration tests for StreakSystemScript Story 001 — State Machine + Boot Subscription.
 ##
 ## Covers:
 ##   AC-ss-sm-1: boot sets BOOTING then drains deferred events + transitions to READY
@@ -8,6 +8,7 @@
 ## Story: production/epics/streak-system/story-001-state-machine-boot.md
 ## Test evidence path: tests/integration/streak/test_state_machine_boot.gd
 extends GutTest
+const StreakSystemScript := preload("res://src/autoload/streak_system.gd")
 
 
 ## Mock GameStateMachine — tracks connect_for_initial_state calls.
@@ -45,9 +46,9 @@ class MockPersistenceLayer extends RefCounted:
 		return true
 
 
-## Helper: build a StreakSystem instance with mock GSM + mock PersistenceLayer injected.
-func _make_streak(mock_gsm: MockGSM) -> StreakSystem:
-	var streak := StreakSystem.new()
+## Helper: build a StreakSystemScript instance with mock GSM + mock PersistenceLayer injected.
+func _make_streak(mock_gsm: MockGSM) -> StreakSystemScript:
+	var streak := StreakSystemScript.new()
 	streak._gsm = mock_gsm
 	streak._persistence = MockPersistenceLayer.new()
 	return streak
@@ -64,7 +65,7 @@ func test_substate_is_booting_before_ready_and_ready_after() -> void:
 	# _substate must be BOOTING before _ready() runs
 	assert_eq(
 		streak._substate,
-		StreakSystem.Substate.BOOTING,
+		StreakSystemScript.Substate.BOOTING,
 		"_substate must be BOOTING on construction (before _ready)"
 	)
 
@@ -72,7 +73,7 @@ func test_substate_is_booting_before_ready_and_ready_after() -> void:
 
 	assert_eq(
 		streak._substate,
-		StreakSystem.Substate.READY,
+		StreakSystemScript.Substate.READY,
 		"_substate must be READY after _ready() completes"
 	)
 
@@ -127,7 +128,7 @@ func test_initial_state_sentinel_delivery_does_not_change_substate() -> void:
 
 	assert_eq(
 		streak._substate,
-		StreakSystem.Substate.READY,
+		StreakSystemScript.Substate.READY,
 		"Initial-state sentinel delivery must NOT change _substate (handler early-returns)"
 	)
 
@@ -148,7 +149,7 @@ func test_boot_emits_substate_changed_booting_to_ready() -> void:
 	assert_signal_emitted_with_parameters(
 		streak,
 		"substate_changed",
-		[StreakSystem.Substate.BOOTING, StreakSystem.Substate.READY]
+		[StreakSystemScript.Substate.BOOTING, StreakSystemScript.Substate.READY]
 	)
 
 
@@ -160,12 +161,12 @@ func test_legal_transition_emits_substate_changed_with_correct_params() -> void:
 	add_child_autofree(streak)  # boots to READY
 	watch_signals(streak)
 
-	streak._transition_to(StreakSystem.Substate.UPDATING)
+	streak._transition_to(StreakSystemScript.Substate.UPDATING)
 
 	assert_signal_emitted_with_parameters(
 		streak,
 		"substate_changed",
-		[StreakSystem.Substate.READY, StreakSystem.Substate.UPDATING]
+		[StreakSystemScript.Substate.READY, StreakSystemScript.Substate.UPDATING]
 	)
 
 
@@ -175,25 +176,25 @@ func test_legal_arcs_transition_successfully() -> void:
 	add_child_autofree(streak)  # boots to READY
 
 	# READY → UPDATING
-	streak._transition_to(StreakSystem.Substate.UPDATING)
-	assert_eq(streak._substate, StreakSystem.Substate.UPDATING, "READY→UPDATING must succeed")
+	streak._transition_to(StreakSystemScript.Substate.UPDATING)
+	assert_eq(streak._substate, StreakSystemScript.Substate.UPDATING, "READY→UPDATING must succeed")
 
 	# UPDATING → FAILED
-	streak._transition_to(StreakSystem.Substate.FAILED)
-	assert_eq(streak._substate, StreakSystem.Substate.FAILED, "UPDATING→FAILED must succeed")
+	streak._transition_to(StreakSystemScript.Substate.FAILED)
+	assert_eq(streak._substate, StreakSystemScript.Substate.FAILED, "UPDATING→FAILED must succeed")
 
 	# FAILED → BACKOFF
-	streak._transition_to(StreakSystem.Substate.BACKOFF)
-	assert_eq(streak._substate, StreakSystem.Substate.BACKOFF, "FAILED→BACKOFF must succeed")
+	streak._transition_to(StreakSystemScript.Substate.BACKOFF)
+	assert_eq(streak._substate, StreakSystemScript.Substate.BACKOFF, "FAILED→BACKOFF must succeed")
 
 	# BACKOFF → READY
-	streak._transition_to(StreakSystem.Substate.READY)
-	assert_eq(streak._substate, StreakSystem.Substate.READY, "BACKOFF→READY must succeed")
+	streak._transition_to(StreakSystemScript.Substate.READY)
+	assert_eq(streak._substate, StreakSystemScript.Substate.READY, "BACKOFF→READY must succeed")
 
 	# READY → UPDATING → READY (cycle)
-	streak._transition_to(StreakSystem.Substate.UPDATING)
-	streak._transition_to(StreakSystem.Substate.READY)
-	assert_eq(streak._substate, StreakSystem.Substate.READY, "UPDATING→READY must succeed")
+	streak._transition_to(StreakSystemScript.Substate.UPDATING)
+	streak._transition_to(StreakSystemScript.Substate.READY)
+	assert_eq(streak._substate, StreakSystemScript.Substate.READY, "UPDATING→READY must succeed")
 
 
 func test_illegal_arcs_emit_signal_and_leave_state_unchanged() -> void:
@@ -202,25 +203,25 @@ func test_illegal_arcs_emit_signal_and_leave_state_unchanged() -> void:
 	add_child_autofree(streak)  # boots to READY
 
 	# Connect spy to invalid_transition_attempted
-	var invalid_from: StreakSystem.Substate
-	var invalid_to: StreakSystem.Substate
+	var invalid_from: StreakSystemScript.Substate
+	var invalid_to: StreakSystemScript.Substate
 	var signal_count := 0
 	streak.invalid_transition_attempted.connect(
-		func(f: StreakSystem.Substate, t: StreakSystem.Substate) -> void:
+		func(f: StreakSystemScript.Substate, t: StreakSystemScript.Substate) -> void:
 			invalid_from = f
 			invalid_to = t
 			signal_count += 1
 	)
 
 	# Test READY → BOOTING (illegal)
-	streak._transition_to(StreakSystem.Substate.BOOTING)
-	assert_eq(streak._substate, StreakSystem.Substate.READY, "READY→BOOTING must NOT change state")
+	streak._transition_to(StreakSystemScript.Substate.BOOTING)
+	assert_eq(streak._substate, StreakSystemScript.Substate.READY, "READY→BOOTING must NOT change state")
 	assert_eq(signal_count, 1, "invalid_transition_attempted must emit once for illegal arc")
-	assert_eq(invalid_from, StreakSystem.Substate.READY, "Signal 'from' must be READY")
-	assert_eq(invalid_to, StreakSystem.Substate.BOOTING, "Signal 'to' must be BOOTING")
+	assert_eq(invalid_from, StreakSystemScript.Substate.READY, "Signal 'from' must be READY")
+	assert_eq(invalid_to, StreakSystemScript.Substate.BOOTING, "Signal 'to' must be BOOTING")
 
 	# Test READY → FAILED (illegal — must go via UPDATING)
 	var count_before := signal_count
-	streak._transition_to(StreakSystem.Substate.FAILED)
-	assert_eq(streak._substate, StreakSystem.Substate.READY, "READY→FAILED must NOT change state")
+	streak._transition_to(StreakSystemScript.Substate.FAILED)
+	assert_eq(streak._substate, StreakSystemScript.Substate.READY, "READY→FAILED must NOT change state")
 	assert_eq(signal_count, count_before + 1, "invalid_transition_attempted must emit again")

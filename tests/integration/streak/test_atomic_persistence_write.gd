@@ -1,4 +1,4 @@
-## Integration tests for StreakSystem Story 005 — Atomic Persistence Write (streak.* namespace).
+## Integration tests for StreakSystemScript Story 005 — Atomic Persistence Write (streak.* namespace).
 ##
 ## Covers:
 ##   AC-ss-persist-1: write order — count first (flush=false), date second (flush=true)
@@ -8,6 +8,7 @@
 ## Story: production/epics/streak-system/story-005-atomic-persistence-write.md
 ## Test evidence path: tests/integration/streak/test_atomic_persistence_write.gd
 extends GutTest
+const StreakSystemScript := preload("res://src/autoload/streak_system.gd")
 
 
 ## Mock PersistenceLayer — records every write; can fail a chosen key's write.
@@ -23,8 +24,8 @@ class MockPersistenceLayer extends RefCounted:
 		return key != fail_on_key
 
 
-func _make_streak(mock_p: MockPersistenceLayer) -> StreakSystem:
-	var s := StreakSystem.new()
+func _make_streak(mock_p: MockPersistenceLayer) -> StreakSystemScript:
+	var s := StreakSystemScript.new()
 	autofree(s)  # not in tree → _ready() does not run
 	s._persistence = mock_p
 	return s
@@ -61,7 +62,7 @@ func test_persist_streak_flush_failure_enters_failed_and_emits() -> void:
 
 	s._persist_streak(3, 20240101)
 
-	assert_eq(s._substate, StreakSystem.Substate.FAILED, "flush failure → FAILED substate")
+	assert_eq(s._substate, StreakSystemScript.Substate.FAILED, "flush failure → FAILED substate")
 	assert_signal_emitted_with_parameters(
 		s, "streak_persistence_failed",
 		["FLUSH_FAILED", "streak.last_workout_date_local"], 0
@@ -83,7 +84,7 @@ func test_persist_streak_count_write_failure_aborts_before_date() -> void:
 
 	s._persist_streak(3, 20240101)
 
-	assert_eq(s._substate, StreakSystem.Substate.FAILED, "count-write failure → FAILED substate")
+	assert_eq(s._substate, StreakSystemScript.Substate.FAILED, "count-write failure → FAILED substate")
 	assert_signal_emitted_with_parameters(
 		s, "streak_persistence_failed",
 		["FLUSH_FAILED", "streak.streak_count"], 0
@@ -98,7 +99,7 @@ func test_persist_streak_count_write_failure_aborts_before_date() -> void:
 func test_record_today_workout_idempotent_same_day() -> void:
 	var p := MockPersistenceLayer.new()
 	var s := _make_streak(p)
-	s._substate = StreakSystem.Substate.READY  # _ready() not run; force READY
+	s._substate = StreakSystemScript.Substate.READY  # _ready() not run; force READY
 	s._tz_offset_seconds = 0
 	var utc := 1700000000
 	var local_date := s.local_calendar_date_from_utc(utc, 0)

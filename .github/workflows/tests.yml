@@ -1,8 +1,9 @@
 name: Automated Tests
 
-# CI: GUT (Godot Unit Testing) v7.x — Godot 4.6 headless
-# Migrated from gdUnit4-action 2026-05-28 per technical-preferences.md (GUT v7.x pinned)
-# See tests/README.md for framework details
+# CI: GUT (Godot Unit Testing) v9.x — Godot 4.6 headless
+# GUT 9.x is the Godot 4.x line; 7.x is Godot 3.x ONLY (uses removed APIs like
+# JSON.print / OS.exit_code) and cannot run on 4.6. Tests already use `extends GutTest`
+# (the 9.x convention). See tests/README.md for framework details.
 
 on:
   push:
@@ -14,11 +15,11 @@ env:
   # setup-godot requires full semver (MAJOR.MINOR.PATCH) — "4.6" is rejected as
   # "Invalid version". 4.6.0 maps to the Godot 4.6-stable release.
   GODOT_VERSION: '4.6.0'
-  GUT_VERSION: 'v7.4.1'  # bump to latest 7.x patch as needed
+  GUT_VERSION: 'v9.6.0'  # GUT 9.x = Godot 4.x line; bump to latest 9.x as needed
 
 jobs:
   test:
-    name: Run GUT v7.x Tests
+    name: Run GUT v9.x Tests
     runs-on: ubuntu-latest
     permissions:
       contents: read

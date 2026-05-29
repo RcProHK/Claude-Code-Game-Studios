@@ -1,4 +1,4 @@
-## Unit tests for StreakSystem Story 008 — Drift Constant Cross-System Consistency.
+## Unit tests for StreakSystemScript Story 008 — Drift Constant Cross-System Consistency.
 ##
 ## Covers:
 ##   AC-ss-drift-1: Streak.WALL_CLOCK_DRIFT_TOLERANCE_SECONDS == PersistenceLayer's (both 300)
@@ -8,10 +8,11 @@
 ## Story: production/epics/streak-system/story-008-drift-constant-consistency.md
 ## Test evidence path: tests/unit/streak/test_drift_constant_consistency.gd
 extends GutTest
+const StreakSystemScript := preload("res://src/autoload/streak_system.gd")
 
 
-func _make_streak() -> StreakSystem:
-	var s := StreakSystem.new()
+func _make_streak() -> StreakSystemScript:
+	var s := StreakSystemScript.new()
 	autofree(s)  # not in tree → _ready() does not run
 	return s
 
@@ -22,12 +23,12 @@ func _make_streak() -> StreakSystem:
 
 func test_drift_constant_matches_persistence_layer() -> void:
 	assert_eq(
-		StreakSystem.WALL_CLOCK_DRIFT_TOLERANCE_SECONDS,
+		StreakSystemScript.WALL_CLOCK_DRIFT_TOLERANCE_SECONDS,
 		PersistenceLayer.WALL_CLOCK_DRIFT_TOLERANCE_SECONDS,
 		"Streak drift tolerance must equal PersistenceLayer's owned knob"
 	)
 	assert_eq(
-		StreakSystem.WALL_CLOCK_DRIFT_TOLERANCE_SECONDS, 300,
+		StreakSystemScript.WALL_CLOCK_DRIFT_TOLERANCE_SECONDS, 300,
 		"drift tolerance is 300s"
 	)
 

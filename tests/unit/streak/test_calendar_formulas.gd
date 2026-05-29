@@ -1,4 +1,4 @@
-## Unit tests for StreakSystem Story 003 — Calendar Formulas (DST-robust day classification).
+## Unit tests for StreakSystemScript Story 003 — Calendar Formulas (DST-robust day classification).
 ##
 ## Covers:
 ##   AC-ss-cal-1: local_calendar_date_from_utc returns a stable YYYYMMDD integer
@@ -13,10 +13,11 @@
 ## Story: production/epics/streak-system/story-003-calendar-formulas.md
 ## Test evidence path: tests/unit/streak/test_calendar_formulas.gd
 extends GutTest
+const StreakSystemScript := preload("res://src/autoload/streak_system.gd")
 
 
-func _make_streak() -> StreakSystem:
-	var s := StreakSystem.new()
+func _make_streak() -> StreakSystemScript:
+	var s := StreakSystemScript.new()
 	autofree(s)  # freed at teardown; not in tree → _ready() does not run
 	return s
 

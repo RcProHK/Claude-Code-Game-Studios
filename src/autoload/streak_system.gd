@@ -6,7 +6,11 @@
 ## Driving GDD: design/gdd/streak-system.md
 ## ADR: docs/architecture/adr-0006-state-machine-contract.md (Contract 6)
 ## Story: production/epics/streak-system/story-001-state-machine-boot.md
-class_name StreakSystem
+##
+## NOTE: no `class_name` — this script is registered as the `StreakSystem` autoload
+## (project.godot). A class_name matching the autoload name is a hard parse error
+## ("hides an autoload singleton"). Tests that need the type preload the script
+## directly (see tests/unit/streak/*, const StreakSystemScript).
 extends Node
 
 ## Five internal substates governing streak operation lifecycle.

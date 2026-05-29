@@ -1,4 +1,4 @@
-## Unit tests for StreakSystem Story 004 — Buff Multiplier + Milestone Thresholds.
+## Unit tests for StreakSystemScript Story 004 — Buff Multiplier + Milestone Thresholds.
 ##
 ## Covers:
 ##   AC-ss-buff-1: streak_count 0 → baseline 1.0
@@ -9,10 +9,11 @@
 ## Story: production/epics/streak-system/story-004-buff-multiplier-milestones.md
 ## Test evidence path: tests/unit/streak/test_buff_multiplier_milestones.gd
 extends GutTest
+const StreakSystemScript := preload("res://src/autoload/streak_system.gd")
 
 
-func _make_streak() -> StreakSystem:
-	var s := StreakSystem.new()
+func _make_streak() -> StreakSystemScript:
+	var s := StreakSystemScript.new()
 	autofree(s)  # not in tree → _ready() does not run (pure-function tests)
 	return s
 
@@ -56,12 +57,12 @@ func test_milestone_invariants_pass() -> void:
 	var s := _make_streak()
 	s._assert_milestone_invariants()  # must not trip in debug build
 	# Direct verification of the invariant the assert guards:
-	for i in range(StreakSystem.MILESTONE_THRESHOLDS.size() - 1):
-		assert_lt(StreakSystem.MILESTONE_THRESHOLDS[i], StreakSystem.MILESTONE_THRESHOLDS[i + 1],
+	for i in range(StreakSystemScript.MILESTONE_THRESHOLDS.size() - 1):
+		assert_lt(StreakSystemScript.MILESTONE_THRESHOLDS[i], StreakSystemScript.MILESTONE_THRESHOLDS[i + 1],
 			"thresholds strictly ascending at index %d" % i)
 	assert_eq(
-		StreakSystem.MILESTONE_THRESHOLDS.size(),
-		StreakSystem.MILESTONE_MULTIPLIERS.size(),
+		StreakSystemScript.MILESTONE_THRESHOLDS.size(),
+		StreakSystemScript.MILESTONE_MULTIPLIERS.size(),
 		"thresholds and multipliers arrays must be the same length"
 	)
 

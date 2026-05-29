@@ -1,4 +1,4 @@
-## Unit tests for StreakSystem Story 006 — Failed State + Error Handling (sticky single-emit).
+## Unit tests for StreakSystemScript Story 006 — Failed State + Error Handling (sticky single-emit).
 ##
 ## Covers:
 ##   AC-ss-fail-1: repeated failures emit streak_persistence_failed exactly once (sticky)
@@ -8,6 +8,7 @@
 ## Story: production/epics/streak-system/story-006-failed-state-error-handling.md
 ## Test evidence path: tests/unit/streak/test_failed_state_error_handling.gd
 extends GutTest
+const StreakSystemScript := preload("res://src/autoload/streak_system.gd")
 
 
 ## Minimal mock PersistenceLayer (only needs to satisfy the injection seam).
@@ -17,8 +18,8 @@ class MockPersistenceLayer extends RefCounted:
 		return true
 
 
-func _make_streak() -> StreakSystem:
-	var s := StreakSystem.new()
+func _make_streak() -> StreakSystemScript:
+	var s := StreakSystemScript.new()
 	autofree(s)  # not in tree → _ready() does not run
 	s._persistence = MockPersistenceLayer.new()
 	return s
@@ -36,7 +37,7 @@ func test_failed_state_is_sticky_single_emit() -> void:
 	for _i in range(5):
 		s._on_persistence_failed("FLUSH_FAILED", "streak.last_workout_date_local")
 
-	assert_eq(s._substate, StreakSystem.Substate.FAILED, "enters FAILED substate")
+	assert_eq(s._substate, StreakSystemScript.Substate.FAILED, "enters FAILED substate")
 	assert_signal_emit_count(
 		s, "streak_persistence_failed", 1,
 		"streak_persistence_failed must emit exactly once total (sticky)"
@@ -71,7 +72,7 @@ func test_streak_namespace_failure_triggers_failed_and_emits() -> void:
 
 	s._on_persistence_failed("FLUSH_FAILED", "streak.last_workout_date_local")
 
-	assert_eq(s._substate, StreakSystem.Substate.FAILED, "streak.* key → FAILED substate")
+	assert_eq(s._substate, StreakSystemScript.Substate.FAILED, "streak.* key → FAILED substate")
 	assert_signal_emitted_with_parameters(
 		s, "streak_persistence_failed",
 		["FLUSH_FAILED", "streak.last_workout_date_local"], 0
@@ -96,4 +97,4 @@ func test_workout_after_failed_does_not_reemit() -> void:
 		s, "streak_persistence_failed",
 		"workout while FAILED must not re-emit (sticky FAILED early-return in _on_workout_completed)"
 	)
-	assert_eq(s._substate, StreakSystem.Substate.FAILED, "substate remains FAILED")
+	assert_eq(s._substate, StreakSystemScript.Substate.FAILED, "substate remains FAILED")

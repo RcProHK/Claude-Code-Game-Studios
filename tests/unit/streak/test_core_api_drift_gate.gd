@@ -1,4 +1,4 @@
-## Unit tests for StreakSystem Story 002 — Core API (_on_workout_completed) + Drift Gate.
+## Unit tests for StreakSystemScript Story 002 — Core API (_on_workout_completed) + Drift Gate.
 ##
 ## Covers:
 ##   AC-ss-api-1: completed_at_utc within ±WALL_CLOCK_DRIFT_TOLERANCE_SECONDS passes the
@@ -13,6 +13,7 @@
 ## Story: production/epics/streak-system/story-002-core-api-drift-gate.md
 ## Test evidence path: tests/unit/streak/test_core_api_drift_gate.gd
 extends GutTest
+const StreakSystemScript := preload("res://src/autoload/streak_system.gd")
 
 
 ## Fixed "now" injected into the system under test (Unix UTC seconds).
@@ -37,10 +38,10 @@ class MockPersistenceLayer extends RefCounted:
 		return true
 
 
-## Helper: build a StreakSystem with mock GSM + mock PersistenceLayer + pinned time.
+## Helper: build a StreakSystemScript with mock GSM + mock PersistenceLayer + pinned time.
 ## Caller decides whether to add_child_autofree (which runs _ready → boots to READY).
-func _make_streak() -> StreakSystem:
-	var streak := StreakSystem.new()
+func _make_streak() -> StreakSystemScript:
+	var streak := StreakSystemScript.new()
 	streak._gsm = MockGSM.new()
 	streak._persistence = MockPersistenceLayer.new()
 	streak._now_utc_override = FIXED_NOW
@@ -139,7 +140,7 @@ func test_booting_substate_defers_event() -> void:
 	autofree(streak)  # not in tree; free at teardown
 	assert_eq(
 		streak._substate,
-		StreakSystem.Substate.BOOTING,
+		StreakSystemScript.Substate.BOOTING,
 		"_substate must be BOOTING when _ready() has not run"
 	)
 	var queue_size_before := streak._deferred_events.size()
