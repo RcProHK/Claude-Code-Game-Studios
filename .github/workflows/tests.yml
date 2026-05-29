@@ -11,13 +11,19 @@ on:
     branches: [main]
 
 env:
-  GODOT_VERSION: '4.6'
+  # setup-godot requires full semver (MAJOR.MINOR.PATCH) — "4.6" is rejected as
+  # "Invalid version". 4.6.0 maps to the Godot 4.6-stable release.
+  GODOT_VERSION: '4.6.0'
   GUT_VERSION: 'v7.4.1'  # bump to latest 7.x patch as needed
 
 jobs:
   test:
     name: Run GUT v7.x Tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write          # mikepenz/action-junit-report creates check runs
+      pull-requests: write   # annotate PR with test results
 
     steps:
       - name: Checkout
@@ -64,7 +70,7 @@ jobs:
           echo ""
           echo "All shell CI lints passed."
 
-      - name: Install GUT v${{ env.GUT_VERSION }} if not committed
+      - name: Install GUT ${{ env.GUT_VERSION }} if not committed
         run: |
           if [ ! -f "addons/gut/gut_cmdln.gd" ]; then
             echo "GUT not committed to repo — cloning ${{ env.GUT_VERSION }}"
