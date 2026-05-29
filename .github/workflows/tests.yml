@@ -41,6 +41,20 @@ jobs:
       - name: Verify Godot install
         run: godot --version
 
+      - name: Ensure ripgrep (tools/ci/*.sh depend on rg)
+        run: |
+          # The shell CI lints use `rg`. Several scripts treat a missing rg as a
+          # silent failure (`if ! rg ... 2>/dev/null`), so a runner without rg
+          # makes every pattern check report a false violation. Install it
+          # explicitly rather than relying on the runner image.
+          if command -v rg >/dev/null 2>&1; then
+            echo "ripgrep already present: $(rg --version | head -1)"
+          else
+            echo "ripgrep not found — installing"
+            sudo apt-get update -qq && sudo apt-get install -y -qq ripgrep
+            rg --version | head -1
+          fi
+
       - name: Run shell CI lints (tools/ci/*.sh — fast pre-Godot pattern checks)
         run: |
           # Shell lints run before Godot import for fast feedback.
