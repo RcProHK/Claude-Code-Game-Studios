@@ -30,7 +30,8 @@
 #   Superseded entries:     Grep pattern="status: superseded"
 
 version: 1
-last_updated: ""
+last_updated: "2026-05-26"
+# 2026-05-26: ADR-0001 Web Export Budget Caps (Proposed) — appended CanvasLayer topology state_ownership + PlatformDetect interface + 2 performance_budgets + 2 api_decisions + 1 forbidden_pattern
 
 # ─── STATE OWNERSHIP ─────────────────────────────────────────────────────────
 # Who is the authoritative owner of each piece of shared game state.
@@ -43,7 +44,100 @@ last_updated: ""
 # interface: how other systems access this state (read-only property, method call,
 #   signal, shared resource, etc.) — this is the contract other ADRs depend on.
 
-state_ownership: []
+state_ownership:
+  - state: current_state
+    status: active
+    owner_system: game-state-machine
+    adr: docs/architecture/adr-0006-state-machine-contract.md
+    interface: "GameStateMachine.current_state (read-only String; stable lowercase keys: booting / disconnected / idle / workout_active / rest_period / combat_active / boss_encounter / loot_drop / suspended)"
+    write_access: game-state-machine-only
+    referenced_by:
+      - docs/architecture/adr-0006-state-machine-contract.md
+    added: 2026-05-25
+    revised: ""
+
+  - state: pending_transition
+    status: active
+    owner_system: game-state-machine
+    adr: docs/architecture/adr-0006-state-machine-contract.md
+    interface: "Dictionary persisted at user://state.json['pending_transition']; SerializableResource payload via to_dict/from_dict envelope (Contract 3); transition_id format opaque per Contract 2"
+    write_access: game-state-machine-only
+    referenced_by:
+      - docs/architecture/adr-0006-state-machine-contract.md
+    added: 2026-05-25
+    revised: ""
+
+  - state: loot_pending_authoritative_timestamp
+    status: active
+    owner_system: gymsys-backend
+    adr: docs/architecture/adr-0006-state-machine-contract.md
+    interface: "pending_since_server INT (unix) set at POST /lootdrop/{transition_id}:loot-cache/cache; client mirror loot_pending.pending_since is NON-authoritative — used only for offline-mode UX (Contract 15)"
+    write_access: gymsys-backend-only
+    referenced_by:
+      - docs/architecture/adr-0006-state-machine-contract.md
+      - docs/architecture/adr-0002-gymsys-integration-protocol.md  # ratifies endpoint + table schema
+    added: 2026-05-25
+    revised: "2026-05-26 — endpoint path updated to child-suffix form per ADR-002 UNIQUE scope fix; added ADR-002 as referrer"
+
+  - state: session_token
+    status: active
+    owner_system: gymsys-backend
+    adr: docs/architecture/adr-0006-state-machine-contract.md
+    interface: "Backend issues via POST /api/session/claim; client persists user://state.json['session_token']; GymSysClient adds X-Session-Token header on every authenticated call; 401 response → priority-0 force-boot reconciliation (Decision #4)"
+    write_access: gymsys-backend-issuer; game-state-machine-persister
+    referenced_by:
+      - docs/architecture/adr-0006-state-machine-contract.md
+      - docs/architecture/adr-0002-gymsys-integration-protocol.md  # ratifies POST /api/session/claim endpoint
+    added: 2026-05-25
+    revised: ""
+
+  - state: _transition_id_counter
+    status: active
+    owner_system: game-state-machine
+    adr: docs/architecture/adr-0006-state-machine-contract.md
+    interface: "Monotonically-increasing int persisted in user://state.json; portion of transition_id (Contract 2); MUST reuse counter on forward-recovery (NEVER regenerate id)"
+    write_access: game-state-machine-only
+    referenced_by:
+      - docs/architecture/adr-0006-state-machine-contract.md
+    added: 2026-05-25
+    revised: ""
+
+  - state: deployment_topology
+    status: active
+    owner_system: nginx-reverse-proxy
+    adr: docs/architecture/adr-0004-cors-cross-origin-auth-topology.md
+    interface: "Same origin: https://rcprohk.com/ (prod) / http://localhost/ (dev). Routes: /mirror-hero/ → Godot Web Export static; /api/game/ → GymSys FastAPI :9120; / → studiosys web UI :9120. Dev/prod parity via nginx."
+    write_access: devops-sprint (nginx config)
+    referenced_by:
+      - docs/architecture/adr-0004-cors-cross-origin-auth-topology.md
+      - docs/architecture/adr-0002-gymsys-integration-protocol.md  # ADR-002 unblocked by this decision
+    added: 2026-05-27
+    revised: ""
+
+  - state: gymsys_event_cursor
+    status: active
+    owner_system: gymsys-backend
+    adr: docs/architecture/adr-0002-gymsys-integration-protocol.md
+    interface: "game_events.id BIGINT AUTOINCREMENT (DB-persistent; NOT in-memory counter — survives server restart). server_epoch_id: server boot unix ms, returned in every poll response. Client stores both; epoch mismatch triggers full resync (cursor invalidated)."
+    write_access: gymsys-backend-only
+    referenced_by:
+      - docs/architecture/adr-0002-gymsys-integration-protocol.md
+    added: 2026-05-26
+    revised: ""
+
+  - state: canvaslayer_topology
+    status: active
+    owner_system: master-scene
+    adr: docs/architecture/adr-0001-web-export-budget-caps.md
+    interface: "GameLayer(0,PAUSABLE) / ParticleLayer(10,PAUSABLE) / HUDLayer(50,PAUSABLE) / ScreenEffectsLayer(100,ALWAYS) [BackBufferCopy + ColorRect ShaderMaterial]; HUD_SHAKES_WITH_WORLD bool knob controls HUDLayer position relative to ScreenEffectsLayer"
+    write_access: master-scene-only
+    referenced_by:
+      - docs/architecture/adr-0001-web-export-budget-caps.md
+      - design/gdd/screen-effects-system.md    # consumer — Rule 14 references ADR-0001
+      - design/gdd/camera-system.md            # consumer — Camera2D lives in GameLayer(0)
+      - design/gdd/particle-system-wrapper.md  # consumer — particles spawn in ParticleLayer(10)
+    added: 2026-05-26
+    revised: ""
 
 # Example:
 #
@@ -71,7 +165,147 @@ state_ownership: []
 #
 # pattern options: signal | direct_call | event_bus | shared_resource | rpc | none
 
-interfaces: []
+interfaces:
+  - contract: state_changed
+    status: active
+    pattern: signal
+    producer: game-state-machine
+    consumers:
+      - enemy-director
+      - loot-drop-system
+      - attention-budget-policy
+      - hud
+      - telemetry
+      - mirror-moment-system
+    adr: docs/architecture/adr-0006-state-machine-contract.md
+    signal_signature: "state_changed(from_state: String, to_state: String, payload: StateTransitionPayload)"
+    initial_state_delivery: "Subscribers obtain initial state via GameStateMachine.connect_for_initial_state(callable: Callable). Helper invokes callable directly via callv([from, to, payload]) — NOT signal.emit() broadcast (Contract 6). Callable MUST accept the standard 3-arg signature and MUST NOT use .bind() extras."
+    referenced_by:
+      - docs/architecture/adr-0006-state-machine-contract.md
+    added: 2026-05-25
+    revised: ""
+
+  - contract: IPersistence
+    status: active
+    pattern: interface
+    producer: persistence-layer
+    consumers:
+      - game-state-machine
+      - any-system-needing-persistence
+    adr: docs/architecture/adr-0006-state-machine-contract.md
+    methods: "read() -> Dictionary; write(key: String, value: Variant) -> bool; delete(key: String) -> bool; migrate(from_version: int, to_version: int) -> bool. Test spy interface: attach_write_spy(Callable), attach_delete_spy(Callable), clear_spies()."
+    note: "Bounded migration chain — MAX_MIGRATION_CHAIN_LENGTH=10, MIGRATION_BUDGET_MS=500 per step (Contract 10). Authoritative implementation deferred to ADR-003 / GDD #3."
+    referenced_by:
+      - docs/architecture/adr-0006-state-machine-contract.md
+    added: 2026-05-25
+    revised: ""
+
+  - contract: IInputPolicy
+    status: active
+    pattern: interface
+    producer: attention-budget-policy
+    consumers:
+      - hud
+      - modal
+      - all-input-handlers
+    adr: docs/architecture/adr-0006-state-machine-contract.md
+    methods: "is_input_permitted() -> bool"
+    note: "Pillar 2 (Frictionless Companion) architectural enforcement layer. Input handlers accept via constructor injection — NEVER direct reference to AttentionBudgetPolicy (Contract 13). MockInputPolicy used in tests."
+    referenced_by:
+      - docs/architecture/adr-0006-state-machine-contract.md
+    added: 2026-05-25
+    revised: ""
+
+  - contract: SerializableResource
+    status: active
+    pattern: base_class
+    producer: adr-006
+    consumers:
+      - any-Resource-payload-crossing-persistence-boundary
+    adr: docs/architecture/adr-0006-state-machine-contract.md
+    methods: "to_dict() -> Dictionary; static from_dict(data: Dictionary) -> SerializableResource"
+    note: "BINDING: any Resource subclass embedded in StateTransitionPayload.data MUST extend this base class. Static analyzer (Contract 12) scans for violations. Examples: BossPayload, StateTransitionPayload, LootPayload."
+    referenced_by:
+      - docs/architecture/adr-0006-state-machine-contract.md
+    added: 2026-05-25
+    revised: ""
+
+  - contract: nginx_proxy_routes
+    status: active
+    pattern: reverse_proxy
+    producer: nginx
+    consumers:
+      - godot-game-client    # fetches /api/game/* and /mirror-hero/* via browser
+      - studiosys-web-ui     # existing at /
+    adr: docs/architecture/adr-0004-cors-cross-origin-auth-topology.md
+    route_table: "/ → studiosys :9120; /mirror-hero/ → Godot export static /var/www/mirror-hero/; /api/game/ → GymSys FastAPI :9120/api/game/. Custom header forward: proxy_set_header X-Session-Token $http_x_session_token on /api/game/ location."
+    note: "Same-origin architecture: zero CORS required. If topology changes, CORS fallback documented in ADR-004 Migration Path. Dev: http://localhost:80 (HTTP). Prod: https://rcprohk.com:443 (TLS, Let's Encrypt)."
+    referenced_by:
+      - docs/architecture/adr-0004-cors-cross-origin-auth-topology.md
+    added: 2026-05-27
+    revised: ""
+
+  - contract: gymsys_polling_protocol
+    status: active
+    pattern: http_poll
+    producer: gymsys-backend
+    consumers:
+      - gymsys-backend-client    # #2 GDD — primary consumer
+    adr: docs/architecture/adr-0002-gymsys-integration-protocol.md
+    endpoint: "GET /api/game/state?last_event_id={N}&server_epoch_id={E}"
+    response_format: '{ "server_epoch_id": int, "last_event_id": int, "events": [{"id": int, "type": str, "data": dict}] }'
+    note: "Differential event list since last_event_id. 5s±0.5s interval. server_epoch_id mismatch → client full resync. Event types: workout_started / set_logged / rest_started(duration_seconds) / rest_ended / workout_completed."
+    referenced_by:
+      - docs/architecture/adr-0002-gymsys-integration-protocol.md
+    added: 2026-05-26
+    revised: ""
+
+  - contract: gymsys_session_api
+    status: active
+    pattern: http_rest
+    producer: gymsys-backend
+    consumers:
+      - gymsys-backend-client    # #2 GDD
+      - game-state-machine       # #1 GSM Decision #4 — session invalidation flow
+    adr: docs/architecture/adr-0002-gymsys-integration-protocol.md
+    endpoint: "POST /api/session/claim → {session_token, expires_at}; X-Session-Token header on all authenticated requests; 401 → GSM priority-0 force-boot"
+    note: "Single-device lock per ADR-006 Decision #4. Session token stored in user://state.json. Renewal: new token in response optional field if near expiry."
+    referenced_by:
+      - docs/architecture/adr-0002-gymsys-integration-protocol.md
+    added: 2026-05-26
+    revised: ""
+
+  - contract: gymsys_lootdrop_api
+    status: active
+    pattern: http_rest
+    producer: gymsys-backend
+    consumers:
+      - game-state-machine       # #1 GSM Rule 5 priorities 0.5/1 + forward-recovery
+      - gymsys-backend-client    # #2 GDD — fire-and-forget HTTP write channels
+    adr: docs/architecture/adr-0002-gymsys-integration-protocol.md
+    endpoints: "POST /api/game/lootdrop/{id}:loot-cache/cache → {pending_since_server}; GET /api/game/lootdrop/{id}:loot-cache/cache → {payload, pending_since_server}; POST /api/game/lootdrop/{id}:loot-commit/commit → {canonical_inventory}"
+    note: "Per-table UNIQUE on transition_id (separate lootdrop_cache + lootdrop_commit tables — TD CRITICAL fix). All endpoints idempotent — CONFLICT returns existing row. Retention: cache 37 days (30+7), commit indefinite. Inherits ADR-006 Contract 2 (transition_id UNIQUE) + Contract 15 (pending_since_server authoritative)."
+    referenced_by:
+      - docs/architecture/adr-0002-gymsys-integration-protocol.md
+    added: 2026-05-26
+    revised: ""
+
+  - contract: PlatformDetect
+    status: active
+    pattern: autoload_singleton
+    producer: platform-detect-autoload
+    consumers:
+      - particle-system-wrapper    # reads is_mobile_web for MOBILE_FALLBACK_MULTIPLIER
+      - screen-effects-system      # reads is_mobile_web for motion budget tier
+      - camera-system              # reads is_mobile_web for smoothing tier
+      - any-system-needing-ua-detection
+    adr: docs/architecture/adr-0001-web-export-budget-caps.md
+    methods: "is_mobile_web: bool (read-only after _ready(); set once via JavaScriptBridge.eval on Web target)"
+    note: "BINDING: all systems needing mobile/desktop tier branching MUST read PlatformDetect.is_mobile_web. Direct JavaScriptBridge.eval calls outside platform_detect.gd are FORBIDDEN (CI enforced via check_platform_detect_callers.gd). Autoload position 0 — boots before all other autoloads."
+    referenced_by:
+      - docs/architecture/adr-0001-web-export-budget-caps.md
+    added: 2026-05-26
+    revised: ""
 
 # Example:
 #
@@ -100,7 +334,87 @@ interfaces: []
 # Register a budget when an ADR explicitly claims a frame time allocation.
 # The registry lets /architecture-review verify the total doesn't exceed the target.
 
-performance_budgets: []
+performance_budgets:
+  - target_fps: 60
+    total_frame_budget_ms: 16.6
+    platform: Web
+    adr: docs/architecture/adr-0006-state-machine-contract.md
+    note: "Web Export (HTML5 / WASM) primary; Godot Compatibility renderer; single-thread WASM (COOP/COEP off — pending Q-A4 VS spike validation)"
+    added: 2026-05-25
+    revised: ""
+
+  - system: game-state-machine
+    status: active
+    budget_ms: 1.0
+    adr: docs/architecture/adr-0006-state-machine-contract.md
+    notes: "Per-transition CPU budget. Includes guard clause, tombstone write, final-state write, in-memory update, signal emit, lock release. Excludes downstream subscriber processing (their own budgets)."
+    referenced_by:
+      - docs/architecture/adr-0006-state-machine-contract.md
+    added: 2026-05-25
+    revised: ""
+
+  - system: persistence-write-vs-tier
+    status: active
+    budget_ms: best-effort
+    adr: docs/architecture/adr-0006-state-machine-contract.md
+    notes: "Contract 11 VS-tier policy: NO IDB-commit fence; FileAccess.store_* return bool indicates WASM-side accept only; ~0.05% per-transition pre-commit loss window accepted. MVP gate at 1/10K threshold via tombstone_write_completed telemetry."
+    referenced_by:
+      - docs/architecture/adr-0006-state-machine-contract.md
+    added: 2026-05-25
+    revised: ""
+
+  - system: schema-migration
+    status: superseded_by: docs/architecture/adr-0003-save-state-strategy.md
+    budget_ms: 5000
+    adr: docs/architecture/adr-0006-state-machine-contract.md
+    notes: "STALE — ADR-006 draft values (MAX_MIGRATION_CHAIN_LENGTH=10, 500ms/step = 5000ms). Superseded by ADR-003 ratified values below. # was: 5000ms"
+
+  - system: schema-migration-corrected
+    status: active
+    budget_ms: 900
+    adr: docs/architecture/adr-0003-save-state-strategy.md
+    notes: "MAX_MIGRATION_CHAIN_LENGTH=6 steps × MIGRATION_BUDGET_MS=150ms/step = 900ms total ceiling. Boot path; not per-frame. Show 'Updating save...' splash past 300ms. Hard abort at step budget exceeded → critical_save_failed → boot to Idle. Supersedes stale schema-migration entry above (was 5000ms from ADR-006 draft)."
+    referenced_by:
+      - docs/architecture/adr-0003-save-state-strategy.md
+      - docs/architecture/adr-0006-state-machine-contract.md
+    added: 2026-05-26
+    revised: ""
+    referenced_by:
+      - docs/architecture/adr-0006-state-machine-contract.md
+    added: 2026-05-25
+    revised: ""
+
+  - system: forward-recovery
+    status: active
+    budget_ms: 200
+    adr: docs/architecture/adr-0006-state-machine-contract.md
+    notes: "Cold boot tombstone replay (Rule 2 step 3-8 idempotent). Boot path; not per-frame."
+    referenced_by:
+      - docs/architecture/adr-0006-state-machine-contract.md
+    added: 2026-05-25
+    revised: ""
+
+  - system: foundation-autoloads-combined-mobile
+    status: active
+    budget_ms: 2.0
+    platform: Web-Mobile
+    adr: docs/architecture/adr-0001-web-export-budget-caps.md
+    notes: "PROVISIONAL pending VS-tier profiling on iPhone 12 Pro iOS Safari. Breakdown: ScreenEffects ≤0.3ms, Camera ≤0.1ms, ParticleWrapper ≤0.5ms, reserve 1.1ms. Measured via Performance.get_monitor() in WASM. Update this entry with measured values post-VS-tier."
+    referenced_by:
+      - docs/architecture/adr-0001-web-export-budget-caps.md
+    added: 2026-05-26
+    revised: ""
+
+  - system: foundation-autoloads-combined-desktop
+    status: active
+    budget_ms: 3.0
+    platform: Web-Desktop
+    adr: docs/architecture/adr-0001-web-export-budget-caps.md
+    notes: "PROVISIONAL pending VS-tier profiling on Chrome desktop. Breakdown: ScreenEffects ≤0.5ms, Camera ≤0.2ms, ParticleWrapper ≤0.8ms, reserve 1.5ms. Measured via Performance.get_monitor() in WASM. Update with measured values post-VS-tier."
+    referenced_by:
+      - docs/architecture/adr-0001-web-export-budget-caps.md
+    added: 2026-05-26
+    revised: ""
 
 # Example:
 #
@@ -131,7 +445,139 @@ performance_budgets: []
 # Register an API decision when the choice is non-obvious and other ADRs might
 # make a different choice for the same purpose without knowing this was decided.
 
-api_decisions: []
+api_decisions:
+  - purpose: state_machine_atomicity
+    status: active
+    api: "Generational lock ID (int counter incremented per transition) + call_deferred discipline for all subscriber re-entry paths"
+    not: "Mutex (rejected — requires Q-A4 spike validation; API friction without immediate benefit); Pure call_deferred frame-boundary lock (rejected — 16.6ms per transition delay; Pillar 3 ritual hiccup)"
+    adr: docs/architecture/adr-0006-state-machine-contract.md
+    reason: "Works identically in single-thread (Godot 4.6 WASM default) AND COOP/COEP threaded modes. Future-proofs Q-A4 without immediate Mutex overhead. Per-transition fallback timer (NOT global) prevents cross-transition unlock bug. (Contract 1)"
+    referenced_by:
+      - docs/architecture/adr-0006-state-machine-contract.md
+    added: 2026-05-25
+    revised: ""
+
+  - purpose: transition_id_generation
+    status: active
+    api: 'String format: "%d_%d_%s_%s" % [wall_clock_ms, persisted_counter, from, to]; counter persisted in user://state.json[_transition_id_counter]; backend UNIQUE constraint on full string'
+    not: "OS.get_unique_id()-seeded UUID (rejected — long string, VARCHAR backend column); Backend-allocated transition_id (rejected — offline mode fails closed, Pillar 2 violation)"
+    adr: docs/architecture/adr-0006-state-machine-contract.md
+    reason: "Collision-safe across WASM reload (counter persisted), NTP clock drift (counter portion guarantees uniqueness), and cross-device handoff (UNIQUE constraint catches rare overlap). Forward-recovery MUST reuse tombstone's transition_id verbatim — never regenerate. (Contract 2)"
+    referenced_by:
+      - docs/architecture/adr-0006-state-machine-contract.md
+    added: 2026-05-25
+    revised: ""
+
+  - purpose: payload_serialization_envelope
+    status: active
+    api: "SerializableResource base class with to_dict() / from_dict(Dictionary) methods; explicit per-class schema; tombstone stores payload as Dictionary"
+    not: "var_to_bytes + base64 (rejected — opaque blob in IndexedDB devtools, debug-hostile); Dictionary throughout dropping Resource type (rejected — lose BossOutcome enum type-checking, AC-11a string-compare with no IDE warning)"
+    adr: docs/architecture/adr-0006-state-machine-contract.md
+    reason: "Resource type preserved in code (type-safety + IDE auto-complete) but persistence boundary uses explicit JSON-serializable Dictionary. Per-class boilerplate (~5-10 lines) is one-time cost; debug-readability benefit is permanent. (Contract 3)"
+    referenced_by:
+      - docs/architecture/adr-0006-state-machine-contract.md
+    added: 2026-05-25
+    revised: ""
+
+  - purpose: payload_type_tagging
+    status: active
+    api: "payload.get_script().get_global_name() — returns registered class_name (e.g., 'BossPayload')"
+    not: "Object.get_class() (FORBIDDEN — returns engine class 'Resource', silently breaks forward-recovery; all payloads round-trip to null)"
+    adr: docs/architecture/adr-0006-state-machine-contract.md
+    reason: "Godot 4.6 Object.get_class() returns engine class, NOT GDScript class_name. The get_script().get_global_name() API is the correct way to retrieve the registered class_name string for type-tag-based deserialization. (Contract 3 — godot-specialist BLOCKING #2 fix)"
+    referenced_by:
+      - docs/architecture/adr-0006-state-machine-contract.md
+    added: 2026-05-25
+    revised: ""
+
+  - purpose: deferred_re_entry_pattern
+    status: active
+    api: "get_tree().process_frame.connect(lambda, CONNECT_ONE_SHOT) — lambda captures event by value at connect time"
+    not: "Callable.call_deferred(event) — preferred-idiom violation; CI warning (not failure) pending Q-A4 spike; variadic-arg resolution under typed-resource contexts ambiguous in 4.5+"
+    adr: docs/architecture/adr-0006-state-machine-contract.md
+    reason: "process_frame signal fires at next frame's top — deterministic ordering. CONNECT_ONE_SHOT guarantees one-time invocation. Lambda wrapping bypasses variadic-args ambiguity (Contract 5). VS spike may downgrade this to 'either pattern acceptable' if Godot 4.6 verified equivalent."
+    referenced_by:
+      - docs/architecture/adr-0006-state-machine-contract.md
+    added: 2026-05-25
+    revised: ""
+
+  - purpose: loot_rarity_rng_seeded_on_transition_id
+    status: active
+    api: "RandomNumberGenerator.new() with seed = hash(transition_id) for loot rarity RNG roll"
+    not: "randf() global; any RNG not seeded on transition_id (breaks replay safety and idempotency)"
+    adr: docs/architecture/adr-0005-loot-rarity-formula.md
+    reason: "ADR-006 Contract 2 establishes transition_id as the unique per-workout identifier. Seeding RNG on this ensures: (1) same workout_completed event always produces same loot tier; (2) forward-recovery after page reload doesn't re-roll loot; (3) unit tests can predict exact output. Godot-specialist confirmed RandomNumberGenerator.seed is stable API in 4.6."
+    referenced_by:
+      - docs/architecture/adr-0005-loot-rarity-formula.md
+    added: 2026-05-27
+    revised: ""
+
+  - purpose: relative_urls_in_http_request
+    status: active
+    api: "Godot HTTPRequest uses relative URL paths (e.g., \"/api/game/state\") — NOT absolute URLs with domain"
+    not: "Absolute URLs (e.g., \"https://rcprohk.com/api/game/state\") — FORBIDDEN: hard-codes domain, breaks dev↔prod parity when running on localhost, requires environment-based config"
+    adr: docs/architecture/adr-0004-cors-cross-origin-auth-topology.md
+    reason: "Browser fetch() resolves relative URLs against window.location.origin — same URL works on both http://localhost/ (dev) and https://rcprohk.com/ (prod) without any config change. Absolute URLs require an environment variable or build flag to switch. Godot specialist confirmed relative URL resolution works in Web Export 4.6."
+    referenced_by:
+      - docs/architecture/adr-0004-cors-cross-origin-auth-topology.md
+    added: 2026-05-27
+    revised: ""
+
+  - purpose: gymsys_api_router_prefix
+    status: active
+    api: "All Mirror Hero game endpoints in GymSys FastAPI use APIRouter(prefix=\"/api/game\"). No game endpoint may use studiosys namespace (/api/students/, /api/classes/, /api/bookings/, /api/company/)"
+    not: "Ad-hoc route registration at / or /api/ root — causes namespace collision with studiosys existing routes"
+    adr: docs/architecture/adr-0004-cors-cross-origin-auth-topology.md
+    reason: "FastAPI APIRouter prefix ensures all game endpoints are grouped, easily mockable, and impossible to collide with studiosys. TD-ADR ruling: enforce at Python architecture layer, not just convention."
+    referenced_by:
+      - docs/architecture/adr-0004-cors-cross-origin-auth-topology.md
+    added: 2026-05-27
+    revised: ""
+
+  - purpose: http_request_per_channel
+    status: active
+    api: "One orphan HTTPRequest node per channel (poll, state_write, loot_cache, loot_commit); single in-flight per channel; add_child() to autoload root; queue_free() after request_completed fires (call_deferred for safety)"
+    not: "HTTPRequest pool (rejected — shared channel node reuse creates state pollution); single HTTPRequest node for all channels (rejected — concurrent requests block each other)"
+    adr: docs/architecture/adr-0002-gymsys-integration-protocol.md
+    reason: "4 concurrent HTTPRequest nodes are well within browser HTTP/1.1 connection limit (~6 per host). Per-channel isolation means one slow write cannot block poll cadence. Orphan + queue_free is Godot 4.x idiomatic pattern for fire-and-forget HTTP; avoids node lifecycle management overhead. (godot-specialist CONFIRM)"
+    referenced_by:
+      - docs/architecture/adr-0002-gymsys-integration-protocol.md
+    added: 2026-05-26
+    revised: ""
+
+  - purpose: subviewport_oversample
+    status: active
+    api: "Code-set SubViewport.size = display_size * Vector2(1.05, 1.05) in _ready() and on viewport resize signal"
+    not: "SubViewport.stretch_shrink = 1.05 — FORBIDDEN: stretch_shrink is an integer property in Godot 4.x; float value 1.05 silently truncates to 1 (no effect). This was confirmed as a BLOCKING bug by godot-specialist during ADR-0001 review."
+    adr: docs/architecture/adr-0001-web-export-budget-caps.md
+    reason: "5% pixel bleed buffer at GameLayer viewport edges prevents black-border clipping during maximum shake displacement (±MAX_OFFSET_PX = 4.0px). Code-set approach works for both initial size and dynamic viewport resize (orientation change). ADR-0001 BLOCKING fix ratified."
+    referenced_by:
+      - docs/architecture/adr-0001-web-export-budget-caps.md
+      - design/gdd/screen-effects-system.md   # Rule 14 Viewport Oversample section
+    added: 2026-05-26
+    revised: ""
+
+  - purpose: private_mode_detect_and_gate
+    status: active
+    api: "PersistenceLayer._detect_storage_mode() — FileAccess.open() probe file at boot; null return = Private Mode; StorageMode.PRIVATE activates in-memory fallback + emits private_mode_detected() signal"
+    not: "Silent in-memory fallback without user notification (FORBIDDEN — silent LootDrop loss violates Pillar 3); localStorage polyfill for Private Mode (FORBIDDEN — banned by window_local_storage pattern + additional maintenance burden)"
+    adr: docs/architecture/adr-0003-save-state-strategy.md
+    reason: "Detect-and-gate is the only Pillar 3-compliant response to Private Mode. User explicitly chose Private Mode = user opted out of persistence. Non-dismissable banner + loot grant disable communicates the consequence honestly. Silent loss with localStorage polyfill would create a false sense of safety (5MB cap + same ITP eviction anyway). TD-ADR ruling."
+    referenced_by:
+      - docs/architecture/adr-0003-save-state-strategy.md
+    added: 2026-05-26
+    revised: ""
+
+  - purpose: mobile_ua_detection
+    status: active
+    api: "PlatformDetect autoload (src/autoload/platform_detect.gd) — is_mobile_web: bool set once via JavaScriptBridge.eval('navigator.userAgent') on Web target"
+    not: "Direct JavaScriptBridge.eval() calls in any file other than platform_detect.gd — FORBIDDEN (CI enforced via check_platform_detect_callers.gd)"
+    adr: docs/architecture/adr-0001-web-export-budget-caps.md
+    reason: "Wrapping JavaScriptBridge in a single autoload makes Foundation autoloads testable on desktop editor (is_mobile_web defaults false when OS.get_name() != 'Web'). Prevents browser UA detection logic from spreading across codebase. TD-ADR ruling: single PlatformDetect source of truth."
+    referenced_by:
+      - docs/architecture/adr-0001-web-export-budget-caps.md
+    added: 2026-05-26
+    revised: ""
 
 # Example:
 #
@@ -157,7 +603,76 @@ api_decisions: []
 # Register a pattern when an ADR explicitly bans it AND other ADRs might
 # unknowingly use it (i.e., it's a tempting but wrong approach for this project).
 
-forbidden_patterns: []
+forbidden_patterns:
+  - pattern: await_in_state_machine_files
+    status: active
+    description: "Files matching src/core/state_machine/**.gd MUST NOT contain `await` anywhere in the file (scan-entire-file, not function-scoped). Helper functions are implicitly part of the transition execution graph. HTTPRequest callbacks (e.g., _on_http_request_completed) MUST NOT await either — use call_deferred or process_frame.connect(... CONNECT_ONE_SHOT) for any deferred follow-up."
+    why: "Rule 2 transition atomicity requires single-frame execution. Any `await` inside transition execution graph allows engine to yield control mid-transition → subscriber re-entrance + tombstone phantom-state bugs. Contract 12 CI enforcement via `rg --glob 'src/core/state_machine/**/*.gd' '\\bawait\\b'`."
+    adr: docs/architecture/adr-0006-state-machine-contract.md
+    added: 2026-05-25
+
+  - pattern: object_get_class_for_payload_type
+    status: active
+    description: "Do not call Object.get_class() or payload.get_class() to obtain a class_name string for serialization tagging. Use payload.get_script().get_global_name() instead."
+    why: "Godot 4.6 Object.get_class() returns engine class identifier ('Resource'), NOT the GDScript class_name. Using it for tombstone payload_type tagging causes ALL payloads to serialize as 'Resource' and round-trip to null on forward-recovery, silently breaking Pillar 3 hard guarantee. (Contract 3 — godot-specialist BLOCKING #2)"
+    adr: docs/architecture/adr-0006-state-machine-contract.md
+    added: 2026-05-25
+
+  - pattern: connect_for_initial_state_with_bind
+    status: active
+    description: "GameStateMachine.connect_for_initial_state(callable) MUST receive a Callable created WITHOUT .bind() extra args. The standard 3-arg signature (from_state, to_state, payload) is mandatory."
+    why: "Initial-state delivery uses Callable.callv([from, to, payload]) directly, NOT signal.emit() broadcast. .bind() shifts positional argument layout — callv would mis-deliver the initial state to the subscriber (subscriber sees bound args first instead of from_state). Contract 12 CI scan flags `connect_for_initial_state(*.bind(*))` literal pattern. (Contract 6)"
+    adr: docs/architecture/adr-0006-state-machine-contract.md
+    added: 2026-05-25
+
+  - pattern: transition_id_regeneration_in_forward_recovery
+    status: active
+    description: "Functions matching `_forward_recover*` name pattern MUST NOT call `_generate_transition_id()`. The tombstone's persisted transition_id field MUST be reused verbatim through Rule 2 step 3-8 replay."
+    why: "Backend UNIQUE constraint on transition_id dedupes idempotent retries. If forward-recovery regenerates a new id, server cannot identify the retry as a duplicate of the original committed transition → double LootDrop grant risk. (Contract 2)"
+    adr: docs/architecture/adr-0006-state-machine-contract.md
+    added: 2026-05-25
+
+  - pattern: unserializable_resource_in_payload
+    status: active
+    description: "Any Resource subclass instance embedded in StateTransitionPayload.data Dictionary MUST extend SerializableResource (override to_dict / from_dict). Plain Resource subclasses are FORBIDDEN at the persistence boundary."
+    why: "JSON.stringify(Resource) returns `{}` in Godot 4.6 — embedded Resource is silently lost on tombstone round-trip → forward-recovery payload is null → AC-11a (boss outcome forward-recovery) fails closed. Static analyzer (Contract 12) scans `StateTransitionPayload.data` usage paths and flags Resource subclasses missing the base class. (Contract 3)"
+    adr: docs/architecture/adr-0006-state-machine-contract.md
+    added: 2026-05-25
+
+  - pattern: raw_javascript_bridge_eval
+    status: active
+    description: "JavaScriptBridge.eval() must ONLY be called from src/autoload/platform_detect.gd. All other systems read PlatformDetect.is_mobile_web (bool). CI script check_platform_detect_callers.gd greps for JavaScriptBridge outside whitelist."
+    why: "Raw JavaScriptBridge.eval scattered across Foundation autoloads makes them untestable on desktop editor (JavaScriptBridge fails on non-Web target → _ready() crash). Single PlatformDetect autoload wraps web-only call behind OS.get_name() guard. TD-ADR ruling: 'wrap, don't sprinkle'."
+    adr: docs/architecture/adr-0001-web-export-budget-caps.md
+    added: 2026-05-26
+
+  - pattern: loot_rarity_rng_global_randf
+    status: active
+    description: "loot rarity RNG MUST use `RandomNumberGenerator.new()` with `seed = hash(transition_id)`. Global `randf()` is FORBIDDEN for loot rarity computation."
+    why: "Global randf() uses shared random state — results differ on replay/reload (page reload mid-LootDrop produces different tier; forward-recovery re-rolls loot). Seeded RNG on transition_id guarantees same workout_completed event always produces same tier — determinism required by ADR-006 Contract 2 idempotency. (ADR-005 + godot-specialist recommendation)"
+    adr: docs/architecture/adr-0005-loot-rarity-formula.md
+    added: 2026-05-27
+
+  - pattern: top_rarity_without_workout_signal
+    status: active
+    description: "No code path in LootDropSystem may produce EPIC or LEGENDARY rarity without workout_score > 0. The formula enforces this mathematically: max_rng_contribution = 0.25 < EPIC_THRESHOLD(0.72), so workout_score ≥ 0.63 required for Epic."
+    why: "Pillar 1 (Real Body Real Power) hard constraint from systems-index Anti-Pillar #15. Any code path that bypasses the formula (e.g., debug commands, admin tools, test helpers) that grants top-tier loot without workout_score silently violates Pillar 1. CI: grep for RarityTier.EPIC|LEGENDARY assignments outside LootRarityCalc.compute_rarity(). (ADR-005)"
+    adr: docs/architecture/adr-0005-loot-rarity-formula.md
+    added: 2026-05-27
+
+  - pattern: absolute_game_api_urls
+    status: active
+    description: "Godot HTTPRequest calls to /api/game/* MUST use relative URL paths. Absolute URLs with hardcoded domain are FORBIDDEN."
+    why: "Absolute URLs (https://rcprohk.com/api/game/...) break development workflow — game served from http://localhost/ cannot make absolute-URL requests to a different dev origin. Relative paths work identically on localhost and production without any config change. Godot specialist confirmed browser fetch() resolves relative URLs against window.location.origin in Web Export. (ADR-004)"
+    adr: docs/architecture/adr-0004-cors-cross-origin-auth-topology.md
+    added: 2026-05-27
+
+  - pattern: window_local_storage
+    status: active
+    description: "window.localStorage must NOT be used in any GDScript file. All save state goes through PersistenceLayer autoload (FileAccess / user://). CI script check_local_storage_calls.gd greps for 'window.localStorage' and 'localStorage' outside tests/ and debug/. Also added to technical-preferences.md Forbidden Patterns."
+    why: "localStorage has ~5MB quota (vs IndexedDB ~50MB-1GB via user://). localStorage requires JavaScriptBridge (non-idiomatic). Both suffer same 7-day Safari ITP eviction — no quota or durability advantage. Two storage code paths create maintenance burden and inconsistent failure modes. TD-ADR ruling: single code path through PersistenceLayer."
+    adr: docs/architecture/adr-0003-save-state-strategy.md
+    added: 2026-05-26
 
 # Example:
 #

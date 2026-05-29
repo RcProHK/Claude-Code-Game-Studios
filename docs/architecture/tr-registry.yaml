@@ -25,32 +25,2402 @@
 # STATUS VALUES: active | deprecated | superseded-by: TR-[system]-NNN
 
 version: 1
-last_updated: ""
+last_updated: "2026-05-28"
 
-requirements: []
+requirements:
+  # ---- System #3 PersistenceLayer ----
+  - id: TR-persist-001
+    system: persist
+    gdd: design/gdd/persistence-layer.md
+    requirement: "Sync `IPersistence` interface — no `await` in any of 4 public methods"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Threading-Timing
+    engine_risk: LOW
+  - id: TR-persist-002
+    system: persist
+    gdd: design/gdd/persistence-layer.md
+    requirement: "In-memory write-through cache; `read()` O(1) zero file-I/O"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Performance
+    engine_risk: LOW
+  - id: TR-persist-003
+    system: persist
+    gdd: design/gdd/persistence-layer.md
+    requirement: "Atomic file flush via single `store_string(JSON.stringify(_cache))` blob (NOT per-key incremental)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Persistence
+    engine_risk: "MEDIUM (4.4 `store_string` bool return semantics)"
+  - id: TR-persist-004
+    system: persist
+    gdd: design/gdd/persistence-layer.md
+    requirement: "SerializableResource envelope: `payload_type` MUST use `get_script().get_global_name()` (NOT `get_class()` which returns \"Resource\")"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Engine capability
+    engine_risk: "HIGH (silent-fail footgun)"
+  - id: TR-persist-005
+    system: persist
+    gdd: design/gdd/persistence-layer.md
+    requirement: "`_payload_dispatch` via `ClassDB.instantiate(payload_type)` — no manual registry; forbids inner-class payloads"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Engine capability
+    engine_risk: MEDIUM
+  - id: TR-persist-006
+    system: persist
+    gdd: design/gdd/persistence-layer.md
+    requirement: "Schema migration chain bounded: ≤6 steps × ≤150ms = 900ms ceiling; fail-fast on chain length > 6"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Performance
+    engine_risk: LOW
+  - id: TR-persist-007
+    system: persist
+    gdd: design/gdd/persistence-layer.md
+    requirement: "Test spy contract: production no-op + MockPersistenceLayer records (`attach_write_spy/attach_delete_spy/clear_spies`)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Test infrastructure
+    engine_risk: LOW
+  - id: TR-persist-008
+    system: persist
+    gdd: design/gdd/persistence-layer.md
+    requirement: "VS-tier IDB fence policy: no `await` on IDB ack; ~1 frame lag accepted; telemetry `write_completed` + `flush_completed` for MVP gate measurement"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Threading-Timing
+    engine_risk: "HIGH (4.6 Web Export IDB-commit timing unverified — Q-A8)"
+  - id: TR-persist-009
+    system: persist
+    gdd: design/gdd/persistence-layer.md
+    requirement: "Clock-drift TTL helper `is_expired(anchor_unix, ttl_seconds, anchor_monotonic_ms)` with `WALL_CLOCK_DRIFT_TOLERANCE_SECONDS=300`"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Threading-Timing
+    engine_risk: LOW
+  - id: TR-persist-010
+    system: persist
+    gdd: design/gdd/persistence-layer.md
+    requirement: "Corrupt save detection: 7 trigger conditions emit `critical_save_failed(error_code, key)` + `corrupt_save_recovered(wiped_byte_count)` in fixed order"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State persistence
+    engine_risk: LOW
+  - id: TR-persist-011
+    system: persist
+    gdd: design/gdd/persistence-layer.md
+    requirement: "Safari ITP `touch(key)` rewrite (refresh 7-day eviction timer)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Platform
+    engine_risk: "MEDIUM (Safari ITP behavior)"
+  - id: TR-persist-012
+    system: persist
+    gdd: design/gdd/persistence-layer.md
+    requirement: "Telemetry signal surface (6 generic signals — NO `tombstone_write_completed`; that's GSM-owned)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Cross-system communication
+    engine_risk: LOW
+  - id: TR-persist-013
+    system: persist
+    gdd: design/gdd/persistence-layer.md
+    requirement: "Key namespace convention (`gsm.*` / `gym.*` / `_internal.*` / `streak.*` / `wst.*` / `stat.*` / `ability.unlocked.*`) — push_warning only"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Cross-system communication
+    engine_risk: LOW
+  - id: TR-persist-014
+    system: persist
+    gdd: design/gdd/persistence-layer.md
+    requirement: "Migration step idempotency requirement (`if \"schema_version\" already at target → no-op`)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State persistence
+    engine_risk: LOW
+  - id: TR-persist-015
+    system: persist
+    gdd: design/gdd/persistence-layer.md
+    requirement: "Substate machine: Initialising/Migrating/Ready/Corrupt with strict API-rejection matrix per substate"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State persistence
+    engine_risk: LOW
+  - id: TR-persist-016
+    system: persist
+    gdd: design/gdd/persistence-layer.md
+    requirement: "`MAX_STATE_FILE_BYTES = 1MB` defensive parse limit; `FileAccess.get_length()` is instance method (post-open)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Engine capability
+    engine_risk: MEDIUM
+  - id: TR-persist-017
+    system: persist
+    gdd: design/gdd/persistence-layer.md
+    requirement: "Quota exhaustion = stay Ready (NOT Corrupt) — emit `critical_save_failed(\"quota_exceeded\")` and keep operating from in-mem cache"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State persistence
+    engine_risk: LOW
 
-# --- EXAMPLE ENTRIES (remove when first real entries are added) ---
-#
-# - id: TR-combat-001
-#   system: combat
-#   gdd: design/gdd/combat-system.md
-#   requirement: "Player takes damage from enemies based on attack power minus defence"
-#   created: 2026-03-10
-#   revised: ""
-#   status: active
-#
-# - id: TR-combat-002
-#   system: combat
-#   gdd: design/gdd/combat-system.md
-#   requirement: "Combo window timing is 0.4 seconds between hits"
-#   created: 2026-03-10
-#   revised: "2026-04-01"
-#   status: active
-#
-# - id: TR-combat-003
-#   system: combat
-#   gdd: design/gdd/combat-system.md
-#   requirement: "Old damage formula using raw stats"
-#   created: 2026-03-10
-#   revised: ""
-#   status: superseded-by: TR-combat-001
+  # ---- System #1 GameStateMachine ----
+  - id: TR-gsm-001
+    system: gsm
+    gdd: design/gdd/game-state-machine.md
+    requirement: "Rule 1: Exactly one active top-level state from 9-enum (Booting/Disconnected/Idle/WorkoutActive/RestPeriod/CombatActive/BossEncounter/LootDrop/Suspended)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State machine
+    engine_risk: LOW
+  - id: TR-gsm-002
+    system: gsm
+    gdd: design/gdd/game-state-machine.md
+    requirement: "Rule 2: 8-step atomic transition (acquire lock → validate → tombstone → final state → in-mem → remove tombstone → backend write → emit signal → release lock)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Threading-Timing
+    engine_risk: HIGH
+  - id: TR-gsm-003
+    system: gsm
+    gdd: design/gdd/game-state-machine.md
+    requirement: "Generational lock `_lock_gen: int` + `_force_clear_timer` per-transition fallback (NOT process-global)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Threading-Timing
+    engine_risk: HIGH
+  - id: TR-gsm-004
+    system: gsm
+    gdd: design/gdd/game-state-machine.md
+    requirement: "`transition_id` = `wall_clock_ms × 1000 + persisted_monotonic_counter`; format `\"%d_%d_%s_%s\"`; opaque string (no parsing back); persisted via `_transition_id_counter` PersistenceLayer key"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State persistence
+    engine_risk: LOW
+  - id: TR-gsm-005
+    system: gsm
+    gdd: design/gdd/game-state-machine.md
+    requirement: "Forward-recovery MUST verbatim reuse tombstone `transition_id` — NEVER call `_generate_transition_id()` in `_forward_recover*` (CI enforced)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State persistence
+    engine_risk: LOW
+  - id: TR-gsm-006
+    system: gsm
+    gdd: design/gdd/game-state-machine.md
+    requirement: "Tombstone serialization via Contract 3 `to_dict()`/`from_dict()` envelope; payload_type via `get_script().get_global_name()`"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: HIGH
+  - id: TR-gsm-007
+    system: gsm
+    gdd: design/gdd/game-state-machine.md
+    requirement: "Subscriber re-entry: synchronous re-entry blocked (lock held during emit); follow-up MUST use `get_tree().process_frame.connect(..., CONNECT_ONE_SHOT)` lambda pattern"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Threading-Timing
+    engine_risk: "HIGH (4.5 variadic-args ambiguity for `Callable.call_deferred(BossPayload)`)"
+  - id: TR-gsm-008
+    system: gsm
+    gdd: design/gdd/game-state-machine.md
+    requirement: "`connect_for_initial_state(callable: Callable)` helper — sentinel payload `source_event = \"initial_state\"`; deferred deliver via `process_frame.connect(... CONNECT_ONE_SHOT)`; race guard `_last_emit_tick` skip-stale"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Cross-system communication
+    engine_risk: HIGH
+  - id: TR-gsm-009
+    system: gsm
+    gdd: design/gdd/game-state-machine.md
+    requirement: "Initial-state delivery contract: `callable.callv([from, to, payload])` — `.bind()` FORBIDDEN (shifts arg positions); CI scan `connect_for_initial_state(*.bind(*))`"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Cross-system communication
+    engine_risk: "HIGH (CI enforced)"
+  - id: TR-gsm-010
+    system: gsm
+    gdd: design/gdd/game-state-machine.md
+    requirement: "Boot ordering: autoload 1=PersistenceLayer / 2=GameStateMachine; per-autoload sequential `_enter_tree → _ready` (NOT batched)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Engine capability
+    engine_risk: "HIGH (4.6 SceneTree verified)"
+  - id: TR-gsm-011
+    system: gsm
+    gdd: design/gdd/game-state-machine.md
+    requirement: "Rule 5 reconciliation precedence (priority 0/0.5/1/1.5/2/3/4/5) including 401 active-state-deferred + 30-day LootDrop force-transition"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State persistence
+    engine_risk: MEDIUM
+  - id: TR-gsm-012
+    system: gsm
+    gdd: design/gdd/game-state-machine.md
+    requirement: "Rule 5.5 weekly tick missed-window replay — boot-time catch-up `missed_count = floor((now - _last_weekly_tick_unix) / WEEKLY_TICK_INTERVAL_SECONDS)` clamped to `MAX_WEEKLY_TICK_CATCHUP = 8`"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State persistence
+    engine_risk: LOW
+  - id: TR-gsm-013
+    system: gsm
+    gdd: design/gdd/game-state-machine.md
+    requirement: "Natural-pause gated LootDrop reveal — safe=`{Idle, RestPeriod, Disconnected}`, suppressed=`{WorkoutActive, CombatActive, BossEncounter}`"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State machine
+    engine_risk: LOW
+  - id: TR-gsm-014
+    system: gsm
+    gdd: design/gdd/game-state-machine.md
+    requirement: "Event Intake Queue — priority FIFO, 1-event-per-frame drain, validity re-check on dequeue"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State machine
+    engine_risk: LOW
+  - id: TR-gsm-015
+    system: gsm
+    gdd: design/gdd/game-state-machine.md
+    requirement: "Rule 7: `workout_completed` priority 1 force-transition to `LootDrop` from any state (including `BossEncounter` → INTERRUPTED_WITH_CREDIT)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State machine
+    engine_risk: LOW
+  - id: TR-gsm-016
+    system: gsm
+    gdd: design/gdd/game-state-machine.md
+    requirement: "BossOutcome enum (DEFEATED / INTERRUPTED_WITH_CREDIT / ABANDONED) — replaces `boss_defeated: bool`"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-gsm-017
+    system: gsm
+    gdd: design/gdd/game-state-machine.md
+    requirement: "Rule 6 (Pillar 2): WorkoutActive/CombatActive/BossEncounter must require zero player input; defer to RestPeriod/LootDrop"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State machine
+    engine_risk: LOW
+  - id: TR-gsm-018
+    system: gsm
+    gdd: design/gdd/game-state-machine.md
+    requirement: "Storage backend: IndexedDB via Godot `user://`; 9 JSON top-level keys; `current_state` uses stable string (StringName)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State persistence
+    engine_risk: LOW
+  - id: TR-gsm-019
+    system: gsm
+    gdd: design/gdd/game-state-machine.md
+    requirement: "bfcache fast-resume: `pageshow event.persisted == true` + in-mem `_current_state == Suspended` + tombstone absent + schema matches → fast path; else fall through to full boot"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Platform
+    engine_risk: "HIGH (Q-A3 spike)"
+  - id: TR-gsm-020
+    system: gsm
+    gdd: design/gdd/game-state-machine.md
+    requirement: "Knob invariant assertions at boot: 8 invariants (Contract 8) including `STATE_TRANSITION_FALLBACK_MS ≤ MIN_REVEAL_WINDOW_SECONDS × 100`, `TOMBSTONE_TTL < SUSPENSION_TTL`, `ATTEMPT_CAP == 30`"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State persistence
+    engine_risk: LOW
+  - id: TR-gsm-021
+    system: gsm
+    gdd: design/gdd/game-state-machine.md
+    requirement: "Test Spy Contract (Contract 14) — IPersistence + GSM + Input + MockToastQueue + MockInventory + MockEnemyDirector spy interface set"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Test infrastructure
+    engine_risk: LOW
+  - id: TR-gsm-022
+    system: gsm
+    gdd: design/gdd/game-state-machine.md
+    requirement: "`@no-await` static analysis — scan-entire-file rule on `src/core/state_machine/**.gd` (includes helper functions)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Test infrastructure
+    engine_risk: LOW
+  - id: TR-gsm-023
+    system: gsm
+    gdd: design/gdd/game-state-machine.md
+    requirement: "IInputPolicy interface (Contract 13) — AttentionBudgetPolicy `extends IInputPolicy`; MockInputPolicy for tests"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Cross-system communication
+    engine_risk: LOW
+  - id: TR-gsm-024
+    system: gsm
+    gdd: design/gdd/game-state-machine.md
+    requirement: "Cross-device `pending_since_server` authoritative — backend server-side timestamp; client `pending_since` mirror only"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State persistence
+    engine_risk: LOW
+
+  # ---- System #2 GymSys Backend Client ----
+  - id: TR-gym-001
+    system: gym
+    gdd: design/gdd/gymsys-backend-client.md
+    requirement: "HTTP polling 5s ± 0.5s jitter (Formula 1: `5.0 + randf_range(-0.5, 0.5)`); per-cycle resample (NOT fixed at boot)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Networking
+    engine_risk: LOW
+  - id: TR-gym-002
+    system: gym
+    gdd: design/gdd/gymsys-backend-client.md
+    requirement: "Single-flight per channel: 4 channels (poll, state_write, loot_cache, loot_commit); `MAX_INFLIGHT_REQUESTS = 4`"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Networking
+    engine_risk: LOW
+  - id: TR-gym-003
+    system: gym
+    gdd: design/gdd/gymsys-backend-client.md
+    requirement: "Orphan HTTPRequest pattern: `.new() + .timeout = <non-zero> + .request_completed.connect(..., CONNECT_ONE_SHOT) + add_child` within 10-line window same function"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Engine capability
+    engine_risk: LOW
+  - id: TR-gym-004
+    system: gym
+    gdd: design/gdd/gymsys-backend-client.md
+    requirement: "NO `JavaScriptBridge.eval` anywhere (Chrome Incognito detection via reactive `IPersistence.write → false`)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Platform
+    engine_risk: "HIGH (CI enforced)"
+  - id: TR-gym-005
+    system: gym
+    gdd: design/gdd/gymsys-backend-client.md
+    requirement: "13 typed signals normalized from poll responses (workout_started/set_logged/rest_started/rest_ended/workout_completed/poll_failed/poll_recovered + 6 auxiliary)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Cross-system communication
+    engine_risk: LOW
+  - id: TR-gym-006
+    system: gym
+    gdd: design/gdd/gymsys-backend-client.md
+    requirement: "`X-Session-Token` header on ALL authenticated requests + `X-Protocol-Version: 1` + `X-Transition-Id: <tid>:state`"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Networking
+    engine_risk: "MEDIUM (CORS)"
+  - id: TR-gym-007
+    system: gym
+    gdd: design/gdd/gymsys-backend-client.md
+    requirement: "401 latch single-emit: cancel all 4 in-flight, emit `session_invalidated()` once, queue_free all"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Networking
+    engine_risk: LOW
+  - id: TR-gym-008
+    system: gym
+    gdd: design/gdd/gymsys-backend-client.md
+    requirement: "`transition_id` child suffix: `:state`, `:loot-cache`, `:loot-commit` (separate UNIQUE per backend table)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-gym-009
+    system: gym
+    gdd: design/gdd/gymsys-backend-client.md
+    requirement: "Retry matrix: 5xx → exponential backoff `min(BASE_DELAY × 2^(n-1), RETRY_CAP)` × 5 attempts; 429 → `Retry-After`; 401 → force-boot"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Networking
+    engine_risk: LOW
+  - id: TR-gym-010
+    system: gym
+    gdd: design/gdd/gymsys-backend-client.md
+    requirement: "`_session_epoch` stale-response swallow — cross-claim responses dropped"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Networking
+    engine_risk: LOW
+  - id: TR-gym-011
+    system: gym
+    gdd: design/gdd/gymsys-backend-client.md
+    requirement: "bfcache cleanup contract: on `state_changed → Suspended`, cancel + queue_free all 4 in-flight; swallow any post-suspend `request_completed`"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Platform
+    engine_risk: "HIGH (Q-A3)"
+  - id: TR-gym-012
+    system: gym
+    gdd: design/gdd/gymsys-backend-client.md
+    requirement: "DST/monotonic clock discipline — `Time.get_unix_time_from_system()` whitelisted to `_build_transition_id_timestamp_prefix()` only"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Threading-Timing
+    engine_risk: LOW
+  - id: TR-gym-013
+    system: gym
+    gdd: design/gdd/gymsys-backend-client.md
+    requirement: "Server-time payload uses backend `completed_at` verbatim (NOT client time); ≥5min clock skew → emit `protocol_error(\"clock_skew_detected\")`"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Networking
+    engine_risk: LOW
+  - id: TR-gym-014
+    system: gym
+    gdd: design/gdd/gymsys-backend-client.md
+    requirement: "`REST_PERIOD_FALLBACK_SECONDS = 90` when `rest_started` event omits `duration_seconds` + emit `protocol_error(\"missing_field_duration_seconds\")`"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Networking
+    engine_risk: LOW
+  - id: TR-gym-015
+    system: gym
+    gdd: design/gdd/gymsys-backend-client.md
+    requirement: "35-day `_committed_tombstones` age-pruning via `PersistenceLayer.is_expired(committed_at, 35*86400)`"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Networking
+    engine_risk: LOW
+  - id: TR-gym-016
+    system: gym
+    gdd: design/gdd/gymsys-backend-client.md
+    requirement: "Polling lifecycle suppression: paused during `state_changed(*, Suspended)`"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Networking
+    engine_risk: LOW
+  - id: TR-gym-017
+    system: gym
+    gdd: design/gdd/gymsys-backend-client.md
+    requirement: "SSE v0.2 upgrade path: `JavaScriptBridge.create_callback` + EventSource; Web-only; native desktop keeps polling"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Platform
+    engine_risk: "HIGH (4.6 JSBridge GC under bfcache)"
+
+  # ---- System #11 Stat System ----
+  - id: TR-stat-001
+    system: stat
+    gdd: design/gdd/stat-system.md
+    requirement: "7-stat surface LOCKED (STR/VIT/DEX/INT/AGI/LUK/?) — Rule 1 enum closed"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-stat-002
+    system: stat
+    gdd: design/gdd/stat-system.md
+    requirement: "Closed mutation API — no direct `_base` write; caller whitelist (CI lint)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-stat-003
+    system: stat
+    gdd: design/gdd/stat-system.md
+    requirement: "StatSource enum 5 values (VOLUME_TICK / PR_BREAKTHROUGH / EQUIPMENT / DEBUG_OVERRIDE / INITIAL_STATE)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-stat-004
+    system: stat
+    gdd: design/gdd/stat-system.md
+    requirement: "Source/stat allow-list: PR_BREAKTHROUGH = base-only; EQUIPMENT = all-7 (modifier layer NOT persisted)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-stat-005
+    system: stat
+    gdd: design/gdd/stat-system.md
+    requirement: "`connect_for_initial_state` delivers 7 initial stats (ADR-006 Contract 6 binding)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Cross-system communication
+    engine_risk: LOW
+  - id: TR-stat-006
+    system: stat
+    gdd: design/gdd/stat-system.md
+    requirement: "Persistence flush policy split: PR_BREAKTHROUGH `flush=true` (critical) / VOLUME_TICK `flush=false` (debounced)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State persistence
+    engine_risk: LOW
+  - id: TR-stat-007
+    system: stat
+    gdd: design/gdd/stat-system.md
+    requirement: "Atomic write ordering — persist BEFORE in-memory mutate BEFORE emit"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State persistence
+    engine_risk: LOW
+  - id: TR-stat-008
+    system: stat
+    gdd: design/gdd/stat-system.md
+    requirement: "Clamping at 0 + MAX_STAT_VALUE boundaries; anti-decay (negative VOLUME_TICK rejected)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-stat-009
+    system: stat
+    gdd: design/gdd/stat-system.md
+    requirement: "Telemetry signals: `stat_clamped` on boundary; `boot_completed` after `_ready()`"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Cross-system communication
+    engine_risk: LOW
+  - id: TR-stat-010
+    system: stat
+    gdd: design/gdd/stat-system.md
+    requirement: "GSM Suspended gate — mutation API rejects when GSM `current_state == Suspended`"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State machine
+    engine_risk: LOW
+  - id: TR-stat-011
+    system: stat
+    gdd: design/gdd/stat-system.md
+    requirement: "Boot reconciliation: first-boot defaults / partial keys / corrupt fallback"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State persistence
+    engine_risk: LOW
+  - id: TR-stat-012
+    system: stat
+    gdd: design/gdd/stat-system.md
+    requirement: "6 derived formulas (MAX_HP / ATTACK_POWER / MOVE_SPEED / CRIT_CHANCE / VOLUME_TICK delta / PR_BREAKTHROUGH delta)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-stat-013
+    system: stat
+    gdd: design/gdd/stat-system.md
+    requirement: "15 owned tuning knobs + 9 cross-knob invariants (CI-verified)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-stat-014
+    system: stat
+    gdd: design/gdd/stat-system.md
+    requirement: "Namespace `stat.*` on PersistenceLayer (ADR-003 binding)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State persistence
+    engine_risk: LOW
+  - id: TR-stat-015
+    system: stat
+    gdd: design/gdd/stat-system.md
+    requirement: "Re-entrance guard rejects nested mutation (EC-22)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Threading-Timing
+    engine_risk: LOW
+  - id: TR-stat-016
+    system: stat
+    gdd: design/gdd/stat-system.md
+    requirement: "DEBUG_OVERRIDE — debug build runtime guard + CI lint catches `src/` usage"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Test infrastructure
+    engine_risk: LOW
+  - id: TR-stat-017
+    system: stat
+    gdd: design/gdd/stat-system.md
+    requirement: "Autoload position 5 (per project.godot — F-SETUP-1 synced)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Engine capability
+    engine_risk: LOW
+
+  # ---- System #12 Ability System ----
+  - id: TR-ability-001
+    system: ability
+    gdd: design/gdd/ability-system.md
+    requirement: "Ability ID surface LOCKED to 9 enum constants; magic-string `ability_id` literal banned in src/ (CI)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-ability-002
+    system: ability
+    gdd: design/gdd/ability-system.md
+    requirement: "AbilityClass + AbilityTier enums LOCKED (STRIKE/CONTROL/MOBILITY × tier 1-3)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-ability-003
+    system: ability
+    gdd: design/gdd/ability-system.md
+    requirement: "Closed mutation API — direct private field access rejected (CI)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-ability-004
+    system: ability
+    gdd: design/gdd/ability-system.md
+    requirement: "UnlockSource enum exactly 3 values (PR_BREAKTHROUGH / STAT_THRESHOLD / INITIAL_STATE sentinel)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-ability-005
+    system: ability
+    gdd: design/gdd/ability-system.md
+    requirement: "CastResult enum exactly 6 outcomes"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-ability-006
+    system: ability
+    gdd: design/gdd/ability-system.md
+    requirement: "Source-to-class allow-list rejects cross-class unlock"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-ability-007
+    system: ability
+    gdd: design/gdd/ability-system.md
+    requirement: "Caller whitelist CI lints for `unlock_ability` + `cast_ability`"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Test infrastructure
+    engine_risk: LOW
+  - id: TR-ability-008
+    system: ability
+    gdd: design/gdd/ability-system.md
+    requirement: "Unlock evaluation Path A (PR_BREAKTHROUGH) + Path B (STAT_THRESHOLD multi-tier ascent)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-ability-009
+    system: ability
+    gdd: design/gdd/ability-system.md
+    requirement: "Cast evaluation atomic sequence"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Threading-Timing
+    engine_risk: LOW
+  - id: TR-ability-010
+    system: ability
+    gdd: design/gdd/ability-system.md
+    requirement: "Persistence namespace `ability.unlocked.*` (ADR-003 binding) per-source flush policy"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State persistence
+    engine_risk: LOW
+  - id: TR-ability-011
+    system: ability
+    gdd: design/gdd/ability-system.md
+    requirement: "Boot reconciliation rebuilds state from PersistenceLayer"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State persistence
+    engine_risk: LOW
+  - id: TR-ability-012
+    system: ability
+    gdd: design/gdd/ability-system.md
+    requirement: "GSM Suspended gate rejects mutation"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State machine
+    engine_risk: LOW
+  - id: TR-ability-013
+    system: ability
+    gdd: design/gdd/ability-system.md
+    requirement: "Permanent unlock contract — no relock under stat drop"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-ability-014
+    system: ability
+    gdd: design/gdd/ability-system.md
+    requirement: "Atomic unlock write ordering: persist → mutate → emit"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State persistence
+    engine_risk: LOW
+  - id: TR-ability-015
+    system: ability
+    gdd: design/gdd/ability-system.md
+    requirement: "Cooldown tick uses `set_process` toggle + `MAX_FRAME_DELTA` clamp"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Performance
+    engine_risk: LOW
+  - id: TR-ability-016
+    system: ability
+    gdd: design/gdd/ability-system.md
+    requirement: "7 core/telemetry signals declared with typed signatures"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Cross-system communication
+    engine_risk: LOW
+  - id: TR-ability-017
+    system: ability
+    gdd: design/gdd/ability-system.md
+    requirement: "TIER_THRESHOLDS / BASE_COOLDOWN_SEC / UNLOCK_EVENT_PRIORITY deterministic sort"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-ability-018
+    system: ability
+    gdd: design/gdd/ability-system.md
+    requirement: "INV-1..INV-8 cross-knob invariants (CI-verified)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-ability-019
+    system: ability
+    gdd: design/gdd/ability-system.md
+    requirement: "Re-entrance depth limit (`MAX_EMIT_DEPTH` guard)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Threading-Timing
+    engine_risk: LOW
+  - id: TR-ability-020
+    system: ability
+    gdd: design/gdd/ability-system.md
+    requirement: "Autoload position 6 (after PlatformDetect insertion)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Engine capability
+    engine_risk: LOW
+
+  # ---- System #8 Streak System ----
+  - id: TR-streak-001
+    system: streak
+    gdd: design/gdd/streak-system.md
+    requirement: "Single API entry `_on_workout_completed(completed_at_utc)` with drift gate `_passes_drift_gate` (uses `WALL_CLOCK_DRIFT_TOLERANCE_SECONDS` aligned with PersistenceLayer)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Threading-Timing
+    engine_risk: LOW
+  - id: TR-streak-002
+    system: streak
+    gdd: design/gdd/streak-system.md
+    requirement: "4-layer Pillar 1 defense: closed API + CI mutator ban + CI caller whitelist + namespace isolation"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Test infrastructure
+    engine_risk: LOW
+  - id: TR-streak-003
+    system: streak
+    gdd: design/gdd/streak-system.md
+    requirement: "State machine (Booting / Ready / Updating / Failed / Backoff) + `_drain_deferred_if_any()` on Booting→Ready"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State machine
+    engine_risk: LOW
+  - id: TR-streak-004
+    system: streak
+    gdd: design/gdd/streak-system.md
+    requirement: "Subscribe via `GameStateMachine.connect_for_initial_state(...)` ONLY (ADR-006 Contract 6 — direct `.connect` banned by CI)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Cross-system communication
+    engine_risk: LOW
+  - id: TR-streak-005
+    system: streak
+    gdd: design/gdd/streak-system.md
+    requirement: "`loot_rarity_modifier_step_curve` formula (Formula 1) — monotone non-decreasing across steps `{1,7,14,30,60,90}`, capped at 2.00"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-streak-006
+    system: streak
+    gdd: design/gdd/streak-system.md
+    requirement: "`consecutive_day_classification` (Formula 2) — DST-robust via locked timezone offset + noon-anchored arithmetic"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Threading-Timing
+    engine_risk: LOW
+  - id: TR-streak-007
+    system: streak
+    gdd: design/gdd/streak-system.md
+    requirement: "`local_calendar_date_from_utc` (Formula 3)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Threading-Timing
+    engine_risk: LOW
+  - id: TR-streak-008
+    system: streak
+    gdd: design/gdd/streak-system.md
+    requirement: "Atomic 2-write order: `(\"streak.streak_count\", N, flush=false)` then `(\"streak.last_workout_date_local\", date, flush=true)`"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State persistence
+    engine_risk: LOW
+  - id: TR-streak-009
+    system: streak
+    gdd: design/gdd/streak-system.md
+    requirement: "Failed state sticky single-emit (`streak_persistence_failed` not re-emitted)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State persistence
+    engine_risk: LOW
+  - id: TR-streak-010
+    system: streak
+    gdd: design/gdd/streak-system.md
+    requirement: "Namespace `streak.*` filter on `critical_save_failed` (cross-system namespace isolation)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Cross-system communication
+    engine_risk: LOW
+  - id: TR-streak-011
+    system: streak
+    gdd: design/gdd/streak-system.md
+    requirement: "Milestone gates ascending + no-duplicate + bounded invariant (`MILESTONE_THRESHOLDS`)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-streak-012
+    system: streak
+    gdd: design/gdd/streak-system.md
+    requirement: "`Streak.WALL_CLOCK_DRIFT_TOLERANCE_SECONDS == PersistenceLayer.WALL_CLOCK_DRIFT_TOLERANCE_SECONDS` cross-system consistency"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+
+  # ---- System #9 Workout State Tracker ----
+  - id: TR-wst-001
+    system: wst
+    gdd: design/gdd/workout-state-tracker.md
+    requirement: "Subscribe to exactly 7 #2 typed signals (workout_started/set_logged/rest_started/rest_ended/workout_completed/poll_failed/poll_recovered)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Cross-system communication
+    engine_risk: LOW
+  - id: TR-wst-002
+    system: wst
+    gdd: design/gdd/workout-state-tracker.md
+    requirement: "5-state WorkoutPhase machine (IDLE/WARM_UP/SET_ACTIVE/REST_PERIOD/WORKOUT_COMPLETE)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State machine
+    engine_risk: LOW
+  - id: TR-wst-003
+    system: wst
+    gdd: design/gdd/workout-state-tracker.md
+    requirement: "3-substate (INITIALISING/READY/SUSPENDED) + Frozen flag orthogonal"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State machine
+    engine_risk: LOW
+  - id: TR-wst-004
+    system: wst
+    gdd: design/gdd/workout-state-tracker.md
+    requirement: "`set_progress` monotonicity (CF-1) — downward revision suppressed; estimator backward-step blocked"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-wst-005
+    system: wst
+    gdd: design/gdd/workout-state-tracker.md
+    requirement: "5 read-only queries + immutable RO resources; no `set_*` / `mutate_*` / `force_*` public methods"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-wst-006
+    system: wst
+    gdd: design/gdd/workout-state-tracker.md
+    requirement: "CI lints: `WorkoutStateTracker.(set_|_)` outside source = 0; `PersistenceLayer.write(\"wst.\")` outside source = 0"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Test infrastructure
+    engine_risk: LOW
+  - id: TR-wst-007
+    system: wst
+    gdd: design/gdd/workout-state-tracker.md
+    requirement: "`set_history` append-only — never in-place mutate / pop"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-wst-008
+    system: wst
+    gdd: design/gdd/workout-state-tracker.md
+    requirement: "`workout_id` lifecycle isolation — old WorkoutSummaryRO preserved, new `set_history` resets empty"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-wst-009
+    system: wst
+    gdd: design/gdd/workout-state-tracker.md
+    requirement: "`dominant_class` hysteresis — `DOMINANT_CLASS_CHANGE_COOLDOWN_S = 30s`"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-wst-010
+    system: wst
+    gdd: design/gdd/workout-state-tracker.md
+    requirement: "Class→stat routing call to `Stat.apply_stat_delta(STR/VIT/DEX, vol, VOLUME_TICK, source_key=...)`"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Cross-system communication
+    engine_risk: LOW
+  - id: TR-wst-011
+    system: wst
+    gdd: design/gdd/workout-state-tracker.md
+    requirement: "UNKNOWN class honest return — `&\"UNKNOWN\"` (no fallback to STRIKE in #9; that's #14's responsibility)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-wst-012
+    system: wst
+    gdd: design/gdd/workout-state-tracker.md
+    requirement: "`completed_exercises_count` = distinct exercise_id count"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-wst-013
+    system: wst
+    gdd: design/gdd/workout-state-tracker.md
+    requirement: "`total_volume` aggregation + frozen at workout_completed; late events dropped per EC-32"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-wst-014
+    system: wst
+    gdd: design/gdd/workout-state-tracker.md
+    requirement: "EWMA `historical_avg_sets_per_workout` (alpha=0.3) computed BEFORE workout reset"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-wst-015
+    system: wst
+    gdd: design/gdd/workout-state-tracker.md
+    requirement: "Autoload boot position 5 per project.godot (F-SETUP-1 synced)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Engine capability
+    engine_risk: LOW
+  - id: TR-wst-016
+    system: wst
+    gdd: design/gdd/workout-state-tracker.md
+    requirement: "Namespace `wst.*` on PersistenceLayer (ADR-003 binding)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State persistence
+    engine_risk: LOW
+  - id: TR-wst-017
+    system: wst
+    gdd: design/gdd/workout-state-tracker.md
+    requirement: "Frozen flag set on `poll_failed`, cleared on `poll_recovered` (orthogonal to substate)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State machine
+    engine_risk: LOW
+  - id: TR-wst-018
+    system: wst
+    gdd: design/gdd/workout-state-tracker.md
+    requirement: "CI-1 binding: `set_progress >= 0.8` → triggers #14 boss anchor pre-spawn pipeline"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Cross-system communication
+    engine_risk: LOW
+  - id: TR-wst-019
+    system: wst
+    gdd: design/gdd/workout-state-tracker.md
+    requirement: "CI-4 binding: `total_volume` → ADR-005 `volume_factor = min(1.0, completed/TARGET)`"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Cross-system communication
+    engine_risk: LOW
+
+  # ---- System #13 CombatResolver ----
+  - id: TR-combat-001
+    system: combat
+    gdd: design/gdd/combat-resolver.md
+    requirement: "Stateless pure-function — `class_name CombatResolver extends RefCounted` with `static func` only; no `var` instance member, no `@onready`, no `signal` (CI enforced)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-combat-002
+    system: combat
+    gdd: design/gdd/combat-resolver.md
+    requirement: "Determinism — identical CombatContext input → identical HitResult output (1000-run replay test)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-combat-003
+    system: combat
+    gdd: design/gdd/combat-resolver.md
+    requirement: "Per-cast StatSnapshot pattern — source StatSystem mutation mid-call does NOT affect HitResult"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-combat-004
+    system: combat
+    gdd: design/gdd/combat-resolver.md
+    requirement: "Single entry: `static func resolve_hit(ctx: CombatContext) -> HitResult`"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-combat-005
+    system: combat
+    gdd: design/gdd/combat-resolver.md
+    requirement: "EnemyDirector owns signal emission (`hit_resolved` / `enemy_killed` / `combat_metric_anomaly`); CombatResolver emits nothing"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Cross-system communication
+    engine_risk: LOW
+  - id: TR-combat-006
+    system: combat
+    gdd: design/gdd/combat-resolver.md
+    requirement: "HitResolvedPayload schema (12 typed fields incl. `transition_id` for #15 RNG sub-seed)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-combat-007
+    system: combat
+    gdd: design/gdd/combat-resolver.md
+    requirement: "`combat_metric_anomaly.reason` enum (6 values: GSM_SUSPENDED / INVALID_ABILITY_ID / NEGATIVE_DAMAGE / CLAMP_TRIGGERED / DEAD_TARGET_RESOLVE / RNG_INJECTION_MISSING)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-combat-008
+    system: combat
+    gdd: design/gdd/combat-resolver.md
+    requirement: "AOE — caller iterates `resolve_hit(ctx_i)`; 1-to-1 mapping; `hit_seq` 0/1/2/3/4"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-combat-009
+    system: combat
+    gdd: design/gdd/combat-resolver.md
+    requirement: "Formula 1: `base_damage = max(1, round(attack × multiplier − defense))`"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-combat-010
+    system: combat
+    gdd: design/gdd/combat-resolver.md
+    requirement: "Formula 2: `roll_crit` via `hash(transition_id + ability_id + hit_seq)` sub-seed (deterministic)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-combat-011
+    system: combat
+    gdd: design/gdd/combat-resolver.md
+    requirement: "Formula 3: crit multiplier = 1.5× (Q-D2 [A] fixed)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-combat-012
+    system: combat
+    gdd: design/gdd/combat-resolver.md
+    requirement: "Formula 4: 5-tier damage classification (ratio thresholds 0.01/0.05/0.15/0.40 of max_hp); crit forces ≥HEAVY"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-combat-013
+    system: combat
+    gdd: design/gdd/combat-resolver.md
+    requirement: "Formula 5: overkill clamp + expose `overkill_excess`"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-combat-014
+    system: combat
+    gdd: design/gdd/combat-resolver.md
+    requirement: "HitOutcome enum exactly 4 values (NORMAL_HIT / CRITICAL_HIT / KILLED / OVERKILL) — NO DODGED in MVP"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-combat-015
+    system: combat
+    gdd: design/gdd/combat-resolver.md
+    requirement: "5-stage pipeline order: validate → compute_hit_damage → roll_crit → apply_crit_multiplier → detect_overkill + classify_damage_tier → outcome"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-combat-016
+    system: combat
+    gdd: design/gdd/combat-resolver.md
+    requirement: "Unicode-safe sub-seed; `MAX_HIT_SEQ = 1_000_000` boundary"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-combat-017
+    system: combat
+    gdd: design/gdd/combat-resolver.md
+    requirement: "Null ctx + dead target + NaN multiplier safe handling"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-combat-018
+    system: combat
+    gdd: design/gdd/combat-resolver.md
+    requirement: "CPU budget ≤ 1.0ms per combat tick (ADR-001 FR-3)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Performance
+    engine_risk: LOW
+  - id: TR-combat-019
+    system: combat
+    gdd: design/gdd/combat-resolver.md
+    requirement: "AOE clamp `MAX_TARGETS_PER_CAST = 8` (distance sort)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-combat-020
+    system: combat
+    gdd: design/gdd/combat-resolver.md
+    requirement: "GSM Suspended gate — caller snapshots gsm_state; resolver rejects in Stage 1"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State machine
+    engine_risk: LOW
+
+  # ---- System #14 EnemyDirector ----
+  - id: TR-enemy-001
+    system: enemy
+    gdd: design/gdd/enemy-director.md
+    requirement: "8 state containers owned in EnemyDirector class body (Rule 1 caller-side state locality, CI enforced)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-enemy-002
+    system: enemy
+    gdd: design/gdd/enemy-director.md
+    requirement: "Damage chokepoint — all damage paths via `CombatResolver.resolve_hit()`; inline arithmetic rejected (CI)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Cross-system communication
+    engine_risk: LOW
+  - id: TR-enemy-003
+    system: enemy
+    gdd: design/gdd/enemy-director.md
+    requirement: "Autoload position LAST among combat-relevant autoloads (after #1/#3/#5/#6/#7/#11/#12/#15/#28)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Engine capability
+    engine_risk: MEDIUM
+  - id: TR-enemy-004
+    system: enemy
+    gdd: design/gdd/enemy-director.md
+    requirement: "No direct `Camera2D.position/zoom/offset` mutation, no `GPUParticles2D.emitting = true` outside wrappers (ADR-001 CI enforced)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Engine capability
+    engine_risk: HIGH
+  - id: TR-enemy-005
+    system: enemy
+    gdd: design/gdd/enemy-director.md
+    requirement: "Subscribe via `connect_for_initial_state` to #1 GSM + #12 AbilitySystem (Contract 6)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Cross-system communication
+    engine_risk: LOW
+  - id: TR-enemy-006
+    system: enemy
+    gdd: design/gdd/enemy-director.md
+    requirement: "Emit exactly 3 signals (hit_resolved / enemy_killed / combat_metric_anomaly) — no internal/debug leak"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Cross-system communication
+    engine_risk: LOW
+  - id: TR-enemy-007
+    system: enemy
+    gdd: design/gdd/enemy-director.md
+    requirement: "Anomaly rate limit: 10/sec per reason via `Formula 4 rate_limit_check`; window expiry emits aggregate"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Cross-system communication
+    engine_risk: LOW
+  - id: TR-enemy-008
+    system: enemy
+    gdd: design/gdd/enemy-director.md
+    requirement: "No `signal.disconnect/connect` in hot path (`_physics_process`, `_on_ability_cast`)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Performance
+    engine_risk: LOW
+  - id: TR-enemy-009
+    system: enemy
+    gdd: design/gdd/enemy-director.md
+    requirement: "Catch-up queue defers new AOE casts (Rule 7)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State machine
+    engine_risk: LOW
+  - id: TR-enemy-010
+    system: enemy
+    gdd: design/gdd/enemy-director.md
+    requirement: "`_rng_factory.create(transition_id)` + `create_sub(transition_id, label)` — sub-RNG independence + deterministic across processes"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-enemy-011
+    system: enemy
+    gdd: design/gdd/enemy-director.md
+    requirement: "RNG ban: no `randf/randi/randf_range/Time.get_ticks_msec/RandomNumberGenerator.new()` outside `_rng_factory` (CI)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-enemy-012
+    system: enemy
+    gdd: design/gdd/enemy-director.md
+    requirement: "EnemyRegistry.tres schema validation: 3 archetypes × mandatory fields (Rule 12)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-enemy-013
+    system: enemy
+    gdd: design/gdd/enemy-director.md
+    requirement: "Wave archetype readability — 60%+ test recognition (ADVISORY playtest)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-enemy-014
+    system: enemy
+    gdd: design/gdd/enemy-director.md
+    requirement: "Boss kill same-frame `enemy_killed` emit (Rule 5 order)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Threading-Timing
+    engine_risk: LOW
+  - id: TR-enemy-015
+    system: enemy
+    gdd: design/gdd/enemy-director.md
+    requirement: "Boss anchor pre-spawn at `set_progress >= 0.8`; rollback on undo set"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State machine
+    engine_risk: LOW
+  - id: TR-enemy-016
+    system: enemy
+    gdd: design/gdd/enemy-director.md
+    requirement: "Light-workout boss scaling (`LIGHT_WORKOUT_THRESHOLD_SETS = 2` → mini-boss + reduced ritual intensity)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-enemy-017
+    system: enemy
+    gdd: design/gdd/enemy-director.md
+    requirement: "Particle throttle auto-degrade (`Formula 3`) — 3-frame >33ms window triggers `caller_mult` 1.5→1.0; 60-frame recovery hysteresis"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Performance
+    engine_risk: MEDIUM
+  - id: TR-enemy-018
+    system: enemy
+    gdd: design/gdd/enemy-director.md
+    requirement: "Per-enemy AI state machine (SPAWNING / IDLE / PURSUING / ATTACKING / STAGGERED / DYING)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State machine
+    engine_risk: LOW
+  - id: TR-enemy-019
+    system: enemy
+    gdd: design/gdd/enemy-director.md
+    requirement: "CPU orchestration ≤ 0.5ms p95 (ADR-001 FR-4)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Performance
+    engine_risk: LOW
+  - id: TR-enemy-020
+    system: enemy
+    gdd: design/gdd/enemy-director.md
+    requirement: "MOBILITY mob lateral dodge (`Formula 2 mobility_dodge_offset`)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-enemy-021
+    system: enemy
+    gdd: design/gdd/enemy-director.md
+    requirement: "`enemy_killed.transition_id` propagates verbatim from `ctx.transition_id` (#15 RNG seed binding)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Cross-system communication
+    engine_risk: LOW
+
+  # ---- System #15 Loot Drop System ----
+  - id: TR-loot-001
+    system: loot
+    gdd: design/gdd/loot-drop-system.md
+    requirement: "Loot rarity formula per ADR-0005: `loot_rarity_score = workout_score × 0.75 + rng_roll × 0.25`; Pillar 3 floor `max(raw_tier, COMMON)`"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-loot-002
+    system: loot
+    gdd: design/gdd/loot-drop-system.md
+    requirement: "Rule 7.5 NEW: `workout_id` resolution via `WorkoutStateTracker.get_active_workout_id()` with explicit null branch"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Cross-system communication
+    engine_risk: LOW
+  - id: TR-loot-003
+    system: loot
+    gdd: design/gdd/loot-drop-system.md
+    requirement: "Ceremony cap split: `MINI_BOSS_CEREMONY_CAP=5` + `FINAL_BOSS_RESERVED=1` (final boss ceremony guaranteed)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-loot-004
+    system: loot
+    gdd: design/gdd/loot-drop-system.md
+    requirement: "Micro-ack ceremony tier — 0.15s toast + mailbox badge for mini-boss #6+"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-loot-005
+    system: loot
+    gdd: design/gdd/loot-drop-system.md
+    requirement: "Formula E3 while-loop with `max_iterations=10` + monotonic invariant (anti-pillar soft-clamp termination)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-loot-006
+    system: loot
+    gdd: design/gdd/loot-drop-system.md
+    requirement: "Rule 4 dual-gate: workout-score tier ceiling `floor(workout_score × 5)`"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-loot-007
+    system: loot
+    gdd: design/gdd/loot-drop-system.md
+    requirement: "Floor protection + LRU eviction (age-only + 150ms floor protection)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-loot-008
+    system: loot
+    gdd: design/gdd/loot-drop-system.md
+    requirement: "Item type weighted selection (Formula E1)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-loot-009
+    system: loot
+    gdd: design/gdd/loot-drop-system.md
+    requirement: "Class affinity resolution (Formula E2)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-loot-010
+    system: loot
+    gdd: design/gdd/loot-drop-system.md
+    requirement: "Inventory overflow → mailbox (Formula E4); MAX_INVENTORY 120"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-loot-011
+    system: loot
+    gdd: design/gdd/loot-drop-system.md
+    requirement: "Backend cache + commit via ADR-002 endpoints; idempotent via `transition_id` UNIQUE"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Networking
+    engine_risk: LOW
+  - id: TR-loot-012
+    system: loot
+    gdd: design/gdd/loot-drop-system.md
+    requirement: "Daily token gate (workout-locked daily, NOT calendar-daily)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-loot-013
+    system: loot
+    gdd: design/gdd/loot-drop-system.md
+    requirement: "Unknown rarity tier → COMMON fallback + telemetry (EC-22)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-loot-014
+    system: loot
+    gdd: design/gdd/loot-drop-system.md
+    requirement: "Pending TTL expiry (Formula 3) — 6-day soft + 30-day hard cap"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State persistence
+    engine_risk: LOW
+  - id: TR-loot-015
+    system: loot
+    gdd: design/gdd/loot-drop-system.md
+    requirement: "bfcache resume action (Formula 4) — 30s parity with #26"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Platform
+    engine_risk: MEDIUM
+  - id: TR-loot-016
+    system: loot
+    gdd: design/gdd/loot-drop-system.md
+    requirement: "Local vs backend reconciliation (Formula 5) — unsynced client wins / synced backend wins"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State persistence
+    engine_risk: LOW
+  - id: TR-loot-017
+    system: loot
+    gdd: design/gdd/loot-drop-system.md
+    requirement: "Catch-up threshold compression (Formula 6)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-loot-018
+    system: loot
+    gdd: design/gdd/loot-drop-system.md
+    requirement: "27 owned knobs + 14 INVs + 10 CI lints"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Test infrastructure
+    engine_risk: LOW
+  - id: TR-loot-019
+    system: loot
+    gdd: design/gdd/loot-drop-system.md
+    requirement: "44 ACs (34 BLOCKING + 4 ADR-RATIFICATION-GATED)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Test infrastructure
+    engine_risk: LOW
+
+  # ---- System #16 Boss System ----
+  - id: TR-boss-001
+    system: boss
+    gdd: design/gdd/boss-system.md
+    requirement: "BossTemplate Resource schema with @export immutable fields (boss_id / class_archetype / tier / base_hp / base_defense / attack_patterns / loot_guarantee_min_tier / reveal_ritual_intensity)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-boss-002
+    system: boss
+    gdd: design/gdd/boss-system.md
+    requirement: "Deterministic boss spawn selection via hash seed on `transition_id + dominant_class + total_planned_sets`"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-boss-003
+    system: boss
+    gdd: design/gdd/boss-system.md
+    requirement: "Class archetype mapping (STRIKE/CONTROL/MOBILITY); fallback STRIKE for UNKNOWN"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-boss-004
+    system: boss
+    gdd: design/gdd/boss-system.md
+    requirement: "Player snapshot frozen at COMMITTED (mid-fight stat mutations don't affect boss damage)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-boss-005
+    system: boss
+    gdd: design/gdd/boss-system.md
+    requirement: "Formula 3 attack-pattern anti-spam: zero consecutive same-pattern; deterministic round-robin via `posmod` hardened for negative hash"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-boss-006
+    system: boss
+    gdd: design/gdd/boss-system.md
+    requirement: "`enemy_killed.transition_id` chain integrity (verbatim from spawn → #15)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Cross-system communication
+    engine_risk: LOW
+  - id: TR-boss-007
+    system: boss
+    gdd: design/gdd/boss-system.md
+    requirement: "Formula 1 boss_max_hp_scaling: `(player_attack × TARGET_KILL_HITS × HP_SCALE_FACTOR)` clamped [MIN_BOSS_HP=50, MAX_BOSS_HP=10000]"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-boss-008
+    system: boss
+    gdd: design/gdd/boss-system.md
+    requirement: "Formula 2 boss_attack_damage_scaling: anti-one-shot ceiling `floor(player_max_hp × 0.5)`"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-boss-009
+    system: boss
+    gdd: design/gdd/boss-system.md
+    requirement: "Formula 4 reveal_ritual_intensity_scaling — final boss only, categorical (mini-boss dead path per Weber-Fechner)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-boss-010
+    system: boss
+    gdd: design/gdd/boss-system.md
+    requirement: "AC-24: all BossTemplate.reveal_ritual_intensity ≤ 1.0 (well below #5 max_caller_multiplier=1.5)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Performance
+    engine_risk: LOW
+  - id: TR-boss-011
+    system: boss
+    gdd: design/gdd/boss-system.md
+    requirement: "Boss cleanup within 2 frames: all `_spawned_emitters` released via #5 wrapper + `queue_free`"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Engine capability
+    engine_risk: LOW
+  - id: TR-boss-012
+    system: boss
+    gdd: design/gdd/boss-system.md
+    requirement: "AI state inheritance from #14 enemy_ai_state_enum exactly (SPAWNING/IDLE/PURSUING/ATTACKING/STAGGERED/DYING)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State machine
+    engine_risk: LOW
+  - id: TR-boss-013
+    system: boss
+    gdd: design/gdd/boss-system.md
+    requirement: "Spawn position bounded by ArenaConfig.tres (#14 `arena_config` single source of truth)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-boss-014
+    system: boss
+    gdd: design/gdd/boss-system.md
+    requirement: "Rule 11 wall-clock cleanup via `Time.get_ticks_msec()` deadline + CONNECT_ONE_SHOT (bfcache-safe)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Platform
+    engine_risk: MEDIUM
+  - id: TR-boss-015
+    system: boss
+    gdd: design/gdd/boss-system.md
+    requirement: "Duplicate spawn idempotency — same `transition_id` within 1 frame → exactly 1 instance + BOSS_DUP_SPAWN_001 log"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-boss-016
+    system: boss
+    gdd: design/gdd/boss-system.md
+    requirement: "Boss snapshot Resource caching mechanism (`BossInstance.player_stat_snapshot`) frozen-at-spawn (AC-36 enforces CF-3)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-boss-017
+    system: boss
+    gdd: design/gdd/boss-system.md
+    requirement: "Light-workout boundary (mini-boss spawn for ≤2 planned sets)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-boss-018
+    system: boss
+    gdd: design/gdd/boss-system.md
+    requirement: "TTK target band 4-12s anti-bullet-sponge on MAX_BOSS_HP"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+
+  # ---- System #7 Camera System ----
+  - id: TR-camera-001
+    system: camera
+    gdd: design/gdd/camera-system.md
+    requirement: "Single Camera2D node owner via `register_camera(camera2d_ref)` autoload API (no direct mutation outside autoload — ADR-001 CI)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Engine capability
+    engine_risk: HIGH
+  - id: TR-camera-002
+    system: camera
+    gdd: design/gdd/camera-system.md
+    requirement: "`set_follow_target` + dead-zone box (8% × 12% world units @ 1920×1080)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Engine capability
+    engine_risk: LOW
+  - id: TR-camera-003
+    system: camera
+    gdd: design/gdd/camera-system.md
+    requirement: "`request_focal(target, duration, zoom)` with `is_finite()` reject + clamp `MAX_FOCAL_DURATION=10.0` + `FOCAL_ZOOM_CAP=4.0`"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Engine capability
+    engine_risk: LOW
+  - id: TR-camera-004
+    system: camera
+    gdd: design/gdd/camera-system.md
+    requirement: "Formula 1: `follow_position_after_smoothing` — Godot Camera2D `position_smoothing_enabled` + `position_smoothing_speed` (4.x stable)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Engine capability
+    engine_risk: "MEDIUM (4.6 verification — Compatibility renderer)"
+  - id: TR-camera-005
+    system: camera
+    gdd: design/gdd/camera-system.md
+    requirement: "Formula 2: `quart_ease_out_value` for Focal entry (76% in 30% time invariant)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-camera-006
+    system: camera
+    gdd: design/gdd/camera-system.md
+    requirement: "Formula 3: `cubic_ease_in_out_value` for Focal exit (symmetric)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-camera-007
+    system: camera
+    gdd: design/gdd/camera-system.md
+    requirement: "Formula 4: `glance_lock_on_time(30.0, 3.0, 5.0) < 500ms` Pillar 2 numerical proof"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Performance
+    engine_risk: LOW
+  - id: TR-camera-008
+    system: camera
+    gdd: design/gdd/camera-system.md
+    requirement: "Formula 5: `dead_zone_box_world_extents` — viewport-resize aware auto-recompute"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Engine capability
+    engine_risk: LOW
+  - id: TR-camera-009
+    system: camera
+    gdd: design/gdd/camera-system.md
+    requirement: "Strict reject second `request_focal()` during active Focal state"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State machine
+    engine_risk: LOW
+  - id: TR-camera-010
+    system: camera
+    gdd: design/gdd/camera-system.md
+    requirement: "Focal tween freeze under `get_tree().paused = true` (process_mode = PAUSABLE); resume without phase jump"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State machine
+    engine_risk: LOW
+  - id: TR-camera-011
+    system: camera
+    gdd: design/gdd/camera-system.md
+    requirement: "bfcache restore via `_cached_target_path` + `get_node_or_null` (stale → camera_target_lost signal)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Platform
+    engine_risk: HIGH
+  - id: TR-camera-012
+    system: camera
+    gdd: design/gdd/camera-system.md
+    requirement: "Subscribe via `connect_for_initial_state` (ADR-006 Contract 6)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Cross-system communication
+    engine_risk: LOW
+  - id: TR-camera-013
+    system: camera
+    gdd: design/gdd/camera-system.md
+    requirement: "CPU ≤ 0.1ms p95 mobile / ≤ 0.2ms p95 desktop (ADR-001 FR-1)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Performance
+    engine_risk: LOW
+  - id: TR-camera-014
+    system: camera
+    gdd: design/gdd/camera-system.md
+    requirement: "Decoupled from #6 via CI Rule 13 — no direct ScreenEffects access"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Cross-system communication
+    engine_risk: LOW
+
+  # ---- System #6 ScreenEffects ----
+  - id: TR-screen-001
+    system: screen
+    gdd: design/gdd/screen-effects-system.md
+    requirement: "`shake(intensity, duration)` + `hit_pause(duration)` + `set_motion_intensity(value)` API; NaN/INF reject; clamp `motion_intensity ∈ [0, 1.0]`"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Engine capability
+    engine_risk: LOW
+  - id: TR-screen-002
+    system: screen
+    gdd: design/gdd/screen-effects-system.md
+    requirement: "Formula 1 Trauma² decay: `shake_offset = pow(trauma, 2) × MAX_OFFSET_PX × noise; trauma -= decay_rate × delta`"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-screen-003
+    system: screen
+    gdd: design/gdd/screen-effects-system.md
+    requirement: "Formula 2 trauma combiner: additive `min(1.0, trauma + new)`; decay_rate `max(old, new)` monotonic"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-screen-004
+    system: screen
+    gdd: design/gdd/screen-effects-system.md
+    requirement: "Formula 3 pause max-remaining (no extend, no stack); clamp at `MAX_PAUSE_SEC = 0.12s`"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-screen-005
+    system: screen
+    gdd: design/gdd/screen-effects-system.md
+    requirement: "`TRAUMA_EPSILON = 0.01` short-circuit (zero per-frame cost when idle)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Performance
+    engine_risk: LOW
+  - id: TR-screen-006
+    system: screen
+    gdd: design/gdd/screen-effects-system.md
+    requirement: "Dispatch table — auto-invoke on `ParticleSystemWrapper.burst_started(PresetId.X)` per Rule 9"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Cross-system communication
+    engine_risk: LOW
+  - id: TR-screen-007
+    system: screen
+    gdd: design/gdd/screen-effects-system.md
+    requirement: "Re-entry guard `MAX_EMIT_DEPTH = 0` strict (Rule 12)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Threading-Timing
+    engine_risk: LOW
+  - id: TR-screen-008
+    system: screen
+    gdd: design/gdd/screen-effects-system.md
+    requirement: "Suspended entry: trauma=0, pause_remaining=0, shader uniform Vector2.ZERO, `get_tree().paused = false`"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State machine
+    engine_risk: LOW
+  - id: TR-screen-009
+    system: screen
+    gdd: design/gdd/screen-effects-system.md
+    requirement: "Shake via shader uniform `u_shake_offset` (NOT `Camera2D.offset`) — ADR-001 CI enforced"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Engine capability
+    engine_risk: HIGH
+  - id: TR-screen-010
+    system: screen
+    gdd: design/gdd/screen-effects-system.md
+    requirement: "`HUD_SHAKES_WITH_WORLD` knob — HUD layer position toggle"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Engine capability
+    engine_risk: LOW
+  - id: TR-screen-011
+    system: screen
+    gdd: design/gdd/screen-effects-system.md
+    requirement: "Motion intensity slider for accessibility (motion_intensity = 0 → shake zero but hit_pause fires)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-screen-012
+    system: screen
+    gdd: design/gdd/screen-effects-system.md
+    requirement: "CPU ≤ 0.3ms p95 mobile / ≤ 0.5ms p95 desktop (ADR-001 FR-1)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Performance
+    engine_risk: LOW
+  - id: TR-screen-013
+    system: screen
+    gdd: design/gdd/screen-effects-system.md
+    requirement: "Autoload position 14 per project.godot (F-SYNC-2 synced — was claimed pos 5)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Engine capability
+    engine_risk: LOW
+  - id: TR-screen-014
+    system: screen
+    gdd: design/gdd/screen-effects-system.md
+    requirement: "Subscribe via `connect_for_initial_state` (Contract 6)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Cross-system communication
+    engine_risk: LOW
+
+  # ---- System #5 ParticleSystemWrapper ----
+  - id: TR-particle-001
+    system: particle
+    gdd: design/gdd/particle-system-wrapper.md
+    requirement: "`play(preset_id, position, caller_mult, count) → ParticleHandle` sync return"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Engine capability
+    engine_risk: LOW
+  - id: TR-particle-002
+    system: particle
+    gdd: design/gdd/particle-system-wrapper.md
+    requirement: "Input validation: NaN reject + multiplier clamp `[0.5, 2.0]`"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Engine capability
+    engine_risk: LOW
+  - id: TR-particle-003
+    system: particle
+    gdd: design/gdd/particle-system-wrapper.md
+    requirement: "Object pool size 16 with SMALL/LARGE tier split (no runtime realloc)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Performance
+    engine_risk: MEDIUM
+  - id: TR-particle-004
+    system: particle
+    gdd: design/gdd/particle-system-wrapper.md
+    requirement: "Tier selection by `amount`: ≤32 SMALL, >32 LARGE"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Performance
+    engine_risk: LOW
+  - id: TR-particle-005
+    system: particle
+    gdd: design/gdd/particle-system-wrapper.md
+    requirement: "CPU ledger O(1) incremental update with ±15% drift tolerance + 2-sec reconcile poll"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Performance
+    engine_risk: LOW
+  - id: TR-particle-006
+    system: particle
+    gdd: design/gdd/particle-system-wrapper.md
+    requirement: "Formula 1 multiplier composition with clamp boundaries `[1, 256]`"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-particle-007
+    system: particle
+    gdd: design/gdd/particle-system-wrapper.md
+    requirement: "LRU eviction age-only + 150ms floor protection"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-particle-008
+    system: particle
+    gdd: design/gdd/particle-system-wrapper.md
+    requirement: "Hybrid LOOT carve-out: LOOT bypasses floor for non-LOOT victims"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Data structure
+    engine_risk: LOW
+  - id: TR-particle-009
+    system: particle
+    gdd: design/gdd/particle-system-wrapper.md
+    requirement: "Combat all-protected silent reject + telemetry"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Cross-system communication
+    engine_risk: LOW
+  - id: TR-particle-010
+    system: particle
+    gdd: design/gdd/particle-system-wrapper.md
+    requirement: "Mobile UA detection boot-cached (PlatformDetect autoload) — no per-frame JSBridge call"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Platform
+    engine_risk: HIGH
+  - id: TR-particle-011
+    system: particle
+    gdd: design/gdd/particle-system-wrapper.md
+    requirement: "`burst_started` signal: sync emit AFTER alloc BEFORE `emitting=true`"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Cross-system communication
+    engine_risk: LOW
+  - id: TR-particle-012
+    system: particle
+    gdd: design/gdd/particle-system-wrapper.md
+    requirement: "Re-entry guard: nested `play()` from signal handler → deferred"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Threading-Timing
+    engine_risk: LOW
+  - id: TR-particle-013
+    system: particle
+    gdd: design/gdd/particle-system-wrapper.md
+    requirement: "CI static check: magic int/string preset ID rejected at build"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Test infrastructure
+    engine_risk: LOW
+  - id: TR-particle-014
+    system: particle
+    gdd: design/gdd/particle-system-wrapper.md
+    requirement: "Autoload position 12 + boot budget ≤80ms (F-SYNC-2 synced — was claimed pos 4)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Engine capability
+    engine_risk: LOW
+  - id: TR-particle-015
+    system: particle
+    gdd: design/gdd/particle-system-wrapper.md
+    requirement: "GSM `connect_for_initial_state` subscription (Contract 6)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Cross-system communication
+    engine_risk: LOW
+  - id: TR-particle-016
+    system: particle
+    gdd: design/gdd/particle-system-wrapper.md
+    requirement: "Wrapper persists nothing (3 invariants — no `PersistenceLayer.*` call)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State persistence
+    engine_risk: LOW
+  - id: TR-particle-017
+    system: particle
+    gdd: design/gdd/particle-system-wrapper.md
+    requirement: "EC1 fallback path on boot exceed 80ms"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Performance
+    engine_risk: LOW
+  - id: TR-particle-018
+    system: particle
+    gdd: design/gdd/particle-system-wrapper.md
+    requirement: "EC12 atomic mid-flight reject on Active→Suspended"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State machine
+    engine_risk: LOW
+  - id: TR-particle-019
+    system: particle
+    gdd: design/gdd/particle-system-wrapper.md
+    requirement: "EC16 material hot-swap via `call_deferred` (WebGL 2 pre-first-frame race)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Engine capability
+    engine_risk: "HIGH (WebGL 2 async pipeline)"
+  - id: TR-particle-020
+    system: particle
+    gdd: design/gdd/particle-system-wrapper.md
+    requirement: "`MAX_ACTIVE_PARTICLES = 200` mobile (game-concept hard governance §8) / 400 desktop"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Performance
+    engine_risk: "HIGH (ADR-001 RATIFICATION-GATED)"
+  - id: TR-particle-021
+    system: particle
+    gdd: design/gdd/particle-system-wrapper.md
+    requirement: "iOS Safari UA detection 100% accuracy across variants (ADR-001 FR-3)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Platform
+    engine_risk: HIGH
+  - id: TR-particle-022
+    system: particle
+    gdd: design/gdd/particle-system-wrapper.md
+    requirement: "LOOT_BURST vs LOOT_RARE_BURST peripheral 1-second glance distinguishability (ADR-001 FR-2)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Engine capability
+    engine_risk: LOW
+  - id: TR-particle-023
+    system: particle
+    gdd: design/gdd/particle-system-wrapper.md
+    requirement: "Direct `GPUParticles2D` instantiation outside wrapper FORBIDDEN (ADR-001 CI)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Engine capability
+    engine_risk: LOW
+
+  # ---- Game Concept (hard governance) ----
+  - id: TR-concept-001
+    system: concept
+    gdd: design/gdd/game-concept.md
+    requirement: "Engine: Godot 4.6 (mandatory)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Engine capability
+    engine_risk: LOW
+  - id: TR-concept-002
+    system: concept
+    gdd: design/gdd/game-concept.md
+    requirement: "Web Export primary target with iOS Safari + desktop browser parity"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Platform
+    engine_risk: HIGH
+  - id: TR-concept-003
+    system: concept
+    gdd: design/gdd/game-concept.md
+    requirement: "Hard governance §8: `MAX_ACTIVE_PARTICLES = 200` mobile cap (non-negotiable)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Performance
+    engine_risk: HIGH
+  - id: TR-concept-004
+    system: concept
+    gdd: design/gdd/game-concept.md
+    requirement: "GymSys backend polling `/api/game/state` every 5s (MVP); SSE v0.2 upgrade"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Networking
+    engine_risk: LOW
+  - id: TR-concept-005
+    system: concept
+    gdd: design/gdd/game-concept.md
+    requirement: "Backend-primary save state `game_state.json` per user in GymSys backend; localStorage cache for offline boot (ADR-003 supersedes localStorage → IndexedDB)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: State persistence
+    engine_risk: LOW
+  - id: TR-concept-006
+    system: concept
+    gdd: design/gdd/game-concept.md
+    requirement: "5 Pillar enforcement (Real Body Real Power / Frictionless Companion / Drop Euphoria / Muscle=Class / Mirror Moment)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Cross-cutting
+    engine_risk: LOW
+  - id: TR-concept-007
+    system: concept
+    gdd: design/gdd/game-concept.md
+    requirement: "Anti-Pillar: NOT 氪金 / NOT cardio-input to attack / NOT PVP / NOT in-game grinding for loot quality"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Cross-cutting
+    engine_risk: LOW
+  - id: TR-concept-008
+    system: concept
+    gdd: design/gdd/game-concept.md
+    requirement: "GPUParticles2D (NOT CPUParticles2D — Web Export perf differential)"
+    created: 2026-05-28
+    revised: ""
+    status: active
+    domain: Engine capability
+    engine_risk: MEDIUM

@@ -37,7 +37,18 @@
 #   Each entry: name, status, source, referenced_by[], attributes{}, added, revised
 
 version: 1
-last_updated: ""
+last_updated: "2026-05-28"  # GDD #26 Avatar Renderer APPROVED — CD-GDD-ALIGN CONCERNS (acceptable) resolved inline 2026-05-28 (6 ALIGN + 2 CONCERN F-7/F-8 promoted to pre-sprint scope gates + 2 ADVISORY F-9/F-10 inline-fixed); 5 formulas + 9 constants + 2 enums registered; anti-fabrication chain 第七件套 complete (#2 + #3 + #11 + #14 + #9 + #15 + #26); last VS-tier GDD complete (VS 14/14 → 100%)
+# 2026-05-28: GDD #15 Loot Drop System Pass 2 Revised — Fresh-session /design-review verdict MAJOR REVISION NEEDED → 8 BLOCKING (F-1..F-8) inline-fixed same-session; AC count 42 → 44 (+AC-43 daily token + AC-44 EC-22); awaiting Pass 3 fresh-session re-verification
+# 2026-05-28: GDD #15 Loot Drop System APPROVED — CD-GDD-ALIGN CONCERNS resolved inline (6 of 8); 5 formulas + 11 constants registered; 1 existing formula loot_rarity_score updated with #15 referrer
+# 2026-05-27: GDD #9 Workout State Tracker APPROVED (full mode single-pass CD-GDD-ALIGN — 8 ALIGN + 3 ADVISORY + 2 CONCERN inline-fixed + 0 BLOCKING); appended 3 formulas + 4 constants + 1 enum + 1 signal contract; fifth Core-tier registration; anti-fabrication chain 第五件套 (#2 + #3 + #11 + #14 + #9) complete; updated 8 existing entries' referenced_by to actualize #9 as referrer (gymsys_client_signal_contract / state_changed_signal_signature / exercise_target_count / loot_rarity_score / volume_tick_delta / pre_spawn_threshold / boss_pre_spawn_trigger / actual_spawn_interval)
+# 2026-05-26: GDD #5 Particle System Wrapper APPROVED (CD-GDD-ALIGN passed); appended 1 formula + 4 constants
+# 2026-05-26: GDD #6 Screen Effects System APPROVED (CD-GDD-ALIGN passed full mode single pass); appended 3 formulas + 7 constants
+# 2026-05-26: GDD #7 Camera System APPROVED (CD-GDD-ALIGN passed full mode single session single pass); appended 5 formulas + 9 constants; max_frame_delta referenced_by extended (#6 + #7 share)
+# 2026-05-27: GDD #11 Stat System DESIGNED (lean mode autonomous run-to-completion; pending /design-review); appended 6 formulas + 8 constants; first Core-tier registration
+# 2026-05-27: GDD #11 Stat System APPROVED (Pass 2 lean re-review); volume_tick_delta output_range + notes corrected per B-1+B-2 design-review fix (/consistency-check stale registry update)
+# 2026-05-27: GDD #12 Ability System DESIGNED (lean mode autonomous run-to-completion); appended 3 formulas + 11 constants; second Core-tier registration; pending /design-review
+# 2026-05-27: GDD #13 CombatResolver APPROVED (full mode Pass 2 CD-GDD-ALIGN — 6 inline-fix findings resolved same-session); appended 5 formulas + 16 constants (11 owned knobs + 3 signal signatures + 2 enums); third Core-tier registration; updated 3 #11 entries (attack_power_derived / crit_chance_derived / max_hp_derived) to include #13 as actual referrer
+# 2026-05-27: GDD #14 EnemyDirector APPROVED (full mode single-pass CD-GDD-ALIGN — 10 ALIGN + 2 ADVISORY + 0 BLOCKING); appended 6 formulas + 13 constants + 3 enums; fourth Core-tier registration; updated 3 #13 signal signature entries (hit_resolved / enemy_killed / combat_metric_anomaly) to include #14 as actual emitter referrer (per #13 Rule 3 EnemyDirector owns signal emission)
 
 # ─── ENTITIES ────────────────────────────────────────────────────────────────
 # Named game-world objects: enemies, NPCs, characters, factions, bosses.
@@ -106,7 +117,716 @@ items: []
 #   output_range[min, max], added
 # Optional: expression (the actual formula), notes
 
-formulas: []
+formulas:
+  - name: retry_delay
+    status: active
+    source: design/gdd/game-state-machine.md
+    referenced_by:
+      - design/gdd/game-state-machine.md
+      - design/gdd/gymsys-backend-client.md   # #2 — executes the sleep in Backoff substate per Rule 12 retry matrix
+    variables:
+      - n              # attempt index, 1-indexed, resets to 1 on success
+      - BASE_DELAY     # tuning knob, default 1.0s
+      - RETRY_CAP      # tuning knob, default 16.0s
+    output_range: [0.5, 60.0]   # [min BASE_DELAY, max RETRY_CAP] across safe ranges
+    expression: "min(BASE_DELAY * pow(2, n - 1), RETRY_CAP)"
+    notes: "Exponential backoff with cap for GymSys reconnection from Disconnected state. Ownership: GameStateMachine (decides when to transition back from Disconnected). Execution: GymSys Backend Client (does actual sleep per Rule 12 retry matrix). Defaults: BASE_DELAY=1.0, RETRY_CAP=16.0 → 1,2,4,8,16,16,... seconds."
+    added: 2026-05-25
+    revised: "2026-05-26 — added GymSys Backend Client (#2) as referrer (executes the sleep)"
+
+  - name: actual_poll_interval
+    status: active
+    source: design/gdd/gymsys-backend-client.md
+    referenced_by:
+      - design/gdd/gymsys-backend-client.md
+      # Expected future referrers: none directly — output is internal to #2
+    variables:
+      - GYMSYS_POLL_INTERVAL_SECONDS   # locked at 5.0 from game-concept
+      - POLL_JITTER_SECONDS            # tuning knob, default 0.5s, safe range [0.0, 0.5]
+    output_range: [4.5, 5.5]           # at defaults; bounded by jitter amplitude
+    expression: "GYMSYS_POLL_INTERVAL_SECONDS + randf_range(-POLL_JITTER_SECONDS, +POLL_JITTER_SECONDS)"
+    notes: "Polling jitter for thundering-herd avoidance. Spreads multi-client poll requests across the 5s window so backend P95 latency stays smooth instead of spiking at wall-clock tick boundaries. Cross-knob invariant: GYMSYS_POLL_INTERVAL_SECONDS - POLL_JITTER_SECONDS ≥ POLL_TIMEOUT_SECONDS + 0.5 (preserves single-flight margin)."
+    added: 2026-05-26
+    revised: ""
+
+  - name: is_expired
+    status: active
+    source: design/gdd/persistence-layer.md
+    referenced_by:
+      - design/gdd/persistence-layer.md
+      - design/gdd/gymsys-backend-client.md   # #2 — 35-day _committed_tombstones age-pruning (Rule 15)
+      - design/gdd/game-state-machine.md      # #1 — _last_weekly_tick_unix + pending_transition TTL checks
+      # Expected future referrers:
+      # - design/gdd/streak-system.md          (#8 — daily-window check)
+    variables:
+      - anchor_unix                # caller-provided Unix timestamp at anchor event
+      - ttl_seconds                # caller-provided max age before expiry
+      - anchor_monotonic_ms        # optional Time.get_ticks_msec() at anchor; enables drift detection
+      - WALL_CLOCK_DRIFT_TOLERANCE_SECONDS  # PersistenceLayer-owned knob, default 300s
+    output_range: [false, true]    # boolean
+    expression: |
+      var wall_delta = Time.get_unix_time_from_system() - anchor_unix
+      if anchor_monotonic_ms > 0:
+          var mono_delta_sec = (Time.get_ticks_msec() - anchor_monotonic_ms) / 1000
+          if abs(wall_delta - mono_delta_sec) > WALL_CLOCK_DRIFT_TOLERANCE_SECONDS:
+              return mono_delta_sec > ttl_seconds   # trust monotonic
+      return wall_delta > ttl_seconds
+    notes: "Drift-tolerant TTL expiry check per ADR-006 Contract 9. Pure function (no state mutation). Caller provides anchors + ttl; helper handles NTP/DST/manual-clock-change detection via monotonic fallback. Defaults: WALL_CLOCK_DRIFT_TOLERANCE_SECONDS=300 (safe 60..3600). At default, normal NTP second-tick jitter (~1-30s) doesn't trigger false drift; real DST/NTP corrections (>5min) do."
+    added: 2026-05-26
+    revised: ""
+
+  - name: final_count_composition
+    status: active
+    source: design/gdd/particle-system-wrapper.md
+    referenced_by:
+      - design/gdd/particle-system-wrapper.md
+      # Expected future referrers:
+      # - docs/architecture/adr-0001-godot-web-export-budget-caps.md  (input scope — ratifies cap value)
+      # - design/gdd/loot-drop-system.md  (#15 — LOOT preset mapping affects loot_mult input)
+      # - design/gdd/enemy-director.md    (#14 — caller_mult usage discipline)
+      # - design/gdd/loot-drop-modal.md   (#21 — caller_mult usage discipline)
+      # - design/gdd/combat-visual-feedback.md  (#25 — caller_mult usage discipline)
+    variables:
+      - preset.count               # base from PRESET_TABLE per Rule 13 (int [4, 48])
+      - loot_mult                  # {1.0, 3.0} — 3.0 if preset_id ∈ {LOOT_BURST, LOOT_RARE_BURST}
+      - mobile_mult                # {0.5, 1.0} — 0.5 if _is_mobile == true
+      - caller_mult                # [0.1, 1.5] — Rule 1 caller validation pre-clamps
+    output_range: [1, 256]         # integer; clamp floor 1 (never emit 0), ceiling 256 (LARGE tier amount buffer)
+    expression: "clamp(round(preset.count × loot_mult × mobile_mult × caller_mult), 1, 256)"
+    notes: "Multiplier composition formula per Rule 7 (LOCKED apply order: preset → loot → mobile → caller → round → clamp). Pillar 3 sanity check invariant: desktop LOOT/HIT ratio = 9× (LOOT_BURST 72 ÷ HIT_LIGHT 8 = 9.0), maintained at mobile same ratio. ceiling clamp triggers `push_warning` (design-time signal). Floor clamp guarantees minimum visible burst per Pillar 3 feedback invariant."
+    added: 2026-05-26
+    revised: ""
+
+  - name: shake_offset_per_frame
+    status: active
+    source: design/gdd/screen-effects-system.md
+    referenced_by:
+      - design/gdd/screen-effects-system.md
+      # Expected future referrers:
+      # - docs/architecture/adr-0001-godot-web-export-budget-caps.md  (FR-1 ratification — CPU budget binding)
+    variables:
+      - trauma                     # float [0.0, 1.0] — accumulated trauma (Formula 2 output)
+      - MAX_OFFSET_PX              # tuning knob, default 4.0px, safe [2.0, 8.0]
+      - noise_sample               # Vector2 each axis [-1, 1] — Formula 4 cheap deterministic hash
+      - trauma_decay_rate          # float [2.0, 100.0] /sec — Formula 2 output
+      - delta                      # float [0, MAX_FRAME_DELTA=0.1] sec — Rule 13 bfcache clamp
+      - time                       # float [0, ∞) sec — engine elapsed time
+    output_range: [-4.0, 4.0]     # each axis (Vector2); worst case ±MAX_OFFSET_PX at trauma=1.0
+    expression: "pow(trauma, 2) × MAX_OFFSET_PX × noise_sample(time); trauma = max(0.0, trauma - trauma_decay_rate × delta) per frame"
+    notes: "Yoshi/Vlachos GDC trauma² decay model — front-loaded energy curve delivers 'solid impact, not motor vibration' feel (Pillar 1 體感 channel)。Trauma < TRAUMA_EPSILON (0.01) short-circuits evaluation (AC-D5)。motion_intensity = 0.0 → entire pipeline bypassed (Section B Falsifiable Test #2 binding — hit_pause 仍然 fire per Rule 7)。"
+    added: 2026-05-26
+    revised: ""
+
+  - name: trauma_combiner
+    status: active
+    source: design/gdd/screen-effects-system.md
+    referenced_by:
+      - design/gdd/screen-effects-system.md
+      # Expected future referrers:
+      # - design/gdd/enemy-director.md  (#14 — direct caller path shake(intensity, duration))
+      # - design/gdd/combat-visual-feedback.md  (#25 — direct caller path for parry counter-shake)
+    variables:
+      - trauma_old                 # float [0.0, 1.0] — pre-call trauma state
+      - raw_intensity              # float [0.0, 1.0] — Rule 1 caller intensity input
+      - motion_intensity           # float [0.0, 1.0] — Rule 3 a11y slider input
+      - duration                   # float [0.0, 0.5] sec — Rule 1 caller duration input
+      - MIN_SHAKE_DURATION         # tuning knob, default 0.01s, safe [0.005, 0.05]
+      - trauma_decay_rate_old      # float [2.0, 100.0] /sec
+    output_range: [0.0, 1.0]      # trauma_new bounded [0,1]; decay_rate_new bounded [2.0, 100.0] /sec
+    expression: "trauma_new = min(1.0, trauma_old + raw_intensity × motion_intensity); trauma_decay_rate_new = max(trauma_decay_rate_old, 1.0 / max(MIN_SHAKE_DURATION, duration))"
+    notes: "Additive trauma combiner with hard clamp (Rule 5) + input-side motion_intensity (Rule 7) + MIN_SHAKE_DURATION denominator floor amendment (Formula 2 div-by-zero safety net)。Falsifiable Test #4 binding (AC-D1): 8 × HIT_HEAVY (0.4 each) saturates to 1.0, clamp holds — shader uniform offset 絕對唔超出 MAX_OFFSET_PX。Decay monotonicity invariant (AC-D4): decay_rate_new ≥ decay_rate_old 永遠成立。"
+    added: 2026-05-26
+    revised: ""
+
+  - name: pause_max_remaining
+    status: active
+    source: design/gdd/screen-effects-system.md
+    referenced_by:
+      - design/gdd/screen-effects-system.md
+      # Expected future referrers:
+      # - design/gdd/enemy-director.md (#14 — direct caller path hit_pause(duration))
+      # - design/gdd/combat-visual-feedback.md (#25 — direct caller path)
+    variables:
+      - pause_remaining_old        # float [0.0, MAX_PAUSE_SEC] sec
+      - requested_duration         # float [0.0, ∞) sec — Rule 2 clamps before reaching formula
+      - MAX_PAUSE_SEC              # tuning knob, default 0.12s, safe [0.04, 0.12]
+    output_range: [0.0, 0.12]     # hard-clamped to MAX_PAUSE_SEC
+    expression: "pause_remaining_new = min(MAX_PAUSE_SEC, max(pause_remaining_old, requested_duration))"
+    notes: "Max-remaining combiner (Rule 8) — overlapping hit_pause calls 唔 stack, 強者 wins。Pillar 2 user-detectable freeze threshold (0.125s reaction safety margin) → 0.12s hard ceiling 留 5ms buffer。hit_pause NOT multiplied by motion_intensity (Rule 7 + Section B locked: time perturbation ≠ vestibular trigger)。Requested duration > MAX_PAUSE_SEC clamps + push_warning (AC-D3)。"
+    added: 2026-05-26
+    revised: ""
+
+  - name: follow_position_after_smoothing
+    status: active
+    source: design/gdd/camera-system.md
+    referenced_by:
+      - design/gdd/camera-system.md
+      # Expected future referrers:
+      # - docs/architecture/adr-0001-godot-web-export-budget-caps.md (FR-1 ratification — Camera CPU budget binding)
+    variables:
+      - pos_old                    # Vector2 (px) — previous frame Camera2D position
+      - target                     # Vector2 (px) — follow target world position (dead-zone clamped)
+      - POSITION_SMOOTHING_SPEED   # tuning knob, default 5.0, safe [3.0, 8.0]
+      - delta                      # float [0, MAX_FRAME_DELTA=0.1] sec — frame delta
+    output_range: ["asymptotic", "asymptotic"]   # Vector2 each axis, asymptotically converges to target; dead-zone box bounds
+    expression: "pos_new = pos_old + (target - pos_old) × (1 - exp(-POSITION_SMOOTHING_SPEED × delta))"
+    notes: "Godot 4.6 Camera2D built-in exponential decay (frame-rate independent post-4.4 fix)。Settle math: t to 63% = 1/k, t to 95% = 3/k。At default k=5.0: 200ms → 63%, 600ms → 95%。Pillar 2 lock-on metric: settle-to-within-3px ≤ 500ms (Formula 4 derivation, 461ms @ 30px offset)。AC-09 + AC-30 binding。"
+    added: 2026-05-26
+    revised: ""
+
+  - name: quart_ease_out_value
+    status: active
+    source: design/gdd/camera-system.md
+    referenced_by:
+      - design/gdd/camera-system.md
+    variables:
+      - t                          # float [0.0, 1.0] — normalized tween time
+      - start                      # Vector2 / float — value at t=0
+      - end                        # Vector2 / float — value at t=1
+      - FOCAL_ENTRY_DURATION       # tuning knob, default 0.6s, safe [0.4, 1.0]
+    output_range: ["bounded by [start, end]"]   # monotonic increasing, never overshoots
+    expression: "value(t) = start + (end - start) × (1 - pow(1 - t, 4))"
+    notes: "Focal entry interpolation (Rule 6) — quart ease-out front-loaded: at t=0.3, covers 76% of distance (Section B Falsifiable Test #5 「decisive invitation」 property)。Quart over cubic: cubic only 65.7% in 30% time → weaker lunge perception；quart matches DNF Otherverse portal push-in snappiness。AC-11 binding。"
+    added: 2026-05-26
+    revised: ""
+
+  - name: cubic_ease_in_out_value
+    status: active
+    source: design/gdd/camera-system.md
+    referenced_by:
+      - design/gdd/camera-system.md
+    variables:
+      - t                          # float [0.0, 1.0] — normalized tween time
+      - start                      # Vector2 / float — Focal-state value
+      - end                        # Vector2 / float — Resume-state value
+      - FOCAL_EXIT_DURATION        # tuning knob, default 0.5s, safe [0.3, 0.8]
+    output_range: ["bounded by [start, end]"]   # symmetric around t=0.5, never overshoots
+    expression: "value(t) = start + (end - start) × f(t); f(t) = 4t³ if t<0.5 else 1 - pow(-2t+2,3)/2"
+    notes: "Focal exit interpolation (Rule 7) — cubic ease-in-out symmetric breath-out (Hades pacing)。f(0.5) = 0.5 exact (AC-D3 ±1e-6 tolerance)。Entry quart (decisive invitation) + exit cubic (breath out) 嘅 asymmetric curve choice 對應 "invitation in, settle out" cinematographic narrative。AC-12 binding。"
+    added: 2026-05-26
+    revised: ""
+
+  - name: glance_lock_on_time
+    status: active
+    source: design/gdd/camera-system.md
+    referenced_by:
+      - design/gdd/camera-system.md
+    variables:
+      - d_initial                  # float (px) — initial camera-to-target distance
+      - d_tolerance                # float (px) — lock-on tolerance (LOCK_ON_TOLERANCE_PX, default 3.0)
+      - POSITION_SMOOTHING_SPEED   # tuning knob, default 5.0
+    output_range: [0.0, "infinity"]   # bounded by exp decay; Pillar 2 contract requires < 500ms for d_initial ≤ 30
+    expression: "t_lock = ln(d_initial / d_tolerance) / POSITION_SMOOTHING_SPEED"
+    notes: "Pillar 2 numerical proof helper for Formula 1 (follow_position_after_smoothing)。At default (d_initial=30, d_tol=3, k=5): t_lock = ln(10)/5 = 461ms ✓ within Pillar 2 < 500ms hard metric。AC-09 (Pillar 2 hard contract) + AC-30 (cross-knob invariant boundary test) binding。"
+    added: 2026-05-26
+    revised: ""
+
+  - name: dead_zone_box_world_extents
+    status: active
+    source: design/gdd/camera-system.md
+    referenced_by:
+      - design/gdd/camera-system.md
+    variables:
+      - viewport                   # Vector2 (screen px) — engine-set from get_viewport_rect().size
+      - margin_left                # float — Rule 3 drag_left_margin (default 0.04)
+      - margin_right               # float — Rule 3 drag_right_margin (default 0.04)
+      - margin_top                 # float — Rule 3 drag_top_margin (default 0.06)
+      - margin_bottom              # float — Rule 3 drag_bottom_margin (default 0.06)
+      - zoom                       # Vector2 — current Camera2D.zoom
+    output_range: ["proportional to viewport / zoom"]   # bounded
+    expression: "extents_world = Vector2(viewport.x × (margin_left + margin_right), viewport.y × (margin_top + margin_bottom)) / zoom"
+    notes: "Debug overlay + AC-D4 dead-zone stability test helper。Default desktop 1920×1080, zoom 1.0: extents = 154×130 world units centred on Camera2D。AC-08 + AC-10 binding。EC-14 viewport resize auto-recompute next frame (avoid visible jolt)。"
+    added: 2026-05-26
+    revised: ""
+
+  - name: loot_rarity_score
+    status: active
+    source: docs/architecture/adr-0005-loot-rarity-formula.md
+    referenced_by:
+      - docs/architecture/adr-0005-loot-rarity-formula.md
+      - design/gdd/workout-state-tracker.md     # #9 — APPROVED 2026-05-27 provides completed_exercises_count (distinct exercise_id count, NOT set count) via WorkoutSummaryRO for #15 to compute volume_factor = min(1.0, completed_exercises_count / EXERCISE_TARGET_COUNT=5) — CI-5 binding
+      - design/gdd/loot-drop-system.md          # #15 — APPROVED 2026-05-28 primary consumer; Formula 1 apply_tier_ceiling_floor wraps this output with source-event clamp (mini-boss ceiling RARE, final boss floor UNCOMMON, zero-workout forced COMMON); AC-01/AC-02/AC-05 verify Pillar 1 architectural floor proof
+      # Expected future referrers:
+      # - design/gdd/streak-system.md             (#8 — provides streak_count input)
+      # - design/gdd/pr-detection.md              (#18 — provides pr_breakthrough_count input)
+    variables:
+      - workout_score                # float [0.0, 1.0] — clamp(volume_factor × pr_factor × streak_factor, 0, 1)
+      - rng_roll                     # float [0.0, 1.0] — RandomNumberGenerator seeded on hash(transition_id)
+      - WORKOUT_WEIGHT               # const 0.75, safe [0.70, 0.85] — Pillar 1 primary weight
+      - RNG_WEIGHT                   # const 0.25, safe [0.15, 0.30] — secondary excitement weight
+    output_range: [0.0, 1.0]
+    expression: |
+      loot_rarity_score = clamp(workout_score × WORKOUT_WEIGHT + rng_roll × RNG_WEIGHT, 0.0, 1.0)
+      raw_tier = tier_from_score(loot_rarity_score)
+      final_tier = max(raw_tier, RARITY_COMMON)   # Pillar 3 floor: workout_completed ≥ Common always
+    notes: "Pillar 1 mathematical proof: max RNG-only contribution = 0.25 < EPIC_THRESHOLD(0.72) → impossible to reach Epic/Legendary without workout_score contribution. Pillar 3 floor: any workout_completed → ≥ COMMON guaranteed. Two-stage: (1) score computation; (2) floor-tier application. RNG seeded on transition_id for determinism (ADR-006 Contract 2). Data-driven via LootRarityConfig.tres. Upstream GDD input contracts: completed_exercises (#9), streak_count (#8), pr_breakthrough_count (#18). ADR-005 source of truth."
+    added: 2026-05-27
+    revised: ""
+
+  - name: volume_tick_delta
+    status: active
+    source: design/gdd/stat-system.md
+    referenced_by:
+      - design/gdd/stat-system.md
+      - design/gdd/workout-state-tracker.md  # #9 — APPROVED 2026-05-27 caller of Stat.apply_stat_delta(stat_id, delta, VOLUME_TICK, source_key) per set_logged event; source_key = client-derived workout_id+set_index idempotency key (NOT ADR-006 transition_id — see Rule 6 note B-1 fix 2026-05-27); class→stat routing PUSH→STR / PULL→DEX / LEG→VIT
+      # Expected future referrers:
+      # - design/gdd/exercise-class-mapping.md (#10 — provides class_id input)
+    variables:
+      - VOLUME_TICK_BASE           # float [0.01, 0.5], default 0.05 (knob)
+      - class_id                   # enum {PUSH, PULL, LEG}
+      - target_stat                # enum {STR, DEX, VIT}
+      - class_weight               # float {0.0, 1.0} — hard mapping matrix lookup
+    output_range: [0.0, 0.05]      # at default knob (VOLUME_TICK_BASE=0.05); expands to [0.0, 0.20] at max knob value; 0 if class_id-stat mismatch
+    expression: "volume_tick_delta = VOLUME_TICK_BASE × class_weight(class_id, target_stat)"
+    notes: "Stat System Formula 1 — per-set micro-delta with Pillar 4 class routing (push→STR, pull→DEX, leg→VIT hard mapping). Caller (#9) responsible for invoking apply_stat_delta with computed delta. Pillar 1 binding: only resistance-training class_id can produce non-zero delta. Anti-snowball: typical 30-set equally-distributed session VOLUME_TICK cumulates ~0.5 per stat (10 sets × 0.05); combined with PR_BREAKTHROUGH ~1.5–2.0 per stat per session (early game assuming 2–3 PRs). Hardcore player reaches MAX_STAT_VALUE=999 in ~1–2 years. # was: output_range [0.0, 0.20] + notes '~1.5 per stat' before 2026-05-27 design-review fix"
+    added: 2026-05-27
+    revised: "2026-05-27 — corrected stale values per /design-review B-1+B-2 fix: output_range [0.0, 0.20]→[0.0, 0.05] at default knob; session accumulation note corrected from ~1.5 to ~0.5 (VOLUME_TICK-only) + ~1.5–2.0 combined"
+
+  - name: pr_breakthrough_delta
+    status: provisional
+    source: design/gdd/stat-system.md
+    referenced_by:
+      - design/gdd/stat-system.md
+      # Expected future referrers:
+      # - design/gdd/pr-detection.md  (#18 — caller of apply_stat_delta with PR_BREAKTHROUGH source)
+      # - docs/architecture/adr-0005-loot-rarity-formula.md  (retune gate — PR_BASE cross-validation with WORKOUT_WEIGHT=0.75)
+    variables:
+      - PR_BASE                    # float [1.0, 20.0], default 6.0 (knob; PROVISIONAL — ADR-005 retune candidate)
+      - pr_magnitude               # float [0.0, 2.0] — (new_1RM - old_1RM) / old_1RM, clamped
+      - current_stat               # float [0.0, 999.0] — pre-mutation base stat value
+      - MAX_STAT_VALUE             # int 999 (const)
+      - PR_DIMINISH_EXP            # float [1.0, 4.0], default 2.0 (knob)
+    output_range: [0.0, "PR_BASE × 2.0"]   # at default knob: [0, 12.0]
+    expression: "pr_delta = PR_BASE × pr_magnitude × (1.0 - (current_stat / MAX_STAT_VALUE) ^ PR_DIMINISH_EXP)"
+    notes: "Stat System Formula 2 — VS-tier PROVISIONAL mock pending ADR-005 (Accepted as of 2026-05-27 per loot_rarity_score entry above) Pillar 1 cross-validation. PR_BASE retune candidate per ADR-005 WORKOUT_WEIGHT=0.75 alignment. Pillar 1 anti-snowball via diminishing_factor: current_stat=MAX → δ=0 (INV-2 hard cap). Section B FR-2 binding: RNG-influenced stat boost MUST route via EQUIPMENT modifier, NEVER inflate pr_magnitude. Caller (#18 PR Detection) invokes apply_stat_delta with computed delta."
+    added: 2026-05-27
+    revised: ""
+
+  - name: max_hp_derived
+    status: active
+    source: design/gdd/stat-system.md
+    referenced_by:
+      - design/gdd/stat-system.md
+      - design/gdd/combat-resolver.md   # #13 — referenced indirectly via target.max_hp in Formula 4 classify_damage_tier (target enemy HP, NOT player MAX_HP) — listed for cross-ref completeness; player MAX_HP not consumed by #13
+      # Expected future referrers:
+      # - design/gdd/character-screen.md (#22 — displays MAX_HP value)
+      # - design/gdd/equipment-inventory.md (#17 — equipment_hp_mod source)
+    variables:
+      - HP_BASE                    # int [50, 200], default 80 (knob)
+      - VIT                        # float [0.0, 999.0]
+      - HP_PER_VIT                 # float [3.0, 15.0], default 8.0 (knob)
+      - equipment_hp_mod           # int [-200, +500]
+    output_range: [1, 10000]
+    expression: "MAX_HP = max(1, HP_BASE + (VIT × HP_PER_VIT) + equipment_hp_mod)"
+    notes: "Stat System Formula 3 — VIT-driven survival. Pillar 4 leg-day reward. Additive equipment modifier prevents %HP snowball. CF-1 baseline: VIT=10, no eq → MAX_HP=160 (4-5 hit survival vs starter mob ATK 30-40). INV-3: HP_BASE + 10×HP_PER_VIT ≥ 150."
+    added: 2026-05-27
+    revised: ""
+
+  - name: attack_power_derived
+    status: active
+    source: design/gdd/stat-system.md
+    referenced_by:
+      - design/gdd/stat-system.md
+      - design/gdd/combat-resolver.md   # #13 — Formula 1 compute_hit_damage hot consumer; snapshot read via Rule 6 StatSnapshot, NOT per-hit direct read
+      # Expected future referrers:
+      # - design/gdd/character-screen.md (#22)
+      # - design/gdd/equipment-inventory.md (#17)
+    variables:
+      - ATK_BASE                   # int [5, 30], default 10
+      - STR                        # float [0.0, 999.0]
+      - ATK_PER_STR                # float [0.5, 3.0], default 1.5
+      - DEX                        # float [0.0, 999.0]
+      - ATK_PER_DEX                # float [0.1, 0.8], default 0.3 (INV-4: < ATK_PER_STR × 0.5)
+      - equipment_atk_mod          # int [-50, +300]
+    output_range: [1, 4500]
+    expression: "ATTACK_POWER = max(1, ATK_BASE + (STR × ATK_PER_STR) + (DEX × ATK_PER_DEX) + equipment_atk_mod)"
+    notes: "Stat System Formula 4 — STR-dominant with DEX minor (Rule 1 design intent). INV-4: ATK_PER_DEX < ATK_PER_STR × 0.5. CF-1 baseline: STR=DEX=10, no eq → ATTACK_POWER=28 (3-4 hit kill mob HP 80-100). #13 CombatResolver every-tick read."
+    added: 2026-05-27
+    revised: ""
+
+  - name: move_speed_derived
+    status: active
+    source: design/gdd/stat-system.md
+    referenced_by:
+      - design/gdd/stat-system.md
+      - design/gdd/camera-system.md     # #7 — INV-7 cross-knob invariant binding (MOVE_CAP ≤ camera follow speed)
+      # Expected future referrers:
+      # - design/gdd/combat-resolver.md (#13 — avatar locomotion tick)
+      # - design/gdd/equipment-inventory.md (#17)
+    variables:
+      - MOVE_BASE                  # float [100.0, 250.0] px/s, default 180.0
+      - DEX                        # float [0.0, 999.0]
+      - MOVE_PER_DEX               # float [0.1, 1.0], default 0.4
+      - equipment_move_mod         # float [-50.0, +100.0]
+      - MOVE_CAP                   # float [300.0, 600.0] px/s, default 420.0
+    output_range: [90.0, 420.0]
+    expression: "MOVE_SPEED = min(MOVE_BASE + (DEX × MOVE_PER_DEX) + equipment_move_mod, MOVE_CAP)"
+    notes: "Stat System Formula 5 — DEX-driven locomotion. INV-6: MOVE_BASE + 999 × MOVE_PER_DEX > MOVE_CAP (cap reachable stat-only — Pillar 1 CF-3). INV-7 CROSS-SYSTEM: MOVE_CAP ≤ #7 Camera follow speed (prevents avatar outrun camera). CF-1 baseline: DEX=10 → MOVE_SPEED=184 px/s (Hollow Knight 200 / Celeste 190 comfort zone)."
+    added: 2026-05-27
+    revised: ""
+
+  - name: crit_chance_derived
+    status: active
+    source: design/gdd/stat-system.md
+    referenced_by:
+      - design/gdd/stat-system.md
+      - design/gdd/combat-resolver.md   # #13 — Formula 2 roll_crit input per damage roll; snapshot read via Rule 6 StatSnapshot
+      # Expected future referrers:
+      # - design/gdd/equipment-inventory.md (#17)
+    variables:
+      - DEX                        # float [0.0, 999.0]
+      - CRIT_PER_DEX               # float [0.0005, 0.005], default 0.0015
+      - equipment_crit_mod         # float [0.0, 0.20]
+      - MAX_CRIT_CHANCE            # float [0.30, 0.75], default 0.50
+    output_range: [0.0, 0.50]
+    expression: "CRIT_CHANCE = min((DEX × CRIT_PER_DEX) + equipment_crit_mod, MAX_CRIT_CHANCE)"
+    notes: "Stat System Formula 6 — DEX-driven crit with hard cap (anti-100%-crit-dice-game). DEX_FOR_MAX_CRIT = MAX_CRIT_CHANCE/CRIT_PER_DEX ≈ 333. INV-8: ∈ [100, MAX_STAT_VALUE]. CF-1 baseline: DEX=10 → 1.5% (rare delight, every 60-70 hit). equipment_crit_mod ≤ 0.20 prevents equipment-only crit cap. #13 reads per damage roll."
+    added: 2026-05-27
+    revised: ""
+
+  - name: tier_thresholds
+    status: active
+    source: design/gdd/ability-system.md
+    referenced_by:
+      - design/gdd/ability-system.md
+      # Expected future referrers:
+      # - design/gdd/pr-detection.md (#18 — emits pr_breakthrough that triggers Path A unlock evaluation)
+      # - design/gdd/character-screen.md (#22 — displays "next tier threshold" progress)
+      # - design/gdd/skill-tree.md (#30 v0.2 — tree node unlock gates)
+    variables:
+      - class                      # enum {STRIKE, CONTROL, MOBILITY}
+      - tier                       # enum {TIER_1, TIER_2, TIER_3}
+      - threshold                  # int {10, 50, 200}
+      - current_stat_value         # float [0, 999] — from #11 Stat System
+    output_range: [false, true]    # boolean unlock decision
+    expression: "unlocked = (current_stat_value >= TIER_THRESHOLDS[tier])"
+    notes: "Ability System Formula 1 — data-driven const lookup. INV-2: TIER_1 ≥ DEFAULT_BASE_STAT=10; INV-3: TIER_3 ≤ MAX_STAT_VALUE × 0.25=249. 3 class 共用同一組 threshold (Pillar 4 fairness). First-boot DEFAULT_BASE_STAT=10 ≥ TIER_1=10 → 3 個 TIER_1 ability auto-unlock (CF-1 onboarding moment). Tunable knobs: TIER_1_THRESHOLD (10), TIER_2_THRESHOLD (50), TIER_3_THRESHOLD (200)."
+    added: 2026-05-27
+    revised: ""
+
+  - name: base_cooldown_sec
+    status: active
+    source: design/gdd/ability-system.md
+    referenced_by:
+      - design/gdd/ability-system.md
+      # Expected future referrers:
+      # - design/gdd/combat-resolver.md (#13 — combat scheduler reads to plan cast cadence)
+      # - design/gdd/gym-mode-hud.md (#20 — cooldown bar duration param)
+    variables:
+      - tier                       # enum {TIER_1, TIER_2, TIER_3}
+      - base_cooldown_sec          # float {3.0, 6.0, 10.0}
+      - cooldown_remaining         # float [0.0, base_cooldown_sec]
+    output_range: [3.0, 10.0]      # bounded by tier-specific lookup
+    expression: "cooldown_remaining = BASE_COOLDOWN_SEC[ability.tier] (start); can_cast = (cooldown_remaining <= 0.0)"
+    notes: "Ability System Formula 2 — fixed-per-tier const lookup (NOT stat-scaled to preserve combat readability). INV-4: strict monotonic TIER_1<TIER_2<TIER_3. INV-5: TIER_1≥2.0 anti-spam. INV-6: TIER_3≤15.0 anti-dead-time. INV-7: TIER_3/TIER_1 ≤ 4.0 ratio cap (current 3.33). 60-sec encounter cadence: TIER_1=20 casts, TIER_2=10, TIER_3=6. Tunable knobs: TIER_1/2/3_BASE_COOLDOWN_SEC (3.0/6.0/10.0)."
+    added: 2026-05-27
+    revised: ""
+
+  - name: unlock_event_priority
+    status: active
+    source: design/gdd/ability-system.md
+    referenced_by:
+      - design/gdd/ability-system.md
+    variables:
+      - pending_unlocks            # Array[AbilityId] size [0, 9]
+      - tier_ordinal               # int {0, 1, 2} — TIER_1=0, TIER_2=1, TIER_3=2
+      - class_ordinal              # int {0, 1, 2} — STRIKE=0, CONTROL=1, MOBILITY=2
+    output_range: ["permutation of input"]
+    expression: "emit_order = sort(pending_unlocks, key=lambda a: (a.tier_ordinal, a.class_ordinal))"
+    notes: "Ability System Formula 3 — deterministic emit ordering for same-frame multi-unlock (e.g., first-boot 3-class TIER_1 simultaneous unlock OR cross-tier PR breakthrough). Tier ascending → narrative crescendo (low → high). Class ordering secondary (STRIKE → CONTROL → MOBILITY enum declaration order). Architectural contract — NOT a tuning knob. Idempotent guard喺 sort 之前 apply (Rule 13 step 1)."
+    added: 2026-05-27
+    revised: ""
+
+  - name: actual_spawn_interval
+    status: active
+    source: design/gdd/enemy-director.md
+    referenced_by:
+      - design/gdd/enemy-director.md
+      - design/gdd/workout-state-tracker.md  # #9 — APPROVED 2026-05-27 provides dominant_class input via Formula 3 dominant_class_derivation (set-count weighted, sticky-last-leader tiebreak per Section C Rule 5)
+    variables:
+      - BASE_SPAWN_INTERVAL        # float [3.0, 8.0] sec, default 4.0 (knob)
+      - archetype_cadence_mult     # float {0.75, 1.0} per archetype — STRIKE=1.0 / CONTROL=1.0 / MOBILITY=0.75
+    output_range: [2.25, 8.0]      # sec
+    expression: "actual_spawn_interval = BASE_SPAWN_INTERVAL × archetype_cadence_mult"
+    notes: "EnemyDirector Formula 1 — wave spawn cadence per archetype. 4.0s baseline aligns deadlift cooldown 45s ÷ ~10 spawn = 1 wave per set。Cross-knob invariant INV-1: min combined ≥ 2.25s (avoid spam — Pillar 2 attention-budget violation)。MOBILITY 0.75× faster cadence = leg day「動態壓力」signature (Pillar 4)。Data-driven via EnemyRegistry.tres per archetype。AC-17 (registry schema) verifies field present + non-zero。"
+    added: 2026-05-27
+    revised: ""
+
+  - name: mobility_dodge_offset
+    status: active
+    source: design/gdd/enemy-director.md
+    referenced_by:
+      - design/gdd/enemy-director.md
+    variables:
+      - transition_id              # String UUID-like — GSM current_transition_id
+      - instance_id                # int — enemy .get_instance_id()
+      - DODGE_AMPLITUDE_PX         # float [25.0, 100.0], default 30.0 (post-INV-8 fix from 50)
+      - dodge_interval_sec         # float [0.5, 3.0], default 1.5
+    output_range: [-30.0, +30.0]   # px — at default DODGE_AMPLITUDE_PX
+    expression: "dodge_offset_x = sub_rng.randf_range(-DODGE_AMPLITUDE_PX, +DODGE_AMPLITUDE_PX) where sub_rng = _rng_factory.create_sub(transition_id, 'dodge_%d' % instance_id)"
+    notes: "EnemyDirector Formula 2 — MOBILITY_MOB lateral X-axis dodge offset。Deterministic RNG seeded on per-instance sub_key 避免 multi-mob 共享 seed 全部同步 dodge degenerate (per FR-3 Pillar 1 anti-fabrication chain)。Cross-knob invariant INV-8: DODGE_AMPLITUDE_PX × 2 < MELEE_RANGE=80 (avoid PURSUING/ATTACKING flicker)。Default 30 post-fix (was 50 — violated INV-8)。AC-32 invariant verify。"
+    added: 2026-05-27
+    revised: ""
+
+  - name: is_throttle_active
+    status: active
+    source: design/gdd/enemy-director.md
+    referenced_by:
+      - design/gdd/enemy-director.md
+      # Expected future referrers:
+      # - docs/architecture/adr-0001-web-export-budget-caps.md  (FR-4 ratification — mobile frame budget binding)
+    variables:
+      - _frame_time_window         # Array[float] size [0, 3] — last N frame times (msec)
+      - FRAME_TIME_BUDGET_MS       # float [25.0, 50.0], default 33.0 (mobile 30fps floor)
+      - FRAME_TIME_SAMPLE_SIZE     # int [2, 6], default 3
+    output_range: [false, true]    # boolean — single-bit decision per frame
+    expression: "is_throttle_active = (len(_frame_time_window) >= FRAME_TIME_SAMPLE_SIZE AND all(ft > FRAME_TIME_BUDGET_MS for ft in _frame_time_window))"
+    notes: "EnemyDirector Formula 3 — particle dispatch auto-degrade detection (FR-4 binding)。Rolling 3-frame window simple-mean threshold (NOT EWMA — emergency cutoff needs immediate response)。Recovery formula: is_recovery_ready triggered when 60 consecutive frames < FRAME_TIME_RECOVERY_MS=20.0 (hysteresis vs budget 33.0 per INV-4)。AC-23 engagement + AC-24 recovery + AC-25 mobile floor preservation (Falsifiable Test #5)。"
+    added: 2026-05-27
+    revised: ""
+
+  - name: rate_limit_check
+    status: active
+    source: design/gdd/enemy-director.md
+    referenced_by:
+      - design/gdd/enemy-director.md
+      # Expected future referrers:
+      # - design/gdd/telemetry.md  (#28 — receives aggregate emit at window expiry)
+    variables:
+      - RATE_WINDOW_MS             # int [500, 5000] msec, default 1000
+      - RATE_CAP_PER_REASON        # int [3, 50], default 10
+      - now_ms                     # int — frame stable ms timestamp
+      - dropped_count              # int [0, ∞) — tracking counter for aggregate emit
+    output_range: [false, true]    # boolean accept/reject
+    expression: "rate_limit_check(reason, now_ms) -> evict timestamps > now_ms - RATE_WINDOW_MS old → if window.size >= RATE_CAP_PER_REASON return false (dropped_count++) else append + return true"
+    notes: "EnemyDirector Formula 4 — anomaly emit sliding-window cap (Rule 6 + FR-5 binding)。Per `reason: StringName` enum value (6 reasons from #13 Rule 13)。Aggregate emit at window expiry: emit combat_metric_anomaly({reason, dropped_count, aggregate: true}) + reset dropped_count。Context dump 10KB truncation per #13 EC-48。AC-09 verifies 100 same-reason within 1s → #28 收 ≤ 11 (10 + 1 aggregate)。"
+    added: 2026-05-27
+    revised: ""
+
+  - name: boss_pre_spawn_trigger
+    status: active
+    source: design/gdd/enemy-director.md
+    referenced_by:
+      - design/gdd/enemy-director.md
+      - design/gdd/workout-state-tracker.md  # #9 — APPROVED 2026-05-27 provides set_progress field (Formula 1: set_progress_derivation, range [0.0, 1.0], monotonic non-decreasing, two paths full-data + estimated) per Section C Rule 4 + AC-26 verification
+    variables:
+      - set_progress               # float [0.0, 1.0] — from #9 (PROVISIONAL — Q-9-SetProgress)
+      - PRE_SPAWN_THRESHOLD        # float [0.6, 0.95], default 0.8
+      - PRE_SPAWN_FALLBACK_REPS_FRAC  # float [0.4, 0.7], default 0.5
+      - current_set                # int [1, ∞)
+      - final_planned_set          # int [1, ∞)
+      - _boss_anchor_state         # BossAnchorState enum {IDLE, PRE_SPAWN, COMMIT_PENDING, COMMITTED, ENGAGED}
+    output_range: [false, true]    # boolean — single-bit decision per perception tick (4Hz)
+    expression: "boss_pre_spawn_trigger = (_boss_anchor_state == IDLE AND current_set == final_planned_set AND set_progress >= PRE_SPAWN_THRESHOLD); fallback path uses reps_completed_in_set >= ceil(planned_reps × PRE_SPAWN_FALLBACK_REPS_FRAC) if set_progress not exposed"
+    notes: "EnemyDirector Formula 5 — boss anchor predictive pre-spawn (Rule 13 + FR-2 binding)。set_progress > 0.8 表示 final 20% reps emotional climax window — pre-spawn 預備 visible reveal 避免 workout_completed event arrival 嗰陣先 instantiate 引發 frame spike。Latency budget ≤ 500ms p95 (Falsifiable Test #2; #9 GDD APPROVED 2026-05-27 — AC-26/AC-41 verifies)。EC-15 rollback path / EC-16 emergency fallback / EC-19 light-workout mini-boss covered。"
+    added: 2026-05-27
+    revised: ""
+
+  - name: set_progress_derivation
+    status: active
+    source: design/gdd/workout-state-tracker.md
+    referenced_by:
+      - design/gdd/workout-state-tracker.md
+      - design/gdd/enemy-director.md      # #14 — Rule 13 boss anchor pre-spawn trigger reads set_progress >= 0.8
+      # Expected future referrers:
+      # - design/gdd/gym-mode-hud.md       (#20 — display set progress bar)
+    variables:
+      - current_set_index          # int [1, ∞) — count of set_logged events
+      - reps_completed_in_set      # int [0, planned_reps_in_current_set]
+      - planned_reps_in_current_set  # int [1, ∞) — GymSys provides (full-data path) OR effective_planned_reps fallback
+      - planned_total_sets         # int [1, ∞) — GymSys provides (full-data path) OR effective_planned_total fallback
+      - historical_avg_sets        # float [1.0, ∞) — EWMA from wst.history.avg_sets
+      - historical_avg_reps_per_set  # float [1.0, ∞) — EWMA from wst.history.avg_reps_per_set
+      - previous_set_progress      # float [0.0, 1.0] — monotonic clamp anchor
+    output_range: [0.0, 1.0]
+    expression: |
+      # Full-data path (preferred; needs ADR-002-EXTENSION-GATED signal for planned_total_sets + rep_logged):
+      set_progress_raw = clamp((current_set_index - 1 + reps_completed_in_set / planned_reps_in_current_set) / planned_total_sets, 0.0, 1.0)
+      # Estimated fallback path (current default):
+      set_progress_raw = clamp((current_set_index - 1 + reps_completed_in_set / max(1, round(historical_avg_reps_per_set))) / max(current_set_index + 1, historical_avg_sets), 0.0, 1.0)
+      # Monotonic clamp (both paths):
+      set_progress = max(set_progress_raw, previous_set_progress)
+    notes: "Workout State Tracker Formula 1 — centerpiece for #14 boss anchor pre-spawn (CI-1 binding at pre_spawn_threshold=0.8). Two paths: full-data (Q-X1-gated GymSys signal extension) and estimated fallback (default). Monotonicity invariant (CF-1) enforced. Pillar 1 compliance: no time-based extrapolation, no interpolation, all inputs from real set_logged events. CI-2: when set_progress unreliable (is_estimated=true), #14 fallback to reps_completed >= ceil(planned × 0.5) heuristic. WorkoutSnapshotRO.set_progress_is_estimated bool exposes reliability flag."
+    added: 2026-05-27
+    revised: ""
+
+  - name: dominant_class_derivation
+    status: active
+    source: design/gdd/workout-state-tracker.md
+    referenced_by:
+      - design/gdd/workout-state-tracker.md
+      - design/gdd/enemy-director.md      # #14 — Rule 12 wave archetype selection reads get_dominant_ability_class()
+      - design/gdd/stat-system.md         # #11 — VOLUME_TICK class routing per Section C Rule 13 (#9 calls Stat.apply_stat_delta with class-derived stat_id)
+      # Expected future referrers:
+      # - design/gdd/exercise-class-mapping.md  (#10 — provides classify() input map; Pre-MVP)
+    variables:
+      - set_history                # Array[Dictionary{exercise_id, reps, weight, logged_at}]
+      - exercise_class_map         # Dictionary[StringName, AbilityClass] — from #10 stub OR full mapping
+      - set_counts                 # Dictionary[AbilityClass, int] — per-class tally
+      - leaders                    # Array[AbilityClass] — tie set
+      - previous_dominant_class    # AbilityClass | null — sticky-last-leader anchor
+    output_range: ["AbilityClass enum: STRIKE | CONTROL | MOBILITY | UNKNOWN"]
+    expression: |
+      set_counts[c] = |{s in set_history : exercise_class_map[s.exercise_id] == c}|
+      leaders = {c : set_counts[c] == max(set_counts.values()) AND set_counts[c] > 0}
+      # Decision tree:
+      # 1. empty/all-zero → UNKNOWN
+      # 2. single leader → return leader, update previous_dominant_class
+      # 3. tie (>1 leader) → walk set_history reverse-chronologically, find last solo leader
+      # 4. tiebreak walk failed → return previous_dominant_class (sticky); else UNKNOWN
+    notes: "Workout State Tracker Formula 3 — Pillar 4 substrate (Muscle = Class). Set-count weighted (game-designer Q1 — rejected volume-weighted due to heavy-compound bias against Falsifiable Test #1 A-vs-B blind playtest). Sticky-last-leader tiebreak avoids mid-workout flicker. #9 NEVER fabricates STRIKE fallback when UNKNOWN — that's #14 EnemyDirector EC-09 responsibility (CI-3). UNKNOWN exercises (not in #10 map) skip tally entirely. AC-18 worked example: 3 STRIKE + 3 CONTROL + 2 MOBILITY → tiebreak walk returns STRIKE per set #6 solo leader."
+    added: 2026-05-27
+    revised: ""
+
+  - name: total_volume_aggregation
+    status: active
+    source: design/gdd/workout-state-tracker.md
+    referenced_by:
+      - design/gdd/workout-state-tracker.md
+      # Expected future referrers:
+      # - design/gdd/loot-drop-system.md (#15 — feeds ADR-005 workout_score.volume_factor via WorkoutSummaryRO.total_volume)
+      # - design/gdd/telemetry.md (#28 — session aggregate metric)
+    variables:
+      - set_history                # Array[Dictionary] from Formula 3
+      - s.reps                     # int [0, ∞) per set
+      - s.weight                   # float [0.0, ∞) kg per set; bodyweight = 0.0 (see followup-06)
+    output_range: [0.0, 50000.0]  # typical session 5k-30k kg-reps; powerlifting up to 40k+
+    expression: "total_volume = Σ (s.reps × s.weight) for s in set_history"
+    notes: "Workout State Tracker Formula 4 — feeds ADR-005 volume_factor via #15 LootDrop pipeline (CI-4). Frozen at workout_completed via WorkoutSummaryRO (CF-5) — late set_logged events do NOT mutate sealed summary. Bodyweight handling: weight=0 → contribution 0 by current design; CD F-12 ADVISORY proposes weight_effective = max(weight, user_weight × exercise.bw_coefficient) refinement pre-#15 (WST-AC-followup-06). Unit: kg-reps (multiplicative, no conversion)."
+    added: 2026-05-27
+    revised: ""
+
+  - name: enemy_locomotion_step
+    status: active
+    source: design/gdd/enemy-director.md
+    referenced_by:
+      - design/gdd/enemy-director.md
+      - design/gdd/stat-system.md      # #11 — INV-7 cross-system binding (ENEMY_MOVE_CAP ≤ player MOVE_CAP=420)
+      # Expected future referrers:
+      # - design/gdd/camera-system.md   (#7 — INV-7 cross-system camera follow speed binding)
+    variables:
+      - direction                  # int {-1, 0, +1} — sign(avatar_x - global_position.x)
+      - _template_move_speed       # float [60.0, 350.0] px/s — per-archetype from EnemyTemplateRegistry.tres
+      - MOVE_ACCEL_PX_PER_SEC2     # float [600.0, 2400.0], default 1200.0 (knob)
+      - delta                      # float [0, MAX_FRAME_DELTA=0.1] sec
+      - ENEMY_MOVE_CAP             # float [300.0, 500.0] px/s, default 420 (alias to #11 MOVE_CAP)
+    output_range: [-420.0, 420.0]  # X velocity bounded by ENEMY_MOVE_CAP; Y velocity hard 0
+    expression: "velocity.x_new = clamp(move_toward(velocity.x_old, direction × _template_move_speed, MOVE_ACCEL_PX_PER_SEC2 × delta), -ENEMY_MOVE_CAP, +ENEMY_MOVE_CAP); velocity.y_new = 0.0"
+    notes: "EnemyDirector Formula 6 — per-enemy X-axis pursuit locomotion (Rule 18 hybrid tick architecture, per-enemy node owns _physics_process for PURSUING state)。move_toward 提供 ~0.35s 0→max ramp weight feel (vs instant lerp robotic feel)。INV-7 cross-system binding: ENEMY_MOVE_CAP ≤ #11 MOVE_CAP=420 (prevents enemy outrunning camera focus on avatar)。Y velocity = 0 maintains MVP X-axis side-scroller scope (per game-concept)。AC-30 worked example + AC-31 INV-7 CI lint verify。"
+    added: 2026-05-27
+    revised: ""
+
+  # ─── GDD #15 Loot Drop System formulas (APPROVED 2026-05-28) ───
+
+  - name: apply_tier_ceiling_floor
+    status: active
+    source: design/gdd/loot-drop-system.md
+    referenced_by:
+      - design/gdd/loot-drop-system.md
+      # Expected future referrers:
+      # - design/gdd/boss-system.md       (#16 — final boss floor + mini-boss ceiling enforcement reciprocal)
+      # - design/gdd/equipment-inventory.md  (#17 — receives final_tier post-clamp)
+      # - design/gdd/telemetry.md         (#28 — clamp telemetry events `loot.tier.clamp_mini`)
+    variables:
+      - raw_tier              # enum RarityTier from ADR-0005 output
+      - kind                  # enum SourceEventKind {WORKOUT_DAILY, MINI_BOSS, FINAL_BOSS}
+      - ws                    # float workout_score [0.0, 1.0]
+    output_range: enum RarityTier {COMMON, UNCOMMON, RARE, EPIC, LEGENDARY}
+    expression: |
+      apply_tier_ceiling_floor(raw_tier, kind, ws) =
+        if ws == 0.0                       → COMMON                                  # Rule 8 zero-workout guard
+        elif kind == FINAL_BOSS            → max(raw_tier, UNCOMMON)                  # Rule 5 final boss floor
+        elif kind == MINI_BOSS             → min(max(raw_tier, COMMON), RARE)        # Rule 4 mini ceiling + ADR-0005 Pillar 3 floor
+        else (kind == WORKOUT_DAILY)       → max(raw_tier, COMMON)                    # ADR-0005 Pillar 3 floor
+    notes: "Formula 1 — #15-owned source-event clamp wrapping ADR-0005 raw_tier output。Logic order strict: zero-workout → COMMON floor → source-event clamp。INV-10: mini ≤ RARE / final ≥ UNCOMMON。INV-11: ws=0 → COMMON forced (Pillar 1 anti-fabrication fallback)。CI-1: raw_tier 必由 ADR-0005 produce，#15 不可 re-derive。AC-03/04/05 verify。"
+    added: 2026-05-28
+    revised: ""
+
+  - name: reconcile_local_vs_backend
+    status: active
+    source: design/gdd/loot-drop-system.md
+    referenced_by:
+      - design/gdd/loot-drop-system.md
+      # Expected future referrers:
+      # - design/gdd/gymsys-backend-client.md  (#2 — provides backend_pending Set via /api/game/loot/pending)
+      # - docs/architecture/adr-0003-save-state-strategy.md  (loot.pending namespace reconciliation pattern)
+    variables:
+      - local_pending     # Set[transition_id] — client IndexedDB unrevealed
+      - local_revealed    # Set[transition_id] — client revealed but not server-ACKed
+      - backend_pending   # Set[transition_id] — server authoritative
+    output_range: 3 disjoint Sets {to_enqueue, to_ack_only, to_discard_local}
+    expression: |
+      to_enqueue       = backend_pending - (local_pending ∪ local_revealed)
+      to_ack_only      = backend_pending ∩ local_revealed
+      to_discard_local = local_pending - backend_pending
+      assert pairwise disjoint
+    notes: "Formula 5 — bfcache resume reconciliation Set algebra。CF-4: 3 outputs pairwise disjoint (assert enforced)。Rule 17 + EC-20 binding。CI-4: backend_pending 必來自 GymSys /api/game/loot/pending (ADR-0002 differential cursor)。Resolves systems-designer's identified tension between local-revealed-but-backend-no-record case (silent discard, backend already ACKed earlier)。AC-09 worked 4-entry example + AC-31 composite end-to-end verify。"
+    added: 2026-05-28
+    revised: ""
+
+  - name: item_type_weighted_selection
+    status: active
+    source: design/gdd/loot-drop-system.md
+    referenced_by:
+      - design/gdd/loot-drop-system.md
+      # Expected future referrers:
+      # - design/gdd/equipment-inventory.md  (#17 — item_type enum + gear_gap_state input contract)
+    variables:
+      - rarity_tier            # enum RarityTier
+      - gear_gap_state         # Dictionary[Slot, bool] — slot has starter gear
+      - dominant_class         # enum ClassTag from #9 (NULL → uniform fallback per EC-35)
+      - rng_roll_2             # float [0.0, 1.0) — seeded on hash(transition_id + "_itemtype")
+    output_range: enum ItemType {WEAPON, ARMOR, ACCESSORY, CONSUMABLE, COSMETIC}
+    expression: |
+      raw[type] = BASE_WEIGHTS[type] * gear_gap_modifier(type, gear_gap_state)
+      if rarity_tier in {EPIC, LEGENDARY}: raw[COSMETIC] += COSMETIC_EPIC_BONUS  # +0.05
+      final[type] = raw[type] / Σ raw   # normalize
+      return CDF roll on rng_roll_2
+    notes: "Formula E1 — economy-owned weighted item type selection。CF-E1: final weights Σ=1.0 (1e-6 tolerance)。CI-6: rng_roll_2 deterministic from transition_id + suffix (Pillar 1 replay safety)。gear_gap_modifier: weapon/armor ×1.5 if slot starter / accessory ×1.2 if gap。AC-15 worked example RARE→ARMOR (rng_roll_2=0.42 with weapon starter gear)。"
+    added: 2026-05-28
+    revised: ""
+
+  - name: class_affinity_resolution
+    status: active
+    source: design/gdd/loot-drop-system.md
+    referenced_by:
+      - design/gdd/loot-drop-system.md
+      # Expected future referrers:
+      # - design/gdd/equipment-inventory.md  (#17 — class_tag enum binding)
+      # - design/gdd/workout-state-tracker.md  (#9 — dominant_class source; bidirectional sync flag for next-revision)
+    variables:
+      - item_type               # enum ItemType (CONSUMABLE/COSMETIC → return NEUTRAL)
+      - dominant_class          # enum ClassTag from #9.get_dominant_ability_class() — NULL → uniform 25% fallback
+      - rng_roll_3              # float [0.0, 1.0) — seeded on hash(transition_id + "_classtag")
+    output_range: enum ClassTag {STRIKE, CONTROL, MOBILITY, NEUTRAL}
+    expression: |
+      if item_type in {CONSUMABLE, COSMETIC}:   return NEUTRAL
+      if dominant_class == NULL:                 return uniform_25_percent_each_roll
+      weighted_roll(rng_roll_3):
+        W_DOMINANT=0.65 / W_NEUTRAL=0.20 / W_OFF_CLASS=0.075 each (×2 off classes)
+    notes: "Formula E2 — Pillar 4 substrate mechanically tied to muscle group via #9.get_dominant_ability_class() (per CD F-6 clarification)。NOT random — `dominant_class` derives from set-count-weighted muscle group → class mapping via #10 Exercise → Class Mapping。CF-E2: W_DOMINANT + W_NEUTRAL + 2×W_OFF_CLASS = 1.0。AC-16 worked example + AC-42 (new BLOCKING per CD F-6) verifies 純練胸日 → STRIKE class_affinity weight 集中 from real workout muscle composition。EC-35 dominant_class NULL fallback uniform 25%。"
+    added: 2026-05-28
+    revised: ""
+
+  - name: expected_weekly_rarity_distribution
+    status: active
+    source: design/gdd/loot-drop-system.md
+    referenced_by:
+      - design/gdd/loot-drop-system.md
+      # Expected future referrers:
+      # - design/gdd/telemetry.md  (#28 — weekly rarity distribution dashboard + anti-pillar alert threshold)
+    variables:
+      - player_profile         # Dict{avg_workout_score, weekly_workouts, weekly_PR, streak_days}
+    output_range: Dict[RarityTier, float (expected count per week)]
+    expression: |
+      Monte Carlo (n=10,000) sim of ADR-0005.compute_rarity composed with apply_tier_ceiling_floor;
+      anti-pillar soft-clamp:
+        if (epic + legendary) / total > ANTI_PILLAR_EPIC_PLUS_CAP_PCT (0.10):
+          excess = (epic+legendary) - floor(0.10 * total)
+          downgrade `excess` LEGENDARY→EPIC, then EPIC→RARE until ≤10%
+    notes: "Formula E3 — projection for QA + balance tuning。3 baseline profiles: Hardcore (ws=0.92, 5 workouts, 7 PR, 30d) / Average (ws=0.65, 4 workouts, 1 PR, 7d) / Casual (ws=0.35, 2 workouts, 0 PR, 0d)。CF-E3: EPIC+ ≤ 10% across all profiles post-clamp (FR-1 anti-pillar gate)。Hardcore profile triggers soft-clamp (LEGENDARY→EPIC) to maintain ceiling。AC-14 verifies post-clamp Monte Carlo distribution。"
+    added: 2026-05-28
+    revised: ""
 
 # Example:
 #
@@ -139,9 +859,1645 @@ formulas: []
 #
 # Required fields: name, status, source, referenced_by, value, unit, added
 
-constants: []
+constants:
+  - name: state_changed_signal_signature
+    status: active
+    source: design/gdd/game-state-machine.md
+    referenced_by:
+      - design/gdd/game-state-machine.md
+      - design/gdd/gymsys-backend-client.md          # #2 — subscribes via connect_for_initial_state per ADR-006 Contract 6
+      - design/gdd/workout-state-tracker.md          # #9 — APPROVED 2026-05-27 subscribes via connect_for_initial_state per Section C Rule 12 (ADR-006 Contract 6) for Suspended substate detection
+      # Expected future referrers (when their GDDs are written):
+      # - design/gdd/persistence-layer.md              (#3)
+      # - design/gdd/enemy-director.md                 (#14)
+      # - design/gdd/loot-drop-system.md               (#15)
+      # - design/gdd/telemetry.md                      (#28)
+      # - design/gdd/attention-budget-interaction-policy.md  (#33)
+    value: "state_changed(from: String, to: String, payload: StateTransitionPayload)"
+    unit: signal_signature
+    added: 2026-05-25
+    revised: "2026-05-26 — corrected stale value per ADR-006 Contract 6: payload is typed StateTransitionPayload Resource (NOT Dictionary), state args are stable string keys (NOT GameState enum) per Storage Backend stable-key decoupling. Added #2 as referrer."
+    notes: "Single fat signal — emitted by GameStateMachine on every successful transition. All subscribers receive from + to + payload. Subscribers MUST use connect_for_initial_state(callable) helper (NOT plain .connect()) per ADR-006 Contract 6 sentinel pattern. Callable MUST NOT use .bind() extras. Payload sentinel detection: payload.source_event == 'initial_state' for initial-state delivery via callv (not signal emit)."
 
-# Example:
+  - name: game_state_enum
+    status: active
+    source: design/gdd/game-state-machine.md
+    referenced_by:
+      - design/gdd/game-state-machine.md
+      - design/gdd/gymsys-backend-client.md          # #2 — subscribes to state_changed lifecycle (Rule 1 + Rule 14 Suspended pause)
+      # Expected referrers: every system that calls GameStateMachine.current_state
+    value: "Booting | Disconnected | Idle | WorkoutActive | RestPeriod | CombatActive | BossEncounter | LootDrop | Suspended"
+    unit: enum_value_set
+    added: 2026-05-25
+    revised: "2026-05-26 — corrected stale value per Decision #3: ExerciseSwitching renamed to RestPeriod (GymSys-owned timer, data-driven duration). Persistence stable key 'rest_period' replaces 'exercise_switching' via PersistenceLayer.migrate(1→2) schema migration. Added #2 as referrer."
+    notes: "9-state flat top-level enum. LOCKED — changing the state list = schema change requiring migration, not tuning. Sub-machines (e.g., CombatActive wave logic) owned by their respective systems, not this enum. RestPeriod renamed from ExerciseSwitching per GDD #1 Decision #3 (Rev 2026-05-25)."
+
+  - name: is_input_permitted_api
+    status: active
+    source: design/gdd/game-state-machine.md
+    referenced_by:
+      - design/gdd/game-state-machine.md
+      # Expected future referrers:
+      # - design/gdd/attention-budget-interaction-policy.md  (#33 — owns implementation)
+      # - design/gdd/gym-mode-hud.md                          (#20 — calls to gate taps)
+      # - design/gdd/loot-drop-modal.md                       (#21)
+      # - design/gdd/character-screen.md                      (#22)
+      # - design/gdd/inventory-ui.md                          (#23)
+    value: "is_input_permitted() -> bool"
+    unit: api_contract
+    added: 2026-05-25
+    revised: ""
+    notes: "Pillar 2 architectural enforcement boundary. Owned by #33 Attention Budget Policy (derives from state_changed). GameStateMachine MUST NEVER call this method itself (AC-15 static analysis test). UI consumers call this before accepting taps."
+
+  - name: lootdrop_pending_ttl_days
+    status: active
+    source: design/gdd/game-state-machine.md
+    referenced_by:
+      - design/gdd/game-state-machine.md
+      - design/gdd/gymsys-backend-client.md     # #2 — backend lootdrop_cache row retention 37d = soft TTL + 7d buffer
+      # Expected future referrers:
+      # - design/gdd/loot-drop-system.md  (#15 — owns the loot, must align with TTL contract)
+    value: 6
+    unit: days
+    added: 2026-05-25
+    revised: "2026-05-26 — corrected stale value 7→6 per GDD #1 Decision #1 (split into soft TTL + hard cap). Soft TTL = 6 (Safari ITP touch refresh threshold)."
+    notes: "SOFT cap — pending LootDrop touch-refreshes via user:// write before Safari ITP 7-day eviction window. Pillar 3 hard guarantee implementation. Per Decision #1: hard cap exists separately as lootdrop_pending_hard_cap_days (30d backstop)."
+
+  - name: lootdrop_pending_hard_cap_days
+    status: active
+    source: design/gdd/game-state-machine.md
+    referenced_by:
+      - design/gdd/game-state-machine.md
+      - design/gdd/gymsys-backend-client.md     # #2 — backend lootdrop_cache row retention 37d = 30 + 7 buffer per ADR-006 Contract 15
+      # Expected future referrers:
+      # - design/gdd/loot-drop-system.md  (#15)
+    value: 30
+    unit: days
+    added: 2026-05-26
+    revised: ""
+    notes: "HARD cap — pending LootDrop beyond this triggers Rule 5 priority 0.5 force-transition Booting→LootDrop with cached payload + source_event='deferred_reveal_hard_cap' on next boot. NOT silent auto-commit (Pillar 3 「不知不覺發生」anti-pattern defence). Backend lootdrop_cache retention = hard cap + 7d buffer = 37 days (per ADR-006 Contract 15)."
+
+  - name: suspension_ttl_seconds
+    status: active
+    source: design/gdd/game-state-machine.md
+    referenced_by:
+      - design/gdd/game-state-machine.md
+      - design/gdd/gymsys-backend-client.md     # #2 — session expiry must align with this TTL
+    value: 86400
+    unit: seconds
+    added: 2026-05-25
+    revised: "2026-05-26 — added #2 as referrer per session expiry alignment"
+    notes: "After this duration in Suspended, resume forces full boot reconciliation (not simple resume) and resets retry backoff. Must be aligned with backend session expiry policy. Open Question Q-E2."
+
+  - name: state_machine_base_delay
+    status: active
+    source: design/gdd/game-state-machine.md
+    referenced_by:
+      - design/gdd/game-state-machine.md
+      - design/gdd/gymsys-backend-client.md   # #2 — executes the sleep in Backoff substate
+    value: 1.0
+    unit: seconds
+    added: 2026-05-25
+    revised: "2026-05-26 — added #2 as referrer"
+    notes: "Initial delay for Disconnected retry backoff (n=1 → 1.0s). Feeds the retry_delay formula. Safe range 0.5-2.0."
+
+  - name: state_machine_retry_cap
+    status: active
+    source: design/gdd/game-state-machine.md
+    referenced_by:
+      - design/gdd/game-state-machine.md
+      - design/gdd/gymsys-backend-client.md   # #2 — executes the capped sleep in Backoff substate
+    value: 16.0
+    unit: seconds
+    added: 2026-05-25
+    revised: "2026-05-26 — added #2 as referrer"
+    notes: "Maximum wait between Disconnected retries — caps retry_delay formula output. Safe range 8-60. Reached at n=5 with default BASE_DELAY=1.0."
+
+  - name: gymsys_poll_interval_seconds
+    status: active
+    source: design/gdd/game-concept.md
+    referenced_by:
+      - design/gdd/game-state-machine.md      # #1 — read-only knob (referenced in Tuning Knobs read-only table line 519)
+      - design/gdd/gymsys-backend-client.md   # #2 — drives polling cadence + Formula 1 jitter input
+    value: 5.0
+    unit: seconds
+    added: 2026-05-26
+    revised: ""
+    notes: "Polling cadence to GymSys backend. LOCKED at game-concept stage (line 311). Changing requires re-validating Pillar 2 polling-cost rationale + mobile cellular bandwidth assumptions."
+
+  - name: poll_jitter_seconds
+    status: active
+    source: design/gdd/gymsys-backend-client.md
+    referenced_by:
+      - design/gdd/gymsys-backend-client.md
+    value: 0.5
+    unit: seconds
+    added: 2026-05-26
+    revised: ""
+    notes: "Random jitter amplitude added to gymsys_poll_interval_seconds (Formula 1). Safe range 0.0..0.5 (upper bound preserves cross-knob invariant: GYMSYS_POLL_INTERVAL_SECONDS - POLL_JITTER_SECONDS ≥ POLL_TIMEOUT_SECONDS + 0.5 margin)."
+
+  - name: poll_timeout_seconds
+    status: active
+    source: design/gdd/gymsys-backend-client.md
+    referenced_by:
+      - design/gdd/gymsys-backend-client.md
+    value: 4.0
+    unit: seconds
+    added: 2026-05-26
+    revised: ""
+    notes: "HTTPRequest.timeout for poll channel. < gymsys_poll_interval_seconds (strict) to preserve single-flight invariant. Safe range 2.0..4.5."
+
+  - name: write_timeout_seconds
+    status: active
+    source: design/gdd/gymsys-backend-client.md
+    referenced_by:
+      - design/gdd/gymsys-backend-client.md
+    value: 10.0
+    unit: seconds
+    added: 2026-05-26
+    revised: ""
+    notes: "HTTPRequest.timeout for state-write / loot-cache / loot-commit channels. Higher than poll_timeout because backend write paths touch DB. Safe range 5.0..30.0. Also = logout drain wait window (AC-18 Pillar 2 protection)."
+
+  - name: max_inflight_requests
+    status: active
+    source: design/gdd/gymsys-backend-client.md
+    referenced_by:
+      - design/gdd/gymsys-backend-client.md
+    value: 4
+    unit: requests
+    added: 2026-05-26
+    revised: ""
+    notes: "Global cap across 4 channels (poll/state_write/loot_cache/loot_commit). Hard upper = 6 (browser default per-origin concurrent fetch cap). Safe range 2..6."
+
+  - name: max_committed_cache_entries
+    status: active
+    source: design/gdd/gymsys-backend-client.md
+    referenced_by:
+      - design/gdd/gymsys-backend-client.md
+    value: 50
+    unit: entries
+    added: 2026-05-26
+    revised: ""
+    notes: "FIFO eviction cap for _committed_transitions client cache (Rule 15). Prevents double-fire lootdrop_committed signal on backend canonical retry. Safe range 20..200."
+
+  - name: max_5xx_retry_attempts
+    status: active
+    source: design/gdd/gymsys-backend-client.md
+    referenced_by:
+      - design/gdd/gymsys-backend-client.md
+    value: 5
+    unit: attempts
+    added: 2026-05-26
+    revised: ""
+    notes: "Rule 12 retry matrix — 5xx errors retry up to this many attempts (with retry_delay backoff), then emit poll_failed + #1 transitions to Disconnected. Worst-case total wait: 1+2+4+8+16 = 31s before fallback."
+
+  - name: transition_id_child_suffix_list
+    status: active
+    source: design/gdd/gymsys-backend-client.md
+    referenced_by:
+      - design/gdd/gymsys-backend-client.md
+      # Expected future referrers:
+      # - docs/architecture/adr-0002-gymsys-integration-protocol.md  (backend UNIQUE constraint per endpoint family)
+    value: "[':state', ':loot-cache', ':loot-commit']"
+    unit: suffix_list
+    added: 2026-05-26
+    revised: ""
+    notes: "Per-endpoint child IDs appended to parent transition_id by GymSys Client (Rule 9). Preserves ADR-006 Contract 2 UNIQUE constraint semantics without ADR-006 amendment — each endpoint family has its own backend dedupe row. New endpoint family addition MUST extend this list in GDD #2 first (locked list, no ad-hoc string drift)."
+
+  - name: max_migration_chain_length
+    status: active
+    source: design/gdd/persistence-layer.md
+    referenced_by:
+      - design/gdd/persistence-layer.md
+      - design/gdd/game-state-machine.md   # #1 — referenced in Tuning Knobs as shared knob per ADR-006 Contract 10
+    value: 6
+    unit: steps
+    added: 2026-05-26
+    revised: "2026-05-26 — corrected stale value 10→6 per /consistency-check: registry was populated from game-state-machine.md draft values; authoritative source persistence-layer.md consistently uses 6 (lines 71, 73, 370, 395, AC-09). game-state-machine.md updated to match. # was: 10"
+    notes: "Maximum number of _migrate_one_step iterations per ADR-006 Contract 10. Combined with MIGRATION_BUDGET_MS = 150ms gives 900ms total boot ceiling. Safe range 1..20 (> 20 at 150ms/step = 3000ms ceiling + WASM init > web user tolerance). Cross-knob invariant: chain_length × budget_ms ≤ 3000ms practical ceiling."
+
+  - name: migration_budget_ms
+    status: active
+    source: design/gdd/persistence-layer.md
+    referenced_by:
+      - design/gdd/persistence-layer.md
+      - design/gdd/game-state-machine.md   # #1 — referenced in Tuning Knobs as shared knob per ADR-006 Contract 10
+    value: 150
+    unit: milliseconds
+    added: 2026-05-26
+    revised: "2026-05-26 — corrected stale value 500→150ms per /consistency-check: registry was populated from game-state-machine.md draft values; authoritative source persistence-layer.md uses 150ms throughout (lines 73, 245, 261, 370, 395, 396, 474; AC-09 test confirms 150ms threshold). game-state-machine.md updated to match. # was: 500"
+    notes: "Per-step time budget for _migrate_one_step per ADR-006 Contract 10. Step exceeding budget triggers MIGRATION_TIMEOUT corrupt path. Safe range 50..500. Lower = false-timeout on legit migrations (< 50ms); higher = > 500ms × 6 steps = 3000ms ceiling + WASM init > 5s cold start UX unacceptable."
+
+  - name: wall_clock_drift_tolerance_seconds
+    status: active
+    source: design/gdd/persistence-layer.md
+    referenced_by:
+      - design/gdd/persistence-layer.md
+      # Indirect via is_expired() helper consumers:
+      - design/gdd/gymsys-backend-client.md   # #2 — _committed_tombstones age-pruning
+      - design/gdd/game-state-machine.md      # #1 — _last_weekly_tick_unix + pending_transition TTL
+      - design/gdd/streak-system.md           # #8 — Rule 4 drift gate (Clock Tamper defense, AC-G4 cross-system consistency)
+    value: 300
+    unit: seconds
+    added: 2026-05-26
+    revised: ""
+    notes: "Wall-clock drift tolerance for is_expired() Formula 1 per ADR-006 Contract 9. Difference between wall_delta and monotonic_delta exceeding this triggers monotonic-fallback. Safe range 60..3600. Lower = false-positive on NTP jitter; higher = real DST/manual-change escapes detection. Also used by #8 Streak System Rule 4 drift gate (Falsifiable Test #7 Clock Tamper — single source of truth, no local override per AC-G4)."
+
+  - name: max_state_file_bytes
+    status: active
+    source: design/gdd/persistence-layer.md
+    referenced_by:
+      - design/gdd/persistence-layer.md
+    value: 1048576
+    unit: bytes
+    added: 2026-05-26
+    revised: ""
+    notes: "Defensive parse limit for user://state.json. File exceeding triggers FILE_TOO_LARGE corrupt path before parse (Edge Case Boot/File I/O). Prevents OOM on malicious/accidental huge file. Safe range 131072 (128KB) .. 16777216 (16MB). Default 1MB ≈ 8x normal state size."
+
+  - name: max_active_particles
+    status: active
+    source: design/gdd/particle-system-wrapper.md
+    referenced_by:
+      - design/gdd/particle-system-wrapper.md
+      # Expected future referrers:
+      # - docs/architecture/adr-0001-godot-web-export-budget-caps.md  (input scope — ADR ratifies cap per device)
+      # - design/gdd/enemy-director.md       (#14 — combat encounter sizing must fit)
+      # - design/gdd/loot-drop-modal.md      (#21 — concurrent LOOT cap implications)
+      # - design/gdd/telemetry.md            (#28 — _dropped_play_calls / _total ratio threshold)
+    value: 200
+    unit: particles
+    added: 2026-05-26
+    revised: ""
+    notes: "Hard ceiling for total active GPU particles across all 16 pool nodes (per Formula 3 needs_eviction predicate). Game-concept hard governance §8 + ADR-001 input scope. Safe range 100..400 (per-device measured by ADR-001 ratification). Below 100: combat heavy frame (8 enemies × HIT_HEAVY=144) permanent reject — Pillar 2 violation. Above 400: mobile Safari fillrate exceeded — Pillar 2 violation. FR-1 ratification-gated (mobile Safari P95 frame time ≤ 16.6ms at this cap)."
+
+  - name: mobile_fallback_multiplier
+    status: active
+    source: design/gdd/particle-system-wrapper.md
+    referenced_by:
+      - design/gdd/particle-system-wrapper.md
+      # Expected future referrers:
+      # - docs/architecture/adr-0001-godot-web-export-budget-caps.md  (input scope)
+    value: 0.5
+    unit: multiplier
+    added: 2026-05-26
+    revised: ""
+    notes: "Mobile downscale multiplier applied to final_count_composition formula when _is_mobile == true (per Rule 10 UA detection + Formula 1). Safe range 0.3..0.7. Below 0.3: mobile loot bursts visually weak — Pillar 3 9× LOOT/HIT ratio invariant fails. Above 0.7: approaches desktop budget — mobile fillrate jank."
+
+  - name: loot_burst_multiplier
+    status: active
+    source: design/gdd/particle-system-wrapper.md
+    referenced_by:
+      - design/gdd/particle-system-wrapper.md
+      # Expected future referrers:
+      # - design/gdd/loot-drop-system.md       (#15 — rarity tier → preset mapping must respect this multiplier)
+      # - docs/architecture/adr-0005-loot-rarity-formula.md  (rarity formula output feeds preset selection)
+    value: 3.0
+    unit: multiplier
+    added: 2026-05-26
+    revised: ""
+    notes: "LOOT preset privilege multiplier applied to final_count_composition formula when preset_id ∈ {LOOT_BURST, LOOT_RARE_BURST} (per Rule 7 + Formula 1). Safe range 2.0..4.0. Below 2.0: Pillar 3 LOOT/HIT ratio falls below 6× sanity check (Formula 1 sanity check). Above 4.0: LOOT_RARE_BURST desktop = 48×4×1.5 = 288 > 256 ceiling → permanent ceiling clamp + Formula 1 knob fails."
+
+  - name: max_caller_multiplier
+    status: active
+    source: design/gdd/particle-system-wrapper.md
+    referenced_by:
+      - design/gdd/particle-system-wrapper.md
+      # Expected future referrers (callers must respect this cap):
+      # - design/gdd/enemy-director.md       (#14)
+      # - design/gdd/loot-drop-modal.md      (#21)
+      # - design/gdd/combat-visual-feedback.md  (#25)
+    value: 1.5
+    unit: multiplier
+    added: 2026-05-26
+    revised: ""
+    notes: "Caller emphasize-burst hint upper bound (per Rule 1 input validation + Formula 1 caller_mult range). Safe range 1.2..2.0. Values > 1.5 silently clamped + `push_warning` emit. Below 1.2: caller emphasize mechanism too weak (e.g. boss-kill loot indistinguishable from normal LOOT_RARE_BURST). Above 2.0: knob fails because Formula 1 ceiling clamp permanently triggers."
+
+  - name: gymsys_client_signal_contract
+    status: active
+    source: design/gdd/gymsys-backend-client.md
+    referenced_by:
+      - design/gdd/gymsys-backend-client.md
+      - design/gdd/workout-state-tracker.md          # #9 — APPROVED 2026-05-27 consumer of all 7 workout signals (workout_started / set_logged / rest_started / rest_ended / workout_completed / poll_failed / poll_recovered) per Section C Rule 1
+      # Expected future referrers (consumers of these signals):
+      # - design/gdd/pr-detection.md                (#18 — set_logged)
+      # - design/gdd/login-ui.md                    (#24 — auth_required, session_invalidated)
+      # - design/gdd/telemetry.md                   (#28 — 13 main signals + 7 dev-only)
+    value: |
+      Workout (7): workout_started() / set_logged(exercise_id: String, reps: int, weight: float) / rest_started(duration_seconds: int) / rest_ended() / workout_completed(completed_at: int) / poll_failed(category: PollFailureCategory) / poll_recovered()
+      Auxiliary (6): session_invalidated() / auth_required() / lootdrop_cache_fetched(transition_id: String, payload: Dictionary, pending_since_server: int) / dropped_poll_tick(reason: String) / protocol_error(transition_id: String, reason: String) / lootdrop_committed(transition_id: String, canonical_inventory: Dictionary)
+      Dev-only telemetry (7): session_evicted_by_browser() / persistence_volatile() / inflight_cap_breached() / logout_drain_timeout(pending: int) / cache_trimmed(removed: int) / persistence_quota_exhausted(key: String) / drain_in_progress()
+    unit: signal_contract
+    added: 2026-05-26
+    revised: ""
+    notes: "Full 13-main + 7-dev-only signal listing emitted by GymSysClient. Workout signals (7) per Decision #3 lock — backward-compat with legacy 'exercise_switched' (NOT forwarded). Auxiliary signals (6) per Decision #4 + ADR-006 Contract 15 + Rule 15. Strong-typed normalization (Rule 5) — NEVER emit raw Dict to consumers. AC-28 verifies via get_signal_list() introspection."
+
+  - name: max_offset_px
+    status: active
+    source: design/gdd/screen-effects-system.md
+    referenced_by:
+      - design/gdd/screen-effects-system.md
+      # Expected future referrers:
+      # - docs/architecture/adr-0001-godot-web-export-budget-caps.md (FR-1/FR-2 binding)
+    value: 4.0
+    unit: pixels
+    added: 2026-05-26
+    revised: ""
+    notes: "Maximum shake amplitude at trauma=1.0 (Formula 1 shake_offset_per_frame coefficient)。Safe range [2.0, 8.0]。> 8.0 違反 peripheral receivability band → mid-set vestibular discomfort (Pillar 2 violation)。< 2.0 → 16px sprite × 3 zoom < 4% displacement → peripheral 失去 signal (Pillar 1/3 fail) + LOOT_RARE_BURST (0.2² × M) 落入 sub-pixel imperceptible。FR-2 Risk Register tuning lever。"
+
+  - name: max_pause_sec
+    status: active
+    source: design/gdd/screen-effects-system.md
+    referenced_by:
+      - design/gdd/screen-effects-system.md
+      # Expected future referrers:
+      # - design/gdd/audio-manager.md (#4 — hit_pause_started duration_ms ≤ MAX_PAUSE_SEC × 1000)
+    value: 0.12
+    unit: seconds
+    added: 2026-05-26
+    revised: ""
+    notes: "Hit pause hard ceiling (Formula 3 pause_max_remaining clamp + Rule 2 input clamp)。Safe range [0.04, 0.12]。> 0.12 → 玩家可 register「卡」(125ms human-detectable interruption threshold safety margin lost) → Pillar 2 violation Section B Test #3。< 0.04 → PARRY hit pause < 2 frames @ 60fps → 視覺凝固 feel 太短近乎冇 → DNF feel 失效。Hit pause does NOT receive motion_intensity multiplier (time perturbation ≠ vestibular)。"
+
+  - name: min_shake_duration
+    status: active
+    source: design/gdd/screen-effects-system.md
+    referenced_by:
+      - design/gdd/screen-effects-system.md
+    value: 0.01
+    unit: seconds
+    added: 2026-05-26
+    revised: ""
+    notes: "Formula 2 trauma_combiner amendment — decay_rate denominator floor (`1.0 / max(MIN_SHAKE_DURATION, duration)`) 防止 caller `shake(_, 0.0)` division-by-zero crash。Safe range [0.005, 0.05]。> 0.05 → 短促 shake decay_rate capped → shake 持續超預期長度 (peripheral receivability violation)。< 0.005 → 邊界保護失效 (degenerate caller 仍可能 100+ /sec decay rate)。Default 0.01s = 1 frame budget at 100fps (conservative)。"
+
+  - name: trauma_epsilon
+    status: active
+    source: design/gdd/screen-effects-system.md
+    referenced_by:
+      - design/gdd/screen-effects-system.md
+    value: 0.01
+    unit: dimensionless
+    added: 2026-05-26
+    revised: ""
+    notes: "Formula 1 shake_offset_per_frame short-circuit threshold — trauma < epsilon → skip pow()×noise() evaluation + one-shot clear shader uniform (Rule 4)。Safe range [0.001, 0.05]。> 0.05 → trauma 0.02..0.05 range short-circuit 過早 → shake decay 尾段斷崖式 disappear (visual artifact); also violates AC-G2 (LOOT_RARE_BURST raw 0.04 < epsilon 0.05 → first-frame skip → sensation 完全消失)。< 0.001 → asymptote risk (trauma 永遠 decay 唔到 0)，frame budget 浪費 evaluate sub-pixel offset (FR-1 protection 失效)。AC-D5 binding。"
+
+  - name: max_frame_delta
+    status: active
+    source: design/gdd/screen-effects-system.md
+    referenced_by:
+      - design/gdd/screen-effects-system.md
+      - design/gdd/camera-system.md   # #7 — Formula 1 follow_position_after_smoothing delta clamp; same 0.1s value
+    value: 0.1
+    unit: seconds
+    added: 2026-05-26
+    revised: "2026-05-26 — added #7 as referrer; same 0.1s value shared between #6 (Trauma decay clamp) and #7 (Camera follow smoothing clamp)"
+    notes: "bfcache resume delta clamp — Rule 13 _process(delta) 入口 `delta = min(delta, MAX_FRAME_DELTA)` 防止 30s bfcache freeze 後一 frame 大 delta 令 trauma 一次 decay 完 + multi-frame stutter (Section B Falsifiable Test #5 + EC-12 binding)。Safe range [0.05, 0.2]。> 0.2 → catch-up 失效，shake 立刻消失。< 0.05 → 50ms 以上 lag spike 都 clamp → hit_pause remaining tick 慢 (cosmetic only)。Camera #7 uses same value for follow_position_after_smoothing delta clamp (Formula 1) — coordinated bfcache resume behaviour across both autoloads。"
+
+  - name: max_emit_depth
+    status: active
+    source: design/gdd/screen-effects-system.md
+    referenced_by:
+      - design/gdd/screen-effects-system.md
+    value: 0
+    unit: dimensionless
+    added: 2026-05-26
+    revised: ""
+    notes: "Re-entry guard strict reject threshold (Rule 12)。`shake()` / `hit_pause()` callback 入面再 trigger 同類 call → drop + push_warning。Safe range [0, 2]。Default 0 strict — Section C 16 rules 未見 legitimate nested call use case；feedback loop 通常 indicates caller-side bug。配合 bfcache delta clamp，re-entry race 接近 0 probability。Future surface need (e.g. burst_started → shake → ... → 再 burst_started) 可 promote to 1。EC-19 binding + AC-16 test."
+
+  - name: hud_shakes_with_world
+    status: active
+    source: design/gdd/screen-effects-system.md
+    referenced_by:
+      - design/gdd/screen-effects-system.md
+      # Expected future referrers:
+      # - design/gdd/character-screen.md  (#22 — accessibility settings panel may expose toggle)
+    value: true
+    unit: boolean
+    added: 2026-05-26
+    revised: ""
+    notes: "Rule 14 CanvasLayer topology toggle。Default true → HUDLayer position (50) < ScreenEffectsLayer position (100) → BackBufferCopy captures HUDLayer → HUD 跟住 shake (DNF unified feel, 重量感加倍)。Toggle false → HUDLayer position (e.g. 200) > ScreenEffectsLayer → HUD 免 shake (readability priority for critical moments / accessibility-sensitive users)。Q-F5 implementation owner: #22 Character Screen GDD owner + master scene。AC-G4 + AC-20 binding。"
+
+  - name: position_smoothing_speed
+    status: active
+    source: design/gdd/camera-system.md
+    referenced_by:
+      - design/gdd/camera-system.md
+    value: 5.0
+    unit: dimensionless
+    added: 2026-05-26
+    revised: ""
+    notes: "Godot Camera2D built-in critically-damped exponential decay rate (Formula 1)。Default 5.0 = Godot baseline, Hades reference, settle 200ms→63%, 600ms→95%。Safe range [3.0, 8.0]。> 8.0 → snappy/rubber-band (Maple jump-cam complaint)，< 3.0 → sluggish (DNF mounted camera complaint)。Cross-knob invariant: ln(30 / LOCK_ON_TOLERANCE_PX) / POSITION_SMOOTHING_SPEED ≤ 0.5 (Pillar 2 lock-on time)。AC-09 binding。"
+
+  - name: lock_on_tolerance_px
+    status: active
+    source: design/gdd/camera-system.md
+    referenced_by:
+      - design/gdd/camera-system.md
+    value: 3.0
+    unit: pixels
+    added: 2026-05-26
+    revised: ""
+    notes: "Pillar 2 glance-back lock-on tolerance (Formula 4 helper)。Default 3.0px = 16px sprite × 3 zoom = 48px effective → 6.25% displacement (sub-pixel-perceptible threshold for peripheral vision)。Safe range [1.0, 8.0]。> 8.0 → metric trivially satisfied (Pillar 2 contract 失意義)；< 1.0 → sub-pixel jitter triggers false unlock (asymptote)。AC-09 + AC-30 binding。"
+
+  - name: focal_entry_duration
+    status: active
+    source: design/gdd/camera-system.md
+    referenced_by:
+      - design/gdd/camera-system.md
+      # Expected future referrers:
+      # - design/gdd/enemy-director.md (#14 — request_focal default duration param)
+      # - design/gdd/loot-drop-modal.md (#21 — request_focal default duration param)
+    value: 0.6
+    unit: seconds
+    added: 2026-05-26
+    revised: ""
+    notes: "Focal mode entry tween duration (Formula 2 + Rule 6)。Default 0.6s = DNF Otherverse portal push-in band。Safe range [0.4, 1.0]。> 1.0 → 玩家 attention drift mid-Focal，cinematic moment 拖延；< 0.4 → 「lunge」感受變「snap」(invitation 變 jump-cut)。Cross-knob invariant: FOCAL_ENTRY_DURATION > FOCAL_EXIT_DURATION (AC-15)。"
+
+  - name: focal_exit_duration
+    status: active
+    source: design/gdd/camera-system.md
+    referenced_by:
+      - design/gdd/camera-system.md
+    value: 0.5
+    unit: seconds
+    added: 2026-05-26
+    revised: ""
+    notes: "Focal mode exit tween duration (Formula 3 + Rule 7)。Default 0.5s = Hades post-encounter breath-out pacing。Safe range [0.3, 0.8]。> 0.8 → exit 拖太耐 (lingering)，< 0.3 → snap-back jarring (kick)。Cubic ease-in-out symmetric f(0.5) = 0.5 exact (AC-12 ±1e-6 tolerance)。"
+
+  - name: focal_zoom_default
+    status: active
+    source: design/gdd/camera-system.md
+    referenced_by:
+      - design/gdd/camera-system.md
+      # Expected future referrers:
+      # - design/gdd/enemy-director.md (#14)
+      # - design/gdd/loot-drop-modal.md (#21)
+    value: 1.4
+    unit: zoom_multiplier
+    added: 2026-05-26
+    revised: ""
+    notes: "Focal mode default zoom level (Rule 6 default param)。Default 1.4x = motion safety cap (玩家 mid-set physical exertion + steep zoom = vestibular conflict risk)。Safe range [1.2, 1.5]。> 1.5 → Pillar 2 motion safety violation；< 1.2 → cinematic push-in 感受不到 (Pillar 3 DNF rally feel 失效)。Cross-knob invariant: FOCAL_ZOOM_DEFAULT ≤ FOCAL_ZOOM_CAP (AC-31)。"
+
+  - name: focal_zoom_cap
+    status: active
+    source: design/gdd/camera-system.md
+    referenced_by:
+      - design/gdd/camera-system.md
+    value: 4.0
+    unit: zoom_multiplier
+    added: 2026-05-26
+    revised: ""
+    notes: "Focal mode hard zoom ceiling (EC-05 validation)。Default 4.0x。Safe range [2.0, 6.0]。> 6.0 → extreme zoom 露 world-bound edge + 大 motion sickness risk；< 2.0 → designer 配置稍大 ritual zoom 都 hit cap。`request_focal(zoom > FOCAL_ZOOM_CAP)` clamp + push_warning。AC-03 binding。"
+
+  - name: max_focal_duration
+    status: active
+    source: design/gdd/camera-system.md
+    referenced_by:
+      - design/gdd/camera-system.md
+    value: 10.0
+    unit: seconds
+    added: 2026-05-26
+    revised: ""
+    notes: "Focal mode hard duration ceiling (EC-03 validation)。Default 10.0s。Safe range [3.0, 30.0]。防 designer typo lock 玩家 indefinitely (e.g. `request_focal(duration=1000)`)。`request_focal(duration > MAX_FOCAL_DURATION)` clamp + push_warning。AC-03 binding。"
+
+  - name: default_zoom
+    status: active
+    source: design/gdd/camera-system.md
+    referenced_by:
+      - design/gdd/camera-system.md
+    value: "Vector2(1.0, 1.0)"
+    unit: zoom_vector
+    added: 2026-05-26
+    revised: ""
+    notes: "Camera2D baseline zoom (Rule 11 single source of truth)。Used by: Booting initial zoom + Suspended-restore zoom + Focal-exit return zoom。Safe range per axis [0.5, 2.0]。Each axis > 2.0 → initial / Suspended-restore zoom 已 zoomed-in (Following baseline violation)；< 0.5 → wide-angle viewport 露 world edge + mobile fillrate cost。AC-13 + AC-17 binding。"
+
+  - name: drag_horizontal_margin
+    status: active
+    source: design/gdd/camera-system.md
+    referenced_by:
+      - design/gdd/camera-system.md
+    value: 0.04
+    unit: viewport_fraction
+    added: 2026-05-26
+    revised: ""
+    notes: "Camera2D drag margin per side (Rule 3)。Default 0.04 each side = 8% total horizontal dead-zone width。Safe range [0.0, 0.20]。> 0.20 → camera 追唔到 fast-moving avatar；< 0.0 → invalid。Side-scroller asymmetric pattern: horizontal < vertical (vertical motion less perceptible)。AC-08 binding。Mobile-specific bump (0.06 each side = 12% total) defer ADR-001。"
+
+  - name: drag_vertical_margin
+    status: active
+    source: design/gdd/camera-system.md
+    referenced_by:
+      - design/gdd/camera-system.md
+    value: 0.06
+    unit: viewport_fraction
+    added: 2026-05-26
+    revised: ""
+    notes: "Camera2D drag margin per side (Rule 3)。Default 0.06 each side = 12% total vertical dead-zone height。Safe range [0.0, 0.20]。Side-scroller asymmetric pattern (Hades / DNF Mobile reference): vertical (jumps / falls) less perceptible than horizontal walks → 寬鬆 vertical dead-zone 避免 frequent vertical correction (peripheral motion noise)。Cross-knob invariant: DRAG_VERTICAL_MARGIN ≥ DRAG_HORIZONTAL_MARGIN。AC-08 binding。Mobile-specific bump (0.08 each side = 16% total) defer ADR-001。"
+
+  - name: milestone_thresholds
+    status: active
+    source: design/gdd/streak-system.md
+    referenced_by:
+      - design/gdd/streak-system.md
+      # Expected future referrers:
+      # - design/gdd/loot-drop-system.md       (#15 — rarity-tier ritual gate consumer via streak_milestone_reached)
+      # - design/gdd/mirror-moment-system.md   (#29 — weekly progression marker consumer)
+    value: "[7, 14, 30, 60, 90]"
+    unit: days
+    added: 2026-05-26
+    revised: ""
+    notes: "Streak milestone threshold array (Rule 7 const)。連續日數命中其中一個 = emit `streak_milestone_reached(milestone)`。Safe range: each milestone ∈ [3, 365], Array length ∈ [3, 8], strictly ascending, no duplicates。Loss case (each > 365): milestone year-long achievable，玩家難以感受 progression cadence。Loss case (each < 3): milestone 過早 emit，dilute Pillar 5 ritual moment dignity。Array < 3 entries: 唔夠 progression marker support #29 weekly evolution。AC-19 + AC-32 binding。emit-once-permanent contract per Rule 7 (Falsifiable Test #6 Long-Haul)。"
+
+  - name: loot_workout_weight
+    status: active
+    source: docs/architecture/adr-0005-loot-rarity-formula.md
+    referenced_by:
+      - docs/architecture/adr-0005-loot-rarity-formula.md
+      # Expected future referrers: design/gdd/loot-drop-system.md (#15)
+    value: 0.75
+    unit: dimensionless
+    added: 2026-05-27
+    revised: ""
+    notes: "Pillar 1 primary weight in loot_rarity_score formula (ADR-005). Must remain ≥ 0.70 (anti-Pillar-1 drift constraint from systems-index #15). WORKOUT_WEIGHT + RNG_WEIGHT must equal 1.0. At 0.75: max workout-only contribution = 0.75, impossible to reach EPIC(0.72) via RNG alone (max RNG = 0.25 < 0.72). Safe range [0.70, 0.85]."
+
+  - name: loot_rng_weight
+    status: active
+    source: docs/architecture/adr-0005-loot-rarity-formula.md
+    referenced_by:
+      - docs/architecture/adr-0005-loot-rarity-formula.md
+    value: 0.25
+    unit: dimensionless
+    added: 2026-05-27
+    revised: ""
+    notes: "Secondary excitement weight in loot_rarity_score formula (ADR-005). Must remain ≤ 0.30 (anti-Pillar-1 constraint). equals 1.0 - WORKOUT_WEIGHT. Provides 'will I get Epic today?' uncertainty while preserving Pillar 1. Safe range [0.15, 0.30]."
+
+  - name: loot_target_exercises
+    status: active
+    source: docs/architecture/adr-0005-loot-rarity-formula.md
+    referenced_by:
+      - docs/architecture/adr-0005-loot-rarity-formula.md
+    value: 5
+    unit: exercises
+    added: 2026-05-27
+    revised: ""
+    notes: "Target exercise count for volume_factor = 1.0 in loot formula (ADR-005). volume_factor = min(1.0, completed / TARGET). Matches game-concept '5-8 exercises per typical workout'. Safe range [3, 8]. Provided by #9 Workout State Tracker."
+
+  - name: loot_max_pr_factor
+    status: active
+    source: docs/architecture/adr-0005-loot-rarity-formula.md
+    referenced_by:
+      - docs/architecture/adr-0005-loot-rarity-formula.md
+    value: 1.25
+    unit: multiplier
+    added: 2026-05-27
+    revised: ""
+    notes: "Cap on pr_factor in loot workout_score formula (ADR-005). Prevents single PR breakthrough from guaranteeing LEGENDARY. At default PR_BONUS_PER_PR=0.12: 2 PRs → 1.24, 3 PRs → 1.36 → capped at 1.25. TD recommendation: 1.2-1.3 range. Safe range [1.15, 1.40]."
+
+  - name: loot_max_streak_bonus
+    status: active
+    source: docs/architecture/adr-0005-loot-rarity-formula.md
+    referenced_by:
+      - docs/architecture/adr-0005-loot-rarity-formula.md
+    value: 0.20
+    unit: dimensionless
+    added: 2026-05-27
+    revised: ""
+    notes: "Maximum streak_factor bonus in loot workout_score formula (ADR-005). streak_factor = 1.0 + min(streak_count/STREAK_SCALE, MAX_STREAK_BONUS). At 60-day streak: streak_factor = 1.20. Provides loyalty reward but capped to prevent streak domination. Safe range [0.10, 0.35]. Provided by #8 Streak System."
+
+  - name: loot_rarity_thresholds
+    status: active
+    source: docs/architecture/adr-0005-loot-rarity-formula.md
+    referenced_by:
+      - docs/architecture/adr-0005-loot-rarity-formula.md
+    value: "[0.0, 0.35, 0.55, 0.72, 0.88]"
+    unit: score_thresholds
+    added: 2026-05-27
+    revised: ""
+    notes: "Half-open interval lower bounds for [COMMON, UNCOMMON, RARE, EPIC, LEGENDARY] tiers (ADR-005). LEGENDARY uses closed upper bound [0.88, 1.0]. Stored in LootRarityConfig.tres as Array[float]. Pillar 3 floor: any workout_completed → max(raw_tier, COMMON). At defaults: 3/5 exercises + avg RNG ≈ RARE; 5/5 + streak + avg RNG ≈ EPIC; LEGENDARY requires max workout AND good RNG."
+
+  - name: max_stat_value
+    status: active
+    source: design/gdd/stat-system.md
+    referenced_by:
+      - design/gdd/stat-system.md
+      # Expected future referrers:
+      # - design/gdd/combat-resolver.md (#13)
+      # - design/gdd/equipment-inventory.md (#17)
+      # - design/gdd/character-screen.md (#22)
+    value: 999
+    unit: stat_points
+    added: 2026-05-27
+    revised: ""
+    notes: "Hard ceiling for base stats (STR/DEX/VIT) per Rule 11. Safe range [100, 9999] — but changing requires schema migration (PersistenceLayer Contract 10) + retune of MOVE_CAP / MAX_CRIT_CHANCE knobs (INV-6, INV-8 reachability invariants). MVP 假設 ~1 year hardcore PR cap match — real-life PR plateau 同步 game cap design intent."
+
+  - name: default_base_stat
+    status: active
+    source: design/gdd/stat-system.md
+    referenced_by:
+      - design/gdd/stat-system.md
+    value: 10.0
+    unit: stat_points
+    added: 2026-05-27
+    revised: ""
+    notes: "First-boot default value for STR/DEX/VIT per Rule 11. Safe range [1.0, 50.0]. Changing必同步 retune *_BASE knobs to maintain CF-1 baseline (MAX_HP=160, ATTACK_POWER=28, MOVE_SPEED=184, CRIT_CHANCE=0.015). Matches game-concept '從零開始嘅 grind 感' but provides survivable 4-5 hit baseline (anti-1HP-death)."
+
+  - name: stat_changed_signal_signature
+    status: active
+    source: design/gdd/stat-system.md
+    referenced_by:
+      - design/gdd/stat-system.md
+      # Expected future referrers (all 6 downstream consumers):
+      # - design/gdd/ability-system.md           (#12)
+      # - design/gdd/combat-resolver.md          (#13)
+      # - design/gdd/equipment-inventory.md      (#17)
+      # - design/gdd/gym-mode-hud.md             (#20)
+      # - design/gdd/character-screen.md         (#22)
+      # - design/gdd/avatar-renderer.md          (#26)
+      # - design/gdd/telemetry.md                (#28)
+    value: "stat_changed(stat_id: StringName, old_value: float, new_value: float, source: StatSource, is_initial: bool)"
+    unit: signal_signature
+    added: 2026-05-27
+    revised: ""
+    notes: "Stat System sole core broadcast signal — emitted after persistence flush + in-memory mutate per Rule 13 atomic write sequence. Subscribers MUST use connect_for_initial_state(callable) helper per ADR-006 Contract 6 (NOT plain .connect — see AC-08 + AC-34 CI lint). Sentinel detection: source == StatSource.INITIAL_STATE OR is_initial == true. Payload primitives only (Rule 16) — no Node/Object/Callable."
+
+  - name: stat_source_enum
+    status: active
+    source: design/gdd/stat-system.md
+    referenced_by:
+      - design/gdd/stat-system.md
+      - design/gdd/workout-state-tracker.md # #9 — APPROVED 2026-05-27 caller of apply_stat_delta with VOLUME_TICK source per Section C Rule 6; uses source_key (client-derived idempotency) NOT transition_id (B-1 fix 2026-05-27); buffer-while-not-ready caller contract pending #11 GDD next-revision
+      # - design/gdd/pr-detection.md          (#18 — PR_BREAKTHROUGH caller)
+      # - design/gdd/equipment-inventory.md   (#17 — EQUIPMENT modifier path)
+    value: "PR_BREAKTHROUGH | VOLUME_TICK | EQUIPMENT | DEBUG_OVERRIDE | INITIAL_STATE"
+    unit: enum_value_set
+    added: 2026-05-27
+    revised: ""
+    notes: "5-value enum — 4 mutation sources + 1 internal sentinel (INITIAL_STATE for Contract 6 callv path only; mutation API rejects). Section B FR-1 binding: enum exhaustive — adding LOOT_RANDOM / LEVEL_UP_BONUS / STREAK_BONUS violates Pillar 1 anti-fabrication; RNG-influenced stat boost MUST route via EQUIPMENT modifier (#17). AC-04 + AC-35 (ADR-RATIFICATION-GATED) verify."
+
+  - name: stat_id_enum
+    status: active
+    source: design/gdd/stat-system.md
+    referenced_by:
+      - design/gdd/stat-system.md
+      # Expected future referrers: all 6 downstream consumers
+    value: "STR | DEX | VIT | MAX_HP | ATTACK_POWER | MOVE_SPEED | CRIT_CHANCE"
+    unit: enum_value_set
+    added: 2026-05-27
+    revised: ""
+    notes: "7-stat surface LOCKED for MVP per Rule 1. 3 base (STR=push, DEX=pull, VIT=leg per Pillar 4) + 4 derived (computed on-read, NOT persisted). Stat IDs are StringName constants — magic string FORBIDDEN (CI lint check_stat_id_magic_string.gd). Adding new stat (e.g., LUK in v0.2) = schema bump (Q-A2 open). AC-01 verifies surface."
+
+  - name: move_cap
+    status: active
+    source: design/gdd/stat-system.md
+    referenced_by:
+      - design/gdd/stat-system.md
+      - design/gdd/camera-system.md       # #7 — INV-7 cross-system invariant (MOVE_CAP ≤ camera follow speed)
+      # Expected future referrers:
+      # - design/gdd/combat-resolver.md   (#13 — avatar locomotion physical cap)
+    value: 420.0
+    unit: pixels_per_second
+    added: 2026-05-27
+    revised: ""
+    notes: "Avatar maximum locomotion speed (Formula 5 min-clamp ceiling). Safe range [300.0, 600.0]. Cross-system INV-7: MOVE_CAP ≤ #7 Camera max follow speed (prevents avatar outrun camera). Stat-only reachable at DEX≈600 (INV-6 — Pillar 1 CF-3 no equipment dependency). AC-28 verify cap boundary."
+
+  - name: max_crit_chance
+    status: active
+    source: design/gdd/stat-system.md
+    referenced_by:
+      - design/gdd/stat-system.md
+      # Expected future referrers:
+      # - design/gdd/combat-resolver.md  (#13 — crit roll comparison ceiling)
+    value: 0.50
+    unit: probability
+    added: 2026-05-27
+    revised: ""
+    notes: "Hard cap for CRIT_CHANCE (Formula 6 min-clamp ceiling). Safe range [0.30, 0.75]. Anti-dice-game design — preserves crit as 「驚喜」 moment even for high DEX builds. DEX_FOR_MAX_CRIT (derived) = MAX_CRIT_CHANCE / CRIT_PER_DEX ≈ 333 (INV-8: ∈ [100, MAX_STAT_VALUE]). AC-29 verify cap boundary."
+
+  - name: stat_modifier_struct
+    status: active
+    source: design/gdd/stat-system.md
+    referenced_by:
+      - design/gdd/stat-system.md
+      # Expected future referrers:
+      # - design/gdd/equipment-inventory.md (#17 — owns StatModifier instances per equipped item)
+    value: "class StatModifier extends RefCounted: var deltas: Dictionary  # { stat_id: StringName -> delta: float }"
+    unit: struct_definition
+    added: 2026-05-27
+    revised: ""
+    notes: "Transient equipment modifier struct per Rule 5. NOT persisted by Stat System — #17 Equipment Inventory owns lifecycle, replays on boot via apply_equipment_modifier(equipment_id, StatModifier). deltas keys MUST ⊆ stat_id_enum (EC-19 — unknown stat_id silently ignored at derived recompute). AC-06 + AC-07 verify."
+
+  - name: ability_id_enum
+    status: active
+    source: design/gdd/ability-system.md
+    referenced_by:
+      - design/gdd/ability-system.md
+      # Expected future referrers (all downstream consumers):
+      # - design/gdd/combat-resolver.md (#13 — cast_ability + get_unlocked_abilities reads)
+      # - design/gdd/gym-mode-hud.md (#20 — ability icon display)
+      # - design/gdd/character-screen.md (#22)
+      # - design/gdd/avatar-renderer.md (#26 — cast animation trigger)
+      # - design/gdd/skill-tree.md (#30 v0.2)
+      # - design/gdd/pr-detection.md (#18 — unlock_ability caller)
+    value: "STRIKE_TIER_1_JAB | STRIKE_TIER_2_HOOK | STRIKE_TIER_3_OVERHAND | CONTROL_TIER_1_PARRY | CONTROL_TIER_2_HOOK_PULL | CONTROL_TIER_3_GRAPPLE | MOBILITY_TIER_1_DASH | MOBILITY_TIER_2_LEAP | MOBILITY_TIER_3_GROUND_POUND"
+    unit: enum_value_set
+    added: 2026-05-27
+    revised: ""
+    notes: "9-ability slot surface LOCKED for MVP per Rule 1. 3 class × 3 tier. Ability IDs are StringName constants — magic string FORBIDDEN (CI lint check_ability_id_magic_string.gd, AC-02). Adding TIER_4 (e.g., v0.2 Mastery) = schema bump (Q-A3 open). AC-01 verifies surface count + names."
+
+  - name: ability_class_enum
+    status: active
+    source: design/gdd/ability-system.md
+    referenced_by:
+      - design/gdd/ability-system.md
+      # Expected future referrers:
+      # - design/gdd/exercise-class-mapping.md (#10 — must match this enum per FR-1)
+      # - design/gdd/skill-tree.md (#30 v0.2 — tree organized by class)
+    value: "STRIKE | CONTROL | MOBILITY"
+    unit: enum_value_set
+    added: 2026-05-27
+    revised: ""
+    notes: "3-class enum per Pillar 4 hard 1:1:1 mapping (STR→STRIKE, DEX→CONTROL, VIT→MOBILITY). Section B FR-1 binding: when #10 Exercise→Class Mapping authored, class enum names MUST match exactly (no hybrid like PUSH_PULL_HYBRID). AC-03 + AC-31 (ADR-RATIFICATION-GATED) verify."
+
+  - name: ability_tier_enum
+    status: active
+    source: design/gdd/ability-system.md
+    referenced_by:
+      - design/gdd/ability-system.md
+    value: "TIER_1 | TIER_2 | TIER_3"
+    unit: enum_value_set
+    added: 2026-05-27
+    revised: ""
+    notes: "3-tier enum per Rule 2. TIER_1 = bread-and-butter (high freq), TIER_2 = combo piece, TIER_3 = signature move (commitment cast). v0.2 may add TIER_4 (Q-A3 open) — schema bump required. AC-03 verifies."
+
+  - name: unlock_source_enum
+    status: active
+    source: design/gdd/ability-system.md
+    referenced_by:
+      - design/gdd/ability-system.md
+      # Expected future referrers:
+      # - design/gdd/pr-detection.md (#18 — PR_BREAKTHROUGH caller)
+      # - design/gdd/stat-system.md (#11 — STAT_THRESHOLD internal Path B)
+    value: "PR_BREAKTHROUGH | STAT_THRESHOLD | INITIAL_STATE"
+    unit: enum_value_set
+    added: 2026-05-27
+    revised: ""
+    notes: "3-value enum — 2 mutation sources + 1 internal sentinel (INITIAL_STATE for Contract 6 callv path only; mutation API rejects with sentinel_misuse reason). Section B FR-1 binding: enum exhaustive — adding RANDOM_DROP / LEVEL_UP_BONUS violates Pillar 1 anti-fabrication. AC-05 verifies."
+
+  - name: cast_result_enum
+    status: active
+    source: design/gdd/ability-system.md
+    referenced_by:
+      - design/gdd/ability-system.md
+      # Expected future referrers:
+      # - design/gdd/combat-resolver.md (#13 — handles each result branch)
+    value: "SUCCESS | NOT_UNLOCKED | ON_COOLDOWN | STAT_INSUFFICIENT | INVALID_TARGET | GSM_REJECT"
+    unit: enum_value_set
+    added: 2026-05-27
+    revised: ""
+    notes: "6-outcome enum — cast_ability sole return type per Rule 5. #13 CombatResolver scheduler must handle each branch (fallback to lower-tier ability on non-SUCCESS). AC-06 verifies enum cardinality + cast_ability return type annotation."
+
+  - name: ability_unlocked_signal_signature
+    status: active
+    source: design/gdd/ability-system.md
+    referenced_by:
+      - design/gdd/ability-system.md
+      # Expected future referrers (all 6 downstream consumers):
+      # - design/gdd/gym-mode-hud.md (#20)
+      # - design/gdd/character-screen.md (#22)
+      # - design/gdd/avatar-renderer.md (#26)
+      # - design/gdd/skill-tree.md (#30 v0.2)
+      # - design/gdd/telemetry.md (#28)
+    value: "ability_unlocked(ability_id: StringName, source: int)"
+    unit: signal_signature
+    added: 2026-05-27
+    revised: ""
+    notes: "Ability System core broadcast signal — emitted after persistence flush + in-memory mutate per Rule 13 atomic write sequence. Subscribers MUST use connect_for_initial_state(callable) helper per ADR-006 Contract 6 (NOT plain .connect — see AC-14 + EC-32 CI lint). Initial-state delivery uses source=INITIAL_STATE sentinel."
+
+  - name: ability_cast_signal_signature
+    status: active
+    source: design/gdd/ability-system.md
+    referenced_by:
+      - design/gdd/ability-system.md
+      # Expected future referrers:
+      # - design/gdd/combat-resolver.md (#13 — subscribes to trigger damage computation + animation)
+      # - design/gdd/avatar-renderer.md (#26 — cast animation trigger)
+      # - design/gdd/screen-effects-system.md (#6 — possibly shake on TIER_3)
+    value: "ability_cast(ability_id: StringName, caster: Node2D, target: Node2D)"
+    unit: signal_signature
+    added: 2026-05-27
+    revised: "2026-05-27 — removed damage: float param per /design-review B-1 fix: Ability System唔 own combat math; #13 CombatResolver subscribes to ability_cast signal and computes damage using its own Stat formulas post-signal"
+    notes: "Ability System cast event signal — emitted exactly once per successful cast (Rule 8 step 6). No damage param: damage computation belongs to #13 CombatResolver (scope boundary). #13 receives ability_cast, reads ability_id to determine damage formula, computes damage using StatSystem, then continues combat tick. AC-12 verifies emit timing + 3-param payload shape (no damage)."
+
+  - name: tier_1_threshold
+    status: active
+    source: design/gdd/ability-system.md
+    referenced_by:
+      - design/gdd/ability-system.md
+    value: 10
+    unit: stat_points
+    added: 2026-05-27
+    revised: ""
+    notes: "Formula 1 TIER_1 unlock threshold — anchored to DEFAULT_BASE_STAT=10 (CF-1 onboarding moment). Safe range [5, 30]. INV-2: must ≥ DEFAULT_BASE_STAT (else auto-unlock degenerate). All 3 classes share value (Pillar 4 fairness)."
+
+  - name: tier_2_threshold
+    status: active
+    source: design/gdd/ability-system.md
+    referenced_by:
+      - design/gdd/ability-system.md
+    value: 50
+    unit: stat_points
+    added: 2026-05-27
+    revised: ""
+    notes: "Formula 1 TIER_2 unlock threshold — first-month reachable (~25-35 sessions × ~1.5/session). Safe range [30, 100]. INV-1 strict monotonic > TIER_1_THRESHOLD."
+
+  - name: tier_3_threshold
+    status: active
+    source: design/gdd/ability-system.md
+    referenced_by:
+      - design/gdd/ability-system.md
+    value: 200
+    unit: stat_points
+    added: 2026-05-27
+    revised: ""
+    notes: "Formula 1 TIER_3 unlock threshold — 6-month specialist commitment. Safe range [100, 400]. INV-3: must ≤ MAX_STAT_VALUE × 0.25 = 249. Hybrid build reaches TIER_2 only; specialist reaches TIER_3 — Pillar 4 trade-off."
+
+  - name: tier_1_base_cooldown_sec
+    status: active
+    source: design/gdd/ability-system.md
+    referenced_by:
+      - design/gdd/ability-system.md
+    value: 3.0
+    unit: seconds
+    added: 2026-05-27
+    revised: ""
+    notes: "Formula 2 TIER_1 base cooldown — bread-and-butter rhythm. Safe range [2.0, 5.0]. INV-5: ≥ 2.0 anti-spam. 60-sec encounter = 20 casts (constant rhythm)."
+
+  - name: tier_2_base_cooldown_sec
+    status: active
+    source: design/gdd/ability-system.md
+    referenced_by:
+      - design/gdd/ability-system.md
+    value: 6.0
+    unit: seconds
+    added: 2026-05-27
+    revised: ""
+    notes: "Formula 2 TIER_2 base cooldown — combo piece. Safe range [4.0, 9.0]. INV-4 strict monotonic > TIER_1. 60-sec encounter = 10 casts."
+
+  - name: tier_3_base_cooldown_sec
+    status: active
+    source: design/gdd/ability-system.md
+    referenced_by:
+      - design/gdd/ability-system.md
+    value: 10.0
+    unit: seconds
+    added: 2026-05-27
+    revised: ""
+    notes: "Formula 2 TIER_3 base cooldown — signature move (commitment cast). Safe range [7.0, 15.0]. INV-6: ≤ 15.0 anti-dead-time. INV-7: ratio with TIER_1 ≤ 4.0 (current 10.0/3.0 = 3.33). 60-sec encounter = 6 casts."
+
+  - name: minimum_active_stat
+    status: active
+    source: design/gdd/ability-system.md
+    referenced_by:
+      - design/gdd/ability-system.md
+    value: 5.0
+    unit: stat_points
+    added: 2026-05-27
+    revised: ""
+    notes: "Rule 8 step 4 cast stat-check threshold — caster stat must be ≥ this to cast. Defensive against extreme EQUIPMENT debuff. Safe range [3.0, 15.0]. Higher = EQUIPMENT debuff easily triggers STAT_INSUFFICIENT reject; lower = defensive檢查 失效."
+
+  - name: unlock_record_struct
+    status: active
+    source: design/gdd/ability-system.md
+    referenced_by:
+      - design/gdd/ability-system.md
+    value: "class UnlockRecord extends Resource: var first_unlocked_at_unix: int; var source: UnlockSource; var source_event_id: String"
+    unit: struct_definition
+    added: 2026-05-27
+    revised: ""
+    notes: "SerializableResource envelope per ADR-006 Contract 3 — persisted as `ability.unlocked.<id>` value. first_unlocked_at_unix used for Mirror Moment (#29) historical comparison. source_event_id traces back to triggering pr_breakthrough event for audit. Rule 13 atomic write uses this envelope."
+
+  - name: hit_outcome_enum
+    status: active
+    source: design/gdd/combat-resolver.md
+    referenced_by:
+      - design/gdd/combat-resolver.md
+      # Expected future referrers:
+      # - design/gdd/enemy-director.md (#14 — consumes via HitResult.outcome)
+      # - design/gdd/combat-visual-feedback.md (#25)
+      # - design/gdd/telemetry.md (#28)
+    value: "NORMAL_HIT | CRITICAL_HIT | KILLED | OVERKILL"
+    unit: enum_value_set
+    added: 2026-05-27
+    revised: ""
+    notes: "4-outcome enum LOCKED for MVP per Rule 5。DODGED removed per MVP scope discipline (Q-C decision) — defer v0.2 with schema bump。is_kill priority 高過 is_crit for outcome assignment (KILLED takes precedence)；damage_tier 仍可 = CRITICAL preserve crit VFX trigger。AC-21 verify enum surface 4 values + DODGED absent."
+
+  - name: damage_tier_enum
+    status: active
+    source: design/gdd/combat-resolver.md
+    referenced_by:
+      - design/gdd/combat-resolver.md
+      # Expected future referrers (FR Test #4 mandatory consumers):
+      # - design/gdd/enemy-director.md (#14)
+      # - design/gdd/screen-effects-system.md (#6 — auto-dispatch routing key)
+      # - design/gdd/particle-system-wrapper.md (#5 — preset routing key)
+      # - design/gdd/combat-visual-feedback.md (#25 — primary VFX router)
+      # - design/gdd/audio-manager.md (#4 — audio cue tier routing)
+      # - design/gdd/telemetry.md (#28)
+    value: "NEGLIGIBLE | LIGHT | MEDIUM | HEAVY | CRITICAL"
+    unit: enum_value_set
+    added: 2026-05-27
+    revised: ""
+    notes: "5-tier enum classified by ratio-of-MAX_HP (Formula 4 classify_damage_tier)。FR Test #4 binding — hit_resolved payload MANDATORY field；downstream VFX/audio routing key (NEGLIGIBLE/LIGHT → no shake/sound; MEDIUM → trauma 0.2; HEAVY → trauma 0.4 + hit_pause 65ms; CRITICAL → trauma 0.6 + hit_pause 80ms)。Crit override forces tier ≥ HEAVY (Rule 10) preserve crit excitement on bullet-sponge targets. AC-07 + AC-16 + AC-17 + AC-30 verify."
+
+  - name: compute_hit_damage
+    status: active
+    source: design/gdd/combat-resolver.md
+    referenced_by:
+      - design/gdd/combat-resolver.md
+      # Expected future referrers:
+      # - design/gdd/enemy-director.md (#14 — caller per resolve_hit pipeline)
+    variables:
+      - ATTACK_POWER                  # float [1, 4500] — from #11 Formula 4 via StatSnapshot
+      - ability_damage_multiplier     # float [0.5, 3.0] — from #12 AbilityRegistry.tres
+      - target_defense                # int [0, 500] — from #14 EnemyState
+    output_range: [1, 13500]
+    expression: "base_damage = max(1, round(ATTACK_POWER × ability_damage_multiplier − target_defense))"
+    notes: "CombatResolver Formula 1 — flat subtraction MVP simplicity per Q-D1 [A]。max(1, ...) floor 防「tap-of-nothing」per Pillar 3 anti-zero-damage rule。Pure consumer of #11 ATTACK_POWER (aggregated STR/DEX/equipment) — #13 唔重複 aggregate。Worked example: CF-1 baseline (STR=10, DEX=10, no eq) ATK=28 vs starter mob def=10, JAB (mult=1.0) → base=18 → 4-5 hits to kill 80 HP mob ✓。Mid-game (STR=100) ATK~160 + TIER_3 (mult=3.0) vs mid-boss 5000 HP def=20 → ~9 hits per Q-D8 [B] calibration target."
+    added: 2026-05-27
+    revised: ""
+
+  - name: roll_crit
+    status: active
+    source: design/gdd/combat-resolver.md
+    referenced_by:
+      - design/gdd/combat-resolver.md
+      # Expected future referrers:
+      # - design/gdd/enemy-director.md (#14 — caller per resolve_hit pipeline)
+    variables:
+      - CRIT_CHANCE                   # float [0.0, MAX_CRIT_CHANCE=0.50] — from #11 Formula 6 via StatSnapshot
+      - transition_id                 # String — from #1 GSM via #14 caller snapshot
+      - ability_id                    # StringName — from #12 enum
+      - hit_seq                       # int [0, MAX_HIT_SEQ=1_000_000] — EnemyDirector monotonic counter
+    output_range: [false, true]      # boolean Bernoulli outcome
+    expression: "is_crit = (rng.randf() < CRIT_CHANCE) where rng_subseed = hash('%s:%s:%d' % [transition_id, ability_id, hit_seq])"
+    notes: "CombatResolver Formula 2 — FR-1 Pillar 1 anti-fabrication binding。Sub-seed `hash(transition_id + ability_id + hit_seq)` 防 AOE 同 frame multi-hit 共享同一 rng state 引致全 crit / 全 miss degenerate。Caller-injected rng (Rule 7) — CombatResolver 內禁用 randf() / randi() / RandomNumberGenerator.new() (CI lint `tools/ci/check_combat_resolver_randf.gd`)。AC-14 + AC-22 + AC-23 + AC-24 verify determinism + independence + unicode safety + hit_seq overflow."
+    added: 2026-05-27
+    revised: ""
+
+  - name: apply_crit_multiplier
+    status: active
+    source: design/gdd/combat-resolver.md
+    referenced_by:
+      - design/gdd/combat-resolver.md
+    variables:
+      - base_damage                   # int [1, 13500] — from Formula 1
+      - is_crit                       # bool — from Formula 2
+      - CRIT_MULTIPLIER               # float [1.5, 2.5], default 1.5 fixed per Q-D2 [A]
+    output_range: [1, 33750]         # max base × max safe-range crit_mult
+    expression: "post_crit_damage = round(base_damage × (CRIT_MULTIPLIER if is_crit else 1.0))"
+    notes: "CombatResolver Formula 3 — fixed crit multiplier (Q-D2 [A] anti-snowball)。DEX scaling 已 increase CRIT_CHANCE，doubling up multiplier 會破 anti-snowball invariant `CRIT_MULTIPLIER × MAX_CRIT_CHANCE ≤ 0.75` (current 1.5 × 0.50 = 0.75 ✓)。AC-15 verify。Cross-formula invariants: CRIT_MULTIPLIER × max(ability_damage_multiplier) ≤ 5.0 (current 1.5 × 3.0 = 4.5 ✓ bounds single-hit ceiling)."
+    added: 2026-05-27
+    revised: ""
+
+  - name: classify_damage_tier
+    status: active
+    source: design/gdd/combat-resolver.md
+    referenced_by:
+      - design/gdd/combat-resolver.md
+    variables:
+      - damage_dealt                  # int [1, target_hp] — post-clamp from Formula 5
+      - target_max_hp                 # int [1, 10000] — from #14 EnemyState
+      - is_crit                       # bool — from Formula 2
+      - T_CRITICAL                    # float [0.30, 0.60], default 0.40
+      - T_HEAVY                       # float [0.10, 0.25], default 0.15
+      - T_MEDIUM                      # float [0.03, 0.08], default 0.05
+      - T_LIGHT                       # float [0.005, 0.02], default 0.01
+    output_range: ["enum DamageTier"] # NEGLIGIBLE / LIGHT / MEDIUM / HEAVY / CRITICAL
+    expression: |
+      damage_pct = float(damage_dealt) / float(max(1, target_max_hp))
+      if damage_pct >= T_CRITICAL: tier = CRITICAL
+      elif damage_pct >= T_HEAVY:  tier = HEAVY
+      elif damage_pct >= T_MEDIUM: tier = MEDIUM
+      elif damage_pct >= T_LIGHT:  tier = LIGHT
+      else:                        tier = NEGLIGIBLE
+      if is_crit and tier < HEAVY: tier = HEAVY   # crit override per FR Test #4
+    notes: "CombatResolver Formula 4 — ratio-of-MAX_HP classification per Q-D4 [B]。Absolute thresholds fail at scale (18 damage on 100 HP mob feels heavy at 18%, same on 5000 HP boss feels negligible at 0.36%)。Crit override forces tier ≥ HEAVY (FR Test #4) preserve crit moment on bullet-sponge boss。Cross-knob invariants: T_CRITICAL > T_HEAVY > T_MEDIUM > T_LIGHT > 0 strict monotonic + T_CRITICAL ≤ 0.60 anti-boss-one-shot。AC-16 + AC-17 + AC-30 verify boundary + crit override + max_hp=1 boundary."
+    added: 2026-05-27
+    revised: ""
+
+  - name: detect_overkill
+    status: active
+    source: design/gdd/combat-resolver.md
+    referenced_by:
+      - design/gdd/combat-resolver.md
+    variables:
+      - damage_raw                    # float [0, 33750] — from Formula 3
+      - target_hp                     # int [0, target_max_hp] — from #14 EnemyState
+    output_range: ["Dictionary{damage_dealt, overkill_excess, target_hp_after, is_kill}"]
+    expression: |
+      damage_int = max(1, roundi(damage_raw))
+      return {
+        damage_dealt: min(damage_int, target_hp),
+        overkill_excess: max(0, damage_int - target_hp),
+        target_hp_after: max(0, target_hp - damage_int),
+        is_kill: damage_int >= target_hp
+      }
+    notes: "CombatResolver Formula 5 — Q-D7 [A] clamp damage_dealt at target_hp + expose overkill_excess。Conservation invariant: damage_dealt + target_hp_after == target_hp。Boundary: damage_raw == target_hp → KILLED outcome (NOT OVERKILL); damage_raw == target_hp + 1 → OVERKILL with excess=1。AC-18 + AC-19 + AC-22 (EC-22 exact-kill) verify。"
+    added: 2026-05-27
+    revised: ""
+
+  - name: crit_multiplier
+    status: active
+    source: design/gdd/combat-resolver.md
+    referenced_by:
+      - design/gdd/combat-resolver.md
+    value: 1.5
+    unit: multiplier
+    added: 2026-05-27
+    revised: ""
+    notes: "Formula 3 fixed crit multiplier per Q-D2 [A]。Safe range [1.2, 2.5]。Anti-snowball INV-1 binding: CRIT_MULTIPLIER × MAX_CRIT_CHANCE (#11 = 0.50) ≤ 0.75 expected bonus per hit (current 1.5 × 0.50 = 0.75 ✓)。Anti-snowball INV-2: CRIT_MULTIPLIER × max(ability_damage_multiplier) ≤ 5.0 (current 1.5 × 3.0 = 4.5 ✓)。Stat-scaled crit multiplier defer v0.2 per Q-D2 decision rationale."
+
+  - name: t_critical
+    status: active
+    source: design/gdd/combat-resolver.md
+    referenced_by:
+      - design/gdd/combat-resolver.md
+    value: 0.40
+    unit: ratio_of_max_hp
+    added: 2026-05-27
+    revised: ""
+    notes: "Formula 4 CRITICAL tier threshold (damage_dealt / target.max_hp ≥ 0.40 → CRITICAL tier)。Safe range [0.30, 0.60]。> 0.60: 單 hit > 60% boss HP = one-shot territory，違反 Pillar 3 dopamine intent → boss fight 變 boredom。< 0.30: CRITICAL tier 太易達到 → tier 通脹 → FR Test #4 信號失意義。Cross-knob invariant INV-3 strict monotonic: T_CRITICAL > T_HEAVY > T_MEDIUM > T_LIGHT > 0。AC-16 verify boundary。"
+
+  - name: t_heavy
+    status: active
+    source: design/gdd/combat-resolver.md
+    referenced_by:
+      - design/gdd/combat-resolver.md
+    value: 0.15
+    unit: ratio_of_max_hp
+    added: 2026-05-27
+    revised: ""
+    notes: "Formula 4 HEAVY tier threshold (0.15 ≤ damage_pct < 0.40 → HEAVY)。Safe range [0.10, 0.25]。> 0.25: HEAVY tier 太難達到 → DNF 重擊 feel 稀有 → Pillar 3 信號 dilution。< 0.10: HEAVY tier 太普通 → hit_pause 65ms 每幾 hit 觸發 → 玩家 attention 被搶 → Pillar 2 violation。FR Test #4 critical threshold — crit override 強制 ≥ HEAVY 保 crit moment 觸發 #6 hit_pause + #5 HIT_HEAVY+ preset。"
+
+  - name: t_medium
+    status: active
+    source: design/gdd/combat-resolver.md
+    referenced_by:
+      - design/gdd/combat-resolver.md
+    value: 0.05
+    unit: ratio_of_max_hp
+    added: 2026-05-27
+    revised: ""
+    notes: "Formula 4 MEDIUM tier threshold (0.05 ≤ damage_pct < 0.15 → MEDIUM)。Safe range [0.03, 0.08]。> 0.08: MEDIUM 跟 HEAVY 太近 → tier band 過窄。< 0.03: 跟 LIGHT 太近 → 同樣 band 過窄問題。MEDIUM tier triggers #6 trauma 0.2 (light shake) + #5 HIT_LIGHT extended duration preset。"
+
+  - name: t_light
+    status: active
+    source: design/gdd/combat-resolver.md
+    referenced_by:
+      - design/gdd/combat-resolver.md
+    value: 0.01
+    unit: ratio_of_max_hp
+    added: 2026-05-27
+    revised: ""
+    notes: "Formula 4 LIGHT tier threshold (0.01 ≤ damage_pct < 0.05 → LIGHT)。Safe range [0.005, 0.02]。> 0.02: NEGLIGIBLE band 收窄 → 玩家覺得每 hit 都有 visual feedback → 視覺 noise floor 不到。< 0.005: LIGHT 太易達到 → 同樣 noise floor 問題。LIGHT tier triggers #5 HIT_LIGHT small spark preset，#6 唔 trigger shake。"
+
+  - name: max_targets_per_cast
+    status: active
+    source: design/gdd/combat-resolver.md
+    referenced_by:
+      - design/gdd/combat-resolver.md
+      # Expected future referrers:
+      # - design/gdd/enemy-director.md (#14 — caller-side clip target list)
+      # - docs/architecture/adr-0001-web-export-budget-caps.md (matches 8-enemy worst-case)
+    value: 8
+    unit: targets
+    added: 2026-05-27
+    revised: ""
+    notes: "Rule 14 AOE cap — matches ADR-001 8-enemy worst-case scenario。Safe range [4, 12]。> 12: AOE 8+ hits/frame × 0.05ms = 0.6ms+ CPU → 接近 ADR-001 1.0ms p95 budget ceiling (without Rule 18 mutual exclusion)。< 4: AOE 力量 dilute → MOBILITY class TIER_3 GROUND_POUND 失去戰術價值。EC-31 binding — EnemyDirector caller-side clip if requested > 8。"
+
+  - name: catch_up_hits_per_frame_cap
+    status: active
+    source: design/gdd/combat-resolver.md
+    referenced_by:
+      - design/gdd/combat-resolver.md
+      # Expected future referrers:
+      # - design/gdd/enemy-director.md (#14 — FIFO queue throttle per Rule 15)
+    value: 12
+    unit: hits_per_frame
+    added: 2026-05-27
+    revised: ""
+    notes: "Rule 15 bfcache resume catch-up throttle。Safe range [6, 20]。> 20: 20 × 0.05ms = 1.0ms 已等於 ADR-001 budget。< 6: catch-up 太慢，5min bfcache backlog 需 > 17 frames → 玩家 resume 後見到 progress bar slow tick。INV-5 HARD post-Rule-18 mitigation: max(MAX_TARGETS_PER_CAST, CATCH_UP_HITS_PER_FRAME_CAP) × 0.05ms ≤ 1.0ms。AC-34 + AC-37 verify。"
+
+  - name: base_damage_overflow_cap
+    status: active
+    source: design/gdd/combat-resolver.md
+    referenced_by:
+      - design/gdd/combat-resolver.md
+    value: 1000000
+    unit: damage_units
+    added: 2026-05-27
+    revised: ""
+    notes: "EC-14 Formula 1 overflow guard — Formula 3 之前 clamp base_damage = min(base_damage, 1_000_000)。Safe range [500_000, 10_000_000]。> 10M: cap too lax，stat scaling bug 唔被即時 catch。< 500k: 合法 endgame stat scaling 可能 false-positive trigger → CLAMP_TRIGGERED anomaly spam。MVP enemy max_hp ≤ 10k，1M damage 必然 indicates bug。Clamp 觸發 emit combat_metric_anomaly with reason=CLAMP_TRIGGERED + context_dump."
+
+  - name: max_hit_seq
+    status: active
+    source: design/gdd/combat-resolver.md
+    referenced_by:
+      - design/gdd/combat-resolver.md
+    value: 1000000
+    unit: hit_count
+    added: 2026-05-27
+    revised: ""
+    notes: "EC-27 hit_seq overflow protection — Formula 2 sub-seed input boundary。Safe range [100_000, 10_000_000]。> 10M: hit_seq int overflow protection 失效。< 100k: 長時間 session false-positive risk (typical boss fight ~500 hits, 1 hour session ~30k hits — 100k 應 dominant margin)。Stage 1 reject if hit_seq >= MAX_HIT_SEQ + emit combat_metric_anomaly(reason=RNG_INJECTION_MISSING)."
+
+  - name: catch_up_queue_hard_cap
+    status: active
+    source: design/gdd/combat-resolver.md
+    referenced_by:
+      - design/gdd/combat-resolver.md
+      # Expected future referrers:
+      # - design/gdd/enemy-director.md (#14 — FIFO queue hard cap per EC-36)
+    value: 1000
+    unit: queue_events
+    added: 2026-05-27
+    revised: ""
+    notes: "EC-36 bfcache extreme backlog hard cap — EnemyDirector caller-side queue.size() > 1000 → drop oldest events + emit anomaly reason=CLAMP_TRIGGERED。Safe range [500, 5_000]。> 5000: memory 累積 + drop point 太遲。< 500: 合法 5min bfcache backlog (~50-100 events typical) false-positive truncate。配合 catch_up_hits_per_frame_cap=12 計算: 1000 ÷ 12 ≈ 84 frames ≈ 1.4 seconds drain time on resume (acceptable user-visible catch-up duration)。"
+
+  - name: anomaly_rate_limit_per_reason_per_sec
+    status: active
+    source: design/gdd/combat-resolver.md
+    referenced_by:
+      - design/gdd/combat-resolver.md
+      # Expected future referrers:
+      # - design/gdd/enemy-director.md (#14 — owns _anomaly_rate_tracker per Rule 17)
+    value: 10
+    unit: emissions_per_sec_per_reason
+    added: 2026-05-27
+    revised: ""
+    notes: "Rule 17 telemetry rate limit (EC-47 binding)。Safe range [3, 50]。> 50: anomaly spam 唔被 rate-limit → #28 telemetry queue overflow。< 3: 合法 burst anomaly (e.g., 5 個 AOE hit 全 INVALID_TARGET) 被過早 silent drop → debugging 困難。EnemyDirector caller-side enforce (CombatResolver pure function 唔 own counter state)。1 秒 window 結束 emit 1 個 aggregate anomaly with dropped_count if drops occurred. AC-10 verify."
+
+  - name: hit_resolved_signal_signature
+    status: active
+    source: design/gdd/combat-resolver.md
+    referenced_by:
+      - design/gdd/combat-resolver.md
+      - design/gdd/enemy-director.md   # #14 — Rule 5 emitter (on CombatResolver's behalf per #13 Rule 3) + self-listen for damage application + stagger
+      # Expected future referrers (FR Test #4 mandatory consumers):
+      # - design/gdd/screen-effects-system.md (#6 — auto-dispatch by damage_tier)
+      # - design/gdd/particle-system-wrapper.md (#5)
+      # - design/gdd/combat-visual-feedback.md (#25 — primary VFX router)
+      # - design/gdd/audio-manager.md (#4 — tier-binding audio cue per AC-38)
+      # - design/gdd/telemetry.md (#28 — full payload log)
+    value: "hit_resolved(payload: HitResolvedPayload)  where HitResolvedPayload extends RefCounted: {ability_id: StringName, caster_id: int, target_id: int, outcome: HitOutcome, damage_tier: DamageTier, damage_dealt: int, damage_raw: float, target_hp_after: int, is_crit: bool, is_kill: bool, transition_id: String, resolved_at_tick: int}"
+    unit: signal_signature
+    added: 2026-05-27
+    revised: ""
+    notes: "Rule 8 hit_resolved signal contract — owned by EnemyDirector (Rule 3) but schema owned by #13。`damage_tier` field MANDATORY per FR Test #4 — downstream consumers MUST use damage_tier as routing key (NOT re-derive based on damage value)。AC-07 schema verify + AC-33 multi-subscriber broadcast integrity test + AC-38 audio binding (ADVISORY pending #4)。Subscribers connect via Contract 6 `connect_for_initial_state` helper per ADR-006。"
+
+  - name: enemy_killed_signal_signature
+    status: active
+    source: design/gdd/combat-resolver.md
+    referenced_by:
+      - design/gdd/combat-resolver.md
+      - design/gdd/enemy-director.md   # #14 — Rule 5 emitter (on CombatResolver's behalf) + Rule 15 idempotency dedupe + self-listen for entity cleanup
+      # Expected future referrers:
+      # - design/gdd/loot-drop-system.md (#15 — FR-2 transition_id chain consumer per ADR-005)
+      # - design/gdd/telemetry.md (#28)
+      # - design/gdd/character-screen.md (#22 — historical aggregation)
+    value: "enemy_killed(payload: EnemyKilledPayload)  where EnemyKilledPayload extends RefCounted: {enemy_id: StringName, enemy_instance_id: int, killer_id: int, killing_ability: StringName, transition_id: String, is_overkill: bool, overkill_excess: int}"
+    unit: signal_signature
+    added: 2026-05-27
+    revised: ""
+    notes: "Rule 9 enemy_killed signal contract — FR-2 binding to #15 LootDrop。`transition_id` field MANDATORY per ADR-005 Pillar 1 chain integrity — #15 用作 loot_rarity_score formula 嘅 rng_roll seed source (NOT generate own RNG)。AC-08 propagation verify + AC-32 cross-system #15 contract verify。Idempotency: per enemy_instance_id emit exactly once (EnemyDirector dedupe — race protection per Rule 9)。Autoload boot order requirement: #15 boot before #14 per EC-43 + Section F autoload boot order spec。"
+
+  - name: combat_metric_anomaly_signal_signature
+    status: active
+    source: design/gdd/combat-resolver.md
+    referenced_by:
+      - design/gdd/combat-resolver.md
+      - design/gdd/enemy-director.md   # #14 — Rule 5 emitter + Rule 6 rate-limiter (10/sec/reason + aggregate emit at window expiry) per #13 Rule 17 obligation
+      # Expected future referrers (anti-fabrication channel consumer):
+      # - design/gdd/telemetry.md (#28 — primary consumer, escalate if rate > threshold; [[28-recursion-guard]] required per EC-49)
+    value: "combat_metric_anomaly(payload: CombatAnomalyPayload)  where CombatAnomalyPayload extends RefCounted: {reason: StringName, ability_id: StringName, transition_id: String, damage_raw: float, damage_dealt: int, context_dump: Dictionary}; reason ∈ {GSM_SUSPENDED, INVALID_ABILITY_ID, NEGATIVE_DAMAGE, CLAMP_TRIGGERED, DEAD_TARGET_RESOLVE, RNG_INJECTION_MISSING}"
+    unit: signal_signature
+    added: 2026-05-27
+    revised: ""
+    notes: "Rule 13 anti-fabrication telemetry channel (Pillar 1 binding)。6 reason enum LOCKED — adding new reason = schema bump。Rule 17 EnemyDirector caller-side rate limit 10/sec per reason + aggregate emit + context_dump 10KB truncation (EC-47 + EC-48)。Triggered by: input validation fail (any reason), damage_raw < 0 (Formula bug), conservation invariant violation。AC-09 enum verify + AC-26/27/28/29/31 per-reason scenario tests。#28 boot order requirement: must boot before #14 per EC-50 + Section F autoload boot order spec。"
+
+  # ─── #14 EnemyDirector constants (APPROVED 2026-05-27) ───────────────────────
+
+  - name: base_spawn_interval
+    status: active
+    source: design/gdd/enemy-director.md
+    referenced_by:
+      - design/gdd/enemy-director.md
+    value: 4.0
+    unit: seconds
+    added: 2026-05-27
+    revised: ""
+    notes: "EnemyDirector Section G knob #1 — wave spawn cadence baseline。Aligned 玩家 deadlift cooldown 45s ÷ ~10 spawn = 個 set 之間恰好一波 mob。Safe range [3.0, 8.0]。Formula 1 binding。"
+
+  - name: max_concurrent_enemies_on_screen
+    status: active
+    source: design/gdd/enemy-director.md
+    referenced_by:
+      - design/gdd/enemy-director.md
+    value: 6
+    unit: enemies
+    added: 2026-05-27
+    revised: ""
+    notes: "Mobile cap (desktop = 10 separate knob)。Section G knob #2。6 × ~30 particles/enemy ambient = 180 particles，留 20 headroom 畀 boss/LootDrop spike (per ADR-001 200 cap + FR-4)。Cross-knob INV-2 binding。"
+
+  - name: max_concurrent_particle_emitters
+    status: active
+    source: design/gdd/enemy-director.md
+    referenced_by:
+      - design/gdd/enemy-director.md
+    value: 8
+    unit: emitters
+    added: 2026-05-27
+    revised: ""
+    notes: "Mobile cap (desktop = 16 separate knob)。Section G knob #4 + Rule 11。8 × ~25 particles/emitter = 200 particles (mobile cap)。Cross-knob INV-3 binding。AC-26 + Falsifiable Test #5 (FR-4 binding)。"
+
+  - name: frame_time_budget_ms
+    status: active
+    source: design/gdd/enemy-director.md
+    referenced_by:
+      - design/gdd/enemy-director.md
+    value: 33.0
+    unit: milliseconds
+    added: 2026-05-27
+    revised: ""
+    notes: "Mobile 30fps floor threshold for particle auto-degrade detection (Formula 3 binding)。Safe range [25.0, 50.0]。Hysteresis gap vs FRAME_TIME_RECOVERY_MS=20.0 prevents throttle oscillation (INV-4)。AC-23 + AC-25 (Falsifiable Test #5)。"
+
+  - name: rate_window_ms
+    status: active
+    source: design/gdd/enemy-director.md
+    referenced_by:
+      - design/gdd/enemy-director.md
+    value: 1000
+    unit: milliseconds
+    added: 2026-05-27
+    revised: ""
+    notes: "Anomaly rate-limiter sliding window per `reason` (per #13 Rule 17 + Rule 6 of #14)。Safe range [500, 5000]。Cross-knob INV-5: RATE_CAP_PER_REASON × 6 reasons ≤ #28 ingestion capacity。Formula 4 binding。"
+
+  - name: rate_cap_per_reason
+    status: active
+    source: design/gdd/enemy-director.md
+    referenced_by:
+      - design/gdd/enemy-director.md
+    value: 10
+    unit: emits_per_second
+    added: 2026-05-27
+    revised: ""
+    notes: "Per `reason: StringName` enum value cap within RATE_WINDOW_MS=1000ms。Safe range [3, 50]。> 50: #28 telemetry queue overflow risk。< 3: legitimate burst false-drop。AC-09 + FR-5 binding。"
+
+  - name: move_accel_px_per_sec2
+    status: active
+    source: design/gdd/enemy-director.md
+    referenced_by:
+      - design/gdd/enemy-director.md
+    value: 1200.0
+    unit: pixels_per_second_squared
+    added: 2026-05-27
+    revised: ""
+    notes: "Per-enemy locomotion acceleration (Formula 6 binding)。Provides ~0.35s 0→max_speed ramp visible weight feel。Safe range [600.0, 2400.0]。Cross-knob: must satisfy `MOVE_ACCEL × 0.35s ≥ max(_template_move_speed)` — feel weight without sluggish。AC-30 worked example。"
+
+  - name: enemy_move_cap
+    status: active
+    source: design/gdd/enemy-director.md
+    referenced_by:
+      - design/gdd/enemy-director.md
+      - design/gdd/stat-system.md      # #11 — INV-7 cross-system shared cap (alias to player MOVE_CAP)
+      # Expected future referrers:
+      # - design/gdd/camera-system.md   (#7 — INV-7 camera follow speed binding)
+    value: 420.0
+    unit: pixels_per_second
+    added: 2026-05-27
+    revised: ""
+    notes: "Hard cap for all enemy locomotion (Formula 6 + Rule 18)。Alias to #11 MOVE_CAP (player) — INV-7 cross-system binding prevents enemy outrunning camera focus on avatar。Safe range [300.0, 500.0]。All EnemyRegistry.tres `_template_move_speed` entries MUST ≤ this cap (AC-31 CI lint verify)。"
+
+  - name: dodge_amplitude_px
+    status: active
+    source: design/gdd/enemy-director.md
+    referenced_by:
+      - design/gdd/enemy-director.md
+    value: 30.0
+    unit: pixels
+    added: 2026-05-27
+    revised: "2026-05-27 — INV-8 inline-fix: revised from 50 → 30。Reason: original 50px violates `DODGE_AMPLITUDE_PX × 2 < MELEE_RANGE=80` cross-knob invariant (50×2=100 > 80 → PURSUING/ATTACKING flicker degenerate)。Post-fix: 30×2=60 < 80 ✓。 # was: 50"
+    notes: "MOBILITY_MOB lateral X-axis dodge amplitude (Formula 2 binding)。Safe range [25.0, 100.0] — but INV-8 cap effectively limits to ~39 (MELEE_RANGE/2)。AC-32 invariant verify + CI lint Layer 12 enforcement。"
+
+  - name: pre_spawn_threshold
+    status: active
+    source: design/gdd/enemy-director.md
+    referenced_by:
+      - design/gdd/enemy-director.md
+      - design/gdd/workout-state-tracker.md  # #9 — APPROVED 2026-05-27 provides set_progress input value via Formula 1 (Section C Rule 4 + AC-12 reliability flag) — CI-1 binding
+    value: 0.8
+    unit: ratio_set_progress
+    added: 2026-05-27
+    revised: ""
+    notes: "Boss anchor predictive pre-spawn trigger threshold (Formula 5 + Rule 13 + FR-2 binding)。Safe range [0.6, 0.95]。Represents final 20% reps emotional climax window — pre-spawn timing balance: too early = boss memory waste + rollback risk; too late = workout_completed arrival latency > 500ms p95 target violated。Fallback path uses PRE_SPAWN_FALLBACK_REPS_FRAC=0.5 if #9 set_progress not exposed (Q-9-SetProgress)。AC-20 ADVISORY pending #9 GDD。"
+
+  - name: light_workout_threshold_sets
+    status: active
+    source: design/gdd/enemy-director.md
+    referenced_by:
+      - design/gdd/enemy-director.md
+    value: 2
+    unit: sets
+    added: 2026-05-27
+    revised: ""
+    notes: "Light workout boundary for mini-boss vs final boss spawn decision (Rule 13 EC-19 + AC-22 binding)。Safe range [1, 4]。total_planned_sets ≤ this value → spawn mini-boss with reduced Camera focal duration (0.4s vs 0.6s) + reduced ScreenEffects shake (0.25 vs 0.4) + reduced ParticleSystem caller_mult (1.0 vs 1.2)。Prevents 1-set test workout 出 final boss trivialization。"
+
+  - name: dodge_interval_sec
+    status: active
+    source: design/gdd/enemy-director.md
+    referenced_by:
+      - design/gdd/enemy-director.md
+    value: 1.5
+    unit: seconds
+    added: 2026-05-27
+    revised: ""
+    notes: "MOBILITY_MOB dodge re-roll cadence (Formula 2 supplement)。Safe range [0.5, 3.0]。< 0.5: sub-second flicker motion sickness risk (Pillar 2 a11y protection)。> 3: dodge 太疏「走位」signature 失。Per-instance sub-RNG re-rolled every interval。"
+
+  - name: perception_tick_hz
+    status: active
+    source: design/gdd/enemy-director.md
+    referenced_by:
+      - design/gdd/enemy-director.md
+    value: 4.0
+    unit: hertz
+    added: 2026-05-27
+    revised: ""
+    notes: "EnemyDirector batch perception update cadence (Rule 18 hybrid tick architecture)。250ms latency tolerance for side-scroller pursuit acceptable (人類視覺 ~200ms reaction latency)。Avatar position read 一次 per perception tick，distributed to all enemy `_cached_avatar_distance` field — single read shared across N enemies amortizes #11 stat snapshot equivalent for player position lookup。"
+
+  # ─── #14 EnemyDirector enums (APPROVED 2026-05-27) ────────────────────────────
+
+  - name: enemy_ai_state_enum
+    status: active
+    source: design/gdd/enemy-director.md
+    referenced_by:
+      - design/gdd/enemy-director.md
+      # Expected future referrers:
+      # - design/gdd/combat-visual-feedback.md  (#25 — VFX dispatch by state transition)
+    value: "SPAWNING | IDLE | PURSUING | ATTACKING | STAGGERED | DYING"
+    unit: enum_value_set
+    added: 2026-05-27
+    revised: ""
+    notes: "Per-enemy AI state machine 6 values (Rule 17 binding)。Event-driven (NOT polling) — hit-feel 16ms latency requirement。LOCKED — adding new state = schema change requiring migration。MVP NO behavior trees (v0.2 hook for boss phase / mini-boss script driver)。Transition matrix in Rule 17 table。CI lint Layer 10 + AC-27/28/29 verify."
+
+  - name: boss_anchor_state_enum
+    status: active
+    source: design/gdd/enemy-director.md
+    referenced_by:
+      - design/gdd/enemy-director.md
+    value: "IDLE | PRE_SPAWN | COMMIT_PENDING | COMMITTED | ENGAGED"
+    unit: enum_value_set
+    added: 2026-05-27
+    revised: ""
+    notes: "Boss anchor sub-state machine 5 values (Rule 13 + Formula 5 binding)。Predictive pre-spawn + late commit pattern。Rollback paths: PRE_SPAWN → IDLE / COMMIT_PENDING → IDLE / any → IDLE。Whitelist enforced by CI lint Layer 10 — reject illegal direct jumps (e.g., IDLE → COMMITTED skip PRE_SPAWN)。AC-19/20/21 verify。FR-2 (boss anchor latency ≤ 500ms p95) binding。"
+
+  - name: faction_enum
+    status: active
+    source: design/gdd/enemy-director.md
+    referenced_by:
+      - design/gdd/enemy-director.md
+    value: "PLAYER | ENEMY | BOSS | NEUTRAL"
+    unit: enum_value_set
+    added: 2026-05-27
+    revised: ""
+    notes: "EnemyState.faction field 4-value enum (Rule 3 binding)。AOE friendly-fire filter (v0.1 placeholder — EnemyDirector AOE assume enemy-only filtering)。v0.2 hook: BOSS_ALLY (boss spawn minion) — extend enum OR introduce hierarchical Faction system per Q-Faction-Schema。Locked at 4 values for v0.1。"
+
+  # ─── #9 Workout State Tracker enums + signal contract (APPROVED 2026-05-27) ────
+
+  - name: workout_phase_enum
+    status: active
+    source: design/gdd/workout-state-tracker.md
+    referenced_by:
+      - design/gdd/workout-state-tracker.md
+      - design/gdd/enemy-director.md      # #14 — Rule 13 reads SET_ACTIVE phase for boss anchor pre-spawn gating; subscribes phase_changed
+      # Expected future referrers:
+      # - design/gdd/loot-drop-system.md  (#15 — only triggers loot on WORKOUT_COMPLETE phase)
+      # - design/gdd/gym-mode-hud.md      (#20 — HUD phase indicator)
+      # - design/gdd/telemetry.md         (#28 — phase transition metrics)
+    value: "IDLE | WARM_UP | SET_ACTIVE | REST_PERIOD | WORKOUT_COMPLETE"
+    unit: enum_value_set
+    added: 2026-05-27
+    revised: ""
+    notes: "Workout State Tracker WorkoutPhase 5-state enum (Section C Rule 2 binding). WORKOUT_COMPLETE is terminal — auto-transitions to IDLE on next tick via call_deferred. Transition matrix locked (see Section C Rule 2 table); illegal transitions drop event + log invariant_violation. LOCKED — adding new state = schema change requiring migration. CI lint enforces via Rule 14 closed-API."
+
+  - name: workout_state_tracker_signal_contract
+    status: active
+    source: design/gdd/workout-state-tracker.md
+    referenced_by:
+      - design/gdd/workout-state-tracker.md
+      - design/gdd/enemy-director.md      # #14 — subscribes workout_summary_available + workout_completed_forwarded (Rule 12/13); reads set_progress_changed
+      # Expected future referrers:
+      # - design/gdd/loot-drop-system.md  (#15 — subscribes workout_completed_forwarded for daily guaranteed drop trigger + workout_summary_available for rarity input)
+      # - design/gdd/telemetry.md         (#28 — subscribes phase_changed + dominant_class_changed)
+      # - design/gdd/gym-mode-hud.md      (#20 — subscribes phase_changed + set_progress_changed)
+    value: |
+      6 forwarded signals (NOT including #2 GymSys raw signals which #9 internally consumes):
+      - workout_started_forwarded()
+      - workout_completed_forwarded(completed_at: int, transition_id: int)
+      - workout_summary_available(summary: WorkoutSummaryRO)   # emit IMMEDIATELY BEFORE workout_completed_forwarded
+      - set_progress_changed(new_progress: float)              # debounced 500ms
+      - dominant_class_changed(new_class: AbilityClass)        # only on flip
+      - phase_changed(from_phase: WorkoutPhase, to_phase: WorkoutPhase)
+      NOT forwarded (internal consumption only): poll_failed / poll_recovered → mutate _is_frozen flag
+    unit: signal_contract
+    added: 2026-05-27
+    revised: ""
+    notes: "Section C Rule 1 + Rule 10 locked. Strict emission order at workout_completed: phase_changed(WORKOUT_COMPLETE) → workout_summary_available(summary) → workout_completed_forwarded(completed_at, transition_id) → persistence flush → call_deferred(transition_to_idle). #14 / #15 listeners MUST cache summary on workout_summary_available BEFORE workout_completed_forwarded triggers actions. AC-07 verifies via get_signal_list() introspection."
+
+  - name: workout_snapshot_ttl_hours
+    status: active
+    source: design/gdd/workout-state-tracker.md
+    referenced_by:
+      - design/gdd/workout-state-tracker.md
+    value: 24
+    unit: hours
+    added: 2026-05-27
+    revised: ""
+    notes: "Bfcache resume snapshot TTL (Section C Rule 7 + EC-10/26 + Knob)。Safe range [12, 72]。< 12h → genuine multi-day workout splits lose state；> 72h → IDB quota pressure (per ADR-003)。Drift-tolerant via #3 is_expired (ADR-006 Contract 9 + wall_clock_drift_tolerance_seconds=300)。AC-32 + AC-39 verify。INV-8: must ≥ typical max workout duration × 4 (24h ≥ 120min × 4 = 8h ✓)。"
+
+  - name: dominant_class_change_cooldown_s
+    status: active
+    source: design/gdd/workout-state-tracker.md
+    referenced_by:
+      - design/gdd/workout-state-tracker.md
+      # Expected future referrers:
+      # - design/gdd/enemy-director.md  (#14 — wave re-routing decisions throttled by this cooldown)
+    value: 30.0
+    unit: seconds
+    added: 2026-05-27
+    revised: ""
+    notes: "Section C Rule 5 + EC-21 — prevent #14 wave re-routing thrash on mid-workout class flip。Safe range [10, 120]。< 10s → #14 enemy spawn flicker per set；> 120s → mid-workout class switch (user 改練 leg) 唔反映。INV-4: must ≥ #14 perception_tick_interval × min_visible_frames (≈ 30s = 4Hz × 120 ticks)。dominant_class_changed signal only emitted after cooldown elapsed since last change。AC-10 verifies。"
+
+  - name: set_progress_neutral_fallback
+    status: active
+    source: design/gdd/workout-state-tracker.md
+    referenced_by:
+      - design/gdd/workout-state-tracker.md
+      # Expected future referrers:
+      # - design/gdd/enemy-director.md  (#14 — affects boss pre-spawn timing when set_progress unreliable)
+    value: 0.5
+    unit: ratio_set_progress
+    added: 2026-05-27
+    revised: ""
+    notes: "Section C EC-15 + Knob — set_progress when historical estimator cold-start AND GymSys planned_reps=0。Safe range [0.3, 0.7]。< 0.3 → #14 boss pre-spawn 太遲，violates Pillar 2 sub-500ms；> 0.7 → boss spawn 過早，violates player anticipation。INV-3: must < pre_spawn_threshold (0.8) — neutral fallback shouldn't trigger boss pre-spawn before real progress。Q-A2 OPEN: 0.5 vs 0.0 cold start policy decision。"
+
+  - name: set_progress_bonus_set_clamp
+    status: active
+    source: design/gdd/workout-state-tracker.md
+    referenced_by:
+      - design/gdd/workout-state-tracker.md
+    value: 0.95
+    unit: ratio_set_progress
+    added: 2026-05-27
+    revised: ""
+    notes: "Section C EC-16 + Knob — clamp value when current_set_index > planned_total_sets (bonus set scenario)。Safe range [0.9, 0.99]。< 0.9 → bonus set 完全唔觸發 boss pre-spawn；> 0.99 → too close to 1.0 → #14 emergency-spawn 過早。INV-2: must < 1.0 — preserve buffer for true workout_completed event。PROVISIONAL — pending real-world bonus-set frequency data。AC-20 verifies。"
+
+  # ─── GDD #15 Loot Drop System constants (APPROVED 2026-05-28) ───
+
+  - name: ceremony_cap
+    status: active
+    source: design/gdd/loot-drop-system.md
+    referenced_by:
+      - design/gdd/loot-drop-system.md
+      # Expected future referrers:
+      # - design/gdd/loot-drop-modal.md  (#21 — must respect Rule 6 cap; modal subscribes loot_dropped which already gates per cap)
+      # - design/gdd/telemetry.md        (#28 — loot_ceremony_capped event consumer)
+    value: 6
+    unit: count_per_workout_session
+    added: 2026-05-28
+    revised: ""
+    notes: "Per-workout LootDrop ceremony emit cap (Rule 6 + Formula 2 + INV-9)。Safe range [3, 12]。Design rationale: 平均 45-min gym session 預期 3-5 ceremony-worthy events (1 daily + 2-4 boss kills typical)，cap=6 留 ~20% headroom 容納 PR-heavy / long session。< 4 → 容易 hit cap → Pillar 3「每次 boss 死都有 moment」破壞；> 8 → ceremony fatigue (連續 8 個 reveal ~16s attention time) + 截圖門檻通脹。Telemetry `loot_ceremony_capped(workout_id, capped_kill_count)` fires when cap hit; loot 仍 grant 入 inventory (skip ceremony only)。AC-06/AC-07/AC-40 verify。"
+
+  - name: w_dominant_class_affinity
+    status: active
+    source: design/gdd/loot-drop-system.md
+    referenced_by:
+      - design/gdd/loot-drop-system.md
+      # Expected future referrers:
+      # - design/gdd/equipment-inventory.md  (#17 — class_tag enum + affinity contract consumer)
+    value: 0.65
+    unit: probability_weight
+    added: 2026-05-28
+    revised: ""
+    notes: "Formula E2 class_affinity_resolution dominant class weight。Safe range [0.50, 0.75]。CF-E2 invariant: W_DOMINANT + W_NEUTRAL + 2×W_OFF_CLASS = 1.0。< 0.50 → Pillar 4「muscle=class」signal 失真；> 0.75 → off-class drops 太罕有，build diversity 受限。`dominant_class` source = #9 Workout State Tracker `get_dominant_ability_class()` (per CD F-6 clarification)，derived from set-count-weighted muscle group → class mapping via #10。NOT random。AC-42 verifies Pillar 4 substrate derivation。"
+
+  - name: w_neutral_class_affinity
+    status: active
+    source: design/gdd/loot-drop-system.md
+    referenced_by:
+      - design/gdd/loot-drop-system.md
+    value: 0.20
+    unit: probability_weight
+    added: 2026-05-28
+    revised: ""
+    notes: "Formula E2 NEUTRAL tag weight。Safe range [0.10, 0.30]。NEUTRAL = any class can use。配合 W_DOMINANT 維持 CF-E2 sum=1.0。AC-16 verifies。"
+
+  - name: w_off_class_affinity
+    status: active
+    source: design/gdd/loot-drop-system.md
+    referenced_by:
+      - design/gdd/loot-drop-system.md
+    value: 0.075
+    unit: probability_weight_per_off_class
+    added: 2026-05-28
+    revised: ""
+    notes: "Formula E2 each off-class weight (×2 off classes = 0.15 total)。Safe range [0.05, 0.15]。CF-E2 closure。AC-16 verifies。"
+
+  - name: max_inventory_slots
+    status: active
+    source: design/gdd/loot-drop-system.md
+    referenced_by:
+      - design/gdd/loot-drop-system.md
+      # Expected future referrers:
+      # - design/gdd/equipment-inventory.md  (#17 — FR-LOOT-S3 forward constraint binding)
+    value: 60
+    unit: slots
+    added: 2026-05-28
+    revised: ""
+    notes: "Formula E4 inventory_overflow_to_mailbox boundary。DESIGN-FROZEN per FR-LOOT-S3 #17 forward constraint。Safe range [40, 100]。< 40 → 過早 overflow，frustrating UX；> 100 → inventory management 失去意義 (Pillar 3 個別 drop weight 稀釋)。AC-17 verifies boundary case (60th direct, 61st mailbox)。"
+
+  - name: overflow_mailbox_ttl_days
+    status: active
+    source: design/gdd/loot-drop-system.md
+    referenced_by:
+      - design/gdd/loot-drop-system.md
+      # Expected future referrers:
+      # - design/gdd/equipment-inventory.md  (#17 — mailbox auto-expire window owner)
+    value: 7
+    unit: days
+    added: 2026-05-28
+    revised: ""
+    notes: "Mailbox auto-expire window for Formula E4 overflow drops。Safe range [3, 14]。INV-G5: must < SOFT_TTL_DAYS=30 (mailbox expires faster than IndexedDB cache)。< 3 → player 冇足夠時間整理 inventory；> 14 → mailbox 變第二 inventory，sink discipline 失效。"
+
+  - name: backend_ack_timeout_s
+    status: active
+    source: design/gdd/loot-drop-system.md
+    referenced_by:
+      - design/gdd/loot-drop-system.md
+      # Expected future referrers:
+      # - design/gdd/gymsys-backend-client.md  (#2 — already locked at GymSys polling cadence; this cross-references)
+    value: 60
+    unit: seconds
+    added: 2026-05-28
+    revised: ""
+    notes: "EC-18 backend ACK wait window before pending stays + polling retry。Safe range [30, 180]。< 30s → 偶發 network jitter false-orphan；> 180s → player session 結束都未 reconcile，ghost loot risk 增加。INV-G4: < BACKEND_ORPHAN_ALERT_HOURS × 3600 (60 < 72×3600)。"
+
+  - name: anti_pillar_epic_plus_cap_pct
+    status: active
+    source: design/gdd/loot-drop-system.md
+    referenced_by:
+      - design/gdd/loot-drop-system.md
+      # Expected future referrers:
+      # - design/gdd/telemetry.md  (#28 — weekly rarity distribution monitoring dashboard)
+    value: 0.10
+    unit: ratio_weekly_drops
+    added: 2026-05-28
+    revised: ""
+    notes: "LOCKED — Pillar 3 anti-drift threshold (CD F-3 + CF-E3)。Formula E3 soft-clamp: 若 (epic + legendary) / total > 0.10，downgrade strict order LEGENDARY→EPIC→RARE 直到 ≤10%。Safe range [0.05, 0.15]。< 0.05 → hardcore players 永遠 frustrated；> 0.15 → 截圖門檻通脹，Pillar 3「值得截圖」失守。AC-14 verifies Monte Carlo Hardcore profile post-clamp。"
+
+  - name: cosmetic_epic_bonus
+    status: active
+    source: design/gdd/loot-drop-system.md
+    referenced_by:
+      - design/gdd/loot-drop-system.md
+    value: 0.05
+    unit: probability_weight_addend
+    added: 2026-05-28
+    revised: ""
+    notes: "Formula E1 cosmetic weight bonus addend when rarity_tier ≥ EPIC (pre-normalization)。Safe range [0.0, 0.10]。> 0.10 → cosmetic 喺 high tier 主導，functional gear drought (player 攞 LEGENDARY 全部 cosmetic frustrating)。Pillar 5 supporting — high-tier cosmetic 更易出 = 截圖 inventory 更易飽和。EC-38 fallback (LEGENDARY cosmetic + 全 unlocked → re-roll once + 100 shards) 處理 endgame。CD F-8 deferred to LOOT-AC-followup-05 for #17 shard economy validation。AC-15 verifies E1 normalization。"
+
+  - name: w_workout_loot_drop_signal_contract
+    status: active
+    source: design/gdd/loot-drop-system.md
+    referenced_by:
+      - design/gdd/loot-drop-system.md
+      # Expected future referrers:
+      # - design/gdd/loot-drop-modal.md  (#21 — primary subscriber)
+      # - design/gdd/equipment-inventory.md  (#17 — receives loot_committed via Inventory.receive_loot)
+      # - design/gdd/telemetry.md  (#28 — subscribes all 5 signals)
+    value: |
+      Emits (5):
+        loot_dropped(drop_id: String, rarity_tier: String, item_type: String, transition_id: String)
+        loot_pending_recovered(drop_id: String, source_event_kind: String)
+        loot_disabled(reason: String)
+        loot_committed(drop_id: String, canonical_id_from_backend: String)
+        loot_ceremony_capped(workout_id: String, capped_kill_count: int)
+      Subscribes (6):
+        #14 enemy_killed(transition_id, faction, tier) via connect_for_initial_state
+        #16 boss_killed(transition_id, boss_id, tier) via connect_for_initial_state
+        #9 workout_completed(workout_id, completed_exercises) via connect_for_initial_state
+        #2 backend_event_received (direct, post-backend_ready)
+        #3 private_mode_detected (direct, boot path)
+        #1 state_changed(new_state) via connect_for_initial_state
+    unit: signal_contract
+    added: 2026-05-28
+    revised: ""
+    notes: "Closed signal API per Section C Signal Contract spec。Minimal payload pattern (CI lint AC-30 enforces no full LootDrop object in params — caller must `get_drop(drop_id)` for detail)。Emit timing rules: `loot_dropped` AFTER `loot.pending` write success (5-step optimistic Step 2-3); `loot_committed` AFTER backend ACK rename。INV-8: every commit has prior dropped emit。Section C Rule 18 + INV-4 + INV-8 binding。"
 #
 # constants:
 #   - name: gold_carry_limit
