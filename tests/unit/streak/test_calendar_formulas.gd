@@ -29,13 +29,15 @@ func _make_streak() -> StreakSystemScript:
 func test_local_calendar_date_from_utc_returns_stable_yyyymmdd() -> void:
 	var s := _make_streak()
 	# utc=1700000000, tz_offset=+8h(28800): local=1700028800
-	#   day_start = (1700028800 / 86400) * 86400 = 1699814400
-	#   noon      = 1699814400 + 43200 = 1699857600 = 2023-11-13 12:00:00 UTC
-	#   → 20231113
+	#   day_start = floor(1700028800 / 86400) * 86400 = 19676 * 86400 = 1700006400
+	#             = 2023-11-15 00:00:00 UTC
+	#   noon      = 1700006400 + 43200 = 1700049600 = 2023-11-15 12:00:00 UTC
+	#   → 20231115
+	# (Previous expectation 20231113 was a miscalculated day_start in this comment.)
 	assert_eq(
 		s.local_calendar_date_from_utc(1700000000, 28800),
-		20231113,
-		"noon-anchored local date for utc=1700000000 tz=+8 must be 20231113"
+		20231115,
+		"noon-anchored local date for utc=1700000000 tz=+8 must be 20231115"
 	)
 
 
