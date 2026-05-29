@@ -15,6 +15,10 @@ CLAUDE.local.md
 production/session-logs/
 production/session-state/active.md
 
+# === GUT test addon (cloned locally + in CI; not committed, README placeholder kept) ===
+/addons/gut/*
+!/addons/gut/README.md
+
 # === Internal Planning (not for public) ===
 
 expansions/

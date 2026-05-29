@@ -34,34 +34,29 @@ func before_each() -> void:
 
 
 ## AC-13 core: write_completed fires synchronously with correct key and is_touch=false.
+## Uses GUT watch_signals (NOT a lambda counter — GDScript lambdas capture locals
+## by VALUE, so `var c := 0; connect(func(): c += 1)` never updates the outer `c`).
 func test_persistence_layer_write_completed_emits_synchronously_with_correct_args() -> void:
-	# Arrange — attach counter + arg recorder BEFORE the write.
-	var emit_count: int = 0
-	var last_key: String = ""
-	var last_is_touch: bool = true  # intentionally wrong default to catch miss
-	PersistenceLayer.write_completed.connect(
-		func(key: String, _ms: int, is_touch: bool) -> void:
-			emit_count += 1
-			last_key = key
-			last_is_touch = is_touch
-	)
+	# Arrange — watch BEFORE the write.
+	watch_signals(PersistenceLayer)
 
 	# Act
 	PersistenceLayer.write("foo", "bar")
 
-	# Assert — counter read immediately after write() returns (same call stack).
-	# If emission were async/deferred, emit_count would still be 0 here.
-	assert_eq(emit_count, 1, "write_completed must emit exactly once per write()")
-	assert_eq(last_key, "foo", "write_completed key arg must match written key")
-	assert_false(last_is_touch, "write_completed is_touch must be false for normal write()")
+	# Assert — emit count read immediately after write() returns (same call stack).
+	# If emission were async/deferred, the count would be 0 here.
+	assert_signal_emit_count(PersistenceLayer, "write_completed", 1,
+		"write_completed must emit exactly once per write()")
+	var params: Array = get_signal_parameters(PersistenceLayer, "write_completed")
+	assert_eq(params[0], "foo", "write_completed key arg must match written key")
+	assert_false(params[2], "write_completed is_touch must be false for normal write()")
 
 
 ## AC-13 edge: write(flush=true) emits write_completed exactly once (NOT twice —
 ## critical-flush path must not double-emit the signal).
 func test_persistence_layer_critical_write_emits_write_completed_exactly_once() -> void:
 	# Arrange
-	var emit_count: int = 0
-	PersistenceLayer.write_completed.connect(func(_k, _ms, _t) -> void: emit_count += 1)
+	watch_signals(PersistenceLayer)
 
 	# Act — critical path (flush=true) via MockFileFactory to avoid real disk I/O
 	var factory: MockFileFactory = MockFileFactory.new()
@@ -70,18 +65,20 @@ func test_persistence_layer_critical_write_emits_write_completed_exactly_once() 
 	PersistenceLayer.set(&"_file_factory", null)  # detach mock
 
 	# Assert
-	assert_eq(emit_count, 1, "write(flush=true) must emit write_completed exactly once")
+	assert_signal_emit_count(PersistenceLayer, "write_completed", 1,
+		"write(flush=true) must emit write_completed exactly once")
 
 
 ## Additional: write_completed latency_ms is non-negative integer.
 func test_persistence_layer_write_completed_latency_ms_is_non_negative_int() -> void:
 	# Arrange
-	var last_latency_ms: int = -1
-	PersistenceLayer.write_completed.connect(func(_k: String, ms: int, _t: bool) -> void: last_latency_ms = ms)
+	watch_signals(PersistenceLayer)
 
 	# Act
 	PersistenceLayer.write("key", "value")
 
 	# Assert
-	assert_true(last_latency_ms is int, "latency_ms must be int type")
-	assert_gte(last_latency_ms, 0, "latency_ms must be non-negative")
+	var params: Array = get_signal_parameters(PersistenceLayer, "write_completed")
+	var latency_ms: Variant = params[1]
+	assert_true(latency_ms is int, "latency_ms must be int type")
+	assert_gte(latency_ms, 0, "latency_ms must be non-negative")
