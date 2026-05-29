@@ -1,21 +1,21 @@
 # Control Manifest
 
 > **Engine**: Godot 4.6 (Web Export, Compatibility Renderer)
-> **Last Updated**: 2026-05-29
+> **Last Updated**: 2026-05-29 (regenerated — added ADR-0007 + ADR-0009; fixed GUT v7→v9)
 > **Manifest Version**: 2026-05-29
-> **ADRs Covered**: ADR-0006 (Accepted)
+> **ADRs Covered**: ADR-0006 (Accepted), ADR-0007 (Accepted 2026-05-29), ADR-0009 (Accepted 2026-05-29)
 > **Status**: Active — regenerate with `/create-control-manifest` when new ADRs are Accepted
 
 `Manifest Version` is the date this manifest was generated. Story files embed this date when created.
 `/story-readiness` compares a story's embedded version to this field to detect stories written against stale rules.
+Always matches `Last Updated` — they are the same date, serving different consumers.
 
 This manifest is a programmer's quick-reference extracted from all Accepted ADRs, technical preferences,
 and engine reference docs. For the reasoning behind each rule, see the referenced ADR.
 
-> ⚠️ **Limited coverage**: Only ADR-0006 is currently Accepted. ADRs 0001–0005 are Proposed.
-> When those ADRs are ratified, re-run `/create-control-manifest` to add their rules.
-> Systems governed by Proposed ADRs (GymSys, Particles, Camera, ScreenEffects, PersistenceLayer storage,
-> Loot formula) have incomplete manifest coverage until ratification.
+> ⚠️ **Partial coverage**: ADR-0006, ADR-0007, ADR-0009 Accepted. ADRs 0001–0005 still Proposed; ADR-0008, ADR-0010 Proposed.
+> Systems governed by Proposed ADRs (GymSys, Particles, Camera, ScreenEffects, PersistenceLayer storage strategy,
+> Loot formula, Autoload position map, MirrorMoment ceremony split) have incomplete manifest coverage until ratification.
 
 ---
 
@@ -48,6 +48,12 @@ and engine reference docs. For the reasoning behind each rule, see the reference
 - **Test spy interfaces MUST use the formal Contract 14 set** — `IPersistence.attach_write_spy / attach_delete_spy / clear_spies`; `GameStateMachine.attach_in_memory_spy / clear_spies`. ACs referencing a spy MUST use the exact interface name. — source: ADR-0006 Contract 14
 - **`IInputPolicy` interface for input permission** — `AttentionBudgetPolicy extends IInputPolicy`; input handlers accept `IInputPolicy` via constructor injection (NOT direct reference to `AttentionBudgetPolicy`). — source: ADR-0006 Contract 13
 - **`pending_since_server` (backend timestamp) is authoritative for hard-cap loot eviction** — client `pending_since` is mirror only, used for offline UX. Never use client timestamp for hard-cap decisions. — source: ADR-0006 Contract 15
+- **Classification enum fields MUST be explicitly initialised — zero-default is FORBIDDEN** — for Classification enums (e.g. `AbilityClass`), ordinal 0 is a real class value (STRIKE), not a sentinel. An uninitialised `var x: AbilityClass` silently fabricates STRIKE, violating Pillar 1. Initialise explicitly or return `UNKNOWN` explicitly. — source: ADR-0007 Family B
+- **Outcome/State enum ordinal 0 = safe/uninitialised value (hard rule)** — for Family A enums (`GameState`, `BossOutcome`), the zero-default is the conservative "nothing happened yet" value. Declaration order carries persisted-migration meaning; do NOT renumber existing members. — source: ADR-0007 Family A
+- **Canonical `AbilityClass` enum declaration order is LOCKED** — `enum AbilityClass { STRIKE, CONTROL, MOBILITY, UNKNOWN }` (ordinals 0/1/2/3). Declaration order is load-bearing for Ability Formula 3 emit ordering and #9 tiebreak walk. Never reorder. `UNKNOWN` is always last (sentinel). — source: ADR-0007 Decision
+- **Signal payloads MUST be minimal + intrinsic** — carry only the event's own data + `transition_id`. Do NOT include ambient context (active `workout_id`, current GSM state, current zone) in the payload — these drift and couple unrelated producers. — source: ADR-0009 §1
+- **Handlers needing ambient context MUST late-bind via read API + explicit null branch** — query the owning system's read API at handle time (e.g. `WorkoutStateTracker.get_active_workout_id()`) and MUST branch on `null` before consuming. Never assume non-null. — source: ADR-0009 §2
+- **Structured / persisted signal payloads MUST extend `SerializableResource`** — with `to_dict()` / `from_dict()` and `payload_type` set via `get_script().get_global_name()`. Purely transient never-persisted signals MAY use primitive typed args. No Dictionary-with-magic-keys middle ground. — source: ADR-0009 §3
 
 ### Forbidden Approaches
 
@@ -61,6 +67,10 @@ and engine reference docs. For the reasoning behind each rule, see the reference
 - **Never use `Object.get_class()` for payload_type** — returns engine class `"Resource"` for all GDScript classes, breaking forward-recovery round-trip. — source: ADR-0006 Contract 3
 - **Never parse `transition_id` string to recover `from`/`to` state names** — state names contain underscores (e.g., `workout_active`); split is ambiguous. Read from tombstone Dictionary fields directly. — source: ADR-0006 Contract 2
 - **Never use `transition_id` as a display string or UI label** — opaque internal identifier; format may change across ADR versions. — source: ADR-0006 Contract 2
+- **Never name the 4th `AbilityClass` member anything other than `UNKNOWN`** — `NEUTRAL` is retired as an `AbilityClass` member (it is valid only as `ClassTag.NEUTRAL` — a distinct loot-item outcome enum). Using NEUTRAL in AbilityClass breaks cross-system serialization round-trips. — source: ADR-0007 Decision
+- **Never use integer ordinals to serialize enum values** — migration-fragile (any reorder corrupts saves); debug-hostile in IndexedDB. Serialize as string name: `EnumType.find_key(value)` → String. — source: ADR-0007 (reaffirms ADR-0006 Contract 3)
+- **Never stuff ambient context into signal payloads** — fat payloads couple producers to consumers; payload fields for workout_id / current state / zone are forbidden unless they are intrinsic to the event itself. — source: ADR-0009 §1 (Alt 1 rejected)
+- **Never assume ambient context is non-null in a handler** — always explicit null branch when late-binding ambient context from a read API. Silent null-assumption is the exact defect INV-12 guards against. — source: ADR-0009 §2
 
 ### Performance Guardrails
 
@@ -80,6 +90,8 @@ and engine reference docs. For the reasoning behind each rule, see the reference
 - **`AttentionBudgetPolicy` implements `IInputPolicy`** — concrete Pillar 2 enforcement. `func is_input_permitted() -> bool` derives from `GameStateMachine.current_state`. — source: ADR-0006 Contract 13
 - **`MockInputPolicy` for tests** — `extends IInputPolicy`; `func is_input_permitted() -> bool: return _permitted`. Inject into input handlers instead of real policy. — source: ADR-0006 Contract 14
 - **All Resource subclasses used in transition payloads extend `SerializableResource`** — this applies to every layer that creates payloads consumed by GSM. — source: ADR-0006 Contract 3
+- **`AbilityClass` is the one canonical class-archetype enum across ALL systems** — `#9 WorkoutStateTracker`, `#12 AbilitySystem`, `#13 CombatResolver`, `#14 EnemyDirector`, `#15 LootDrop` all import the same `AbilityClass`. A grep for a SECOND declaration of `STRIKE|CONTROL|MOBILITY` enum is a CI error. — source: ADR-0007 Validation
+- **`#9.get_dominant_ability_class()` MUST return `AbilityClass.UNKNOWN` explicitly when class is undetermined** — never rely on zero-default to produce STRIKE as a fallback. That decision belongs to `#14 EnemyDirector EC-09`, never to `#9`. — source: ADR-0007 §B + GDD
 
 ### Forbidden Approaches
 
@@ -95,6 +107,9 @@ and engine reference docs. For the reasoning behind each rule, see the reference
 
 - **BossPayload, LootPayload and all cross-transition Resource payloads MUST extend `SerializableResource`** with `to_dict()`/`from_dict()` override — required for tombstone round-trip survival. — source: ADR-0006 Contract 3
 - **`BossOutcome.find_key(value)` for enum-to-string serialization** — 4.4+ API; returns `null` on invalid enum value rather than masking with default. Use in all `to_dict()` overrides for enum fields. — source: ADR-0006 Contract 3
+- **Enum fields in ALL payloads serialize as string names** — `EnumType.find_key(value)` → String; on `null` (out-of-range) fall back to the family sentinel (`UNKNOWN` / `ABANDONED` / `BOOTING`). Deserialize via `EnumType.get(name_string, SENTINEL)`. — source: ADR-0007 + ADR-0009 §3
+- **Signal naming: snake_case past tense** — `workout_completed`, `boss_killed`, `ability_unlocked`, `loot_dropped`. Payload class naming: PascalCase + `Payload` suffix — `StateTransitionPayload`, `BossPayload`, `BossKilledPayload`. Every GSM-correlated payload carries `transition_id: String`. — source: ADR-0009 §4
+- **Promote transient signals to `SerializableResource` envelope if they ever need persistence** — no Dictionary-with-magic-keys middle ground. Retrofitting is messier than promoting up front. — source: ADR-0009 §3
 
 ### Forbidden Approaches
 
@@ -147,7 +162,7 @@ and engine reference docs. For the reasoning behind each rule, see the reference
 
 ### Approved Libraries / Addons
 
-- **GUT (Godot Unit Testing) v7.x** — approved for all automated testing. Use `extends GutTest`. — source: technical-preferences.md
+- **GUT (Godot Unit Testing) v9.x (pinned v9.6.0)** — approved for all automated testing. Use `extends GutTest` (9.x convention; v7.x is Godot 3.x only — do NOT use). — source: technical-preferences.md
 
 ### Forbidden APIs (Godot 4.6)
 
@@ -233,3 +248,7 @@ When these ADRs are ratified, re-run `/create-control-manifest` to add their rul
 | ADR-0003 (Save State Strategy) | Persistence | Namespace ownership, IDB backend sync, Private Mode gate, Safari ITP |
 | ADR-0004 (CORS Auth Topology) | Networking | nginx proxy rules, relative URL requirement, JavaScriptBridge restrictions |
 | ADR-0005 (Loot Rarity Formula) | Economy | RNG constraint rules, Pillar 1 floor enforcement, workout_score primacy |
+| ADR-0008 (Autoload Position Map) | Foundation | Absolute autoload positions from project.godot, insertion rules for new autoloads (#33/#4/#28) |
+| ADR-0010 (MirrorMoment Ceremony Ownership) | Presentation | AvatarRenderer render-only API boundary, MirrorMoment ceremony-trigger ownership |
+
+> **Covered since last update (2026-05-29)**: ADR-0007 (Class & Domain Enum Convention) + ADR-0009 (Signal Payload Schema Convention) — rules now embedded in Foundation/Core/Feature layers above.
