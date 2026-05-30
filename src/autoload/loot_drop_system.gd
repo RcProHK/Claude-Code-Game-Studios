@@ -650,8 +650,11 @@ func _on_loot_persisted(drop: LootDrop) -> void:
 func _validate_transition_id_format(tid: String) -> bool:
 	if tid.length() < 4:
 		return false
+	# ADR-0006 Contract 2 format is "%d_%d_%s_%s" where %s are GSM state names
+	# (full uppercase words like IDLE / COMBAT_ACTIVE). Allow alphanumeric +
+	# underscore — NOT just hex (state names contain non-hex letters).
 	var regex := RegEx.new()
-	if regex.compile("^[0-9a-fA-F_]+$") != OK:
+	if regex.compile("^[0-9a-zA-Z_]+$") != OK:
 		return false  # Defensive: regex compile failure
 	return regex.search(tid) != null
 

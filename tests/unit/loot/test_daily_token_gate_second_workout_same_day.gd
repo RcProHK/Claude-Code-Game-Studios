@@ -18,8 +18,18 @@ const LootDropSystem := preload("res://src/autoload/loot_drop_system.gd")
 
 # ── Fixtures ────────────────────────────────────────────────────────────────────
 
+## Minimal mock #9 WorkoutStateTracker — returns a fixed active workout id so
+## ceremony_cap_check resolves to FULL_CEREMONY (a null id → NON_CEREMONY_ROUTE,
+## which would suppress loot_dropped).
+class MockWorkoutTracker extends RefCounted:
+	var _active_id: String = "W-active"
+	func get_active_workout_id() -> String:
+		return _active_id
+
+
 var _sut: LootDropSystem
 var _mock_persistence: MockPersistenceLayer
+var _mock_tracker: MockWorkoutTracker
 var _config: LootRarityConfig
 var _loot_dropped_signals: Array = []
 
@@ -46,9 +56,12 @@ func before_each() -> void:
 	_mock_persistence = MockPersistenceLayer.new()
 	_config = _make_config()
 
+	_mock_tracker = MockWorkoutTracker.new()
+
 	_sut = LootDropSystem.new()
 	_sut._config = _config
 	_sut._persistence = _mock_persistence
+	_sut._workout_tracker = _mock_tracker  # non-null id → FULL_CEREMONY path
 	_sut._gymsys_client = null   # Offline mode — claim always succeeds
 	_sut._gsm = null
 	_sut._today_override = _FIXED_DATE  # Pin UTC date for determinism
@@ -63,6 +76,7 @@ func before_each() -> void:
 func after_each() -> void:
 	_sut = null
 	_mock_persistence = null
+	_mock_tracker = null
 	_config = null
 
 

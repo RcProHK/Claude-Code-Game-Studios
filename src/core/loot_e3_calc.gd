@@ -96,23 +96,29 @@ static func expected_weekly_rarity_distribution(player_profile: Dictionary) -> D
 
 	# ── Anti-pillar soft-clamp (termination-guarded while-loop) ───────────────
 	# CI lint check_loot_e3_termination_guard.gd requires: `max_iterations` + `assert(` both present.
+	# Maximum EPIC+ item count allowed by the anti-pillar cap (scale-aware).
+	var cap_count: int = int(floor(ANTI_PILLAR_EPIC_PLUS_CAP_PCT * float(total)))
 	var iteration: int = 0
-	while (
-		float(counts[LootEnums.RarityTier.EPIC] + counts[LootEnums.RarityTier.LEGENDARY])
-		/ float(total)
-	) > ANTI_PILLAR_EPIC_PLUS_CAP_PCT and iteration < MAX_ITERATIONS:
+	while (counts[LootEnums.RarityTier.EPIC] + counts[LootEnums.RarityTier.LEGENDARY]) > cap_count \
+		and iteration < MAX_ITERATIONS:
 		var pre_epic_plus: int = (
 			counts[LootEnums.RarityTier.EPIC] + counts[LootEnums.RarityTier.LEGENDARY]
 		)
-		# Downgrade priority: LEGENDARY first (preserves EPIC visibility), then EPIC→RARE.
-		if counts[LootEnums.RarityTier.LEGENDARY] > 0:
-			counts[LootEnums.RarityTier.LEGENDARY] -= 1
-			counts[LootEnums.RarityTier.EPIC] += 1
-		elif counts[LootEnums.RarityTier.EPIC] > 0:
-			counts[LootEnums.RarityTier.EPIC] -= 1
-			counts[LootEnums.RarityTier.RARE] += 1
-		else:
-			break  # Defensive — loop condition ensures EPIC+ > 0 before reaching here.
+		# Bulk-demote the EPIC+ excess OUT of the EPIC+ band (down to RARE) so the
+		# loop converges to the cap within MAX_ITERATIONS at ANY sample scale (a
+		# 1-item-per-pass demotion cannot clear a large-N overage in 10 passes).
+		# Preference: remove LEGENDARY before EPIC (preserves EPIC visibility at the
+		# margin). A LEGENDARY→EPIC reshuffle is NOT used — both are EPIC+, so it
+		# would not reduce the count; we demote straight to RARE (correct anti-pillar).
+		var excess: int = pre_epic_plus - cap_count
+		var from_legendary: int = mini(counts[LootEnums.RarityTier.LEGENDARY], excess)
+		counts[LootEnums.RarityTier.LEGENDARY] -= from_legendary
+		counts[LootEnums.RarityTier.RARE] += from_legendary
+		var remaining: int = excess - from_legendary
+		if remaining > 0:
+			var from_epic: int = mini(counts[LootEnums.RarityTier.EPIC], remaining)
+			counts[LootEnums.RarityTier.EPIC] -= from_epic
+			counts[LootEnums.RarityTier.RARE] += from_epic
 		var post_epic_plus: int = (
 			counts[LootEnums.RarityTier.EPIC] + counts[LootEnums.RarityTier.LEGENDARY]
 		)

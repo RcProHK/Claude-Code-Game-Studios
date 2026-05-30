@@ -131,9 +131,11 @@ func test_monotonic_invariant_downgrade_reduces_epic_plus() -> void:
 		LootEnums.RarityTier.LEGENDARY: 100,
 	}
 	var pre_epic_plus: int = counts[LootEnums.RarityTier.EPIC] + counts[LootEnums.RarityTier.LEGENDARY]
-	# Simulate one downgrade step (LEGENDARY→EPIC).
+	# Simulate one downgrade step (LEGENDARY→RARE — demotes OUT of EPIC+ band).
+	# A LEGENDARY→EPIC reshuffle would keep EPIC+ count identical (both are EPIC+),
+	# so the soft-clamp demotes straight to RARE to make EPIC+ strictly decrease.
 	counts[LootEnums.RarityTier.LEGENDARY] -= 1
-	counts[LootEnums.RarityTier.EPIC] += 1
+	counts[LootEnums.RarityTier.RARE] += 1
 	var post_epic_plus: int = counts[LootEnums.RarityTier.EPIC] + counts[LootEnums.RarityTier.LEGENDARY]
 	assert_lt(post_epic_plus, pre_epic_plus,
 		"Monotonic invariant: post_epic_plus (%d) must be < pre_epic_plus (%d)" % [
