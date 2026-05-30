@@ -3,8 +3,8 @@
 > **Layer**: Core
 > **GDD**: design/gdd/ability-system.md
 > **Architecture Module**: AbilitySystem (`src/autoload/ability_system.gd`)
-> **Status**: Ready
-> **Stories**: Not yet created — run `/create-stories ability-system`
+> **Status**: Implemented (9/10 Complete; Story 010 Blocked on ADR-0002 + ADR-0003 + #10 GDD)
+> **Stories**: 10 stories — 9 Complete, 1 Blocked
 
 ## Overview
 
@@ -40,8 +40,24 @@ This epic is complete when:
 - caller whitelist CI test: `cast_ability()` called from non-combat_resolver.gd → CI lint violation
 - `ability.unlocked.*` namespace round-trip persistence test via MockPersistenceLayer
 
+## Stories
+
+| # | Story | Type | Status | ADR |
+|---|-------|------|--------|-----|
+| 001 | [ci-lints-closed-api](story-001-ci-lints-closed-api.md) | Static | ✅ Complete | ADR-0006 C12 |
+| 002 | [core-data-structures](story-002-core-data-structures.md) | Logic | ✅ Complete | ADR-0006 C3, ADR-0007 |
+| 003 | [source-class-allowlist](story-003-source-class-allowlist.md) | Logic | ✅ Complete | ADR-0006, ADR-0007 |
+| 004 | [unlock-path-a-atomic-write](story-004-unlock-path-a-atomic-write.md) | Integration | ✅ Complete | ADR-0006 C3 |
+| 005 | [unlock-path-b-formulas](story-005-unlock-path-b-formulas.md) | Logic | ✅ Complete | ADR-0006 C6 |
+| 006 | [cast-cooldown-reentrance](story-006-cast-cooldown-reentrance.md) | Logic | ✅ Complete | ADR-0006 C12 |
+| 007 | [boot-reconciliation](story-007-boot-reconciliation.md) | Integration | ✅ Complete | ADR-0006 C4 |
+| 008 | [gsm-suspended-permanent-unlock](story-008-gsm-suspended-permanent-unlock.md) | Integration | ✅ Complete | ADR-0006 C6/C13 |
+| 009 | [cross-knob-invariants](story-009-cross-knob-invariants.md) | Logic | ✅ Complete | ADR-0006 C8 pattern |
+| 010 | [adr-ratification-gated](story-010-adr-ratification-gated.md) | Mixed | **Blocked** | ADR-0002 ⚠️, ADR-0003 ⚠️, #10 GDD |
+
 ## Next Step
 
-Run `/create-stories ability-system` to break this epic into implementable stories.
+Run `/story-readiness production/epics/ability-system/story-001-ci-lints-closed-api.md` then `/dev-story` to begin.
 
-> ⚠️ **Pre-requisite**: ADR-0007 must be Accepted before class-enum stories. Run `/architecture-decision "Class Enum Naming Convention"` first.
+> Work through stories in dependency order: 001 → 002 → 003 → 004 → 005 → 006 → 007 → 008 → 009. Story 010 BLOCKED until ADR-0002 + ADR-0003 Accepted + #10 GDD authored.
+> Story 002: AbilityClass has 4 values {STRIKE, CONTROL, MOBILITY, UNKNOWN} per ADR-0007 (GDD specified 3; ADR-0007 Accepted 2026-05-29 takes precedence).
