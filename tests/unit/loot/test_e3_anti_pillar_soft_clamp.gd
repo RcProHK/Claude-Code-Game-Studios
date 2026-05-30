@@ -27,7 +27,7 @@ func _epic_plus_pct(dist: Dictionary) -> float:
 	var total := LootE3Calc.count_total(dist)
 	if total == 0:
 		return 0.0
-	var epic_plus := dist.get(LootEnums.RarityTier.EPIC, 0) + dist.get(LootEnums.RarityTier.LEGENDARY, 0)
+	var epic_plus: int = int(dist.get(LootEnums.RarityTier.EPIC, 0)) + int(dist.get(LootEnums.RarityTier.LEGENDARY, 0))
 	return float(epic_plus) / float(total)
 
 

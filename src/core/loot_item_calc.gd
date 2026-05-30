@@ -206,7 +206,11 @@ static func class_affinity_resolution(
 
 	# CDF order: dominant → NEUTRAL → off-class-1 → off-class-2.
 	# This matches GDD Formula E2 worked example (STRIKE=0.65, NEUTRAL=0.85, etc.).
-	var cdf_order: Array[int] = [dom, LootEnums.ClassTag.NEUTRAL] + off_classes
+	# Built via append (NOT Array + Array, which yields an untyped Array and would
+	# raise a runtime type error assigning back to Array[int]).
+	var cdf_order: Array[int] = [dom, LootEnums.ClassTag.NEUTRAL]
+	for oc: int in off_classes:
+		cdf_order.append(oc)
 
 	var cdf_weights: Array[float] = [W_DOMINANT, W_NEUTRAL, W_OFF_CLASS, W_OFF_CLASS]
 

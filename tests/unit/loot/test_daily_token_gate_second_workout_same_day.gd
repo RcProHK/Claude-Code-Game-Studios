@@ -115,7 +115,7 @@ func test_first_workout_writes_token_to_persistence() -> void:
 	# Act.
 	_sut._handle_workout_completed("W-A-first", 5)
 	# Assert: token key written.
-	var token_data := _mock_persistence.read(_TOKEN_KEY)
+	var token_data: Variant = _mock_persistence.read(_TOKEN_KEY)
 	assert_not_null(token_data,
 		"First workout_completed must write loot.daily_token_used.<today> to PL")
 
