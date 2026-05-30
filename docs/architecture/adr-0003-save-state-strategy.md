@@ -1,7 +1,8 @@
 # ADR-0003: Save State Strategy
 
 ## Status
-Proposed
+**Accepted 2026-05-30** — ratified via `/architecture-review` focused ratification. Structural/design decisions (backend-primary + IndexedDB-secondary hierarchy, IndexedDB-over-localStorage choice, conflict-resolution rules, Safari ITP mitigation, schema-migration protocol) are sound and depend only on ADR-006 (Accepted). #3 PersistenceLayer is already implemented and CI-green, validating the IPersistence contract in practice. Cross-ADR conflict scan clean (ADR-001 512MB ceiling reference consistent; enables ADR-005 loot-state persistence). No measurement/backend gate.
+*(Previously: Proposed)*
 
 ## Date
 2026-05-26

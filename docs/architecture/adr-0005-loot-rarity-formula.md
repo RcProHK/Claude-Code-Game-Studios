@@ -1,7 +1,8 @@
 # ADR-0005: Loot Rarity Formula
 
 ## Status
-Proposed
+**Accepted 2026-05-30** — ratified via `/architecture-review` focused ratification. Formula is fully specified, deterministic (RNG seeded on transition_id), and has no ADR dependencies (Depends On: None). Cross-ADR conflict scan clean. Reconciles the prior discrepancy (systems-index marked "Accepted 2026-05-27" while this ADR + technical-preferences still read "Proposed"). #11 Stat System already ships `PR_BASE` as a provisional VS-tier value consuming this formula's contract; retune lands when VS playtest data confirms Q-A1.
+*(Previously: Proposed)*
 
 ## Date
 2026-05-27

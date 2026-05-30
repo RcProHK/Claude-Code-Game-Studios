@@ -1,7 +1,8 @@
 # ADR-0001: Godot Web Export Budget Caps
 
 ## Status
-**Proposed** (structural decisions below are intended for Accepted on ADR authoring; CPU budget values are Provisional pending VS-tier profiling on target hardware — Status upgrades to Accepted when measured values confirm or revise the provisional figures)
+**Accepted (structural) 2026-05-30** — ratified via `/architecture-review` focused ratification (cross-ADR conflict scan clean; depends only on ADR-006 Accepted; engine audit clean Godot 4.6). The **structural decisions** (renderer-per-platform, CanvasLayer topology, mobile detection, CI enforcement mechanisms, GPU particle-cap concept) are sound design choices with no measurement gate and are now Accepted. The CPU budget **numeric figures remain Provisional** pending VS-tier mobile profiling on target hardware; the CPU-benchmark RATIFICATION-GATED acceptance criteria (e.g. CombatResolver AC-35, #5/#6/#7 CPU-budget ACs) stay gated until measured values land. Update the provisional numbers with `(measured YYYY-MM-DD)` tags to mark the ADR *fully* Accepted.
+*(Previously: Proposed — structural decisions intended for Accepted; CPU budget values Provisional pending VS-tier profiling.)*
 
 ## Date
 2026-05-26
