@@ -11,6 +11,10 @@
 ##   - Full chain within 900ms ADR-0003 ceiling.
 extends GutTest
 
+## Autoload script preloaded as a const (shadows the LootDropSystem autoload
+## global so tests can call .new() / access enums + constants on the class).
+const LootDropSystem := preload("res://src/autoload/loot_drop_system.gd")
+
 
 # ── Inline mock with list_keys support ────────────────────────────────────────
 

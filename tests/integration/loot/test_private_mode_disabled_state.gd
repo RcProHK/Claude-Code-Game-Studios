@@ -11,6 +11,10 @@
 ## surface members: is_private_mode() and private_mode_detected signal.
 extends GutTest
 
+## Autoload script preloaded as a const (shadows the LootDropSystem autoload
+## global so tests can call .new() / access enums + constants on the class).
+const LootDropSystem := preload("res://src/autoload/loot_drop_system.gd")
+
 
 # ── Inline mock ────────────────────────────────────────────────────────────────
 

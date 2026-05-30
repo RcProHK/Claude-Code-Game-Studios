@@ -14,7 +14,11 @@
 ##
 ## CRITICAL boot ordering: MUST boot at position 7 (after #14 EnemyDirector, before
 ## #21 LootRevealModal). Registration deferred to Story 014 (BLOCKED on #14 impl).
-class_name LootDropSystem
+##
+## NOTE: NO `class_name` — this script is registered as the `LootDropSystem` autoload
+## singleton in project.godot. Adding a matching `class_name` would error
+## "hides an autoload singleton". Tests preload this script via
+## `const LootDropSystem := preload(...)` to access enums / new() / constants.
 extends Node
 
 
@@ -715,7 +719,7 @@ func _on_backend_ack(response: Dictionary) -> void:
 		return
 	if not _pending_drops.has(drop_id):
 		return  # Drop not found — may have been evicted already.
-	var drop := _pending_drops[drop_id]
+	var drop: LootDrop = _pending_drops[drop_id]
 	if _persistence != null:
 		_persistence.write("loot.committed." + canonical_id, drop.to_dict())
 		_persistence.delete("loot.pending." + drop_id)

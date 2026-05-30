@@ -1,0 +1,1869 @@
+﻿2026-05-30T11:43:43.4611634Z Current runner version: '2.334.0'
+2026-05-30T11:43:43.4635536Z ##[group]Runner Image Provisioner
+2026-05-30T11:43:43.4636393Z Hosted Compute Agent
+2026-05-30T11:43:43.4637092Z Version: 20260520.533
+2026-05-30T11:43:43.4637658Z Commit: 189110e25284a9812c124fd27b339e2fb4f2f9db
+2026-05-30T11:43:43.4638393Z Build Date: 2026-05-20T17:44:04Z
+2026-05-30T11:43:43.4639012Z Worker ID: {bed18674-f583-4456-94b3-2e19477cbd73}
+2026-05-30T11:43:43.4639663Z Azure Region: westus3
+2026-05-30T11:43:43.4640213Z ##[endgroup]
+2026-05-30T11:43:43.4641580Z ##[group]Operating System
+2026-05-30T11:43:43.4642193Z Ubuntu
+2026-05-30T11:43:43.4642705Z 24.04.4
+2026-05-30T11:43:43.4643174Z LTS
+2026-05-30T11:43:43.4643728Z ##[endgroup]
+2026-05-30T11:43:43.4644229Z ##[group]Runner Image
+2026-05-30T11:43:43.4644800Z Image: ubuntu-24.04
+2026-05-30T11:43:43.4645322Z Version: 20260525.161.1
+2026-05-30T11:43:43.4646495Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260525.161/images/ubuntu/Ubuntu2404-Readme.md
+2026-05-30T11:43:43.4648014Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260525.161
+2026-05-30T11:43:43.4648895Z ##[endgroup]
+2026-05-30T11:43:43.4650078Z ##[group]GITHUB_TOKEN Permissions
+2026-05-30T11:43:43.4652105Z Checks: write
+2026-05-30T11:43:43.4652662Z Contents: read
+2026-05-30T11:43:43.4653151Z Metadata: read
+2026-05-30T11:43:43.4653692Z PullRequests: write
+2026-05-30T11:43:43.4654208Z ##[endgroup]
+2026-05-30T11:43:43.4656251Z Secret source: Actions
+2026-05-30T11:43:43.4657235Z Prepare workflow directory
+2026-05-30T11:43:43.5033402Z Prepare all required actions
+2026-05-30T11:43:43.5070832Z Getting action download info
+2026-05-30T11:43:44.0745902Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+2026-05-30T11:43:44.1983878Z Download action repository 'chickensoft-games/setup-godot@v2' (SHA:f166999204a4f2722c6fe042fbaa3b3ea0d9c789)
+2026-05-30T11:43:45.1117836Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-05-30T11:43:45.2358842Z Download action repository 'mikepenz/action-junit-report@v4' (SHA:db71d41eb79864e25ab0337e395c352e84523afe)
+2026-05-30T11:43:46.0631648Z Complete job name: Run GUT v9.x Tests
+2026-05-30T11:43:46.1463204Z ##[group]Run actions/checkout@v4
+2026-05-30T11:43:46.1464592Z with:
+2026-05-30T11:43:46.1465475Z   lfs: true
+2026-05-30T11:43:46.1466455Z   repository: RcProHK/Claude-Code-Game-Studios
+2026-05-30T11:43:46.1475702Z   token: ***
+2026-05-30T11:43:46.1476738Z   ssh-strict: true
+2026-05-30T11:43:46.1477644Z   ssh-user: git
+2026-05-30T11:43:46.1478568Z   persist-credentials: true
+2026-05-30T11:43:46.1479559Z   clean: true
+2026-05-30T11:43:46.1480519Z   sparse-checkout-cone-mode: true
+2026-05-30T11:43:46.1481614Z   fetch-depth: 1
+2026-05-30T11:43:46.1482487Z   fetch-tags: false
+2026-05-30T11:43:46.1483356Z   show-progress: true
+2026-05-30T11:43:46.1484294Z   submodules: false
+2026-05-30T11:43:46.1485200Z   set-safe-directory: true
+2026-05-30T11:43:46.1486524Z env:
+2026-05-30T11:43:46.1487680Z   GODOT_VERSION: 4.6.0
+2026-05-30T11:43:46.1488572Z   GUT_VERSION: v9.6.0
+2026-05-30T11:43:46.1489485Z ##[endgroup]
+2026-05-30T11:43:46.2647785Z Syncing repository: RcProHK/Claude-Code-Game-Studios
+2026-05-30T11:43:46.2652143Z ##[group]Getting Git version info
+2026-05-30T11:43:46.2654058Z Working directory is '/home/runner/work/Claude-Code-Game-Studios/Claude-Code-Game-Studios'
+2026-05-30T11:43:46.2656903Z [command]/usr/bin/git version
+2026-05-30T11:43:46.2709723Z git version 2.54.0
+2026-05-30T11:43:46.2745131Z [command]/usr/bin/git lfs version
+2026-05-30T11:43:46.6845829Z git-lfs/3.7.1 (GitHub; linux amd64; go 1.24.4)
+2026-05-30T11:43:46.6855459Z ##[endgroup]
+2026-05-30T11:43:46.6870137Z Temporarily overriding HOME='/home/runner/work/_temp/be4100b6-53eb-4e31-ad73-e5ecc2207eb6' before making global git config changes
+2026-05-30T11:43:46.6875308Z Adding repository directory to the temporary git global config as a safe directory
+2026-05-30T11:43:46.6877934Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Claude-Code-Game-Studios/Claude-Code-Game-Studios
+2026-05-30T11:43:46.6913668Z Deleting the contents of '/home/runner/work/Claude-Code-Game-Studios/Claude-Code-Game-Studios'
+2026-05-30T11:43:46.6918071Z ##[group]Initializing the repository
+2026-05-30T11:43:46.6922437Z [command]/usr/bin/git init /home/runner/work/Claude-Code-Game-Studios/Claude-Code-Game-Studios
+2026-05-30T11:43:46.7007058Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-05-30T11:43:46.7009165Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-05-30T11:43:46.7010900Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-05-30T11:43:46.7012782Z hint: call:
+2026-05-30T11:43:46.7013606Z hint:
+2026-05-30T11:43:46.7014571Z hint: 	git config --global init.defaultBranch <name>
+2026-05-30T11:43:46.7015845Z hint:
+2026-05-30T11:43:46.7017296Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-05-30T11:43:46.7019104Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-05-30T11:43:46.7020502Z hint:
+2026-05-30T11:43:46.7021361Z hint: 	git branch -m <name>
+2026-05-30T11:43:46.7022547Z hint:
+2026-05-30T11:43:46.7023746Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-05-30T11:43:46.7026143Z Initialized empty Git repository in /home/runner/work/Claude-Code-Game-Studios/Claude-Code-Game-Studios/.git/
+2026-05-30T11:43:46.7029993Z [command]/usr/bin/git remote add origin https://github.com/RcProHK/Claude-Code-Game-Studios
+2026-05-30T11:43:46.7057293Z ##[endgroup]
+2026-05-30T11:43:46.7058832Z ##[group]Disabling automatic garbage collection
+2026-05-30T11:43:46.7060597Z [command]/usr/bin/git config --local gc.auto 0
+2026-05-30T11:43:46.7082241Z ##[endgroup]
+2026-05-30T11:43:46.7083661Z ##[group]Setting up auth
+2026-05-30T11:43:46.7087943Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-05-30T11:43:46.7114350Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-05-30T11:43:46.7350063Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-05-30T11:43:46.7386811Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-05-30T11:43:46.7552145Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-05-30T11:43:46.7580321Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-05-30T11:43:46.7750679Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-05-30T11:43:46.7779462Z ##[endgroup]
+2026-05-30T11:43:46.7783067Z [command]/usr/bin/git lfs install --local
+2026-05-30T11:43:46.8078909Z Updated Git hooks.
+2026-05-30T11:43:46.8079901Z Git LFS initialized.
+2026-05-30T11:43:46.8088755Z ##[group]Fetching the repository
+2026-05-30T11:43:46.8097921Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +6cdc0f122675fba317523fcb4b9210c45a84375d:refs/remotes/pull/8/merge
+2026-05-30T11:43:48.0477655Z From https://github.com/RcProHK/Claude-Code-Game-Studios
+2026-05-30T11:43:48.0478638Z  * [new ref]         6cdc0f122675fba317523fcb4b9210c45a84375d -> pull/8/merge
+2026-05-30T11:43:48.0505126Z ##[endgroup]
+2026-05-30T11:43:48.0505799Z ##[group]Determining the checkout info
+2026-05-30T11:43:48.0506848Z ##[endgroup]
+2026-05-30T11:43:48.0507501Z ##[group]Fetching LFS objects
+2026-05-30T11:43:48.0512493Z [command]/usr/bin/git lfs fetch origin refs/remotes/pull/8/merge
+2026-05-30T11:43:48.0676833Z Fetching reference refs/remotes/pull/8/merge
+2026-05-30T11:43:48.1064415Z ##[endgroup]
+2026-05-30T11:43:48.1070453Z [command]/usr/bin/git sparse-checkout disable
+2026-05-30T11:43:48.1106134Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-05-30T11:43:48.1126759Z ##[group]Checking out the ref
+2026-05-30T11:43:48.1132094Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/8/merge
+2026-05-30T11:43:48.1685953Z Note: switching to 'refs/remotes/pull/8/merge'.
+2026-05-30T11:43:48.1686449Z 
+2026-05-30T11:43:48.1686993Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-05-30T11:43:48.1687525Z changes and commit them, and you can discard any commits you make in this
+2026-05-30T11:43:48.1688005Z state without impacting any branches by switching back to a branch.
+2026-05-30T11:43:48.1688272Z 
+2026-05-30T11:43:48.1688488Z If you want to create a new branch to retain commits you create, you may
+2026-05-30T11:43:48.1688934Z do so (now or later) by using -c with the switch command. Example:
+2026-05-30T11:43:48.1689231Z 
+2026-05-30T11:43:48.1689355Z   git switch -c <new-branch-name>
+2026-05-30T11:43:48.1689531Z 
+2026-05-30T11:43:48.1689644Z Or undo this operation with:
+2026-05-30T11:43:48.1689811Z 
+2026-05-30T11:43:48.1689917Z   git switch -
+2026-05-30T11:43:48.1690041Z 
+2026-05-30T11:43:48.1690278Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-05-30T11:43:48.1690611Z 
+2026-05-30T11:43:48.1691002Z HEAD is now at 6cdc0f1 Merge c6aebec4fbd19314004cd701427b8c498607156e into 9489044e8f6f2ed9ee9743d821b83507f40c095f
+2026-05-30T11:43:48.1893710Z ##[endgroup]
+2026-05-30T11:43:48.1933683Z [command]/usr/bin/git log -1 --format=%H
+2026-05-30T11:43:48.1952192Z 6cdc0f122675fba317523fcb4b9210c45a84375d
+2026-05-30T11:43:48.2165644Z ##[group]Run chickensoft-games/setup-godot@v2
+2026-05-30T11:43:48.2165987Z with:
+2026-05-30T11:43:48.2166207Z   version: 4.6.0
+2026-05-30T11:43:48.2166462Z   use-dotnet: false
+2026-05-30T11:43:48.2166827Z   include-templates: false
+2026-05-30T11:43:48.2167090Z   path: godot
+2026-05-30T11:43:48.2167313Z   downloads-path: downloads
+2026-05-30T11:43:48.2167554Z   bin-path: bin
+2026-05-30T11:43:48.2167781Z   godot-sharp-release: false
+2026-05-30T11:43:48.2168039Z   cache: true
+2026-05-30T11:43:48.2168233Z env:
+2026-05-30T11:43:48.2168424Z   GODOT_VERSION: 4.6.0
+2026-05-30T11:43:48.2168649Z   GUT_VERSION: v9.6.0
+2026-05-30T11:43:48.2168866Z ##[endgroup]
+2026-05-30T11:43:48.3194423Z 🐧 Running on Linux
+2026-05-30T11:43:48.3203589Z ##[group]🏝 Environment Information
+2026-05-30T11:43:48.3204713Z 📁 Checkout directory: /home/runner/work/Claude-Code-Game-Studios/Claude-Code-Game-Studios
+2026-05-30T11:43:48.3207700Z 🤖 Godot version: 4.6.0
+2026-05-30T11:43:48.3208470Z 🤖 Godot version name: Godot_v4.6-stable_linux.x86_64
+2026-05-30T11:43:48.3209970Z 🟣 Use .NET: false
+2026-05-30T11:43:48.3210857Z 🤖 Godot download url: https://github.com/godotengine/godot-builds/releases/download/4.6-stable/Godot_v4.6-stable_linux.x86_64.zip
+2026-05-30T11:43:48.3211594Z 🧑‍💼 User directory: /home/runner
+2026-05-30T11:43:48.3211987Z 🌏 Downloads directory: /home/runner/downloads
+2026-05-30T11:43:48.3212502Z 📥 Godot download path: /home/runner/downloads/Godot_v4.6-stable_linux.x86_64.zip
+2026-05-30T11:43:48.3212995Z 📦 Godot installation directory: /home/runner/godot
+2026-05-30T11:43:48.3213495Z 🤖 Godot installation path: /home/runner/godot/Godot_v4.6-stable_linux.x86_64
+2026-05-30T11:43:48.3213941Z ⏭️ Skipping Export Templates.
+2026-05-30T11:43:48.3214247Z 📂 Bin directory: /home/runner/bin
+2026-05-30T11:43:48.3214561Z 🤖 GodotSharp release: false
+2026-05-30T11:43:48.3215089Z ##[endgroup]
+2026-05-30T11:43:48.3215632Z ##[group]📂 Ensuring working directories exist...
+2026-05-30T11:43:48.3216287Z ✅ Working directories exist
+2026-05-30T11:43:48.3217108Z ##[endgroup]
+2026-05-30T11:43:48.3217795Z ##[group]🤔 Checking if Godot is already in cache...
+2026-05-30T11:43:48.5169004Z Cache hit for: https://github.com/godotengine/godot-builds/releases/download/4.6-stable/Godot_v4.6-stable_linux.x86_64.zip-no-templates
+2026-05-30T11:43:49.7825919Z Received 16777216 of 69448631 (24.2%), 16.0 MBs/sec
+2026-05-30T11:43:50.2574657Z Received 69448631 of 69448631 (100.0%), 44.9 MBs/sec
+2026-05-30T11:43:50.2577257Z Cache Size: ~66 MB (69448631 B)
+2026-05-30T11:43:50.2640212Z [command]/usr/bin/tar -xf /home/runner/work/_temp/457c8103-7da4-4d83-b180-189d62a0a4c4/cache.tzst -P -C /home/runner/work/Claude-Code-Game-Studios/Claude-Code-Game-Studios --use-compress-program unzstd
+2026-05-30T11:43:50.4418066Z Cache restored successfully
+2026-05-30T11:43:50.4444525Z 🎉 Previous Godot download found in cache!
+2026-05-30T11:43:50.4445699Z ##[endgroup]
+2026-05-30T11:43:50.4446243Z ##[group]📄 Showing cached files recursively...
+2026-05-30T11:43:50.4446788Z 📁 /home/runner/godot
+2026-05-30T11:43:50.4450062Z   🚀 Godot_v4.6-stable_linux.x86_64
+2026-05-30T11:43:50.4450388Z ✅ Files shown
+2026-05-30T11:43:50.4450744Z ##[endgroup]
+2026-05-30T11:43:50.4451129Z ##[group]🚀 Executables:
+2026-05-30T11:43:50.4451523Z   🚀 /home/runner/godot/Godot_v4.6-stable_linux.x86_64
+2026-05-30T11:43:50.4451983Z ✅ Executables shown
+2026-05-30T11:43:50.4452330Z ##[endgroup]
+2026-05-30T11:43:50.4452717Z ##[group]🚀 Resolve Godot Executables:
+2026-05-30T11:43:50.4453167Z 🚀 Godot executable found at /home/runner/godot/Godot_v4.6-stable_linux.x86_64
+2026-05-30T11:43:50.4453678Z ##[endgroup]
+2026-05-30T11:43:50.4530404Z ##[group]🔦 Update PATH...
+2026-05-30T11:43:50.4531214Z 🔦 Added Bin Directory to PATH: /home/runner/bin
+2026-05-30T11:43:50.4531904Z ##[endgroup]
+2026-05-30T11:43:50.4532600Z ##[group]🔗 Creating symlinks to executables...
+2026-05-30T11:43:50.4533076Z ✅ Symlink to Godot created
+2026-05-30T11:43:50.4533611Z ##[endgroup]
+2026-05-30T11:43:50.4534413Z ##[group]🔧 Adding environment variables...
+2026-05-30T11:43:50.4534811Z   GODOT=/home/runner/bin/godot
+2026-05-30T11:43:50.4535169Z   GODOT4=/home/runner/bin/godot
+2026-05-30T11:43:50.4535628Z ✅ Environment variables added
+2026-05-30T11:43:50.4536179Z ##[endgroup]
+2026-05-30T11:43:50.4536514Z ✅ Finished!
+2026-05-30T11:43:50.4580479Z ##[group]Run godot --version
+2026-05-30T11:43:50.4580844Z [36;1mgodot --version[0m
+2026-05-30T11:43:50.4601107Z shell: /usr/bin/bash -e {0}
+2026-05-30T11:43:50.4601374Z env:
+2026-05-30T11:43:50.4601577Z   GODOT_VERSION: 4.6.0
+2026-05-30T11:43:50.4601805Z   GUT_VERSION: v9.6.0
+2026-05-30T11:43:50.4602029Z   GODOT: /home/runner/bin/godot
+2026-05-30T11:43:50.4602285Z   GODOT4: /home/runner/bin/godot
+2026-05-30T11:43:50.4602531Z ##[endgroup]
+2026-05-30T11:43:50.5886454Z 4.6.stable.official.89cea1439
+2026-05-30T11:43:50.5952886Z ##[group]Run # The shell CI lints use `rg`. Several scripts treat a missing rg as a
+2026-05-30T11:43:50.5953457Z [36;1m# The shell CI lints use `rg`. Several scripts treat a missing rg as a[0m
+2026-05-30T11:43:50.5953915Z [36;1m# silent failure (`if ! rg ... 2>/dev/null`), so a runner without rg[0m
+2026-05-30T11:43:50.5954356Z [36;1m# makes every pattern check report a false violation. Install it[0m
+2026-05-30T11:43:50.5954780Z [36;1m# explicitly rather than relying on the runner image.[0m
+2026-05-30T11:43:50.5955156Z [36;1mif command -v rg >/dev/null 2>&1; then[0m
+2026-05-30T11:43:50.5955513Z [36;1m  echo "ripgrep already present: $(rg --version | head -1)"[0m
+2026-05-30T11:43:50.5955835Z [36;1melse[0m
+2026-05-30T11:43:50.5956076Z [36;1m  echo "ripgrep not found — installing"[0m
+2026-05-30T11:43:50.5956471Z [36;1m  sudo apt-get update -qq && sudo apt-get install -y -qq ripgrep[0m
+2026-05-30T11:43:50.5957076Z [36;1m  rg --version | head -1[0m
+2026-05-30T11:43:50.5957373Z [36;1mfi[0m
+2026-05-30T11:43:50.5972348Z shell: /usr/bin/bash -e {0}
+2026-05-30T11:43:50.5972599Z env:
+2026-05-30T11:43:50.5972797Z   GODOT_VERSION: 4.6.0
+2026-05-30T11:43:50.5973024Z   GUT_VERSION: v9.6.0
+2026-05-30T11:43:50.5973251Z   GODOT: /home/runner/bin/godot
+2026-05-30T11:43:50.5973504Z   GODOT4: /home/runner/bin/godot
+2026-05-30T11:43:50.5973742Z ##[endgroup]
+2026-05-30T11:43:50.6007247Z ripgrep not found — installing
+2026-05-30T11:43:57.8648461Z Selecting previously unselected package ripgrep.
+2026-05-30T11:43:57.8853427Z (Reading database ... 
+2026-05-30T11:43:57.8853995Z (Reading database ... 5%
+2026-05-30T11:43:57.8854601Z (Reading database ... 10%
+2026-05-30T11:43:57.8855058Z (Reading database ... 15%
+2026-05-30T11:43:57.8855508Z (Reading database ... 20%
+2026-05-30T11:43:57.8855871Z (Reading database ... 25%
+2026-05-30T11:43:57.8856189Z (Reading database ... 30%
+2026-05-30T11:43:57.8856538Z (Reading database ... 35%
+2026-05-30T11:43:57.8857048Z (Reading database ... 40%
+2026-05-30T11:43:57.8857445Z (Reading database ... 45%
+2026-05-30T11:43:57.8857817Z (Reading database ... 50%
+2026-05-30T11:43:57.8894339Z (Reading database ... 55%
+2026-05-30T11:43:58.0357800Z (Reading database ... 60%
+2026-05-30T11:43:58.2424987Z (Reading database ... 65%
+2026-05-30T11:43:58.4061580Z (Reading database ... 70%
+2026-05-30T11:43:58.5447852Z (Reading database ... 75%
+2026-05-30T11:43:58.6912395Z (Reading database ... 80%
+2026-05-30T11:43:58.9407519Z (Reading database ... 85%
+2026-05-30T11:43:59.1511343Z (Reading database ... 90%
+2026-05-30T11:43:59.3234490Z (Reading database ... 95%
+2026-05-30T11:43:59.3235010Z (Reading database ... 100%
+2026-05-30T11:43:59.3235580Z (Reading database ... 202271 files and directories currently installed.)
+2026-05-30T11:43:59.3278183Z Preparing to unpack .../ripgrep_14.1.0-1_amd64.deb ...
+2026-05-30T11:43:59.3312528Z Unpacking ripgrep (14.1.0-1) ...
+2026-05-30T11:43:59.3903727Z Setting up ripgrep (14.1.0-1) ...
+2026-05-30T11:43:59.3931005Z Processing triggers for man-db (2.12.0-4build2) ...
+2026-05-30T11:43:59.3950607Z Not building database; man-db/auto-update is not 'true'.
+2026-05-30T11:43:59.9238596Z 
+2026-05-30T11:43:59.9239197Z Running kernel seems to be up-to-date.
+2026-05-30T11:43:59.9239571Z 
+2026-05-30T11:43:59.9239748Z No services need to be restarted.
+2026-05-30T11:43:59.9240038Z 
+2026-05-30T11:43:59.9240212Z No containers need to be restarted.
+2026-05-30T11:43:59.9240512Z 
+2026-05-30T11:43:59.9240714Z No user sessions are running outdated binaries.
+2026-05-30T11:43:59.9241106Z 
+2026-05-30T11:43:59.9241310Z No VM guests are running outdated hypervisor (qemu) binaries on this host.
+2026-05-30T11:44:00.7969287Z ripgrep 14.1.0
+2026-05-30T11:44:00.7999339Z ##[group]Run # Shell lints run before Godot import for fast feedback.
+2026-05-30T11:44:00.7999841Z [36;1m# Shell lints run before Godot import for fast feedback.[0m
+2026-05-30T11:44:00.8000280Z [36;1m# Each script must exit 0 on PASS, 1 on violation, 2 on internal error[0m
+2026-05-30T11:44:00.8000736Z [36;1m# (matches the project-wide convention used by tools/ci/*.gd).[0m
+2026-05-30T11:44:00.8001202Z [36;1m# Failed lint blocks merging — fix the violation, never disable the lint.[0m
+2026-05-30T11:44:00.8001607Z [36;1mif ! ls tools/ci/*.sh >/dev/null 2>&1; then[0m
+2026-05-30T11:44:00.8001937Z [36;1m  echo "No shell CI lints found — skipping."[0m
+2026-05-30T11:44:00.8002225Z [36;1m  exit 0[0m
+2026-05-30T11:44:00.8002426Z [36;1mfi[0m
+2026-05-30T11:44:00.8002621Z [36;1mlint_failed=0[0m
+2026-05-30T11:44:00.8002882Z [36;1mfor lint in tools/ci/*.sh; do[0m
+2026-05-30T11:44:00.8003166Z [36;1m  echo "::group::Shell CI Lint — $lint"[0m
+2026-05-30T11:44:00.8003489Z [36;1m  sh "$lint"[0m
+2026-05-30T11:44:00.8003704Z [36;1m  exit_code=$?[0m
+2026-05-30T11:44:00.8003946Z [36;1m  if [ $exit_code -ne 0 ]; then[0m
+2026-05-30T11:44:00.8004314Z [36;1m    echo "::error file=$lint::Shell lint failed with exit code $exit_code"[0m
+2026-05-30T11:44:00.8004679Z [36;1m    lint_failed=1[0m
+2026-05-30T11:44:00.8004905Z [36;1m  fi[0m
+2026-05-30T11:44:00.8005112Z [36;1m  echo "::endgroup::"[0m
+2026-05-30T11:44:00.8005344Z [36;1mdone[0m
+2026-05-30T11:44:00.8005567Z [36;1mif [ $lint_failed -ne 0 ]; then[0m
+2026-05-30T11:44:00.8005817Z [36;1m  echo ""[0m
+2026-05-30T11:44:00.8006136Z [36;1m  echo "One or more shell CI lints failed. See output above for violations."[0m
+2026-05-30T11:44:00.8006506Z [36;1m  exit 1[0m
+2026-05-30T11:44:00.8006885Z [36;1mfi[0m
+2026-05-30T11:44:00.8007245Z [36;1mecho ""[0m
+2026-05-30T11:44:00.8007496Z [36;1mecho "All shell CI lints passed."[0m
+2026-05-30T11:44:00.8022757Z shell: /usr/bin/bash -e {0}
+2026-05-30T11:44:00.8023018Z env:
+2026-05-30T11:44:00.8023232Z   GODOT_VERSION: 4.6.0
+2026-05-30T11:44:00.8023448Z   GUT_VERSION: v9.6.0
+2026-05-30T11:44:00.8023668Z   GODOT: /home/runner/bin/godot
+2026-05-30T11:44:00.8023923Z   GODOT4: /home/runner/bin/godot
+2026-05-30T11:44:00.8024159Z ##[endgroup]
+2026-05-30T11:44:00.8068509Z ##[group]Shell CI Lint — tools/ci/check_adr006_persistence_binding_markers.sh
+2026-05-30T11:44:00.8089412Z   OK: # ADR-006 Contract 3: SerializableResource envelope
+2026-05-30T11:44:00.8104289Z   OK: # ADR-006 Contract 4: autoload position 1 + sync _ready
+2026-05-30T11:44:00.8119177Z   OK: # ADR-006 Contract 9: clock-drift TTL
+2026-05-30T11:44:00.8133423Z   OK: # ADR-006 Contract 10: migration chain bounded
+2026-05-30T11:44:00.8147687Z   OK: # ADR-006 Contract 11: best-effort IDB fence
+2026-05-30T11:44:00.8162008Z   OK: # ADR-006 Contract 14: test spy interface
+2026-05-30T11:44:00.8162629Z   OK: tests/unit/persistence-layer/test_adr006_c3_serializable_envelope.gd
+2026-05-30T11:44:00.8163387Z   OK: tests/unit/persistence-layer/test_adr006_c4_autoload_sync.gd
+2026-05-30T11:44:00.8164096Z   OK: tests/unit/persistence-layer/test_adr006_c9_clock_drift_ttl.gd
+2026-05-30T11:44:00.8164804Z   OK: tests/integration/persistence-layer/test_adr006_c10_migration_chain.gd
+2026-05-30T11:44:00.8165249Z   OK: tests/unit/persistence-layer/test_adr006_c11_idb_fence.gd
+2026-05-30T11:44:00.8165633Z   OK: tests/unit/persistence-layer/test_adr006_c14_test_spy.gd
+2026-05-30T11:44:00.8166254Z [check_adr006_persistence_binding_markers] PASS — all 6 markers + 6 test files verified
+2026-05-30T11:44:00.8167288Z ##[endgroup]
+2026-05-30T11:44:00.8171484Z ##[group]Shell CI Lint — tools/ci/check_forward_recover_no_generate.sh
+2026-05-30T11:44:00.8187882Z [check_forward_recover_no_generate] PASS — forward-recovery reuses tombstone transition_id
+2026-05-30T11:44:00.8188770Z ##[endgroup]
+2026-05-30T11:44:00.8189330Z ##[group]Shell CI Lint — tools/ci/check_no_await_in_persistence.sh
+2026-05-30T11:44:00.8217498Z [check_no_await_in_persistence] PASS — no `await` found in src/autoload/persistence_layer.gd
+2026-05-30T11:44:00.8218405Z ##[endgroup]
+2026-05-30T11:44:00.8219123Z ##[group]Shell CI Lint — tools/ci/check_no_await_in_state_machine.sh
+2026-05-30T11:44:00.8245492Z [check_no_await_in_state_machine] PASS — no `await` found in src/autoload/game_state_machine.gd
+2026-05-30T11:44:00.8246921Z ##[endgroup]
+2026-05-30T11:44:00.8247794Z ##[group]Shell CI Lint — tools/ci/check_no_tombstone_signal_in_persistence.sh
+2026-05-30T11:44:00.8269207Z [check_no_tombstone_signal_in_persistence] PASS — no tombstone_write_completed in src/autoload/persistence_layer.gd
+2026-05-30T11:44:00.8270350Z ##[endgroup]
+2026-05-30T11:44:00.8271102Z ##[group]Shell CI Lint — tools/ci/check_no_write_reentrance.sh
+2026-05-30T11:44:00.8454549Z [check_no_write_reentrance] PASS — no .write() re-entrance inside write_completed handlers in src/
+2026-05-30T11:44:00.8455625Z ##[endgroup]
+2026-05-30T11:44:00.8456566Z ##[group]Shell CI Lint — tools/ci/check_payload_type_uses_get_script.sh
+2026-05-30T11:44:00.8923138Z [check_payload_type_uses_get_script] PASS — no forbidden get_class() usage in src
+2026-05-30T11:44:00.8924100Z ##[endgroup]
+2026-05-30T11:44:00.8924819Z ##[group]Shell CI Lint — tools/ci/check_streak_caller_whitelist.sh
+2026-05-30T11:44:00.8973658Z [check_streak_caller_whitelist] PASS — no out-of-whitelist callers
+2026-05-30T11:44:00.8974927Z ##[endgroup]
+2026-05-30T11:44:00.8975761Z ##[group]Shell CI Lint — tools/ci/check_streak_mutator_ban.sh
+2026-05-30T11:44:00.9048936Z [check_streak_mutator_ban] PASS — closed API intact + binding marker present
+2026-05-30T11:44:00.9049909Z ##[endgroup]
+2026-05-30T11:44:00.9051568Z 
+2026-05-30T11:44:00.9051788Z All shell CI lints passed.
+2026-05-30T11:44:00.9080036Z ##[group]Run if [ ! -f "addons/gut/gut_cmdln.gd" ]; then
+2026-05-30T11:44:00.9080441Z [36;1mif [ ! -f "addons/gut/gut_cmdln.gd" ]; then[0m
+2026-05-30T11:44:00.9080922Z [36;1m  echo "GUT not committed to repo — cloning v9.6.0"[0m
+2026-05-30T11:44:00.9081265Z [36;1m  git clone --branch v9.6.0 --depth 1 \[0m
+2026-05-30T11:44:00.9081627Z [36;1m    https://github.com/bitwes/Gut.git addons/gut_temp[0m
+2026-05-30T11:44:00.9081977Z [36;1m  mkdir -p addons/gut[0m
+2026-05-30T11:44:00.9082273Z [36;1m  cp -r addons/gut_temp/addons/gut/* addons/gut/[0m
+2026-05-30T11:44:00.9082589Z [36;1m  rm -rf addons/gut_temp[0m
+2026-05-30T11:44:00.9082836Z [36;1melse[0m
+2026-05-30T11:44:00.9083142Z [36;1m  echo "GUT already present in addons/ — using committed version"[0m
+2026-05-30T11:44:00.9083482Z [36;1mfi[0m
+2026-05-30T11:44:00.9083689Z [36;1mls -la addons/gut/[0m
+2026-05-30T11:44:00.9098758Z shell: /usr/bin/bash -e {0}
+2026-05-30T11:44:00.9099019Z env:
+2026-05-30T11:44:00.9099269Z   GODOT_VERSION: 4.6.0
+2026-05-30T11:44:00.9099492Z   GUT_VERSION: v9.6.0
+2026-05-30T11:44:00.9099723Z   GODOT: /home/runner/bin/godot
+2026-05-30T11:44:00.9099991Z   GODOT4: /home/runner/bin/godot
+2026-05-30T11:44:00.9100246Z ##[endgroup]
+2026-05-30T11:44:00.9132062Z GUT not committed to repo — cloning v9.6.0
+2026-05-30T11:44:00.9141911Z Cloning into 'addons/gut_temp'...
+2026-05-30T11:44:02.0915552Z Note: switching to '9f3edeb19df664ad32c369353d8d62dbb7b80673'.
+2026-05-30T11:44:02.0915958Z 
+2026-05-30T11:44:02.0916188Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-05-30T11:44:02.0916848Z changes and commit them, and you can discard any commits you make in this
+2026-05-30T11:44:02.0917346Z state without impacting any branches by switching back to a branch.
+2026-05-30T11:44:02.0917607Z 
+2026-05-30T11:44:02.0917805Z If you want to create a new branch to retain commits you create, you may
+2026-05-30T11:44:02.0918270Z do so (now or later) by using -c with the switch command. Example:
+2026-05-30T11:44:02.0918523Z 
+2026-05-30T11:44:02.0918638Z   git switch -c <new-branch-name>
+2026-05-30T11:44:02.0918810Z 
+2026-05-30T11:44:02.0918939Z Or undo this operation with:
+2026-05-30T11:44:02.0919095Z 
+2026-05-30T11:44:02.0919186Z   git switch -
+2026-05-30T11:44:02.0919312Z 
+2026-05-30T11:44:02.0919515Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-05-30T11:44:02.0919805Z 
+2026-05-30T11:44:02.1497822Z total 836
+2026-05-30T11:44:02.1498186Z drwxr-xr-x 7 runner runner   4096 May 30 11:44 .
+2026-05-30T11:44:02.1498561Z drwxr-xr-x 3 runner runner   4096 May 30 11:44 ..
+2026-05-30T11:44:02.1498909Z -rw-r--r-- 1 runner runner   3570 May 30 11:44 GutScene.gd
+2026-05-30T11:44:02.1499412Z -rw-r--r-- 1 runner runner     20 May 30 11:44 GutScene.gd.uid
+2026-05-30T11:44:02.1500037Z -rw-r--r-- 1 runner runner    673 May 30 11:44 GutScene.tscn
+2026-05-30T11:44:02.1500629Z -rw-r--r-- 1 runner runner   1107 May 30 11:44 LICENSE.md
+2026-05-30T11:44:02.1500989Z -rw-r--r-- 1 runner runner   1855 May 30 11:43 README.md
+2026-05-30T11:44:02.1501343Z -rw-r--r-- 1 runner runner   1090 May 30 11:44 UserFileViewer.gd
+2026-05-30T11:44:02.1501739Z -rw-r--r-- 1 runner runner     19 May 30 11:44 UserFileViewer.gd.uid
+2026-05-30T11:44:02.1502127Z -rw-r--r-- 1 runner runner   3433 May 30 11:44 UserFileViewer.tscn
+2026-05-30T11:44:02.1502491Z -rw-r--r-- 1 runner runner   2742 May 30 11:44 autofree.gd
+2026-05-30T11:44:02.1502834Z -rw-r--r-- 1 runner runner     20 May 30 11:44 autofree.gd.uid
+2026-05-30T11:44:02.1503178Z -rw-r--r-- 1 runner runner   5660 May 30 11:44 awaiter.gd
+2026-05-30T11:44:02.1503521Z -rw-r--r-- 1 runner runner     20 May 30 11:44 awaiter.gd.uid
+2026-05-30T11:44:02.1503859Z drwxr-xr-x 2 runner runner   4096 May 30 11:44 cli
+2026-05-30T11:44:02.1504213Z -rw-r--r-- 1 runner runner   5399 May 30 11:44 collected_script.gd
+2026-05-30T11:44:02.1504604Z -rw-r--r-- 1 runner runner     20 May 30 11:44 collected_script.gd.uid
+2026-05-30T11:44:02.1505181Z -rw-r--r-- 1 runner runner   3105 May 30 11:44 collected_test.gd
+2026-05-30T11:44:02.1505564Z -rw-r--r-- 1 runner runner     20 May 30 11:44 collected_test.gd.uid
+2026-05-30T11:44:02.1506032Z -rw-r--r-- 1 runner runner   3315 May 30 11:44 comparator.gd
+2026-05-30T11:44:02.1506391Z -rw-r--r-- 1 runner runner     20 May 30 11:44 comparator.gd.uid
+2026-05-30T11:44:02.1507012Z -rw-r--r-- 1 runner runner   1170 May 30 11:44 compare_result.gd
+2026-05-30T11:44:02.1507574Z -rw-r--r-- 1 runner runner     20 May 30 11:44 compare_result.gd.uid
+2026-05-30T11:44:02.1508082Z -rw-r--r-- 1 runner runner   1534 May 30 11:44 diff_formatter.gd
+2026-05-30T11:44:02.1508676Z -rw-r--r-- 1 runner runner     20 May 30 11:44 diff_formatter.gd.uid
+2026-05-30T11:44:02.1509133Z -rw-r--r-- 1 runner runner   3562 May 30 11:44 diff_tool.gd
+2026-05-30T11:44:02.1509492Z -rw-r--r-- 1 runner runner     20 May 30 11:44 diff_tool.gd.uid
+2026-05-30T11:44:02.1509866Z drwxr-xr-x 2 runner runner   4096 May 30 11:44 double_templates
+2026-05-30T11:44:02.1510258Z -rw-r--r-- 1 runner runner   2415 May 30 11:44 double_tools.gd
+2026-05-30T11:44:02.1510624Z -rw-r--r-- 1 runner runner     19 May 30 11:44 double_tools.gd.uid
+2026-05-30T11:44:02.1510988Z -rw-r--r-- 1 runner runner  11639 May 30 11:44 doubler.gd
+2026-05-30T11:44:02.1511335Z -rw-r--r-- 1 runner runner     20 May 30 11:44 doubler.gd.uid
+2026-05-30T11:44:02.1511699Z -rw-r--r-- 1 runner runner   1154 May 30 11:44 dynamic_gdscript.gd
+2026-05-30T11:44:02.1512084Z -rw-r--r-- 1 runner runner     20 May 30 11:44 dynamic_gdscript.gd.uid
+2026-05-30T11:44:02.1512510Z -rw-r--r-- 1 runner runner   7720 May 30 11:44 editor_caret_context_notifier.gd
+2026-05-30T11:44:02.1512978Z -rw-r--r-- 1 runner runner     20 May 30 11:44 editor_caret_context_notifier.gd.uid
+2026-05-30T11:44:02.1513398Z -rw-r--r-- 1 runner runner   5237 May 30 11:44 error_tracker.gd
+2026-05-30T11:44:02.1513776Z -rw-r--r-- 1 runner runner     19 May 30 11:44 error_tracker.gd.uid
+2026-05-30T11:44:02.1514133Z drwxr-xr-x 2 runner runner   4096 May 30 11:44 fonts
+2026-05-30T11:44:02.1514498Z -rw-r--r-- 1 runner runner    307 May 30 11:44 get_editor_interface.gd
+2026-05-30T11:44:02.1514911Z -rw-r--r-- 1 runner runner     19 May 30 11:44 get_editor_interface.gd.uid
+2026-05-30T11:44:02.1515326Z -rw-r--r-- 1 runner runner    899 May 30 11:44 godot_singletons.gd
+2026-05-30T11:44:02.1515707Z -rw-r--r-- 1 runner runner     20 May 30 11:44 godot_singletons.gd.uid
+2026-05-30T11:44:02.1516061Z drwxr-xr-x 2 runner runner   4096 May 30 11:44 gui
+2026-05-30T11:44:02.1516372Z -rw-r--r-- 1 runner runner  43528 May 30 11:44 gut.gd
+2026-05-30T11:44:02.1516838Z -rw-r--r-- 1 runner runner     20 May 30 11:44 gut.gd.uid
+2026-05-30T11:44:02.1517174Z -rw-r--r-- 1 runner runner   2532 May 30 11:44 gut_cmdln.gd
+2026-05-30T11:44:02.1517524Z -rw-r--r-- 1 runner runner     20 May 30 11:44 gut_cmdln.gd.uid
+2026-05-30T11:44:02.1517878Z -rw-r--r-- 1 runner runner   7368 May 30 11:44 gut_config.gd
+2026-05-30T11:44:02.1518232Z -rw-r--r-- 1 runner runner     20 May 30 11:44 gut_config.gd.uid
+2026-05-30T11:44:02.1518591Z -rw-r--r-- 1 runner runner   2950 May 30 11:44 gut_fonts.gd
+2026-05-30T11:44:02.1518938Z -rw-r--r-- 1 runner runner     20 May 30 11:44 gut_fonts.gd.uid
+2026-05-30T11:44:02.1519298Z -rw-r--r-- 1 runner runner   3622 May 30 11:44 gut_loader.gd
+2026-05-30T11:44:02.1519650Z -rw-r--r-- 1 runner runner     19 May 30 11:44 gut_loader.gd.uid
+2026-05-30T11:44:02.1520041Z -rw-r--r-- 1 runner runner    251 May 30 11:44 gut_loader_the_scene.tscn
+2026-05-30T11:44:02.1520412Z -rw-r--r-- 1 runner runner   2884 May 30 11:44 gut_menu.gd
+2026-05-30T11:44:02.1520754Z -rw-r--r-- 1 runner runner     20 May 30 11:44 gut_menu.gd.uid
+2026-05-30T11:44:02.1521096Z -rw-r--r-- 1 runner runner   3145 May 30 11:44 gut_plugin.gd
+2026-05-30T11:44:02.1521445Z -rw-r--r-- 1 runner runner     19 May 30 11:44 gut_plugin.gd.uid
+2026-05-30T11:44:02.1521811Z -rw-r--r-- 1 runner runner   3512 May 30 11:44 gut_to_move.gd
+2026-05-30T11:44:02.1522174Z -rw-r--r-- 1 runner runner     20 May 30 11:44 gut_to_move.gd.uid
+2026-05-30T11:44:02.1522707Z -rw-r--r-- 1 runner runner   3295 May 30 11:44 gut_tracked_error.gd
+2026-05-30T11:44:02.1523104Z -rw-r--r-- 1 runner runner     20 May 30 11:44 gut_tracked_error.gd.uid
+2026-05-30T11:44:02.1523594Z -rw-r--r-- 1 runner runner   2059 May 30 11:44 gut_vscode_debugger.gd
+2026-05-30T11:44:02.1523997Z -rw-r--r-- 1 runner runner     19 May 30 11:44 gut_vscode_debugger.gd.uid
+2026-05-30T11:44:02.1524391Z -rw-r--r-- 1 runner runner   2197 May 30 11:44 hook_script.gd
+2026-05-30T11:44:02.1524756Z -rw-r--r-- 1 runner runner     19 May 30 11:44 hook_script.gd.uid
+2026-05-30T11:44:02.1525118Z -rw-r--r-- 1 runner runner    129 May 30 11:44 icon.png
+2026-05-30T11:44:02.1525479Z -rw-r--r-- 1 runner runner    927 May 30 11:44 icon.png.import
+2026-05-30T11:44:02.1525822Z drwxr-xr-x 2 runner runner   4096 May 30 11:44 images
+2026-05-30T11:44:02.1526180Z -rw-r--r-- 1 runner runner   1586 May 30 11:44 inner_class_registry.gd
+2026-05-30T11:44:02.1526587Z -rw-r--r-- 1 runner runner     19 May 30 11:44 inner_class_registry.gd.uid
+2026-05-30T11:44:02.1527346Z -rw-r--r-- 1 runner runner   5995 May 30 11:44 input_factory.gd
+2026-05-30T11:44:02.1527963Z -rw-r--r-- 1 runner runner     20 May 30 11:44 input_factory.gd.uid
+2026-05-30T11:44:02.1528555Z -rw-r--r-- 1 runner runner  20348 May 30 11:44 input_sender.gd
+2026-05-30T11:44:02.1529089Z -rw-r--r-- 1 runner runner     20 May 30 11:44 input_sender.gd.uid
+2026-05-30T11:44:02.1529472Z -rw-r--r-- 1 runner runner   3724 May 30 11:44 junit_xml_export.gd
+2026-05-30T11:44:02.1529859Z -rw-r--r-- 1 runner runner     19 May 30 11:44 junit_xml_export.gd.uid
+2026-05-30T11:44:02.1530233Z -rw-r--r-- 1 runner runner   1014 May 30 11:44 lazy_loader.gd
+2026-05-30T11:44:02.1530592Z -rw-r--r-- 1 runner runner     19 May 30 11:44 lazy_loader.gd.uid
+2026-05-30T11:44:02.1530942Z -rw-r--r-- 1 runner runner   9957 May 30 11:44 logger.gd
+2026-05-30T11:44:02.1531289Z -rw-r--r-- 1 runner runner     20 May 30 11:44 logger.gd.uid
+2026-05-30T11:44:02.1531641Z -rw-r--r-- 1 runner runner     20 May 30 11:44 menu_manager.gd.uid
+2026-05-30T11:44:02.1532010Z -rw-r--r-- 1 runner runner   8553 May 30 11:44 method_maker.gd
+2026-05-30T11:44:02.1532372Z -rw-r--r-- 1 runner runner     20 May 30 11:44 method_maker.gd.uid
+2026-05-30T11:44:02.1532742Z -rw-r--r-- 1 runner runner   1284 May 30 11:44 one_to_many.gd
+2026-05-30T11:44:02.1533094Z -rw-r--r-- 1 runner runner     20 May 30 11:44 one_to_many.gd.uid
+2026-05-30T11:44:02.1533454Z -rw-r--r-- 1 runner runner   6769 May 30 11:44 orphan_counter.gd
+2026-05-30T11:44:02.1533825Z -rw-r--r-- 1 runner runner     20 May 30 11:44 orphan_counter.gd.uid
+2026-05-30T11:44:02.1534211Z -rw-r--r-- 1 runner runner   3597 May 30 11:44 parameter_factory.gd
+2026-05-30T11:44:02.1534608Z -rw-r--r-- 1 runner runner     20 May 30 11:44 parameter_factory.gd.uid
+2026-05-30T11:44:02.1534996Z -rw-r--r-- 1 runner runner    685 May 30 11:44 parameter_handler.gd
+2026-05-30T11:44:02.1535377Z -rw-r--r-- 1 runner runner     20 May 30 11:44 parameter_handler.gd.uid
+2026-05-30T11:44:02.1535743Z -rw-r--r-- 1 runner runner    125 May 30 11:44 plugin.cfg
+2026-05-30T11:44:02.1536082Z -rw-r--r-- 1 runner runner   4943 May 30 11:44 printers.gd
+2026-05-30T11:44:02.1536433Z -rw-r--r-- 1 runner runner     19 May 30 11:44 printers.gd.uid
+2026-05-30T11:44:02.1536926Z -rw-r--r-- 1 runner runner   3286 May 30 11:44 result_exporter.gd
+2026-05-30T11:44:02.1537315Z -rw-r--r-- 1 runner runner     20 May 30 11:44 result_exporter.gd.uid
+2026-05-30T11:44:02.1537696Z -rw-r--r-- 1 runner runner   7735 May 30 11:44 script_parser.gd
+2026-05-30T11:44:02.1538094Z -rw-r--r-- 1 runner runner     20 May 30 11:44 script_parser.gd.uid
+2026-05-30T11:44:02.1538477Z -rw-r--r-- 1 runner runner   7678 May 30 11:44 signal_watcher.gd
+2026-05-30T11:44:02.1538860Z -rw-r--r-- 1 runner runner     19 May 30 11:44 signal_watcher.gd.uid
+2026-05-30T11:44:02.1539243Z -rw-r--r-- 1 runner runner   2527 May 30 11:44 singleton_parser.gd
+2026-05-30T11:44:02.1539636Z -rw-r--r-- 1 runner runner     20 May 30 11:44 singleton_parser.gd.uid
+2026-05-30T11:44:02.1540143Z -rw-r--r-- 1 runner runner  42799 May 30 11:44 source_code_pro.fnt
+2026-05-30T11:44:02.1540554Z -rw-r--r-- 1 runner runner    382 May 30 11:44 source_code_pro.fnt.import
+2026-05-30T11:44:02.1541143Z -rw-r--r-- 1 runner runner   2782 May 30 11:44 spy.gd
+2026-05-30T11:44:02.1541484Z -rw-r--r-- 1 runner runner     20 May 30 11:44 spy.gd.uid
+2026-05-30T11:44:02.1541842Z -rw-r--r-- 1 runner runner   6205 May 30 11:44 strutils.gd
+2026-05-30T11:44:02.1542201Z -rw-r--r-- 1 runner runner     20 May 30 11:44 strutils.gd.uid
+2026-05-30T11:44:02.1542569Z -rw-r--r-- 1 runner runner   5249 May 30 11:44 stub_params.gd
+2026-05-30T11:44:02.1542938Z -rw-r--r-- 1 runner runner     20 May 30 11:44 stub_params.gd.uid
+2026-05-30T11:44:02.1543303Z -rw-r--r-- 1 runner runner   5992 May 30 11:44 stubber.gd
+2026-05-30T11:44:02.1543638Z -rw-r--r-- 1 runner runner     20 May 30 11:44 stubber.gd.uid
+2026-05-30T11:44:02.1543969Z -rw-r--r-- 1 runner runner   2191 May 30 11:44 stubs.gd
+2026-05-30T11:44:02.1544303Z -rw-r--r-- 1 runner runner     20 May 30 11:44 stubs.gd.uid
+2026-05-30T11:44:02.1544637Z -rw-r--r-- 1 runner runner   6034 May 30 11:44 summary.gd
+2026-05-30T11:44:02.1544977Z -rw-r--r-- 1 runner runner     20 May 30 11:44 summary.gd.uid
+2026-05-30T11:44:02.1545366Z -rw-r--r-- 1 runner runner 104368 May 30 11:44 test.gd
+2026-05-30T11:44:02.1545698Z -rw-r--r-- 1 runner runner     20 May 30 11:44 test.gd.uid
+2026-05-30T11:44:02.1546053Z -rw-r--r-- 1 runner runner   6718 May 30 11:44 test_collector.gd
+2026-05-30T11:44:02.1546423Z -rw-r--r-- 1 runner runner     20 May 30 11:44 test_collector.gd.uid
+2026-05-30T11:44:02.1546926Z -rw-r--r-- 1 runner runner    875 May 30 11:44 thing_counter.gd
+2026-05-30T11:44:02.1547300Z -rw-r--r-- 1 runner runner     19 May 30 11:44 thing_counter.gd.uid
+2026-05-30T11:44:02.1547661Z -rw-r--r-- 1 runner runner  24808 May 30 11:44 utils.gd
+2026-05-30T11:44:02.1547999Z -rw-r--r-- 1 runner runner     20 May 30 11:44 utils.gd.uid
+2026-05-30T11:44:02.1548367Z -rw-r--r-- 1 runner runner   3541 May 30 11:44 version_conversion.gd
+2026-05-30T11:44:02.1548768Z -rw-r--r-- 1 runner runner     20 May 30 11:44 version_conversion.gd.uid
+2026-05-30T11:44:02.1549172Z -rw-r--r-- 1 runner runner   4000 May 30 11:44 version_numbers.gd
+2026-05-30T11:44:02.1549562Z -rw-r--r-- 1 runner runner     20 May 30 11:44 version_numbers.gd.uid
+2026-05-30T11:44:02.1549945Z -rw-r--r-- 1 runner runner   5217 May 30 11:44 warnings_manager.gd
+2026-05-30T11:44:02.1550332Z -rw-r--r-- 1 runner runner     20 May 30 11:44 warnings_manager.gd.uid
+2026-05-30T11:44:02.1575384Z ##[group]Run godot --headless --import || true
+2026-05-30T11:44:02.1575819Z [36;1mgodot --headless --import || true[0m
+2026-05-30T11:44:02.1591372Z shell: /usr/bin/bash -e {0}
+2026-05-30T11:44:02.1591699Z env:
+2026-05-30T11:44:02.1592155Z   GODOT_VERSION: 4.6.0
+2026-05-30T11:44:02.1592461Z   GUT_VERSION: v9.6.0
+2026-05-30T11:44:02.1592844Z   GODOT: /home/runner/bin/godot
+2026-05-30T11:44:02.1593173Z   GODOT4: /home/runner/bin/godot
+2026-05-30T11:44:02.1593485Z ##[endgroup]
+2026-05-30T11:44:02.1799592Z Godot Engine v4.6.stable.official.89cea1439 - https://godotengine.org
+2026-05-30T11:44:02.2217017Z 
+2026-05-30T11:44:07.1344329Z [   0% ] [90m[1mfirst_scan_filesystem[22m | Started Project initialization (5 steps)[39m[0m
+2026-05-30T11:44:07.1345317Z [   0% ] [90m[1mfirst_scan_filesystem[22m | Scanning file structure...[39m[0m
+2026-05-30T11:44:07.1383800Z [  16% ] [90m[1mfirst_scan_filesystem[22m | Loading global class names...[39m[0m
+2026-05-30T11:44:07.1639589Z [  33% ] [90m[1mfirst_scan_filesystem[22m | Verifying GDExtensions...[39m[0m
+2026-05-30T11:44:07.1640262Z [  50% ] [90m[1mfirst_scan_filesystem[22m | Creating autoload scripts...[39m[0m
+2026-05-30T11:44:07.2754431Z SCRIPT ERROR: Parse Error: Function "_restore_pending_drops" has the same name as a previously declared function.
+2026-05-30T11:44:07.2760118Z           at: GDScript::reload (res://src/autoload/loot_drop_system.gd:657)
+2026-05-30T11:44:07.2760883Z ERROR: Failed to load script "res://src/autoload/loot_drop_system.gd" with error "Parse error".
+2026-05-30T11:44:07.2761418Z    at: load (modules/gdscript/gdscript.cpp:2907)
+2026-05-30T11:44:07.2762428Z ERROR: Failed to create an autoload, script 'res://src/autoload/loot_drop_system.gd' is not compiling.
+2026-05-30T11:44:07.2763051Z    at: _create_autoload (editor/settings/editor_autoload_settings.cpp:409)
+2026-05-30T11:44:07.2773830Z [  66% ] [90m[1mfirst_scan_filesystem[22m | Initializing plugins...[39m[0m
+2026-05-30T11:44:07.2774746Z [  83% ] [90m[1mfirst_scan_filesystem[22m | Starting file scan...[39m[0m
+2026-05-30T11:44:07.2775298Z [92m[ DONE ][39m [1mfirst_scan_filesystem[22m
+2026-05-30T11:44:07.2775704Z [0m
+2026-05-30T11:44:07.6484151Z [   0% ] [90m[1mupdate_scripts_classes[22m | Started Registering global classes... (293 steps)[39m[0m
+2026-05-30T11:44:07.6485459Z [   0% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6486206Z [   0% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6487153Z [   0% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6487931Z [   1% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6488677Z [   1% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6489455Z [   1% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6490184Z [   2% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6490983Z [   2% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6491745Z [   2% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6492484Z [   3% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6493219Z [   3% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6493933Z [   3% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6494814Z [   4% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6495539Z [   4% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6496271Z [   4% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6497231Z [   5% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6498030Z [   5% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6498764Z [   5% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6499464Z [   6% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6500495Z [   6% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6501274Z [   6% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6502155Z [   7% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6502894Z [   7% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6503599Z [   7% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6504383Z [   8% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6505121Z [   8% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6505845Z [   8% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6506574Z [   9% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6507478Z [   9% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6508209Z [   9% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6508951Z [  10% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6509715Z [  10% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6510418Z [  10% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6511179Z [  11% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6511901Z [  11% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6512653Z [  11% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6513419Z [  12% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6514278Z [  12% ] [90m[1mupdate_scripts_classes[22m | GutErrorTracker[39m[0m
+2026-05-30T11:44:07.6515152Z [  12% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6516107Z [  13% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6517046Z [  13% ] [90m[1mupdate_scripts_classes[22m | GutMain[39m[0m
+2026-05-30T11:44:07.6517914Z [  13% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6518625Z [  14% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6519396Z [  14% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6520152Z [  14% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6520945Z [  15% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6521698Z [  15% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6522426Z [  15% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6523199Z [  16% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6524051Z [  16% ] [90m[1mupdate_scripts_classes[22m | GutTrackedError[39m[0m
+2026-05-30T11:44:07.6524953Z [  17% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6525836Z [  17% ] [90m[1mupdate_scripts_classes[22m | GutHookScript[39m[0m
+2026-05-30T11:44:07.6526842Z [  17% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6527702Z [  18% ] [90m[1mupdate_scripts_classes[22m | GutInputFactory[39m[0m
+2026-05-30T11:44:07.6528659Z [  18% ] [90m[1mupdate_scripts_classes[22m | GutInputSender[39m[0m
+2026-05-30T11:44:07.6529501Z [  18% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6530209Z [  19% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6531010Z [  19% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6531766Z [  19% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6532531Z [  20% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6533288Z [  20% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6534062Z [  20% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6534833Z [  21% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6535560Z [  21% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6536295Z [  21% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6537254Z [  22% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6538176Z [  22% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6538976Z [  22% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6539751Z [  23% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6540634Z [  23% ] [90m[1mupdate_scripts_classes[22m | GutStringUtils[39m[0m
+2026-05-30T11:44:07.6541447Z [  23% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6542181Z [  24% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6542954Z [  24% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6543717Z [  24% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6544586Z [  25% ] [90m[1mupdate_scripts_classes[22m | GutTest[39m[0m
+2026-05-30T11:44:07.6545352Z [  25% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6546067Z [  25% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6546978Z [  26% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6547826Z [  26% ] [90m[1mupdate_scripts_classes[22m | GutUtils[39m[0m
+2026-05-30T11:44:07.6548647Z [  26% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6549362Z [  27% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6550062Z [  27% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6550911Z [  27% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6551638Z [  28% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6552416Z [  28% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6553310Z [  28% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6554046Z [  29% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6554845Z [  29% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6555505Z [  29% ] [90m[1mupdate_scripts_classes[22m | LootDropSystem[39m[0m
+2026-05-30T11:44:07.6556341Z [  30% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6557219Z [  30% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6558061Z [  30% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6558714Z [  31% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6559432Z [  31% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6560223Z [  31% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6561009Z [  32% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6561910Z [  32% ] [90m[1mupdate_scripts_classes[22m | BossPayload[39m[0m
+2026-05-30T11:44:07.6562841Z [  32% ] [90m[1mupdate_scripts_classes[22m | CombatResolver[39m[0m
+2026-05-30T11:44:07.6563641Z [  33% ] [90m[1mupdate_scripts_classes[22m | EnemyKilledPayload[39m[0m
+2026-05-30T11:44:07.6564520Z [  33% ] [90m[1mupdate_scripts_classes[22m | IFileFactory[39m[0m
+2026-05-30T11:44:07.6565295Z [  34% ] [90m[1mupdate_scripts_classes[22m | IInputPolicy[39m[0m
+2026-05-30T11:44:07.6566366Z [  34% ] [90m[1mupdate_scripts_classes[22m | LootDrop[39m[0m
+2026-05-30T11:44:07.6567356Z [  34% ] [90m[1mupdate_scripts_classes[22m | LootDropParser[39m[0m
+2026-05-30T11:44:07.6568310Z [  35% ] [90m[1mupdate_scripts_classes[22m | LootE3Calc[39m[0m
+2026-05-30T11:44:07.6569204Z [  35% ] [90m[1mupdate_scripts_classes[22m | LootEnums[39m[0m
+2026-05-30T11:44:07.6570083Z [  35% ] [90m[1mupdate_scripts_classes[22m | LootItemCalc[39m[0m
+2026-05-30T11:44:07.6571081Z [  36% ] [90m[1mupdate_scripts_classes[22m | LootRarityCalc[39m[0m
+2026-05-30T11:44:07.6572044Z [  36% ] [90m[1mupdate_scripts_classes[22m | LootRarityConfig[39m[0m
+2026-05-30T11:44:07.6573105Z [  36% ] [90m[1mupdate_scripts_classes[22m | LootReconcileCalc[39m[0m
+2026-05-30T11:44:07.6574058Z [  37% ] [90m[1mupdate_scripts_classes[22m | LootTtlCalc[39m[0m
+2026-05-30T11:44:07.6575216Z [  37% ] [90m[1mupdate_scripts_classes[22m | SerializableResource[39m[0m
+2026-05-30T11:44:07.6576337Z [  37% ] [90m[1mupdate_scripts_classes[22m | StateTransitionPayload[39m[0m
+2026-05-30T11:44:07.6577650Z [  38% ] [90m[1mupdate_scripts_classes[22m | AttentionBudgetPolicy[39m[0m
+2026-05-30T11:44:07.6578702Z [  38% ] [90m[1mupdate_scripts_classes[22m | StateMachineSpies[39m[0m
+2026-05-30T11:44:07.6579584Z [  38% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6580434Z [  39% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6581334Z [  39% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6582093Z [  39% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6582924Z [  40% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6583690Z [  40% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6584595Z [  40% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6585391Z [  41% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6586168Z [  41% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6587121Z [  41% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6587952Z [  42% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6588779Z [  42% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6589563Z [  42% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6590338Z [  43% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6591141Z [  43% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6592168Z [  43% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6592980Z [  44% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6593763Z [  44% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6594549Z [  44% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6595435Z [  45% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6596253Z [  45% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6597183Z [  45% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6597986Z [  46% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6598768Z [  46% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6599597Z [  46% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6600413Z [  47% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6601224Z [  47% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6602013Z [  47% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6602858Z [  48% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6603693Z [  48% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6604482Z [  48% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6605300Z [  49% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6606084Z [  49% ] [90m[1mupdate_scripts_classes[22m | MockFileAccess[39m[0m
+2026-05-30T11:44:07.6607135Z [  50% ] [90m[1mupdate_scripts_classes[22m | MockFileFactory[39m[0m
+2026-05-30T11:44:07.6608114Z [  50% ] [90m[1mupdate_scripts_classes[22m | MockInputPolicy[39m[0m
+2026-05-30T11:44:07.6609070Z [  50% ] [90m[1mupdate_scripts_classes[22m | MockPersistenceLayer[39m[0m
+2026-05-30T11:44:07.6610076Z [  51% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6610860Z [  51% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6611673Z [  51% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6612502Z [  52% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6613332Z [  52% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6614162Z [  52% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6615113Z [  53% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6615932Z [  53% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6616931Z [  53% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6617745Z [  54% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6618584Z [  54% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6619363Z [  54% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6620170Z [  55% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6621024Z [  55% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6621785Z [  55% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6622626Z [  56% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6623378Z [  56% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6624295Z [  56% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6625080Z [  57% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6625819Z [  57% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6626781Z [  57% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6627624Z [  58% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6628571Z [  58% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6629378Z [  58% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6630185Z [  59% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6630984Z [  59% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6631969Z [  59% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6661608Z [  60% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6662490Z [  60% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6663146Z [  60% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6663768Z [  61% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6664393Z [  61% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6665003Z [  61% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6665618Z [  62% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6666222Z [  62% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6667082Z [  62% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6667705Z [  63% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6668329Z [  63% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6668948Z [  63% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6669555Z [  64% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6670173Z [  64% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6670787Z [  64% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6671401Z [  65% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6672011Z [  65% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6672624Z [  65% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6673252Z [  66% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6673863Z [  66% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6674472Z [  67% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6675089Z [  67% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6675717Z [  67% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6676329Z [  68% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6677025Z [  68% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6677644Z [  68% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6678456Z [  69% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6679091Z [  69% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6679714Z [  69% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6680370Z [  70% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6680982Z [  70% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6681616Z [  70% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6682228Z [  71% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6682839Z [  71% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6683455Z [  71% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6684065Z [  72% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6684681Z [  72% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6685327Z [  72% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6685979Z [  73% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6696202Z [  73% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6697351Z [  73% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6698065Z [  74% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6698774Z [  74% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6699461Z [  74% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6700138Z [  75% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6700805Z [  75% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6701651Z [  75% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6702263Z [  76% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6702803Z [  76% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6703372Z [  76% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6703896Z [  77% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6704480Z [  77% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6705112Z [  77% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6705686Z [  78% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6706289Z [  78% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6707049Z [  78% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6707683Z [  79% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6708288Z [  79% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6708867Z [  79% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6709521Z [  80% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6710226Z [  80% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6711094Z [  80% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6711730Z [  81% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6712346Z [  81% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6712985Z [  81% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6713540Z [  82% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6714132Z [  82% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6714774Z [  82% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6715352Z [  83% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6715980Z [  83% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6716744Z [  84% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6717373Z [  84% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6717988Z [  84% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6718777Z [  85% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6719372Z [  85% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6719982Z [  85% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6720637Z [  86% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6721319Z [  86% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6721959Z [  86% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6722717Z [  87% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6723362Z [  87% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6724003Z [  87% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6724632Z [  88% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6725233Z [  88% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6725882Z [  88% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6726503Z [  89% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6727351Z [  89% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6728015Z [  89% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6728679Z [  90% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6729345Z [  90% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6730026Z [  90% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6730696Z [  91% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6731368Z [  91% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6732140Z [  91% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6732804Z [  92% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6733486Z [  92% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6734167Z [  92% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6734834Z [  93% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6735493Z [  93% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6736159Z [  93% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6736911Z [  94% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6737565Z [  94% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6738181Z [  94% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6738796Z [  95% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6739433Z [  95% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6740097Z [  95% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6740756Z [  96% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6741424Z [  96% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6742093Z [  96% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6742751Z [  97% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6743416Z [  97% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6744074Z [  97% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6744735Z [  98% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6745394Z [  98% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6746054Z [  98% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6746840Z [  99% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+2026-05-30T11:44:07.6747500Z [92m[ DONE ][39m [1mupdate_scripts_classes[22m
+2026-05-30T11:44:07.6748022Z [0m
+2026-05-30T11:44:07.6748729Z [   0% ] [90m[1m_update_scan_actions[22m | Started Scanning actions... (26 steps)[39m[0m
+2026-05-30T11:44:07.6749734Z [   0% ] [90m[1m_update_scan_actions[22m | AnonymousPro-Bold.ttf[39m[0m
+2026-05-30T11:44:07.6750782Z [   3% ] [90m[1m_update_scan_actions[22m | AnonymousPro-BoldItalic.ttf[39m[0m
+2026-05-30T11:44:07.6751725Z [   7% ] [90m[1m_update_scan_actions[22m | AnonymousPro-Italic.ttf[39m[0m
+2026-05-30T11:44:07.6752619Z [  11% ] [90m[1m_update_scan_actions[22m | AnonymousPro-Regular.ttf[39m[0m
+2026-05-30T11:44:07.6753517Z [  14% ] [90m[1m_update_scan_actions[22m | CourierPrime-Bold.ttf[39m[0m
+2026-05-30T11:44:07.6754393Z [  18% ] [90m[1m_update_scan_actions[22m | CourierPrime-BoldItalic.ttf[39m[0m
+2026-05-30T11:44:07.6755325Z [  22% ] [90m[1m_update_scan_actions[22m | CourierPrime-Italic.ttf[39m[0m
+2026-05-30T11:44:07.6756412Z [  25% ] [90m[1m_update_scan_actions[22m | CourierPrime-Regular.ttf[39m[0m
+2026-05-30T11:44:07.6757404Z [  29% ] [90m[1m_update_scan_actions[22m | LobsterTwo-Bold.ttf[39m[0m
+2026-05-30T11:44:07.6758340Z [  33% ] [90m[1m_update_scan_actions[22m | LobsterTwo-BoldItalic.ttf[39m[0m
+2026-05-30T11:44:07.6759271Z [  37% ] [90m[1m_update_scan_actions[22m | LobsterTwo-Italic.ttf[39m[0m
+2026-05-30T11:44:07.6760163Z [  40% ] [90m[1m_update_scan_actions[22m | LobsterTwo-Regular.ttf[39m[0m
+2026-05-30T11:44:07.6760995Z [  44% ] [90m[1m_update_scan_actions[22m | arrow.png[39m[0m
+2026-05-30T11:44:07.6761751Z [  48% ] [90m[1m_update_scan_actions[22m | play.png[39m[0m
+2026-05-30T11:44:07.6762449Z [  51% ] [90m[1m_update_scan_actions[22m | eyey.png[39m[0m
+2026-05-30T11:44:07.6763137Z [  55% ] [90m[1m_update_scan_actions[22m | Folder.svg[39m[0m
+2026-05-30T11:44:07.6763818Z [  59% ] [90m[1m_update_scan_actions[22m | green.png[39m[0m
+2026-05-30T11:44:07.6764547Z [  62% ] [90m[1m_update_scan_actions[22m | GutIconV2_base.png[39m[0m
+2026-05-30T11:44:07.6765567Z [  66% ] [90m[1m_update_scan_actions[22m | GutIconV2_no_shine.png[39m[0m
+2026-05-30T11:44:07.6766344Z [  70% ] [90m[1m_update_scan_actions[22m | HSplitContainer.svg[39m[0m
+2026-05-30T11:44:07.6767203Z [  74% ] [90m[1m_update_scan_actions[22m | red.png[39m[0m
+2026-05-30T11:44:07.6767859Z [  77% ] [90m[1m_update_scan_actions[22m | Script.svg[39m[0m
+2026-05-30T11:44:07.6768611Z [  81% ] [90m[1m_update_scan_actions[22m | VSplitContainer.svg[39m[0m
+2026-05-30T11:44:07.6769403Z [  85% ] [90m[1m_update_scan_actions[22m | yellow.png[39m[0m
+2026-05-30T11:44:07.6770105Z [  88% ] [90m[1m_update_scan_actions[22m | icon.png[39m[0m
+2026-05-30T11:44:07.6770859Z [  92% ] [90m[1m_update_scan_actions[22m | source_code_pro.fnt[39m[0m
+2026-05-30T11:44:07.6771562Z [92m[ DONE ][39m [1m_update_scan_actions[22m
+2026-05-30T11:44:07.6772036Z [0m
+2026-05-30T11:44:07.6772663Z [   0% ] [90m[1mreimport[22m | Started (Re)Importing Assets (26 steps)[39m[0m
+2026-05-30T11:44:07.6773565Z [   0% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+2026-05-30T11:44:07.6774419Z [   3% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+2026-05-30T11:44:07.6775239Z [   7% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+2026-05-30T11:44:07.6776075Z [  11% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+2026-05-30T11:44:07.6776969Z [  14% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+2026-05-30T11:44:07.6777817Z [  18% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+2026-05-30T11:44:07.6778785Z [  22% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+2026-05-30T11:44:07.6779649Z [  25% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+2026-05-30T11:44:07.6780555Z [  29% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+2026-05-30T11:44:07.6781411Z [  33% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+2026-05-30T11:44:07.6782289Z [  37% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+2026-05-30T11:44:07.6783150Z [  40% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+2026-05-30T11:44:07.6784005Z [  44% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+2026-05-30T11:44:07.6785015Z [  48% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+2026-05-30T11:44:07.6785877Z [  51% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+2026-05-30T11:44:07.6794598Z [  55% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+2026-05-30T11:44:07.6795913Z [  59% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+2026-05-30T11:44:07.6796909Z [  62% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+2026-05-30T11:44:07.6797810Z [  66% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+2026-05-30T11:44:07.6798634Z [  70% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+2026-05-30T11:44:07.6799478Z [  74% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+2026-05-30T11:44:07.6800288Z [  77% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+2026-05-30T11:44:07.6801243Z [  81% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+2026-05-30T11:44:07.6802128Z [  85% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+2026-05-30T11:44:07.6802998Z [  88% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+2026-05-30T11:44:07.6803831Z [  92% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+2026-05-30T11:44:07.6804692Z [   0% ] [90m[1mreimport[22m | Executing pre-reimport operations...[39m[0m
+2026-05-30T11:44:07.6805465Z [   0% ] [90m[1mreimport[22m | source_code_pro.fnt[39m[0m
+2026-05-30T11:44:07.6806122Z [   3% ] [90m[1mreimport[22m | source_code_pro.fnt[39m[0m
+2026-05-30T11:44:07.6806911Z [   7% ] [90m[1mreimport[22m | LobsterTwo-Regular.ttf[39m[0m
+2026-05-30T11:44:07.6817608Z [  11% ] [90m[1mreimport[22m | LobsterTwo-Italic.ttf[39m[0m
+2026-05-30T11:44:07.6819021Z [  14% ] [90m[1mreimport[22m | LobsterTwo-BoldItalic.ttf[39m[0m
+2026-05-30T11:44:07.6820716Z [  18% ] [90m[1mreimport[22m | LobsterTwo-Bold.ttf[39m[0m
+2026-05-30T11:44:07.6843007Z [  22% ] [90m[1mreimport[22m | CourierPrime-Regular.ttf[39m[0m
+2026-05-30T11:44:07.6845911Z [  25% ] [90m[1mreimport[22m | AnonymousPro-Bold.ttf[39m[0m
+2026-05-30T11:44:07.6848783Z [  29% ] [90m[1mreimport[22m | AnonymousPro-BoldItalic.ttf[39m[0m
+2026-05-30T11:44:07.6873093Z [  33% ] [90m[1mreimport[22m | AnonymousPro-Italic.ttf[39m[0m
+2026-05-30T11:44:07.6887639Z [  37% ] [90m[1mreimport[22m | CourierPrime-Italic.ttf[39m[0m
+2026-05-30T11:44:07.6888700Z [  40% ] [90m[1mreimport[22m | CourierPrime-BoldItalic.ttf[39m[0m
+2026-05-30T11:44:07.6895721Z [  44% ] [90m[1mreimport[22m | CourierPrime-Bold.ttf[39m[0m
+2026-05-30T11:44:07.6906389Z [  48% ] [90m[1mreimport[22m | source_code_pro.fnt[39m[0m
+2026-05-30T11:44:07.6924446Z [  51% ] [90m[1mreimport[22m | LobsterTwo-Regular.ttf[39m[0m
+2026-05-30T11:44:07.6925433Z [  55% ] [90m[1mreimport[22m | LobsterTwo-Italic.ttf[39m[0m
+2026-05-30T11:44:07.6937630Z [  59% ] [90m[1mreimport[22m | LobsterTwo-BoldItalic.ttf[39m[0m
+2026-05-30T11:44:07.6947483Z [  62% ] [90m[1mreimport[22m | LobsterTwo-Bold.ttf[39m[0m
+2026-05-30T11:44:07.6967683Z [  66% ] [90m[1mreimport[22m | CourierPrime-Regular.ttf[39m[0m
+2026-05-30T11:44:07.6997501Z [  70% ] [90m[1mreimport[22m | AnonymousPro-Bold.ttf[39m[0m
+2026-05-30T11:44:07.7027489Z [  74% ] [90m[1mreimport[22m | AnonymousPro-BoldItalic.ttf[39m[0m
+2026-05-30T11:44:07.7037414Z [  77% ] [90m[1mreimport[22m | AnonymousPro-Italic.ttf[39m[0m
+2026-05-30T11:44:07.7040347Z [  81% ] [90m[1mreimport[22m | CourierPrime-Italic.ttf[39m[0m
+2026-05-30T11:44:07.7041302Z [  85% ] [90m[1mreimport[22m | CourierPrime-BoldItalic.ttf[39m[0m
+2026-05-30T11:44:07.7042360Z [  88% ] [90m[1mreimport[22m | CourierPrime-Bold.ttf[39m[0m
+2026-05-30T11:44:07.8935571Z [  92% ] [90m[1mreimport[22m | AnonymousPro-Regular.ttf[39m[0m
+2026-05-30T11:44:08.1512606Z [  96% ] [90m[1mreimport[22m | Finalizing Asset Import...[39m[0m
+2026-05-30T11:44:08.1535447Z [92m[ DONE ][39m [1mreimport[22m
+2026-05-30T11:44:08.1536145Z [0m
+2026-05-30T11:44:08.1536857Z [   0% ] [90m[1mreimport[22m | Started (Re)Importing Assets (26 steps)[39m[0m
+2026-05-30T11:44:08.1537472Z [   0% ] [90m[1mreimport[22m | Executing post-reimport operations...[39m[0m
+2026-05-30T11:44:08.1537872Z [92m[ DONE ][39m [1mreimport[22m
+2026-05-30T11:44:08.1538143Z [0m
+2026-05-30T11:44:08.1632977Z [   0% ] [90m[1mloading_editor_layout[22m | Started Loading editor (5 steps)[39m[0m
+2026-05-30T11:44:08.1633830Z [   0% ] [90m[1mloading_editor_layout[22m | Loading editor layout...[39m[0m
+2026-05-30T11:44:08.1634314Z [  16% ] [90m[1mloading_editor_layout[22m | Loading docks...[39m[0m
+2026-05-30T11:44:08.1637460Z [92m[ DONE ][39m [1mloading_editor_layout[22m
+2026-05-30T11:44:08.1637952Z [0m
+2026-05-30T11:44:09.2923841Z ##[group]Run # Each script must exit 0 on PASS, 1 on violation, 2 on internal error.
+2026-05-30T11:44:09.2924404Z [36;1m# Each script must exit 0 on PASS, 1 on violation, 2 on internal error.[0m
+2026-05-30T11:44:09.2924869Z [36;1m# Stubs push_warning + exit 0; real impls fail CI on any violation.[0m
+2026-05-30T11:44:09.2925345Z [36;1m# Failed lint blocks merging — fix the violation, never disable the lint.[0m
+2026-05-30T11:44:09.2925721Z [36;1mlint_failed=0[0m
+2026-05-30T11:44:09.2925955Z [36;1mfor lint in tools/ci/*.gd; do[0m
+2026-05-30T11:44:09.2926227Z [36;1m  echo "::group::CI Lint — $lint"[0m
+2026-05-30T11:44:09.2926524Z [36;1m  godot --headless --script "$lint"[0m
+2026-05-30T11:44:09.2927101Z [36;1m  exit_code=$?[0m
+2026-05-30T11:44:09.2927349Z [36;1m  if [ $exit_code -ne 0 ]; then[0m
+2026-05-30T11:44:09.2927700Z [36;1m    echo "::error file=$lint::Lint failed with exit code $exit_code"[0m
+2026-05-30T11:44:09.2928186Z [36;1m    lint_failed=1[0m
+2026-05-30T11:44:09.2928461Z [36;1m  fi[0m
+2026-05-30T11:44:09.2928681Z [36;1m  echo "::endgroup::"[0m
+2026-05-30T11:44:09.2928923Z [36;1mdone[0m
+2026-05-30T11:44:09.2929147Z [36;1mif [ $lint_failed -ne 0 ]; then[0m
+2026-05-30T11:44:09.2929411Z [36;1m  echo ""[0m
+2026-05-30T11:44:09.2929720Z [36;1m  echo "One or more CI lints failed. See output above for violations."[0m
+2026-05-30T11:44:09.2930066Z [36;1m  exit 1[0m
+2026-05-30T11:44:09.2930258Z [36;1mfi[0m
+2026-05-30T11:44:09.2930449Z [36;1mecho ""[0m
+2026-05-30T11:44:09.2930668Z [36;1mecho "All CI lints passed."[0m
+2026-05-30T11:44:09.2947106Z shell: /usr/bin/bash -e {0}
+2026-05-30T11:44:09.2947365Z env:
+2026-05-30T11:44:09.2947568Z   GODOT_VERSION: 4.6.0
+2026-05-30T11:44:09.2947818Z   GUT_VERSION: v9.6.0
+2026-05-30T11:44:09.2948053Z   GODOT: /home/runner/bin/godot
+2026-05-30T11:44:09.2948304Z   GODOT4: /home/runner/bin/godot
+2026-05-30T11:44:09.2948561Z ##[endgroup]
+2026-05-30T11:44:09.2983934Z ##[group]CI Lint — tools/ci/check_ability_cast_callers.gd
+2026-05-30T11:44:09.3216025Z Godot Engine v4.6.stable.official.89cea1439 - https://godotengine.org
+2026-05-30T11:44:09.3466599Z 
+2026-05-30T11:44:09.4449954Z [check_ability_cast_callers] PASS: scanned 31 file(s), 0 unauthorized cast_ability() callers
+2026-05-30T11:44:09.5416799Z SCRIPT ERROR: Parse Error: Function "_restore_pending_drops" has the same name as a previously declared function.
+2026-05-30T11:44:09.5418330Z           at: GDScript::reload (res://src/autoload/loot_drop_system.gd:657)
+2026-05-30T11:44:09.5419548Z ERROR: Failed to load script "res://src/autoload/loot_drop_system.gd" with error "Parse error".
+2026-05-30T11:44:09.5420651Z    at: load (modules/gdscript/gdscript.cpp:2907)
+2026-05-30T11:44:09.5421865Z ERROR: Failed to instantiate an autoload, script 'res://src/autoload/loot_drop_system.gd' does not inherit from 'Node'.
+2026-05-30T11:44:09.5423063Z    at: start (main/main.cpp:4407)
+2026-05-30T11:44:09.5483202Z [PersistenceLayer] initialized — autoload pos 1; substate=READY
+2026-05-30T11:44:09.5484084Z WARNING: stat.str absent — defaulting to 10.0
+2026-05-30T11:44:09.5484760Z [GameStateMachine] ready — pos 2; state=IDLE
+2026-05-30T11:44:09.5485643Z [PlatformDetect] stub initialized — autoload pos 3; implementation pending
+2026-05-30T11:44:09.5486902Z [GymSysBackendClient] stub initialized — autoload pos 4; implementation pending
+2026-05-30T11:44:09.5487824Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:09.5488494Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:09.5489218Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:09.5489983Z          [1] _ready (res://src/autoload/stat_system.gd:278)
+2026-05-30T11:44:09.5490695Z WARNING: stat.dex absent — defaulting to 10.0
+2026-05-30T11:44:09.5491349Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:09.5492046Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:09.5493117Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:09.5493872Z          [1] _ready (res://src/autoload/stat_system.gd:279)
+2026-05-30T11:44:09.5494594Z WARNING: stat.vit absent — defaulting to 10.0
+2026-05-30T11:44:09.5495253Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:09.5495928Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:09.5496774Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:09.5497523Z          [1] _ready (res://src/autoload/stat_system.gd:280)
+2026-05-30T11:44:09.5498594Z [WorkoutStateTracker] stub initialized — autoload pos 8; implementation pending
+2026-05-30T11:44:09.5499731Z [EnemyDirector] stub initialized — autoload pos 10; implementation pending
+2026-05-30T11:44:09.5500916Z [AvatarRenderer] stub initialized — autoload pos 11; BLOCKED on v2 rewrite + B2/B3/B4
+2026-05-30T11:44:09.5502315Z [ParticleSystemWrapper] stub initialized — autoload pos 12; implementation pending
+2026-05-30T11:44:09.5503523Z [CameraController] stub initialized — autoload pos 13; implementation pending
+2026-05-30T11:44:09.5504648Z [ScreenEffects] stub initialized — autoload pos 14; implementation pending
+2026-05-30T11:44:09.6454256Z ##[endgroup]
+2026-05-30T11:44:09.6455414Z ##[group]CI Lint — tools/ci/check_ability_id_magic_string.gd
+2026-05-30T11:44:09.6634808Z Godot Engine v4.6.stable.official.89cea1439 - https://godotengine.org
+2026-05-30T11:44:09.6865185Z 
+2026-05-30T11:44:09.7767023Z [check_ability_id_magic_string] PASS: scanned 31 file(s), 0 magic-string ability ids
+2026-05-30T11:44:09.8746978Z SCRIPT ERROR: Parse Error: Function "_restore_pending_drops" has the same name as a previously declared function.
+2026-05-30T11:44:09.8748124Z           at: GDScript::reload (res://src/autoload/loot_drop_system.gd:657)
+2026-05-30T11:44:09.8749127Z ERROR: Failed to load script "res://src/autoload/loot_drop_system.gd" with error "Parse error".
+2026-05-30T11:44:09.8749928Z    at: load (modules/gdscript/gdscript.cpp:2907)
+2026-05-30T11:44:09.8750863Z ERROR: Failed to instantiate an autoload, script 'res://src/autoload/loot_drop_system.gd' does not inherit from 'Node'.
+2026-05-30T11:44:09.8757698Z    at: start (main/main.cpp:4407)
+2026-05-30T11:44:09.8815925Z [PersistenceLayer] initialized — autoload pos 1; substate=READY
+2026-05-30T11:44:09.8816906Z [GameStateMachine] ready — pos 2; state=IDLE
+2026-05-30T11:44:09.8817718Z [PlatformDetect] stub initialized — autoload pos 3; implementation pending
+2026-05-30T11:44:09.8818671Z [GymSysBackendClient] stub initialized — autoload pos 4; implementation pending
+2026-05-30T11:44:09.8819518Z WARNING: stat.str absent — defaulting to 10.0
+2026-05-30T11:44:09.8820121Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:09.8820726Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:09.8821373Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:09.8822168Z          [1] _ready (res://src/autoload/stat_system.gd:278)
+2026-05-30T11:44:09.8822903Z WARNING: stat.dex absent — defaulting to 10.0
+2026-05-30T11:44:09.8823565Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:09.8824231Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:09.8824820Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:09.8825410Z          [1] _ready (res://src/autoload/stat_system.gd:279)
+2026-05-30T11:44:09.8825988Z WARNING: stat.vit absent — defaulting to 10.0
+2026-05-30T11:44:09.8826518Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:09.8827235Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:09.8827859Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:09.8828253Z          [1] _ready (res://src/autoload/stat_system.gd:280)
+2026-05-30T11:44:09.8828797Z [WorkoutStateTracker] stub initialized — autoload pos 8; implementation pending
+2026-05-30T11:44:09.8829670Z [EnemyDirector] stub initialized — autoload pos 10; implementation pending
+2026-05-30T11:44:09.8830268Z [AvatarRenderer] stub initialized — autoload pos 11; BLOCKED on v2 rewrite + B2/B3/B4
+2026-05-30T11:44:09.8830884Z [ParticleSystemWrapper] stub initialized — autoload pos 12; implementation pending
+2026-05-30T11:44:09.8831480Z [CameraController] stub initialized — autoload pos 13; implementation pending
+2026-05-30T11:44:09.8832016Z [ScreenEffects] stub initialized — autoload pos 14; implementation pending
+2026-05-30T11:44:09.9932343Z ##[endgroup]
+2026-05-30T11:44:09.9933170Z ##[group]CI Lint — tools/ci/check_ability_internal_field_access.gd
+2026-05-30T11:44:10.0126440Z Godot Engine v4.6.stable.official.89cea1439 - https://godotengine.org
+2026-05-30T11:44:10.0399088Z 
+2026-05-30T11:44:10.1277316Z [check_ability_internal_field_access] PASS: scanned 31 file(s), 0 violations
+2026-05-30T11:44:10.2264315Z SCRIPT ERROR: Parse Error: Function "_restore_pending_drops" has the same name as a previously declared function.
+2026-05-30T11:44:10.2265631Z           at: GDScript::reload (res://src/autoload/loot_drop_system.gd:657)
+2026-05-30T11:44:10.2267129Z ERROR: Failed to load script "res://src/autoload/loot_drop_system.gd" with error "Parse error".
+2026-05-30T11:44:10.2268158Z    at: load (modules/gdscript/gdscript.cpp:2907)
+2026-05-30T11:44:10.2269394Z ERROR: Failed to instantiate an autoload, script 'res://src/autoload/loot_drop_system.gd' does not inherit from 'Node'.
+2026-05-30T11:44:10.2270438Z    at: start (main/main.cpp:4407)
+2026-05-30T11:44:10.2333304Z [PersistenceLayer] initialized — autoload pos 1; substate=READY
+2026-05-30T11:44:10.2334073Z WARNING: stat.str absent — defaulting to 10.0
+2026-05-30T11:44:10.2335006Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:10.2335759Z [GameStateMachine] ready — pos 2; state=IDLE
+2026-05-30T11:44:10.2337151Z [PlatformDetect] stub initialized — autoload pos 3; implementation pending
+2026-05-30T11:44:10.2338360Z [GymSysBackendClient] stub initialized — autoload pos 4; implementation pending
+2026-05-30T11:44:10.2339555Z [WorkoutStateTracker] stub initialized — autoload pos 8; implementation pending
+2026-05-30T11:44:10.2340700Z [EnemyDirector] stub initialized — autoload pos 10; implementation pending
+2026-05-30T11:44:10.2341858Z [AvatarRenderer] stub initialized — autoload pos 11; BLOCKED on v2 rewrite + B2/B3/B4
+2026-05-30T11:44:10.2343095Z [ParticleSystemWrapper] stub initialized — autoload pos 12; implementation pending
+2026-05-30T11:44:10.2344276Z [CameraController] stub initialized — autoload pos 13; implementation pending
+2026-05-30T11:44:10.2345386Z [ScreenEffects] stub initialized — autoload pos 14; implementation pending
+2026-05-30T11:44:10.2346191Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:10.2347021Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:10.2347774Z          [1] _ready (res://src/autoload/stat_system.gd:278)
+2026-05-30T11:44:10.2348536Z WARNING: stat.dex absent — defaulting to 10.0
+2026-05-30T11:44:10.2349193Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:10.2349867Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:10.2350578Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:10.2351336Z          [1] _ready (res://src/autoload/stat_system.gd:279)
+2026-05-30T11:44:10.2352050Z WARNING: stat.vit absent — defaulting to 10.0
+2026-05-30T11:44:10.2352701Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:10.2353367Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:10.2354082Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:10.2354835Z          [1] _ready (res://src/autoload/stat_system.gd:280)
+2026-05-30T11:44:10.3388676Z ##[endgroup]
+2026-05-30T11:44:10.3389627Z ##[group]CI Lint — tools/ci/check_ability_relock.gd
+2026-05-30T11:44:10.3651951Z Godot Engine v4.6.stable.official.89cea1439 - https://godotengine.org
+2026-05-30T11:44:10.3911676Z 
+2026-05-30T11:44:10.4784618Z [check_ability_relock] PASS: scanned 31 file(s), 0 relock (erase/clear) violations
+2026-05-30T11:44:10.5764095Z SCRIPT ERROR: Parse Error: Function "_restore_pending_drops" has the same name as a previously declared function.
+2026-05-30T11:44:10.5765364Z           at: GDScript::reload (res://src/autoload/loot_drop_system.gd:657)
+2026-05-30T11:44:10.5766406Z ERROR: Failed to load script "res://src/autoload/loot_drop_system.gd" with error "Parse error".
+2026-05-30T11:44:10.5777373Z    at: load (modules/gdscript/gdscript.cpp:2907)
+2026-05-30T11:44:10.5797980Z ERROR: Failed to instantiate an autoload, script 'res://src/autoload/loot_drop_system.gd' does not inherit from 'Node'.
+2026-05-30T11:44:10.5799024Z    at: start (main/main.cpp:4407)
+2026-05-30T11:44:10.5834545Z [PersistenceLayer] initialized — autoload pos 1; substate=READY
+2026-05-30T11:44:10.5835613Z WARNING: stat.str absent — defaulting to 10.0
+2026-05-30T11:44:10.5836579Z [GameStateMachine] ready — pos 2; state=IDLE
+2026-05-30T11:44:10.5837884Z [PlatformDetect] stub initialized — autoload pos 3; implementation pending
+2026-05-30T11:44:10.5839049Z [GymSysBackendClient] stub initialized — autoload pos 4; implementation pending
+2026-05-30T11:44:10.5840388Z [WorkoutStateTracker] stub initialized — autoload pos 8; implementation pending
+2026-05-30T11:44:10.5841302Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:10.5841979Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:10.5842633Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:10.5843232Z          [1] _ready (res://src/autoload/stat_system.gd:278)
+2026-05-30T11:44:10.5843826Z WARNING: stat.dex absent — defaulting to 10.0
+2026-05-30T11:44:10.5844333Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:10.5844924Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:10.5845460Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:10.5845839Z          [1] _ready (res://src/autoload/stat_system.gd:279)
+2026-05-30T11:44:10.5846228Z WARNING: stat.vit absent — defaulting to 10.0
+2026-05-30T11:44:10.5846567Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:10.5847488Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:10.5848273Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:10.5848892Z          [1] _ready (res://src/autoload/stat_system.gd:280)
+2026-05-30T11:44:10.5849726Z [EnemyDirector] stub initialized — autoload pos 10; implementation pending
+2026-05-30T11:44:10.5850673Z [AvatarRenderer] stub initialized — autoload pos 11; BLOCKED on v2 rewrite + B2/B3/B4
+2026-05-30T11:44:10.5851687Z [ParticleSystemWrapper] stub initialized — autoload pos 12; implementation pending
+2026-05-30T11:44:10.5852724Z [CameraController] stub initialized — autoload pos 13; implementation pending
+2026-05-30T11:44:10.5853645Z [ScreenEffects] stub initialized — autoload pos 14; implementation pending
+2026-05-30T11:44:10.6898586Z ##[endgroup]
+2026-05-30T11:44:10.6899654Z ##[group]CI Lint — tools/ci/check_ability_signal_connect.gd
+2026-05-30T11:44:10.7138116Z Godot Engine v4.6.stable.official.89cea1439 - https://godotengine.org
+2026-05-30T11:44:10.7365794Z 
+2026-05-30T11:44:10.8253622Z [check_ability_signal_connect] PASS: scanned 31 file(s), 0 plain-connect violations
+2026-05-30T11:44:10.9219678Z SCRIPT ERROR: Parse Error: Function "_restore_pending_drops" has the same name as a previously declared function.
+2026-05-30T11:44:10.9220806Z           at: GDScript::reload (res://src/autoload/loot_drop_system.gd:657)
+2026-05-30T11:44:10.9221782Z ERROR: Failed to load script "res://src/autoload/loot_drop_system.gd" with error "Parse error".
+2026-05-30T11:44:10.9247808Z    at: load (modules/gdscript/gdscript.cpp:2907)
+2026-05-30T11:44:10.9250059Z ERROR: Failed to instantiate an autoload, script 'res://src/autoload/loot_drop_system.gd' does not inherit from 'Node'.
+2026-05-30T11:44:10.9251274Z    at: start (main/main.cpp:4407)
+2026-05-30T11:44:10.9290535Z [PersistenceLayer] initialized — autoload pos 1; substate=READY
+2026-05-30T11:44:10.9291359Z WARNING: stat.str absent — defaulting to 10.0
+2026-05-30T11:44:10.9291950Z [GameStateMachine] ready — pos 2; state=IDLE
+2026-05-30T11:44:10.9292698Z [PlatformDetect] stub initialized — autoload pos 3; implementation pending
+2026-05-30T11:44:10.9293682Z [GymSysBackendClient] stub initialized — autoload pos 4; implementation pending
+2026-05-30T11:44:10.9294753Z [WorkoutStateTracker] stub initialized — autoload pos 8; implementation pending
+2026-05-30T11:44:10.9295770Z [EnemyDirector] stub initialized — autoload pos 10; implementation pending
+2026-05-30T11:44:10.9297124Z [AvatarRenderer] stub initialized — autoload pos 11; BLOCKED on v2 rewrite + B2/B3/B4
+2026-05-30T11:44:10.9298638Z [ParticleSystemWrapper] stub initialized — autoload pos 12; implementation pending
+2026-05-30T11:44:10.9299563Z [CameraController] stub initialized — autoload pos 13; implementation pending
+2026-05-30T11:44:10.9300420Z [ScreenEffects] stub initialized — autoload pos 14; implementation pending
+2026-05-30T11:44:10.9302227Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:10.9302818Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:10.9303425Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:10.9304034Z          [1] _ready (res://src/autoload/stat_system.gd:278)
+2026-05-30T11:44:10.9304713Z WARNING: stat.dex absent — defaulting to 10.0
+2026-05-30T11:44:10.9305282Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:10.9305826Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:10.9306417Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:10.9307227Z          [1] _ready (res://src/autoload/stat_system.gd:279)
+2026-05-30T11:44:10.9311487Z WARNING: stat.vit absent — defaulting to 10.0
+2026-05-30T11:44:10.9312360Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:10.9313083Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:10.9314242Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:10.9315074Z          [1] _ready (res://src/autoload/stat_system.gd:280)
+2026-05-30T11:44:11.0369376Z ##[endgroup]
+2026-05-30T11:44:11.0370418Z ##[group]CI Lint — tools/ci/check_ability_unlock_callers.gd
+2026-05-30T11:44:11.0587225Z Godot Engine v4.6.stable.official.89cea1439 - https://godotengine.org
+2026-05-30T11:44:11.0905310Z 
+2026-05-30T11:44:11.1783358Z [check_ability_unlock_callers] PASS: scanned 31 file(s), 0 unauthorized unlock_ability() callers
+2026-05-30T11:44:11.2748949Z SCRIPT ERROR: Parse Error: Function "_restore_pending_drops" has the same name as a previously declared function.
+2026-05-30T11:44:11.2750392Z           at: GDScript::reload (res://src/autoload/loot_drop_system.gd:657)
+2026-05-30T11:44:11.2751645Z ERROR: Failed to load script "res://src/autoload/loot_drop_system.gd" with error "Parse error".
+2026-05-30T11:44:11.2752702Z    at: load (modules/gdscript/gdscript.cpp:2907)
+2026-05-30T11:44:11.2753884Z ERROR: Failed to instantiate an autoload, script 'res://src/autoload/loot_drop_system.gd' does not inherit from 'Node'.
+2026-05-30T11:44:11.2755048Z    at: start (main/main.cpp:4407)
+2026-05-30T11:44:11.2813490Z [PersistenceLayer] initialized — autoload pos 1; substate=READY
+2026-05-30T11:44:11.2814870Z WARNING: stat.str absent — defaulting to 10.0
+2026-05-30T11:44:11.2815524Z [GameStateMachine] ready — pos 2; state=IDLE
+2026-05-30T11:44:11.2816226Z [PlatformDetect] stub initialized — autoload pos 3; implementation pending
+2026-05-30T11:44:11.2817416Z [GymSysBackendClient] stub initialized — autoload pos 4; implementation pending
+2026-05-30T11:44:11.2818473Z [WorkoutStateTracker] stub initialized — autoload pos 8; implementation pending
+2026-05-30T11:44:11.2819802Z [EnemyDirector] stub initialized — autoload pos 10; implementation pending
+2026-05-30T11:44:11.2820969Z [AvatarRenderer] stub initialized — autoload pos 11; BLOCKED on v2 rewrite + B2/B3/B4
+2026-05-30T11:44:11.2822142Z [ParticleSystemWrapper] stub initialized — autoload pos 12; implementation pending
+2026-05-30T11:44:11.2823032Z [CameraController] stub initialized — autoload pos 13; implementation pending
+2026-05-30T11:44:11.2823865Z [ScreenEffects] stub initialized — autoload pos 14; implementation pending
+2026-05-30T11:44:11.2825050Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:11.2825510Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:11.2825915Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:11.2826305Z          [1] _ready (res://src/autoload/stat_system.gd:278)
+2026-05-30T11:44:11.2826861Z WARNING: stat.dex absent — defaulting to 10.0
+2026-05-30T11:44:11.2827431Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:11.2827782Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:11.2828149Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:11.2828522Z          [1] _ready (res://src/autoload/stat_system.gd:279)
+2026-05-30T11:44:11.2828890Z WARNING: stat.vit absent — defaulting to 10.0
+2026-05-30T11:44:11.2829221Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:11.2829561Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:11.2829914Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:11.2830283Z          [1] _ready (res://src/autoload/stat_system.gd:280)
+2026-05-30T11:44:11.3903346Z ##[endgroup]
+2026-05-30T11:44:11.3904321Z ##[group]CI Lint — tools/ci/check_camera_callers.gd
+2026-05-30T11:44:11.4084443Z Godot Engine v4.6.stable.official.89cea1439 - https://godotengine.org
+2026-05-30T11:44:11.4319174Z 
+2026-05-30T11:44:11.4927004Z WARNING: [check_camera_callers] STUB — not yet implemented
+2026-05-30T11:44:11.4927845Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:11.4928538Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:11.4929212Z          [0] _init (res://tools/ci/check_camera_callers.gd:11)
+2026-05-30T11:44:11.5907971Z SCRIPT ERROR: Parse Error: Function "_restore_pending_drops" has the same name as a previously declared function.
+2026-05-30T11:44:11.5909393Z           at: GDScript::reload (res://src/autoload/loot_drop_system.gd:657)
+2026-05-30T11:44:11.5910482Z ERROR: Failed to load script "res://src/autoload/loot_drop_system.gd" with error "Parse error".
+2026-05-30T11:44:11.5911466Z    at: load (modules/gdscript/gdscript.cpp:2907)
+2026-05-30T11:44:11.5912585Z ERROR: Failed to instantiate an autoload, script 'res://src/autoload/loot_drop_system.gd' does not inherit from 'Node'.
+2026-05-30T11:44:11.5913818Z    at: start (main/main.cpp:4407)
+2026-05-30T11:44:11.5979244Z [PersistenceLayer] initialized — autoload pos 1; substate=READY
+2026-05-30T11:44:11.5980237Z WARNING: stat.str absent — defaulting to 10.0
+2026-05-30T11:44:11.5981037Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:11.5981789Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:11.5982593Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:11.5983404Z          [1] _ready (res://src/autoload/stat_system.gd:278)
+2026-05-30T11:44:11.5984188Z WARNING: stat.dex absent — defaulting to 10.0
+2026-05-30T11:44:11.5984909Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:11.5985646Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:11.5986423Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:11.5987373Z          [1] _ready (res://src/autoload/stat_system.gd:279)
+2026-05-30T11:44:11.5988171Z WARNING: stat.vit absent — defaulting to 10.0
+2026-05-30T11:44:11.5989144Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:11.5989882Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:11.5990654Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:11.5991476Z          [1] _ready (res://src/autoload/stat_system.gd:280)
+2026-05-30T11:44:11.5992622Z [GameStateMachine] ready — pos 2; state=IDLE
+2026-05-30T11:44:11.5993746Z [PlatformDetect] stub initialized — autoload pos 3; implementation pending
+2026-05-30T11:44:11.5995040Z [GymSysBackendClient] stub initialized — autoload pos 4; implementation pending
+2026-05-30T11:44:11.5996382Z [WorkoutStateTracker] stub initialized — autoload pos 8; implementation pending
+2026-05-30T11:44:11.5997773Z [EnemyDirector] stub initialized — autoload pos 10; implementation pending
+2026-05-30T11:44:11.5999074Z [AvatarRenderer] stub initialized — autoload pos 11; BLOCKED on v2 rewrite + B2/B3/B4
+2026-05-30T11:44:11.6000587Z [ParticleSystemWrapper] stub initialized — autoload pos 12; implementation pending
+2026-05-30T11:44:11.6001901Z [CameraController] stub initialized — autoload pos 13; implementation pending
+2026-05-30T11:44:11.6003129Z [ScreenEffects] stub initialized — autoload pos 14; implementation pending
+2026-05-30T11:44:11.6377488Z ##[endgroup]
+2026-05-30T11:44:11.6378688Z ##[group]CI Lint — tools/ci/check_combat_resolver_autoload.gd
+2026-05-30T11:44:11.6625137Z Godot Engine v4.6.stable.official.89cea1439 - https://godotengine.org
+2026-05-30T11:44:11.6856912Z 
+2026-05-30T11:44:11.7485589Z [check_combat_resolver_autoload] PASS: CombatResolver is NOT a registered autoload
+2026-05-30T11:44:11.8454413Z SCRIPT ERROR: Parse Error: Function "_restore_pending_drops" has the same name as a previously declared function.
+2026-05-30T11:44:11.8455733Z           at: GDScript::reload (res://src/autoload/loot_drop_system.gd:657)
+2026-05-30T11:44:11.8456875Z ERROR: Failed to load script "res://src/autoload/loot_drop_system.gd" with error "Parse error".
+2026-05-30T11:44:11.8457864Z    at: load (modules/gdscript/gdscript.cpp:2907)
+2026-05-30T11:44:11.8458919Z ERROR: Failed to instantiate an autoload, script 'res://src/autoload/loot_drop_system.gd' does not inherit from 'Node'.
+2026-05-30T11:44:11.8459946Z    at: start (main/main.cpp:4407)
+2026-05-30T11:44:11.8523710Z [PersistenceLayer] initialized — autoload pos 1; substate=READY
+2026-05-30T11:44:11.8524655Z WARNING: stat.str absent — defaulting to 10.0
+2026-05-30T11:44:11.8525236Z [GameStateMachine] ready — pos 2; state=IDLE
+2026-05-30T11:44:11.8525941Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:11.8527004Z [PlatformDetect] stub initialized — autoload pos 3; implementation pending
+2026-05-30T11:44:11.8527811Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:11.8528736Z [GymSysBackendClient] stub initialized — autoload pos 4; implementation pending
+2026-05-30T11:44:11.8529773Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:11.8530891Z [WorkoutStateTracker] stub initialized — autoload pos 8; implementation pending
+2026-05-30T11:44:11.8531719Z          [1] _ready (res://src/autoload/stat_system.gd:278)
+2026-05-30T11:44:11.8532477Z [EnemyDirector] stub initialized — autoload pos 10; implementation pending
+2026-05-30T11:44:11.8533290Z WARNING: stat.dex absent — defaulting to 10.0
+2026-05-30T11:44:11.8534093Z [AvatarRenderer] stub initialized — autoload pos 11; BLOCKED on v2 rewrite + B2/B3/B4
+2026-05-30T11:44:11.8534827Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:11.8535481Z [ParticleSystemWrapper] stub initialized — autoload pos 12; implementation pending
+2026-05-30T11:44:11.8536099Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:11.8536736Z [CameraController] stub initialized — autoload pos 13; implementation pending
+2026-05-30T11:44:11.8537383Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:11.8537919Z [ScreenEffects] stub initialized — autoload pos 14; implementation pending
+2026-05-30T11:44:11.8538616Z          [1] _ready (res://src/autoload/stat_system.gd:279)
+2026-05-30T11:44:11.8539062Z WARNING: stat.vit absent — defaulting to 10.0
+2026-05-30T11:44:11.8539556Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:11.8540063Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:11.8540430Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:11.8540814Z          [1] _ready (res://src/autoload/stat_system.gd:280)
+2026-05-30T11:44:11.8910023Z ##[endgroup]
+2026-05-30T11:44:11.8911131Z ##[group]CI Lint — tools/ci/check_combat_resolver_engine_singletons.gd
+2026-05-30T11:44:11.9132784Z Godot Engine v4.6.stable.official.89cea1439 - https://godotengine.org
+2026-05-30T11:44:11.9456364Z 
+2026-05-30T11:44:12.0107689Z [check_combat_resolver_engine_singletons] PASS: res://src/core/combat_resolver.gd reads no engine/global singletons
+2026-05-30T11:44:12.1086217Z SCRIPT ERROR: Parse Error: Function "_restore_pending_drops" has the same name as a previously declared function.
+2026-05-30T11:44:12.1087876Z           at: GDScript::reload (res://src/autoload/loot_drop_system.gd:657)
+2026-05-30T11:44:12.1089061Z ERROR: Failed to load script "res://src/autoload/loot_drop_system.gd" with error "Parse error".
+2026-05-30T11:44:12.1090058Z    at: load (modules/gdscript/gdscript.cpp:2907)
+2026-05-30T11:44:12.1091245Z ERROR: Failed to instantiate an autoload, script 'res://src/autoload/loot_drop_system.gd' does not inherit from 'Node'.
+2026-05-30T11:44:12.1092352Z    at: start (main/main.cpp:4407)
+2026-05-30T11:44:12.1155416Z [PersistenceLayer] initialized — autoload pos 1; substate=READY
+2026-05-30T11:44:12.1156214Z WARNING: stat.str absent — defaulting to 10.0
+2026-05-30T11:44:12.1157625Z [GameStateMachine] ready — pos 2; state=IDLE
+2026-05-30T11:44:12.1158566Z [PlatformDetect] stub initialized — autoload pos 3; implementation pending
+2026-05-30T11:44:12.1159781Z [GymSysBackendClient] stub initialized — autoload pos 4; implementation pending
+2026-05-30T11:44:12.1160969Z [WorkoutStateTracker] stub initialized — autoload pos 8; implementation pending
+2026-05-30T11:44:12.1162090Z [EnemyDirector] stub initialized — autoload pos 10; implementation pending
+2026-05-30T11:44:12.1163244Z [AvatarRenderer] stub initialized — autoload pos 11; BLOCKED on v2 rewrite + B2/B3/B4
+2026-05-30T11:44:12.1164481Z [ParticleSystemWrapper] stub initialized — autoload pos 12; implementation pending
+2026-05-30T11:44:12.1165430Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:12.1166104Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:12.1166919Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:12.1167669Z          [1] _ready (res://src/autoload/stat_system.gd:278)
+2026-05-30T11:44:12.1168387Z WARNING: stat.dex absent — defaulting to 10.0
+2026-05-30T11:44:12.1169077Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:12.1169759Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:12.1170471Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:12.1171218Z          [1] _ready (res://src/autoload/stat_system.gd:279)
+2026-05-30T11:44:12.1171942Z WARNING: stat.vit absent — defaulting to 10.0
+2026-05-30T11:44:12.1172597Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:12.1173262Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:12.1173969Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:12.1174712Z          [1] _ready (res://src/autoload/stat_system.gd:280)
+2026-05-30T11:44:12.1175667Z [CameraController] stub initialized — autoload pos 13; implementation pending
+2026-05-30T11:44:12.1176898Z [ScreenEffects] stub initialized — autoload pos 14; implementation pending
+2026-05-30T11:44:12.1589453Z ##[endgroup]
+2026-05-30T11:44:12.1590488Z ##[group]CI Lint — tools/ci/check_combat_resolver_purity.gd
+2026-05-30T11:44:12.1769703Z Godot Engine v4.6.stable.official.89cea1439 - https://godotengine.org
+2026-05-30T11:44:12.1997785Z 
+2026-05-30T11:44:12.2665920Z [check_combat_resolver_purity] PASS: res://src/core/combat_resolver.gd is pure (static func / const / inner class only)
+2026-05-30T11:44:12.3634105Z SCRIPT ERROR: Parse Error: Function "_restore_pending_drops" has the same name as a previously declared function.
+2026-05-30T11:44:12.3635463Z           at: GDScript::reload (res://src/autoload/loot_drop_system.gd:657)
+2026-05-30T11:44:12.3636544Z ERROR: Failed to load script "res://src/autoload/loot_drop_system.gd" with error "Parse error".
+2026-05-30T11:44:12.3637638Z    at: load (modules/gdscript/gdscript.cpp:2907)
+2026-05-30T11:44:12.3638762Z ERROR: Failed to instantiate an autoload, script 'res://src/autoload/loot_drop_system.gd' does not inherit from 'Node'.
+2026-05-30T11:44:12.3639860Z    at: start (main/main.cpp:4407)
+2026-05-30T11:44:12.3701030Z [PersistenceLayer] initialized — autoload pos 1; substate=READY
+2026-05-30T11:44:12.3701988Z WARNING: stat.str absent — defaulting to 10.0
+2026-05-30T11:44:12.3702660Z [GameStateMachine] ready — pos 2; state=IDLE
+2026-05-30T11:44:12.3703619Z [PlatformDetect] stub initialized — autoload pos 3; implementation pending
+2026-05-30T11:44:12.3704834Z [GymSysBackendClient] stub initialized — autoload pos 4; implementation pending
+2026-05-30T11:44:12.3706069Z [WorkoutStateTracker] stub initialized — autoload pos 8; implementation pending
+2026-05-30T11:44:12.3707353Z [EnemyDirector] stub initialized — autoload pos 10; implementation pending
+2026-05-30T11:44:12.3708328Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:12.3709382Z [AvatarRenderer] stub initialized — autoload pos 11; BLOCKED on v2 rewrite + B2/B3/B4
+2026-05-30T11:44:12.3710323Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:12.3711118Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:12.3711984Z          [1] _ready (res://src/autoload/stat_system.gd:278)
+2026-05-30T11:44:12.3712710Z WARNING: stat.dex absent — defaulting to 10.0
+2026-05-30T11:44:12.3713373Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:12.3714046Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:12.3714761Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:12.3715518Z          [1] _ready (res://src/autoload/stat_system.gd:279)
+2026-05-30T11:44:12.3716227Z WARNING: stat.vit absent — defaulting to 10.0
+2026-05-30T11:44:12.3716966Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:12.3717633Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:12.3718350Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:12.3719088Z          [1] _ready (res://src/autoload/stat_system.gd:280)
+2026-05-30T11:44:12.3720106Z [ParticleSystemWrapper] stub initialized — autoload pos 12; implementation pending
+2026-05-30T11:44:12.3721305Z [CameraController] stub initialized — autoload pos 13; implementation pending
+2026-05-30T11:44:12.3722417Z [ScreenEffects] stub initialized — autoload pos 14; implementation pending
+2026-05-30T11:44:12.4056734Z ##[endgroup]
+2026-05-30T11:44:12.4057864Z ##[group]CI Lint — tools/ci/check_combat_resolver_randf.gd
+2026-05-30T11:44:12.4235247Z Godot Engine v4.6.stable.official.89cea1439 - https://godotengine.org
+2026-05-30T11:44:12.4505552Z 
+2026-05-30T11:44:12.5160556Z [check_combat_resolver_randf] PASS: res://src/core/combat_resolver.gd makes no global/owned RNG calls
+2026-05-30T11:44:12.6135809Z SCRIPT ERROR: Parse Error: Function "_restore_pending_drops" has the same name as a previously declared function.
+2026-05-30T11:44:12.6137344Z           at: GDScript::reload (res://src/autoload/loot_drop_system.gd:657)
+2026-05-30T11:44:12.6138435Z ERROR: Failed to load script "res://src/autoload/loot_drop_system.gd" with error "Parse error".
+2026-05-30T11:44:12.6139766Z    at: load (modules/gdscript/gdscript.cpp:2907)
+2026-05-30T11:44:12.6140906Z ERROR: Failed to instantiate an autoload, script 'res://src/autoload/loot_drop_system.gd' does not inherit from 'Node'.
+2026-05-30T11:44:12.6142001Z    at: start (main/main.cpp:4407)
+2026-05-30T11:44:12.6202623Z [PersistenceLayer] initialized — autoload pos 1; substate=READY
+2026-05-30T11:44:12.6203418Z WARNING: stat.str absent — defaulting to 10.0
+2026-05-30T11:44:12.6204034Z [GameStateMachine] ready — pos 2; state=IDLE
+2026-05-30T11:44:12.6204907Z [PlatformDetect] stub initialized — autoload pos 3; implementation pending
+2026-05-30T11:44:12.6206018Z [GymSysBackendClient] stub initialized — autoload pos 4; implementation pending
+2026-05-30T11:44:12.6207171Z [WorkoutStateTracker] stub initialized — autoload pos 8; implementation pending
+2026-05-30T11:44:12.6208308Z [EnemyDirector] stub initialized — autoload pos 10; implementation pending
+2026-05-30T11:44:12.6209732Z [AvatarRenderer] stub initialized — autoload pos 11; BLOCKED on v2 rewrite + B2/B3/B4
+2026-05-30T11:44:12.6210842Z [ParticleSystemWrapper] stub initialized — autoload pos 12; implementation pending
+2026-05-30T11:44:12.6211781Z [CameraController] stub initialized — autoload pos 13; implementation pending
+2026-05-30T11:44:12.6212612Z [ScreenEffects] stub initialized — autoload pos 14; implementation pending
+2026-05-30T11:44:12.6213992Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:12.6214600Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:12.6215239Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:12.6215762Z          [1] _ready (res://src/autoload/stat_system.gd:278)
+2026-05-30T11:44:12.6216375Z WARNING: stat.dex absent — defaulting to 10.0
+2026-05-30T11:44:12.6217026Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:12.6217529Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:12.6218121Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:12.6218648Z          [1] _ready (res://src/autoload/stat_system.gd:279)
+2026-05-30T11:44:12.6219242Z WARNING: stat.vit absent — defaulting to 10.0
+2026-05-30T11:44:12.6219733Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:12.6220225Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:12.6220799Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:12.6221305Z          [1] _ready (res://src/autoload/stat_system.gd:280)
+2026-05-30T11:44:12.6566278Z ##[endgroup]
+2026-05-30T11:44:12.6567696Z ##[group]CI Lint — tools/ci/check_combat_resolver_stat_calls.gd
+2026-05-30T11:44:12.6745693Z Godot Engine v4.6.stable.official.89cea1439 - https://godotengine.org
+2026-05-30T11:44:12.7014307Z 
+2026-05-30T11:44:12.7659280Z [check_combat_resolver_stat_calls] PASS: res://src/core/combat_resolver.gd makes no direct StatSystem reads
+2026-05-30T11:44:12.8633421Z SCRIPT ERROR: Parse Error: Function "_restore_pending_drops" has the same name as a previously declared function.
+2026-05-30T11:44:12.8634146Z           at: GDScript::reload (res://src/autoload/loot_drop_system.gd:657)
+2026-05-30T11:44:12.8634968Z ERROR: Failed to load script "res://src/autoload/loot_drop_system.gd" with error "Parse error".
+2026-05-30T11:44:12.8635762Z    at: load (modules/gdscript/gdscript.cpp:2907)
+2026-05-30T11:44:12.8636356Z ERROR: Failed to instantiate an autoload, script 'res://src/autoload/loot_drop_system.gd' does not inherit from 'Node'.
+2026-05-30T11:44:12.8637001Z    at: start (main/main.cpp:4407)
+2026-05-30T11:44:12.8699537Z [PersistenceLayer] initialized — autoload pos 1; substate=READY
+2026-05-30T11:44:12.8700369Z WARNING: stat.str absent — defaulting to 10.0
+2026-05-30T11:44:12.8700975Z [GameStateMachine] ready — pos 2; state=IDLE
+2026-05-30T11:44:12.8701680Z [PlatformDetect] stub initialized — autoload pos 3; implementation pending
+2026-05-30T11:44:12.8702731Z [GymSysBackendClient] stub initialized — autoload pos 4; implementation pending
+2026-05-30T11:44:12.8704004Z [WorkoutStateTracker] stub initialized — autoload pos 8; implementation pending
+2026-05-30T11:44:12.8705155Z [EnemyDirector] stub initialized — autoload pos 10; implementation pending
+2026-05-30T11:44:12.8706323Z [AvatarRenderer] stub initialized — autoload pos 11; BLOCKED on v2 rewrite + B2/B3/B4
+2026-05-30T11:44:12.8707768Z [ParticleSystemWrapper] stub initialized — autoload pos 12; implementation pending
+2026-05-30T11:44:12.8708680Z [CameraController] stub initialized — autoload pos 13; implementation pending
+2026-05-30T11:44:12.8709524Z [ScreenEffects] stub initialized — autoload pos 14; implementation pending
+2026-05-30T11:44:12.8710226Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:12.8710791Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:12.8711413Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:12.8712292Z          [1] _ready (res://src/autoload/stat_system.gd:278)
+2026-05-30T11:44:12.8712958Z WARNING: stat.dex absent — defaulting to 10.0
+2026-05-30T11:44:12.8713529Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:12.8714106Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:12.8714694Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:12.8715307Z          [1] _ready (res://src/autoload/stat_system.gd:279)
+2026-05-30T11:44:12.8715933Z WARNING: stat.vit absent — defaulting to 10.0
+2026-05-30T11:44:12.8716477Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:12.8717187Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:12.8717779Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:12.8718420Z          [1] _ready (res://src/autoload/stat_system.gd:280)
+2026-05-30T11:44:12.9070078Z ##[endgroup]
+2026-05-30T11:44:12.9071059Z ##[group]CI Lint — tools/ci/check_connect_for_initial_state_bind.gd
+2026-05-30T11:44:12.9247694Z Godot Engine v4.6.stable.official.89cea1439 - https://godotengine.org
+2026-05-30T11:44:12.9477809Z 
+2026-05-30T11:44:13.0407027Z PASS: scanned 31 file(s), 0 violations
+2026-05-30T11:44:13.1383054Z SCRIPT ERROR: Parse Error: Function "_restore_pending_drops" has the same name as a previously declared function.
+2026-05-30T11:44:13.1383738Z           at: GDScript::reload (res://src/autoload/loot_drop_system.gd:657)
+2026-05-30T11:44:13.1384468Z ERROR: Failed to load script "res://src/autoload/loot_drop_system.gd" with error "Parse error".
+2026-05-30T11:44:13.1385212Z    at: load (modules/gdscript/gdscript.cpp:2907)
+2026-05-30T11:44:13.1385940Z ERROR: Failed to instantiate an autoload, script 'res://src/autoload/loot_drop_system.gd' does not inherit from 'Node'.
+2026-05-30T11:44:13.1386444Z    at: start (main/main.cpp:4407)
+2026-05-30T11:44:13.1448788Z [PersistenceLayer] initialized — autoload pos 1; substate=READY
+2026-05-30T11:44:13.1449367Z [GameStateMachine] ready — pos 2; state=IDLE
+2026-05-30T11:44:13.1449843Z [PlatformDetect] stub initialized — autoload pos 3; implementation pending
+2026-05-30T11:44:13.1450452Z [GymSysBackendClient] stub initialized — autoload pos 4; implementation pending
+2026-05-30T11:44:13.1451388Z [WorkoutStateTracker] stub initialized — autoload pos 8; implementation pending
+2026-05-30T11:44:13.1452172Z [EnemyDirector] stub initialized — autoload pos 10; implementation pending
+2026-05-30T11:44:13.1452998Z [AvatarRenderer] stub initialized — autoload pos 11; BLOCKED on v2 rewrite + B2/B3/B4
+2026-05-30T11:44:13.1453824Z [ParticleSystemWrapper] stub initialized — autoload pos 12; implementation pending
+2026-05-30T11:44:13.1454389Z [CameraController] stub initialized — autoload pos 13; implementation pending
+2026-05-30T11:44:13.1454915Z [ScreenEffects] stub initialized — autoload pos 14; implementation pending
+2026-05-30T11:44:13.1457409Z WARNING: stat.str absent — defaulting to 10.0
+2026-05-30T11:44:13.1457942Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:13.1458660Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:13.1459106Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:13.1459502Z          [1] _ready (res://src/autoload/stat_system.gd:278)
+2026-05-30T11:44:13.1459877Z WARNING: stat.dex absent — defaulting to 10.0
+2026-05-30T11:44:13.1460221Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:13.1460564Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:13.1460941Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:13.1461318Z          [1] _ready (res://src/autoload/stat_system.gd:279)
+2026-05-30T11:44:13.1461680Z WARNING: stat.vit absent — defaulting to 10.0
+2026-05-30T11:44:13.1462010Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:13.1462345Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:13.1462821Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:13.1463193Z          [1] _ready (res://src/autoload/stat_system.gd:280)
+2026-05-30T11:44:13.2471686Z ##[endgroup]
+2026-05-30T11:44:13.2472330Z ##[group]CI Lint — tools/ci/check_debug_override_calls.gd
+2026-05-30T11:44:13.2654000Z Godot Engine v4.6.stable.official.89cea1439 - https://godotengine.org
+2026-05-30T11:44:13.2883228Z 
+2026-05-30T11:44:13.3528995Z [check_debug_override_calls] PASS: branch '8/merge' is not a release branch — DEBUG_OVERRIDE permitted
+2026-05-30T11:44:13.4487180Z SCRIPT ERROR: Parse Error: Function "_restore_pending_drops" has the same name as a previously declared function.
+2026-05-30T11:44:13.4488306Z           at: GDScript::reload (res://src/autoload/loot_drop_system.gd:657)
+2026-05-30T11:44:13.4489293Z ERROR: Failed to load script "res://src/autoload/loot_drop_system.gd" with error "Parse error".
+2026-05-30T11:44:13.4490063Z    at: load (modules/gdscript/gdscript.cpp:2907)
+2026-05-30T11:44:13.4491059Z ERROR: Failed to instantiate an autoload, script 'res://src/autoload/loot_drop_system.gd' does not inherit from 'Node'.
+2026-05-30T11:44:13.4492011Z    at: start (main/main.cpp:4407)
+2026-05-30T11:44:13.4554794Z [PersistenceLayer] initialized — autoload pos 1; substate=READY
+2026-05-30T11:44:13.4555561Z [GameStateMachine] ready — pos 2; state=IDLE
+2026-05-30T11:44:13.4556114Z [PlatformDetect] stub initialized — autoload pos 3; implementation pending
+2026-05-30T11:44:13.4556963Z WARNING: stat.str absent — defaulting to 10.0
+2026-05-30T11:44:13.4557376Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:13.4557729Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:13.4558119Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:13.4558506Z          [1] _ready (res://src/autoload/stat_system.gd:278)
+2026-05-30T11:44:13.4558882Z WARNING: stat.dex absent — defaulting to 10.0
+2026-05-30T11:44:13.4559263Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:13.4559623Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:13.4559985Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:13.4560357Z          [1] _ready (res://src/autoload/stat_system.gd:279)
+2026-05-30T11:44:13.4560718Z WARNING: stat.vit absent — defaulting to 10.0
+2026-05-30T11:44:13.4561052Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:13.4561382Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:13.4561738Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:13.4562108Z          [1] _ready (res://src/autoload/stat_system.gd:280)
+2026-05-30T11:44:13.4562599Z [GymSysBackendClient] stub initialized — autoload pos 4; implementation pending
+2026-05-30T11:44:13.4563163Z [WorkoutStateTracker] stub initialized — autoload pos 8; implementation pending
+2026-05-30T11:44:13.4563948Z [EnemyDirector] stub initialized — autoload pos 10; implementation pending
+2026-05-30T11:44:13.4564857Z [AvatarRenderer] stub initialized — autoload pos 11; BLOCKED on v2 rewrite + B2/B3/B4
+2026-05-30T11:44:13.4565478Z [ParticleSystemWrapper] stub initialized — autoload pos 12; implementation pending
+2026-05-30T11:44:13.4566047Z [CameraController] stub initialized — autoload pos 13; implementation pending
+2026-05-30T11:44:13.4566579Z [ScreenEffects] stub initialized — autoload pos 14; implementation pending
+2026-05-30T11:44:13.4938914Z ##[endgroup]
+2026-05-30T11:44:13.4939767Z ##[group]CI Lint — tools/ci/check_local_storage_calls.gd
+2026-05-30T11:44:13.5115066Z Godot Engine v4.6.stable.official.89cea1439 - https://godotengine.org
+2026-05-30T11:44:13.5343012Z 
+2026-05-30T11:44:13.5945169Z WARNING: [check_local_storage_calls] STUB — not yet implemented
+2026-05-30T11:44:13.5945972Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:13.5946589Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:13.5947839Z          [0] _init (res://tools/ci/check_local_storage_calls.gd:11)
+2026-05-30T11:44:13.6911423Z SCRIPT ERROR: Parse Error: Function "_restore_pending_drops" has the same name as a previously declared function.
+2026-05-30T11:44:13.6912642Z           at: GDScript::reload (res://src/autoload/loot_drop_system.gd:657)
+2026-05-30T11:44:13.6913546Z ERROR: Failed to load script "res://src/autoload/loot_drop_system.gd" with error "Parse error".
+2026-05-30T11:44:13.6914357Z    at: load (modules/gdscript/gdscript.cpp:2907)
+2026-05-30T11:44:13.6915292Z ERROR: Failed to instantiate an autoload, script 'res://src/autoload/loot_drop_system.gd' does not inherit from 'Node'.
+2026-05-30T11:44:13.6916205Z    at: start (main/main.cpp:4407)
+2026-05-30T11:44:13.6978252Z [PersistenceLayer] initialized — autoload pos 1; substate=READY
+2026-05-30T11:44:13.6979049Z [GameStateMachine] ready — pos 2; state=IDLE
+2026-05-30T11:44:13.6979843Z [PlatformDetect] stub initialized — autoload pos 3; implementation pending
+2026-05-30T11:44:13.6980811Z [GymSysBackendClient] stub initialized — autoload pos 4; implementation pending
+2026-05-30T11:44:13.6981702Z WARNING: stat.str absent — defaulting to 10.0
+2026-05-30T11:44:13.6982305Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:13.6982896Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:13.6983615Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:13.6984360Z          [1] _ready (res://src/autoload/stat_system.gd:278)
+2026-05-30T11:44:13.6985067Z WARNING: stat.dex absent — defaulting to 10.0
+2026-05-30T11:44:13.6985729Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:13.6986256Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:13.6987064Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:13.6987634Z          [1] _ready (res://src/autoload/stat_system.gd:279)
+2026-05-30T11:44:13.6988288Z WARNING: stat.vit absent — defaulting to 10.0
+2026-05-30T11:44:13.6988818Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:13.6989299Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:13.6989653Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:13.6990021Z          [1] _ready (res://src/autoload/stat_system.gd:280)
+2026-05-30T11:44:13.6990525Z [WorkoutStateTracker] stub initialized — autoload pos 8; implementation pending
+2026-05-30T11:44:13.6991074Z [EnemyDirector] stub initialized — autoload pos 10; implementation pending
+2026-05-30T11:44:13.6991641Z [AvatarRenderer] stub initialized — autoload pos 11; BLOCKED on v2 rewrite + B2/B3/B4
+2026-05-30T11:44:13.6992237Z [ParticleSystemWrapper] stub initialized — autoload pos 12; implementation pending
+2026-05-30T11:44:13.6992807Z [CameraController] stub initialized — autoload pos 13; implementation pending
+2026-05-30T11:44:13.6993365Z [ScreenEffects] stub initialized — autoload pos 14; implementation pending
+2026-05-30T11:44:13.7409231Z ##[endgroup]
+2026-05-30T11:44:13.7410400Z ##[group]CI Lint — tools/ci/check_loot_ceremony_cap.gd
+2026-05-30T11:44:13.7584562Z Godot Engine v4.6.stable.official.89cea1439 - https://godotengine.org
+2026-05-30T11:44:13.7811861Z 
+2026-05-30T11:44:13.8485188Z [check_loot_ceremony_cap] PASS: every loot_dropped emit is preceded by a _ceremony_cap_check in its function
+2026-05-30T11:44:13.9459793Z SCRIPT ERROR: Parse Error: Function "_restore_pending_drops" has the same name as a previously declared function.
+2026-05-30T11:44:13.9460867Z           at: GDScript::reload (res://src/autoload/loot_drop_system.gd:657)
+2026-05-30T11:44:13.9461496Z ERROR: Failed to load script "res://src/autoload/loot_drop_system.gd" with error "Parse error".
+2026-05-30T11:44:13.9461957Z    at: load (modules/gdscript/gdscript.cpp:2907)
+2026-05-30T11:44:13.9462479Z ERROR: Failed to instantiate an autoload, script 'res://src/autoload/loot_drop_system.gd' does not inherit from 'Node'.
+2026-05-30T11:44:13.9463275Z    at: start (main/main.cpp:4407)
+2026-05-30T11:44:13.9525133Z [PersistenceLayer] initialized — autoload pos 1; substate=READY
+2026-05-30T11:44:13.9525923Z WARNING: stat.str absent — defaulting to 10.0
+2026-05-30T11:44:13.9526520Z [GameStateMachine] ready — pos 2; state=IDLE
+2026-05-30T11:44:13.9527424Z [PlatformDetect] stub initialized — autoload pos 3; implementation pending
+2026-05-30T11:44:13.9528438Z [GymSysBackendClient] stub initialized — autoload pos 4; implementation pending
+2026-05-30T11:44:13.9529614Z [WorkoutStateTracker] stub initialized — autoload pos 8; implementation pending
+2026-05-30T11:44:13.9530754Z [EnemyDirector] stub initialized — autoload pos 10; implementation pending
+2026-05-30T11:44:13.9531975Z [AvatarRenderer] stub initialized — autoload pos 11; BLOCKED on v2 rewrite + B2/B3/B4
+2026-05-30T11:44:13.9533233Z [ParticleSystemWrapper] stub initialized — autoload pos 12; implementation pending
+2026-05-30T11:44:13.9534224Z [CameraController] stub initialized — autoload pos 13; implementation pending
+2026-05-30T11:44:13.9535218Z [ScreenEffects] stub initialized — autoload pos 14; implementation pending
+2026-05-30T11:44:13.9536162Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:13.9536857Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:13.9537515Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:13.9538172Z          [1] _ready (res://src/autoload/stat_system.gd:278)
+2026-05-30T11:44:13.9538825Z WARNING: stat.dex absent — defaulting to 10.0
+2026-05-30T11:44:13.9539381Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:13.9539946Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:13.9540535Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:13.9541142Z          [1] _ready (res://src/autoload/stat_system.gd:279)
+2026-05-30T11:44:13.9554756Z WARNING: stat.vit absent — defaulting to 10.0
+2026-05-30T11:44:13.9555310Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:13.9555848Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:13.9557548Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:13.9558158Z          [1] _ready (res://src/autoload/stat_system.gd:280)
+2026-05-30T11:44:13.9863250Z ##[endgroup]
+2026-05-30T11:44:13.9863927Z ##[group]CI Lint — tools/ci/check_loot_config_hash_pinned.gd
+2026-05-30T11:44:14.0040922Z Godot Engine v4.6.stable.official.89cea1439 - https://godotengine.org
+2026-05-30T11:44:14.0271000Z 
+2026-05-30T11:44:14.1039729Z [check_loot_config_hash_pinned] PASS (no pin yet): `loot_rarity_config_sha256` absent/placeholder in entities.yaml — config not yet locked
+2026-05-30T11:44:14.2002707Z SCRIPT ERROR: Parse Error: Function "_restore_pending_drops" has the same name as a previously declared function.
+2026-05-30T11:44:14.2003681Z           at: GDScript::reload (res://src/autoload/loot_drop_system.gd:657)
+2026-05-30T11:44:14.2005206Z ERROR: Failed to load script "res://src/autoload/loot_drop_system.gd" with error "Parse error".
+2026-05-30T11:44:14.2005964Z    at: load (modules/gdscript/gdscript.cpp:2907)
+2026-05-30T11:44:14.2007012Z ERROR: Failed to instantiate an autoload, script 'res://src/autoload/loot_drop_system.gd' does not inherit from 'Node'.
+2026-05-30T11:44:14.2007588Z    at: start (main/main.cpp:4407)
+2026-05-30T11:44:14.2069768Z [PersistenceLayer] initialized — autoload pos 1; substate=READY
+2026-05-30T11:44:14.2070457Z WARNING: stat.str absent — defaulting to 10.0
+2026-05-30T11:44:14.2070836Z [GameStateMachine] ready — pos 2; state=IDLE
+2026-05-30T11:44:14.2071356Z [PlatformDetect] stub initialized — autoload pos 3; implementation pending
+2026-05-30T11:44:14.2072192Z [GymSysBackendClient] stub initialized — autoload pos 4; implementation pending
+2026-05-30T11:44:14.2072761Z [WorkoutStateTracker] stub initialized — autoload pos 8; implementation pending
+2026-05-30T11:44:14.2073517Z [EnemyDirector] stub initialized — autoload pos 10; implementation pending
+2026-05-30T11:44:14.2074087Z [AvatarRenderer] stub initialized — autoload pos 11; BLOCKED on v2 rewrite + B2/B3/B4
+2026-05-30T11:44:14.2074672Z [ParticleSystemWrapper] stub initialized — autoload pos 12; implementation pending
+2026-05-30T11:44:14.2075233Z [CameraController] stub initialized — autoload pos 13; implementation pending
+2026-05-30T11:44:14.2075768Z [ScreenEffects] stub initialized — autoload pos 14; implementation pending
+2026-05-30T11:44:14.2077503Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:14.2078081Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:14.2078459Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:14.2078845Z          [1] _ready (res://src/autoload/stat_system.gd:278)
+2026-05-30T11:44:14.2079309Z WARNING: stat.dex absent — defaulting to 10.0
+2026-05-30T11:44:14.2079729Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:14.2080083Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:14.2080451Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:14.2080831Z          [1] _ready (res://src/autoload/stat_system.gd:279)
+2026-05-30T11:44:14.2081194Z WARNING: stat.vit absent — defaulting to 10.0
+2026-05-30T11:44:14.2081522Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:14.2081855Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:14.2082211Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:14.2082579Z          [1] _ready (res://src/autoload/stat_system.gd:280)
+2026-05-30T11:44:14.2322914Z ##[endgroup]
+2026-05-30T11:44:14.2323638Z ##[group]CI Lint — tools/ci/check_loot_e3_termination_guard.gd
+2026-05-30T11:44:14.2502459Z Godot Engine v4.6.stable.official.89cea1439 - https://godotengine.org
+2026-05-30T11:44:14.2731246Z 
+2026-05-30T11:44:14.3394151Z [check_loot_e3_termination_guard] PASS: expected_weekly_rarity_distribution not yet implemented — nothing to guard
+2026-05-30T11:44:14.4358926Z SCRIPT ERROR: Parse Error: Function "_restore_pending_drops" has the same name as a previously declared function.
+2026-05-30T11:44:14.4360021Z           at: GDScript::reload (res://src/autoload/loot_drop_system.gd:657)
+2026-05-30T11:44:14.4360926Z ERROR: Failed to load script "res://src/autoload/loot_drop_system.gd" with error "Parse error".
+2026-05-30T11:44:14.4361586Z    at: load (modules/gdscript/gdscript.cpp:2907)
+2026-05-30T11:44:14.4362110Z ERROR: Failed to instantiate an autoload, script 'res://src/autoload/loot_drop_system.gd' does not inherit from 'Node'.
+2026-05-30T11:44:14.4362613Z    at: start (main/main.cpp:4407)
+2026-05-30T11:44:14.4422646Z [PersistenceLayer] initialized — autoload pos 1; substate=READY
+2026-05-30T11:44:14.4423359Z [GameStateMachine] ready — pos 2; state=IDLE
+2026-05-30T11:44:14.4423818Z [PlatformDetect] stub initialized — autoload pos 3; implementation pending
+2026-05-30T11:44:14.4424867Z [GymSysBackendClient] stub initialized — autoload pos 4; implementation pending
+2026-05-30T11:44:14.4425406Z WARNING: stat.str absent — defaulting to 10.0
+2026-05-30T11:44:14.4425750Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:14.4426098Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:14.4426471Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:14.4427153Z          [1] _ready (res://src/autoload/stat_system.gd:278)
+2026-05-30T11:44:14.4427519Z WARNING: stat.dex absent — defaulting to 10.0
+2026-05-30T11:44:14.4427851Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:14.4428194Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:14.4428553Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:14.4428931Z          [1] _ready (res://src/autoload/stat_system.gd:279)
+2026-05-30T11:44:14.4429470Z WARNING: stat.vit absent — defaulting to 10.0
+2026-05-30T11:44:14.4429812Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:14.4430146Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:14.4430517Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:14.4430887Z          [1] _ready (res://src/autoload/stat_system.gd:280)
+2026-05-30T11:44:14.4431361Z [WorkoutStateTracker] stub initialized — autoload pos 8; implementation pending
+2026-05-30T11:44:14.4431912Z [EnemyDirector] stub initialized — autoload pos 10; implementation pending
+2026-05-30T11:44:14.4432728Z [AvatarRenderer] stub initialized — autoload pos 11; BLOCKED on v2 rewrite + B2/B3/B4
+2026-05-30T11:44:14.4433338Z [ParticleSystemWrapper] stub initialized — autoload pos 12; implementation pending
+2026-05-30T11:44:14.4433895Z [CameraController] stub initialized — autoload pos 13; implementation pending
+2026-05-30T11:44:14.4434425Z [ScreenEffects] stub initialized — autoload pos 14; implementation pending
+2026-05-30T11:44:14.4782432Z ##[endgroup]
+2026-05-30T11:44:14.4783116Z ##[group]CI Lint — tools/ci/check_loot_final_boss_reservation.gd
+2026-05-30T11:44:14.4960456Z Godot Engine v4.6.stable.official.89cea1439 - https://godotengine.org
+2026-05-30T11:44:14.5185081Z 
+2026-05-30T11:44:14.5844819Z [check_loot_final_boss_reservation] PASS: no FINAL_BOSS code path reaches for the mini emit pool
+2026-05-30T11:44:14.6809842Z SCRIPT ERROR: Parse Error: Function "_restore_pending_drops" has the same name as a previously declared function.
+2026-05-30T11:44:14.6810505Z           at: GDScript::reload (res://src/autoload/loot_drop_system.gd:657)
+2026-05-30T11:44:14.6811198Z ERROR: Failed to load script "res://src/autoload/loot_drop_system.gd" with error "Parse error".
+2026-05-30T11:44:14.6811686Z    at: load (modules/gdscript/gdscript.cpp:2907)
+2026-05-30T11:44:14.6812364Z ERROR: Failed to instantiate an autoload, script 'res://src/autoload/loot_drop_system.gd' does not inherit from 'Node'.
+2026-05-30T11:44:14.6812903Z    at: start (main/main.cpp:4407)
+2026-05-30T11:44:14.6877075Z [PersistenceLayer] initialized — autoload pos 1; substate=READY
+2026-05-30T11:44:14.6877899Z WARNING: stat.str absent — defaulting to 10.0
+2026-05-30T11:44:14.6878481Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:14.6879021Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:14.6879672Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:14.6880387Z          [1] _ready (res://src/autoload/stat_system.gd:278)
+2026-05-30T11:44:14.6881058Z WARNING: stat.dex absent — defaulting to 10.0
+2026-05-30T11:44:14.6881622Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:14.6882290Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:14.6883000Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:14.6883750Z          [1] _ready (res://src/autoload/stat_system.gd:279)
+2026-05-30T11:44:14.6884487Z WARNING: stat.vit absent — defaulting to 10.0
+2026-05-30T11:44:14.6885397Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:14.6885941Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:14.6886494Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:14.6887247Z          [1] _ready (res://src/autoload/stat_system.gd:280)
+2026-05-30T11:44:14.6887891Z [GameStateMachine] ready — pos 2; state=IDLE
+2026-05-30T11:44:14.6888496Z [PlatformDetect] stub initialized — autoload pos 3; implementation pending
+2026-05-30T11:44:14.6889306Z [GymSysBackendClient] stub initialized — autoload pos 4; implementation pending
+2026-05-30T11:44:14.6890336Z [WorkoutStateTracker] stub initialized — autoload pos 8; implementation pending
+2026-05-30T11:44:14.6891235Z [EnemyDirector] stub initialized — autoload pos 10; implementation pending
+2026-05-30T11:44:14.6892168Z [AvatarRenderer] stub initialized — autoload pos 11; BLOCKED on v2 rewrite + B2/B3/B4
+2026-05-30T11:44:14.6893443Z [ParticleSystemWrapper] stub initialized — autoload pos 12; implementation pending
+2026-05-30T11:44:14.6894396Z [CameraController] stub initialized — autoload pos 13; implementation pending
+2026-05-30T11:44:14.6895296Z [ScreenEffects] stub initialized — autoload pos 14; implementation pending
+2026-05-30T11:44:14.7237790Z ##[endgroup]
+2026-05-30T11:44:14.7238460Z ##[group]CI Lint — tools/ci/check_loot_force_drop_debug_only.gd
+2026-05-30T11:44:14.7413595Z Godot Engine v4.6.stable.official.89cea1439 - https://godotengine.org
+2026-05-30T11:44:14.7640228Z 
+2026-05-30T11:44:14.8613144Z [check_loot_force_drop_debug_only] PASS: scanned 31 file(s), every _force_test_drop caller co-locates an OS.is_debug_build() guard
+2026-05-30T11:44:14.9575952Z SCRIPT ERROR: Parse Error: Function "_restore_pending_drops" has the same name as a previously declared function.
+2026-05-30T11:44:14.9576909Z           at: GDScript::reload (res://src/autoload/loot_drop_system.gd:657)
+2026-05-30T11:44:14.9578386Z ERROR: Failed to load script "res://src/autoload/loot_drop_system.gd" with error "Parse error".
+2026-05-30T11:44:14.9579174Z    at: load (modules/gdscript/gdscript.cpp:2907)
+2026-05-30T11:44:14.9579802Z ERROR: Failed to instantiate an autoload, script 'res://src/autoload/loot_drop_system.gd' does not inherit from 'Node'.
+2026-05-30T11:44:14.9580299Z    at: start (main/main.cpp:4407)
+2026-05-30T11:44:14.9642349Z [PersistenceLayer] initialized — autoload pos 1; substate=READY
+2026-05-30T11:44:14.9643080Z WARNING: stat.str absent — defaulting to 10.0
+2026-05-30T11:44:14.9643626Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:14.9644015Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:14.9644648Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:14.9645048Z          [1] _ready (res://src/autoload/stat_system.gd:278)
+2026-05-30T11:44:14.9645418Z WARNING: stat.dex absent — defaulting to 10.0
+2026-05-30T11:44:14.9645775Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:14.9646121Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:14.9646478Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:14.9647067Z          [1] _ready (res://src/autoload/stat_system.gd:279)
+2026-05-30T11:44:14.9647442Z [GameStateMachine] ready — pos 2; state=IDLE
+2026-05-30T11:44:14.9647895Z [PlatformDetect] stub initialized — autoload pos 3; implementation pending
+2026-05-30T11:44:14.9648462Z [GymSysBackendClient] stub initialized — autoload pos 4; implementation pending
+2026-05-30T11:44:14.9648920Z WARNING: stat.vit absent — defaulting to 10.0
+2026-05-30T11:44:14.9649249Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:14.9649585Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:14.9649944Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:14.9650319Z          [1] _ready (res://src/autoload/stat_system.gd:280)
+2026-05-30T11:44:14.9651040Z [WorkoutStateTracker] stub initialized — autoload pos 8; implementation pending
+2026-05-30T11:44:14.9651665Z [EnemyDirector] stub initialized — autoload pos 10; implementation pending
+2026-05-30T11:44:14.9652239Z [AvatarRenderer] stub initialized — autoload pos 11; BLOCKED on v2 rewrite + B2/B3/B4
+2026-05-30T11:44:14.9652830Z [ParticleSystemWrapper] stub initialized — autoload pos 12; implementation pending
+2026-05-30T11:44:14.9653397Z [CameraController] stub initialized — autoload pos 13; implementation pending
+2026-05-30T11:44:14.9653928Z [ScreenEffects] stub initialized — autoload pos 14; implementation pending
+2026-05-30T11:44:15.0625028Z ##[endgroup]
+2026-05-30T11:44:15.0625887Z ##[group]CI Lint — tools/ci/check_loot_generator_callers.gd
+2026-05-30T11:44:15.0801739Z Godot Engine v4.6.stable.official.89cea1439 - https://godotengine.org
+2026-05-30T11:44:15.1030498Z 
+2026-05-30T11:44:15.1908308Z [check_loot_generator_callers] PASS: scanned 31 file(s), 0 unauthorized _generate_loot_internal() callers
+2026-05-30T11:44:15.2864474Z SCRIPT ERROR: Parse Error: Function "_restore_pending_drops" has the same name as a previously declared function.
+2026-05-30T11:44:15.2865135Z           at: GDScript::reload (res://src/autoload/loot_drop_system.gd:657)
+2026-05-30T11:44:15.2866237Z ERROR: Failed to load script "res://src/autoload/loot_drop_system.gd" with error "Parse error".
+2026-05-30T11:44:15.2866901Z    at: load (modules/gdscript/gdscript.cpp:2907)
+2026-05-30T11:44:15.2867619Z ERROR: Failed to instantiate an autoload, script 'res://src/autoload/loot_drop_system.gd' does not inherit from 'Node'.
+2026-05-30T11:44:15.2868121Z    at: start (main/main.cpp:4407)
+2026-05-30T11:44:15.2929919Z [PersistenceLayer] initialized — autoload pos 1; substate=READY
+2026-05-30T11:44:15.2930688Z WARNING: stat.str absent — defaulting to 10.0
+2026-05-30T11:44:15.2931042Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:15.2931409Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:15.2932055Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:15.2932471Z          [1] _ready (res://src/autoload/stat_system.gd:278)
+2026-05-30T11:44:15.2932847Z WARNING: stat.dex absent — defaulting to 10.0
+2026-05-30T11:44:15.2933185Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:15.2933529Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:15.2933887Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:15.2934260Z          [1] _ready (res://src/autoload/stat_system.gd:279)
+2026-05-30T11:44:15.2934618Z WARNING: stat.vit absent — defaulting to 10.0
+2026-05-30T11:44:15.2934951Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:15.2935288Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:15.2935636Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:15.2936021Z          [1] _ready (res://src/autoload/stat_system.gd:280)
+2026-05-30T11:44:15.2936379Z [GameStateMachine] ready — pos 2; state=IDLE
+2026-05-30T11:44:15.2937032Z [PlatformDetect] stub initialized — autoload pos 3; implementation pending
+2026-05-30T11:44:15.2937593Z [GymSysBackendClient] stub initialized — autoload pos 4; implementation pending
+2026-05-30T11:44:15.2938163Z [WorkoutStateTracker] stub initialized — autoload pos 8; implementation pending
+2026-05-30T11:44:15.2938943Z [EnemyDirector] stub initialized — autoload pos 10; implementation pending
+2026-05-30T11:44:15.2939520Z [AvatarRenderer] stub initialized — autoload pos 11; BLOCKED on v2 rewrite + B2/B3/B4
+2026-05-30T11:44:15.2940105Z [ParticleSystemWrapper] stub initialized — autoload pos 12; implementation pending
+2026-05-30T11:44:15.2940663Z [CameraController] stub initialized — autoload pos 13; implementation pending
+2026-05-30T11:44:15.2941189Z [ScreenEffects] stub initialized — autoload pos 14; implementation pending
+2026-05-30T11:44:15.4022701Z ##[endgroup]
+2026-05-30T11:44:15.4023636Z ##[group]CI Lint — tools/ci/check_loot_namespace_writers.gd
+2026-05-30T11:44:15.4198456Z Godot Engine v4.6.stable.official.89cea1439 - https://godotengine.org
+2026-05-30T11:44:15.4429125Z 
+2026-05-30T11:44:15.5314349Z [check_loot_namespace_writers] PASS: scanned 31 file(s), 0 unauthorized loot.* namespace writers
+2026-05-30T11:44:15.6285286Z SCRIPT ERROR: Parse Error: Function "_restore_pending_drops" has the same name as a previously declared function.
+2026-05-30T11:44:15.6286426Z           at: GDScript::reload (res://src/autoload/loot_drop_system.gd:657)
+2026-05-30T11:44:15.6287473Z ERROR: Failed to load script "res://src/autoload/loot_drop_system.gd" with error "Parse error".
+2026-05-30T11:44:15.6288083Z    at: load (modules/gdscript/gdscript.cpp:2907)
+2026-05-30T11:44:15.6288611Z ERROR: Failed to instantiate an autoload, script 'res://src/autoload/loot_drop_system.gd' does not inherit from 'Node'.
+2026-05-30T11:44:15.6289415Z    at: start (main/main.cpp:4407)
+2026-05-30T11:44:15.6348850Z [PersistenceLayer] initialized — autoload pos 1; substate=READY
+2026-05-30T11:44:15.6349620Z WARNING: stat.str absent — defaulting to 10.0
+2026-05-30T11:44:15.6350218Z [GameStateMachine] ready — pos 2; state=IDLE
+2026-05-30T11:44:15.6350925Z [PlatformDetect] stub initialized — autoload pos 3; implementation pending
+2026-05-30T11:44:15.6351961Z [GymSysBackendClient] stub initialized — autoload pos 4; implementation pending
+2026-05-30T11:44:15.6353125Z [WorkoutStateTracker] stub initialized — autoload pos 8; implementation pending
+2026-05-30T11:44:15.6354282Z [EnemyDirector] stub initialized — autoload pos 10; implementation pending
+2026-05-30T11:44:15.6355516Z [AvatarRenderer] stub initialized — autoload pos 11; BLOCKED on v2 rewrite + B2/B3/B4
+2026-05-30T11:44:15.6356916Z [ParticleSystemWrapper] stub initialized — autoload pos 12; implementation pending
+2026-05-30T11:44:15.6357807Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:15.6358628Z [CameraController] stub initialized — autoload pos 13; implementation pending
+2026-05-30T11:44:15.6359297Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:15.6359837Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:15.6360225Z          [1] _ready (res://src/autoload/stat_system.gd:278)
+2026-05-30T11:44:15.6360618Z WARNING: stat.dex absent — defaulting to 10.0
+2026-05-30T11:44:15.6360963Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:15.6361299Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:15.6361657Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:15.6362037Z          [1] _ready (res://src/autoload/stat_system.gd:279)
+2026-05-30T11:44:15.6362406Z WARNING: stat.vit absent — defaulting to 10.0
+2026-05-30T11:44:15.6362740Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:15.6363089Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:15.6363454Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:15.6363837Z          [1] _ready (res://src/autoload/stat_system.gd:280)
+2026-05-30T11:44:15.6364290Z [ScreenEffects] stub initialized — autoload pos 14; implementation pending
+2026-05-30T11:44:15.7421361Z ##[endgroup]
+2026-05-30T11:44:15.7422327Z ##[group]CI Lint — tools/ci/check_loot_rng_seeded.gd
+2026-05-30T11:44:15.7606076Z Godot Engine v4.6.stable.official.89cea1439 - https://godotengine.org
+2026-05-30T11:44:15.7837880Z 
+2026-05-30T11:44:15.8500797Z res://src/autoload/loot_drop_system.gd:423:45: global/un-seeded RNG forbidden — loot rolls must use the owned, transition_id-seeded `_rng` (ADR-0005, AC-26)
+2026-05-30T11:44:15.8501994Z   > return "D-%d-%d" % [Time.get_ticks_msec(), randi()]
+2026-05-30T11:44:15.8502224Z 
+2026-05-30T11:44:15.8502349Z [check_loot_rng_seeded] FAIL: 1 violation(s).
+2026-05-30T11:44:15.9461358Z SCRIPT ERROR: Parse Error: Function "_restore_pending_drops" has the same name as a previously declared function.
+2026-05-30T11:44:15.9462848Z           at: GDScript::reload (res://src/autoload/loot_drop_system.gd:657)
+2026-05-30T11:44:15.9463765Z ERROR: Failed to load script "res://src/autoload/loot_drop_system.gd" with error "Parse error".
+2026-05-30T11:44:15.9464577Z    at: load (modules/gdscript/gdscript.cpp:2907)
+2026-05-30T11:44:15.9465500Z ERROR: Failed to instantiate an autoload, script 'res://src/autoload/loot_drop_system.gd' does not inherit from 'Node'.
+2026-05-30T11:44:15.9466055Z    at: start (main/main.cpp:4407)
+2026-05-30T11:44:15.9527081Z [PersistenceLayer] initialized — autoload pos 1; substate=READY
+2026-05-30T11:44:15.9527711Z [GameStateMachine] ready — pos 2; state=IDLE
+2026-05-30T11:44:15.9528189Z [PlatformDetect] stub initialized — autoload pos 3; implementation pending
+2026-05-30T11:44:15.9528800Z [GymSysBackendClient] stub initialized — autoload pos 4; implementation pending
+2026-05-30T11:44:15.9529761Z WARNING: stat.str absent — defaulting to 10.0
+2026-05-30T11:44:15.9530172Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:15.9530515Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:15.9530888Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:15.9531267Z          [1] _ready (res://src/autoload/stat_system.gd:278)
+2026-05-30T11:44:15.9531634Z WARNING: stat.dex absent — defaulting to 10.0
+2026-05-30T11:44:15.9531962Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:15.9532298Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:15.9532652Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:15.9533026Z          [1] _ready (res://src/autoload/stat_system.gd:279)
+2026-05-30T11:44:15.9533376Z WARNING: stat.vit absent — defaulting to 10.0
+2026-05-30T11:44:15.9533701Z      at: push_warning (core/variant/variant_utility.cpp:1034)
+2026-05-30T11:44:15.9534043Z      GDScript backtrace (most recent call first):
+2026-05-30T11:44:15.9534401Z          [0] _reconcile_base_stat (res://src/autoload/stat_system.gd:307)
+2026-05-30T11:44:15.9534768Z          [1] _ready (res://src/autoload/stat_system.gd:280)
+2026-05-30T11:44:15.9535243Z [WorkoutStateTracker] stub initialized — autoload pos 8; implementation pending
+2026-05-30T11:44:15.9535958Z [EnemyDirector] stub initialized — autoload pos 10; implementation pending
+2026-05-30T11:44:15.9536530Z [AvatarRenderer] stub initialized — autoload pos 11; BLOCKED on v2 rewrite + B2/B3/B4
+2026-05-30T11:44:15.9537547Z [ParticleSystemWrapper] stub initialized — autoload pos 12; implementation pending
+2026-05-30T11:44:15.9538263Z [CameraController] stub initialized — autoload pos 13; implementation pending
+2026-05-30T11:44:15.9538787Z [ScreenEffects] stub initialized — autoload pos 14; implementation pending
+2026-05-30T11:44:15.9908202Z ##[error]Process completed with exit code 1.
+2026-05-30T11:44:15.9981862Z ##[group]Run actions/upload-artifact@v4
+2026-05-30T11:44:15.9982148Z with:
+2026-05-30T11:44:15.9982342Z   name: test-results
+2026-05-30T11:44:15.9982563Z   path: test-results/
+2026-05-30T11:44:15.9982782Z   retention-days: 30
+2026-05-30T11:44:15.9982997Z   if-no-files-found: warn
+2026-05-30T11:44:15.9983230Z   compression-level: 6
+2026-05-30T11:44:15.9983443Z   overwrite: false
+2026-05-30T11:44:15.9983658Z   include-hidden-files: false
+2026-05-30T11:44:15.9983885Z env:
+2026-05-30T11:44:15.9984072Z   GODOT_VERSION: 4.6.0
+2026-05-30T11:44:15.9984290Z   GUT_VERSION: v9.6.0
+2026-05-30T11:44:15.9984514Z   GODOT: /home/runner/bin/godot
+2026-05-30T11:44:15.9984765Z   GODOT4: /home/runner/bin/godot
+2026-05-30T11:44:15.9985004Z ##[endgroup]
+2026-05-30T11:44:16.1994894Z ##[warning]No files were found with the provided path: test-results/. No artifacts will be uploaded.
+2026-05-30T11:44:16.2137663Z ##[group]Run mikepenz/action-junit-report@v4
+2026-05-30T11:44:16.2137974Z with:
+2026-05-30T11:44:16.2138224Z   report_paths: test-results/junit.xml
+2026-05-30T11:44:16.2138495Z   fail_on_failure: true
+2026-05-30T11:44:16.2141185Z   token: ***
+2026-05-30T11:44:16.2141399Z   annotate_only: false
+2026-05-30T11:44:16.2141624Z   check_annotations: true
+2026-05-30T11:44:16.2141861Z   update_check: false
+2026-05-30T11:44:16.2142084Z   check_name: JUnit Test Report
+2026-05-30T11:44:16.2142332Z   require_tests: false
+2026-05-30T11:44:16.2142579Z   require_passed_tests: false
+2026-05-30T11:44:16.2142831Z   include_passed: false
+2026-05-30T11:44:16.2143050Z   check_retries: false
+2026-05-30T11:44:16.2143268Z   transformers: []
+2026-05-30T11:44:16.2143472Z   job_summary: true
+2026-05-30T11:44:16.2143683Z   detailed_summary: false
+2026-05-30T11:44:16.2143906Z   annotate_notice: false
+2026-05-30T11:44:16.2144128Z   follow_symlink: false
+2026-05-30T11:44:16.2144337Z   job_name: test
+2026-05-30T11:44:16.2144580Z   truncate_stack_traces: true
+2026-05-30T11:44:16.2144813Z env:
+2026-05-30T11:44:16.2144995Z   GODOT_VERSION: 4.6.0
+2026-05-30T11:44:16.2145338Z   GUT_VERSION: v9.6.0
+2026-05-30T11:44:16.2145566Z   GODOT: /home/runner/bin/godot
+2026-05-30T11:44:16.2145811Z   GODOT4: /home/runner/bin/godot
+2026-05-30T11:44:16.2146057Z ##[endgroup]
+2026-05-30T11:44:16.3013290Z ##[group]📘 Reading input values
+2026-05-30T11:44:16.3015898Z ##[endgroup]
+2026-05-30T11:44:16.3016393Z ##[group]📦 Process test results
+2026-05-30T11:44:16.3016948Z Preparing 1 report as configured.
+2026-05-30T11:44:16.3051097Z Found and parsed 0 test report files.
+2026-05-30T11:44:16.3060816Z ℹ️ Posting with conclusion 'success' to https://github.com/RcProHK/Claude-Code-Game-Studios/pull/8 (sha: c6aebec4fbd19314004cd701427b8c498607156e)
+2026-05-30T11:44:16.3061717Z ##[endgroup]
+2026-05-30T11:44:16.3067706Z ##[group]🚀 Publish results
+2026-05-30T11:44:16.3068355Z ℹ️ - JUnit Test Report - No test results found!
+2026-05-30T11:44:16.3071950Z ℹ️ - JUnit Test Report - Creating check (Annotations: 0)
+2026-05-30T11:44:16.8160690Z ⚠️ No annotations found for JUnit Test Report. If you want to include passed results in this table please configure 'include_passed' as 'true'
+2026-05-30T11:44:16.8178743Z ##[endgroup]
+2026-05-30T11:44:16.8917232Z Post job cleanup.
+2026-05-30T11:44:16.9814263Z [command]/usr/bin/git version
+2026-05-30T11:44:16.9846574Z git version 2.54.0
+2026-05-30T11:44:16.9894395Z Temporarily overriding HOME='/home/runner/work/_temp/fc435a5b-1f3f-4862-a953-19ca0a256acf' before making global git config changes
+2026-05-30T11:44:16.9895163Z Adding repository directory to the temporary git global config as a safe directory
+2026-05-30T11:44:16.9899696Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Claude-Code-Game-Studios/Claude-Code-Game-Studios
+2026-05-30T11:44:16.9930191Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-05-30T11:44:16.9959260Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-05-30T11:44:17.0135282Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-05-30T11:44:17.0156411Z http.https://github.com/.extraheader
+2026-05-30T11:44:17.0166521Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-05-30T11:44:17.0191068Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-05-30T11:44:17.0357772Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-05-30T11:44:17.0382208Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-05-30T11:44:17.0639130Z Cleaning up orphan processes
+2026-05-30T11:44:17.0956946Z ##[warning]Node.js 20 actions are deprecated. The following actions are running on Node.js 20 and may not work as expected: actions/checkout@v4, actions/upload-artifact@v4, mikepenz/action-junit-report@v4. Actions will be forced to run with Node.js 24 by default starting June 16th, 2026. Node.js 20 will be removed from the runner on September 16th, 2026. Please check if updated versions of these actions are available that support Node.js 24. To opt into Node.js 24 now, set the FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true environment variable on the runner or in your workflow file. Once Node.js 24 becomes the default, you can temporarily opt out by setting ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

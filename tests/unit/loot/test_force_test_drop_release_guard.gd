@@ -12,6 +12,10 @@
 ## to simulate release behavior. This is the same pattern used in StatSystem.
 extends GutTest
 
+## Autoload script preloaded as a const (shadows the LootDropSystem autoload
+## global so tests can call .new() / access enums + constants on the class).
+const LootDropSystem := preload("res://src/autoload/loot_drop_system.gd")
+
 
 var _sut: LootDropSystem
 var _config: LootRarityConfig
