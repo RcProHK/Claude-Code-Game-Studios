@@ -49,7 +49,7 @@ func test_boot_first_time_defaults_all_base_stats_to_ten() -> void:
 	# Arrange: empty persistence (no stat.* keys) — done in before_each.
 	# Act
 	add_child_autofree(_sut)  # triggers _ready()
-	await _sut.ready
+	await get_tree().process_frame  # _ready() already ran synchronously in add_child; settle one frame (awaiting _sut.ready would hang — it already fired)
 
 	# Assert: AC-10 — every base stat falls back to the 10.0 default.
 	assert_eq(_sut.get_stat(_sut.StatId.STR), 10.0, "AC-10: STR must default to 10.0 on first boot")
@@ -60,7 +60,7 @@ func test_boot_first_time_defaults_all_base_stats_to_ten() -> void:
 func test_boot_first_time_reaches_ready_substate() -> void:
 	# Act
 	add_child_autofree(_sut)
-	await _sut.ready
+	await get_tree().process_frame  # _ready() already ran synchronously in add_child; settle one frame (awaiting _sut.ready would hang — it already fired)
 
 	# Assert: AC-10 — boot completes into READY.
 	assert_eq(_sut._substate, StatSystem.Substate.READY,
@@ -73,7 +73,7 @@ func test_boot_first_time_emits_boot_completed_exactly_once() -> void:
 
 	# Act
 	add_child_autofree(_sut)
-	await _sut.ready
+	await get_tree().process_frame  # _ready() already ran synchronously in add_child; settle one frame (awaiting _sut.ready would hang — it already fired)
 
 	# Assert: AC-22 — boot_completed emits exactly once.
 	assert_signal_emit_count(_sut, "boot_completed", 1,
@@ -86,7 +86,7 @@ func test_boot_first_time_emits_no_stat_changed_during_boot() -> void:
 
 	# Act
 	add_child_autofree(_sut)
-	await _sut.ready
+	await get_tree().process_frame  # _ready() already ran synchronously in add_child; settle one frame (awaiting _sut.ready would hang — it already fired)
 
 	# Assert: AC-10 — no stat_changed during boot (subscribers connect via
 	# connect_for_initial_state AFTER boot, never during it).
@@ -97,7 +97,7 @@ func test_boot_first_time_emits_no_stat_changed_during_boot() -> void:
 func test_boot_first_time_subscribes_to_gsm_once() -> void:
 	# Act
 	add_child_autofree(_sut)
-	await _sut.ready
+	await get_tree().process_frame  # _ready() already ran synchronously in add_child; settle one frame (awaiting _sut.ready would hang — it already fired)
 
 	# Assert: AC-22 — GSM subscription wired via connect_for_initial_state.
 	assert_eq(_mock_gsm.connect_for_initial_state_call_count, 1,

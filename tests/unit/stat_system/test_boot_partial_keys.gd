@@ -46,7 +46,7 @@ func test_boot_partial_keys_uses_persisted_and_defaults_missing() -> void:
 
 	# Act
 	add_child_autofree(_sut)
-	await _sut.ready
+	await get_tree().process_frame  # _ready() already ran synchronously in add_child; settle one frame (awaiting _sut.ready would hang — it already fired)
 
 	# Assert: AC-11 — persisted values verbatim, missing key defaulted.
 	assert_eq(_sut.get_stat(_sut.StatId.STR), 25.0, "AC-11: persisted STR must be used as-is")
@@ -61,7 +61,7 @@ func test_boot_partial_keys_reaches_ready() -> void:
 
 	# Act
 	add_child_autofree(_sut)
-	await _sut.ready
+	await get_tree().process_frame  # _ready() already ran synchronously in add_child; settle one frame (awaiting _sut.ready would hang — it already fired)
 
 	# Assert: a partial-key boot still completes cleanly.
 	assert_eq(_sut._substate, StatSystem.Substate.READY,
@@ -76,7 +76,7 @@ func test_boot_partial_keys_no_critical_failure() -> void:
 
 	# Act
 	add_child_autofree(_sut)
-	await _sut.ready
+	await get_tree().process_frame  # _ready() already ran synchronously in add_child; settle one frame (awaiting _sut.ready would hang — it already fired)
 
 	# Assert: a merely-absent key is a warning path, NOT a critical-save failure.
 	assert_signal_emit_count(_sut, "stat_critical_save_failed", 0,

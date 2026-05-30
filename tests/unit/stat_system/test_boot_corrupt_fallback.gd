@@ -45,7 +45,7 @@ func test_boot_corrupt_nan_falls_back_to_default() -> void:
 
 	# Act
 	add_child_autofree(_sut)
-	await _sut.ready
+	await get_tree().process_frame  # _ready() already ran synchronously in add_child; settle one frame (awaiting _sut.ready would hang — it already fired)
 
 	# Assert: AC-12 — corrupt value replaced by the 10.0 default.
 	assert_eq(_sut.get_stat(_sut.StatId.STR), 10.0,
@@ -59,7 +59,7 @@ func test_boot_corrupt_nan_emits_critical_save_failed() -> void:
 
 	# Act
 	add_child_autofree(_sut)
-	await _sut.ready
+	await get_tree().process_frame  # _ready() already ran synchronously in add_child; settle one frame (awaiting _sut.ready would hang — it already fired)
 
 	# Assert: AC-12 — the corrupt stat raises stat_critical_save_failed(STR).
 	assert_signal_emit_count(_sut, "stat_critical_save_failed", 1,
@@ -75,7 +75,7 @@ func test_boot_corrupt_nan_still_reaches_ready() -> void:
 
 	# Act
 	add_child_autofree(_sut)
-	await _sut.ready
+	await get_tree().process_frame  # _ready() already ran synchronously in add_child; settle one frame (awaiting _sut.ready would hang — it already fired)
 
 	# Assert: AC-12 — degraded mode: one corrupt stat must NOT prevent boot.
 	assert_eq(_sut._substate, StatSystem.Substate.READY,
@@ -89,7 +89,7 @@ func test_boot_corrupt_inf_falls_back_to_default() -> void:
 
 	# Act
 	add_child_autofree(_sut)
-	await _sut.ready
+	await get_tree().process_frame  # _ready() already ran synchronously in add_child; settle one frame (awaiting _sut.ready would hang — it already fired)
 
 	# Assert: AC-12 — Inf is treated identically to NaN.
 	assert_eq(_sut.get_stat(_sut.StatId.VIT), 10.0,
@@ -104,7 +104,7 @@ func test_boot_below_floor_clamps_to_zero() -> void:
 
 	# Act
 	add_child_autofree(_sut)
-	await _sut.ready
+	await get_tree().process_frame  # _ready() already ran synchronously in add_child; settle one frame (awaiting _sut.ready would hang — it already fired)
 
 	# Assert: AC-12b — clamp up to the floor.
 	assert_eq(_sut.get_stat(_sut.StatId.DEX), 0.0,
@@ -117,7 +117,7 @@ func test_boot_above_ceiling_clamps_to_max() -> void:
 
 	# Act
 	add_child_autofree(_sut)
-	await _sut.ready
+	await get_tree().process_frame  # _ready() already ran synchronously in add_child; settle one frame (awaiting _sut.ready would hang — it already fired)
 
 	# Assert: AC-12b — clamp down to MAX_STAT_VALUE.
 	assert_eq(_sut.get_stat(_sut.StatId.VIT), StatSystem.MAX_STAT_VALUE,
@@ -133,7 +133,7 @@ func test_boot_clamp_is_not_a_critical_failure() -> void:
 
 	# Act
 	add_child_autofree(_sut)
-	await _sut.ready
+	await get_tree().process_frame  # _ready() already ran synchronously in add_child; settle one frame (awaiting _sut.ready would hang — it already fired)
 
 	# Assert: AC-12b — clamping does not raise stat_critical_save_failed.
 	assert_signal_emit_count(_sut, "stat_critical_save_failed", 0,
