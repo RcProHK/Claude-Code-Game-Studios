@@ -47,8 +47,8 @@ func test_fresh_instance_after_modifier_has_empty_table() -> void:
 	var instance_b = StatSystem.new()
 	assert_eq(instance_b._equipment_modifiers.size(), 0,
 		"a second instance must start empty — equipment modifiers are not persisted/shared")
-	assert_eq(instance_b.get_stat(instance_b.StatId.MAX_HP), 0.0,
-		"instance B MAX_HP must be the 0.0 baseline, unaffected by instance A's modifier")
+	assert_eq(instance_b.get_stat(instance_b.StatId.MAX_HP), 160.0,
+		"instance B MAX_HP must be the F3 formula baseline (160), unaffected by instance A's modifier")
 	instance_b.free()
 
 
@@ -60,5 +60,5 @@ func test_modifier_affects_derived_not_base() -> void:
 
 	assert_eq(_sut._base, base_snapshot,
 		"_base must be byte-identical before and after an equipment modifier (no base write)")
-	assert_eq(_sut.get_stat(_sut.StatId.MAX_HP), 50.0,
-		"get_stat(MAX_HP) must reflect the +50 equipment delta via the derived path")
+	assert_eq(_sut.get_stat(_sut.StatId.MAX_HP), 210.0,
+		"get_stat(MAX_HP) must reflect the F3 baseline (160) + the +50 equipment delta")

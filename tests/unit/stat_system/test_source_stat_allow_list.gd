@@ -15,8 +15,11 @@ var _stat: Node = null
 
 func before_each() -> void:
 	# Fresh un-parented instance — _ready() never runs, so STR holds default 10.0
-	# (the AC-05 GIVEN precondition "STR=10").
+	# (the AC-05 GIVEN precondition "STR=10"). Inject a mock persistence so the
+	# Story 006 persist-first path in apply_stat_delta has a backing store (an
+	# un-parented instance never boots, so _persistence would otherwise be null).
 	_stat = preload("res://src/autoload/stat_system.gd").new()
+	_stat._persistence = MockPersistenceLayer.new()
 	watch_signals(_stat)
 
 

@@ -625,6 +625,16 @@ func flush_for_source(source: StatSource) -> bool:
 ## change only through apply_stat_delta (Rule 2). This path NEVER persists (AC-07) and
 ## NEVER calls apply_stat_delta.
 func apply_equipment_modifier(equipment_id: StringName, modifier: StatModifier) -> void:
+	# Story 009 / AC-20b — mutation API uniform Suspended gate. The equipment path is
+	# gated identically to apply_stat_delta: while GSM holds us Suspended (or mid-
+	# Reconciling) the modifier is rejected — not stored, no stat_changed — and a
+	# rejection is broadcast with the &"equipment" sentinel stat_id (deltas may be empty).
+	if _is_mutation_gated():
+		push_warning("[StatSystem] apply_equipment_modifier: rejected during %s substate (AC-20b)"
+			% Substate.keys()[_substate])
+		stat_mutation_rejected.emit(&"equipment", StatSource.EQUIPMENT, 0.0, "suspended_substate")
+		return
+
 	# Capture old derived values for every derived stat this modifier (new or prior) touches.
 	var affected: Dictionary = _collect_affected_derived(equipment_id, modifier)
 	var old_values: Dictionary = {}
@@ -643,6 +653,14 @@ func apply_equipment_modifier(equipment_id: StringName, modifier: StatModifier) 
 ## Otherwise captures old derived values, removes the modifier, recomputes, and emits
 ## stat_changed for each derived stat that the removed modifier affected.
 func remove_equipment_modifier(equipment_id: StringName) -> void:
+	# Story 009 / AC-20b — the remove path is gated the same as apply (mutation API
+	# uniform Suspended gate) so a backend reconcile is never raced by a local unequip.
+	if _is_mutation_gated():
+		push_warning("[StatSystem] remove_equipment_modifier: rejected during %s substate (AC-20b)"
+			% Substate.keys()[_substate])
+		stat_mutation_rejected.emit(&"equipment", StatSource.EQUIPMENT, 0.0, "suspended_substate")
+		return
+
 	if not _equipment_modifiers.has(equipment_id):
 		return  # EC-18 — unknown id is a silent no-op.
 
