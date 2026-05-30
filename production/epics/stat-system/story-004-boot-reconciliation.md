@@ -1,12 +1,19 @@
 # Story 004: Boot Reconciliation
 
 > **Epic**: Stat System
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Core
 > **Type**: Logic
 > **Estimate**: M (2-3 hours)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: 2026-05-29
+> **Last Updated**: 2026-05-30
+
+## Completion Notes
+**Completed**: 2026-05-30
+**Criteria**: 5/5 passing (AC-10 ✓ AC-11 ✓ AC-12 ✓ AC-12b ✓ AC-22 ✓)
+**Deviations**: None
+**Test Evidence**: Logic — `tests/unit/stat_system/test_boot_first_time.gd`, `test_boot_partial_keys.gd`, `test_boot_corrupt_fallback.gd`
+**Code Review**: Complete (Batch A) — CLEAN; introduced untyped `_persistence`/`_gsm` DI seams per streak_system pattern
 
 ## Context
 

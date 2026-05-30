@@ -1,12 +1,19 @@
 # Story 008: DEBUG_OVERRIDE Release-Build Runtime Guard
 
 > **Epic**: Stat System
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Core
 > **Type**: Logic
 > **Estimate**: S (1-2 hours)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: 2026-05-29
+> **Last Updated**: 2026-05-30
+
+## Completion Notes
+**Completed**: 2026-05-30
+**Criteria**: 3/3 passing (AC-13 ✓ AC-13b ✓ AC-13c ✓)
+**Deviations**: None — `_debug_build_override` Variant seam (null → OS.is_debug_build()); release guard fires before anti-decay + allow-list (FR-3 ordering)
+**Test Evidence**: Logic — `test_debug_override_release_runtime_guard.gd`
+**Code Review**: Complete (Batch B) — CLEAN
 
 ## Context
 
@@ -30,6 +37,8 @@
 ## Acceptance Criteria
 
 - [ ] **AC-13** — GIVEN a release-build context (`OS.is_debug_build() == false`, simulated via injection seam), STR=10, WHEN `apply_stat_delta(StatId.STR, StatSource.DEBUG_OVERRIDE, 100.0)` is called, THEN returns `false`, `push_error("DEBUG_OVERRIDE blocked in release build")` fires, `stat_mutation_rejected(STR, DEBUG_OVERRIDE, 100.0, "debug_override_release_blocked")` emits, AND STR remains 10.0 (unchanged).
+- [ ] **AC-13b** — GIVEN a debug-build context (`_debug_build_override = true`), STR=10, WHEN `apply_stat_delta(StatId.STR, StatSource.DEBUG_OVERRIDE, 5.0)` is called, THEN the release guard does NOT fire — the call proceeds through normal validation (debug builds legitimately permit DEBUG_OVERRIDE), and STR is mutated as a valid DEBUG_OVERRIDE-source change.
+- [ ] **AC-13c** — GIVEN `_debug_build_override = null` (the production default — defers to real `OS.is_debug_build()`), WHEN `_get_is_debug()` is called in the editor/debug test context, THEN it returns the value of `OS.is_debug_build()` (typically `true` in GUT), confirming the seam falls through to the engine API when no override is set.
 
 ---
 

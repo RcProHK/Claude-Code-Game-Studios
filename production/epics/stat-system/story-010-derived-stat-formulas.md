@@ -1,12 +1,19 @@
 # Story 010: Derived Stat Formulas F3-F6 + CF-1 Baseline
 
 > **Epic**: Stat System
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Core
 > **Type**: Logic
 > **Estimate**: M (2-3 hours)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: 2026-05-29
+> **Last Updated**: 2026-05-30
+
+## Completion Notes
+**Completed**: 2026-05-30
+**Criteria**: 4/4 passing (AC-26 ✓ AC-27 ✓ AC-28 ✓ AC-29 ✓)
+**Deviations**: None — F3-F6 replace the 0.0 placeholder; baselines MAX_HP=160/ATK=28/MOVE=184/CRIT=0.015. Regression: updated `test_stat_surface_locked.gd` (derived baseline) + `test_equipment_modifier_allow_list.gd` (5 tests rebased off 160) which previously assumed the 0.0 placeholder
+**Test Evidence**: Logic — `test_formula3_max_hp.gd`, `test_default_baseline.gd`, `test_formula5_move_cap.gd`, `test_formula6_crit_cap.gd`
+**Code Review**: Complete (Batch C) — formulas + maxi/minf math verified against baselines
 
 ## Context
 

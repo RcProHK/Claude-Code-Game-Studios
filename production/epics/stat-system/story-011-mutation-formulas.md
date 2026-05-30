@@ -1,12 +1,19 @@
 # Story 011: Mutation Formulas F1 + F2 (VOLUME_TICK + PR_BREAKTHROUGH)
 
 > **Epic**: Stat System
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Core
 > **Type**: Logic
 > **Estimate**: M (2-3 hours)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: 2026-05-29
+> **Last Updated**: 2026-05-30
+
+## Completion Notes
+**Completed**: 2026-05-30
+**Criteria**: 3/3 passing (AC-23 ✓ AC-24 ✓ AC-25 ✓)
+**Deviations**: ADVISORY — `PR_BASE = 6.0` is PROVISIONAL pending ADR-0005 ratification (Q-A1 cross-validation); caller-computed model (F1/F2 owned by #9/#18, StatSystem holds the const single-source-of-truth only). Tests reference the consts, not literals
+**Test Evidence**: Logic — `test_formula1_volume_tick.gd`, `test_formula2_pr_default.gd`, `test_formula2_pr_at_max.gd`
+**Code Review**: Complete (Batch C) — CLEAN
 
 ## Context
 

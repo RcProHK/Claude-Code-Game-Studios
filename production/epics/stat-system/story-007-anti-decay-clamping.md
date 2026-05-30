@@ -1,12 +1,19 @@
 # Story 007: Anti-Decay + Clamping + Telemetry (debug-build context)
 
 > **Epic**: Stat System
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Core
 > **Type**: Logic
 > **Estimate**: M (2-3 hours)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: 2026-05-29
+> **Last Updated**: 2026-05-30
+
+## Completion Notes
+**Completed**: 2026-05-30
+**Criteria**: 4/4 passing (AC-15 ✓ AC-16 ✓ AC-17 ✓ AC-21 ✓)
+**Deviations**: None — clampf + stat_clamped telemetry; anti-decay exempts DEBUG_OVERRIDE per Rule 12
+**Test Evidence**: Logic — `test_clamp_at_zero.gd`, `test_clamp_at_max.gd`, `test_anti_decay_volume_tick.gd`, `test_telemetry_stat_clamped.gd`
+**Code Review**: Complete (Batch B) — guard order verified: re-entrance → debug-release → suspended → anti-decay → allow-list → compute+clamp → persist → mutate → emit
 
 ## Context
 

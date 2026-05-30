@@ -1,12 +1,19 @@
 # Story 009: GSM Suspended Gate + Reconciling Re-read
 
 > **Epic**: Stat System
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Core
 > **Type**: Integration
 > **Estimate**: M (2-3 hours)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: 2026-05-29
+> **Last Updated**: 2026-05-30
+
+## Completion Notes
+**Completed**: 2026-05-30
+**Criteria**: 3/3 passing (AC-20 ✓ AC-20b ✓ AC-new-reconciling ✓)
+**Deviations**: ADVISORY — Reconciling re-read emits with `PR_BREAKTHROUGH` source (semantic stretch; a dedicated RECONCILED source is future work — tech-debt logged); GSM state compared via enum (GameState.SUSPENDED) not string-name, per the established autoload-enum pattern (AC-20 text says string but implementation follows real GSM callv layout)
+**Test Evidence**: Integration — `test_suspended_gate.gd`, `test_reconciling_reread.gd`
+**Code Review**: Complete (Batch B) — both Suspended + Reconciling substates gate the mutation API uniformly ("suspended_substate")
 
 ## Context
 
@@ -31,6 +38,7 @@
 
 - [ ] **AC-20** — GIVEN GSM delivers `state_changed(from, "suspended", payload)` and Stat System substate transitions to Suspended, WHEN `apply_stat_delta(StatId.STR, StatSource.PR_BREAKTHROUGH, 1.0)` is called, THEN returns `false`, `stat_mutation_rejected(STR, PR_BREAKTHROUGH, 1.0, "suspended_substate")` emits, push_warning fires, AND STR remains unchanged.
 - [ ] **AC-new-reconciling** — GIVEN Stat System is in Suspended substate AND PersistenceLayer holds `stat.str = 15.0` (backend updated during suspension, from pre-Suspension value of 12.0), WHEN GSM delivers `state_changed(from, "ready", payload)` (exit from Suspended → Reconciling → Ready), THEN Stat System re-reads PersistenceLayer → `_base[STR]` updates to 15.0 → `stat_changed(STR, 12.0, 15.0, PR_BREAKTHROUGH, false)` emits (source reflects what backend recorded, or a dedicated `RECONCILED` sub-source if designed) → substate returns to Ready. *(QA-lead identified gap: Reconciling re-read is Pillar 1 anti-stale critical path with no prior test evidence — Rule 14 + EC-23)*
+- [ ] **AC-20b** — GIVEN Stat System is in Suspended substate, WHEN `get_stat(StatId.STR)` is called, THEN it returns the current value normally (read-only API is NOT gated by Suspended); AND WHEN `apply_equipment_modifier("ring", StatModifier{MAX_HP: +50})` is called during Suspended, THEN it is rejected the same way as `apply_stat_delta` (mutation API uniformly gated during Suspended).
 
 ---
 

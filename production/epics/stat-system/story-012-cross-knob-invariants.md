@@ -1,12 +1,19 @@
 # Story 012: Cross-Knob Invariants
 
 > **Epic**: Stat System
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Core
 > **Type**: Logic
 > **Estimate**: S (1-2 hours)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: 2026-05-29
+> **Last Updated**: 2026-05-30
+
+## Completion Notes
+**Completed**: 2026-05-30
+**Criteria**: 3/3 passing (AC-30 ✓ AC-31 ✓ AC-32 ADVISORY ✓)
+**Deviations**: None — `_assert_knob_invariants()` added to `_ready()` head (INV-1/3/4/5/6/8); test references actual consts (StatSystem.PR_BASE etc.) not literals; INV-9 15-knob safe-range sweep
+**Test Evidence**: Logic — `tests/unit/stat_system/test_knob_invariants.gd` (distinct from GSM's `tests/unit/state_machine/test_knob_invariants.gd`)
+**Code Review**: Complete (Batch C) — all 6 assert invariants hand-verified against default knobs (all pass)
 
 ## Context
 

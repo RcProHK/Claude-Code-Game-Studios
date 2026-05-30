@@ -1,12 +1,19 @@
 # Story 006: Persistence + Atomic Write Sequence + Re-entrance Guard
 
 > **Epic**: Stat System
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Core
 > **Type**: Integration
 > **Estimate**: M (2-4 hours)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: 2026-05-29
+> **Last Updated**: 2026-05-30
+
+## Completion Notes
+**Completed**: 2026-05-30
+**Criteria**: 4/4 passing (AC-09 ✓ AC-18 ✓ AC-19 ✓ AC-33 ✓)
+**Deviations**: ADVISORY — clamping deferred to Story 007 (target computed raw in atomic sequence); ADR-0003 referenced for `stat.*` namespace is Proposed but informational-only (governing ADR is ADR-0006 C11, Accepted)
+**Test Evidence**: Integration — `test_persistence_flush_policy.gd`, `test_atomic_write_persist_first.gd`; Unit — `test_atomic_write_emit_after.gd`, `test_reentrance_guard.gd`
+**Code Review**: Complete (Batch A) — CLEAN; persist-first → mutate → guarded-emit sequence verified
 
 ## Context
 
