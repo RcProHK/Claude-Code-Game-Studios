@@ -1,12 +1,19 @@
 # Story 002: Stat Surface + StatSource Enum + Allow-List
 
 > **Epic**: Stat System
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Core
 > **Type**: Logic
 > **Estimate**: M (2-3 hours)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: 2026-05-29
+> **Last Updated**: 2026-05-30
+
+## Completion Notes
+**Completed**: 2026-05-30
+**Criteria**: 3/3 passing (AC-01 ✓ AC-04 ✓ AC-05 ✓)
+**Deviations**: ADVISORY — DEFAULT_BASE_VALUE=10.0 / DERIVED_PLACEHOLDER=0.0 hardcoded (Story 011 replaces); TR-stat-001 registry stale text (architecture-review deferred)
+**Test Evidence**: Logic — 3 unit test files at tests/unit/stat_system/ (12 test functions total)
+**Code Review**: Complete — CHANGES REQUIRED (2 AC deviations) → fixes applied → APPROVED
 
 ## Context
 
@@ -51,6 +58,7 @@
    - Check `_SOURCE_ALLOWED_STATS.has(source)` — invalid enum → push_error + `stat_mutation_rejected(..., "invalid_source")`
    - Check `stat_id in _SOURCE_ALLOWED_STATS[source]` — mismatch → push_error + `stat_mutation_rejected(..., "source_stat_mismatch")`
    - These checks fire before any persistence or mutation
+5. **Performance**: `get_stat()` is a dictionary read (O(1), no allocation). `apply_stat_delta` validation is two dictionary lookups. Both are negligible vs the 16.6ms frame budget. Formal profiling of the derived-stat computation path is deferred to Story 010.
 
 ---
 

@@ -1,12 +1,19 @@
 # Story 005: Observer Pattern + connect_for_initial_state
 
 > **Epic**: Stat System
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Core
 > **Type**: Logic
 > **Estimate**: S (1-2 hours)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: 2026-05-29
+> **Last Updated**: 2026-05-30
+
+## Completion Notes
+**Completed**: 2026-05-30
+**Criteria**: 3/3 passing (AC-08 ✓ AC-08b ✓ AC-08c ✓)
+**Deviations**: None — bound-callable reject made unconditional (not debug-gated) per Batch A review; 5th callable param dual-purpose (is_initial on boot delivery / is_base_change on real emit) — documented design
+**Test Evidence**: Logic — `tests/unit/stat_system/test_connect_for_initial_state.gd`
+**Code Review**: Complete (Batch A) — CLEAN
 
 ## Context
 
@@ -30,6 +37,8 @@
 ## Acceptance Criteria
 
 - [ ] **AC-08** — GIVEN Stat System boot completed (Ready substate, STR=12.0, DEX=15.0, VIT=10.0, derived stats computed from these), WHEN a subscriber calls `StatSystem.connect_for_initial_state(my_callable)`, THEN `my_callable` is immediately invoked 7 times (once per stat_id: STR, DEX, VIT, MAX_HP, ATTACK_POWER, MOVE_SPEED, CRIT_CHANCE), each invocation has `source = StatSource.INITIAL_STATE` and `is_initial = true`, and the delivered `new_value` matches the current `_base` value (for base stats) or computed derived value (for derived stats).
+- [ ] **AC-08b** — GIVEN Stat System Ready, WHEN TWO independent subscribers each call `connect_for_initial_state(callable_a)` then `connect_for_initial_state(callable_b)`, THEN each callable receives its own complete set of 7 initial-state deliveries (callable_a invoked 7×, callable_b invoked 7×), confirming multiple independent subscribers are supported.
+- [ ] **AC-08c** — GIVEN a debug build, WHEN a subscriber calls `connect_for_initial_state(my_callable.bind(extra_ctx))` (a callable with bound args), THEN `push_error` fires identifying the `.bind()` misuse (positional args would be shifted in `callv`) — guarding the same defect that CI lint AC-34 (Story 001) catches statically.
 
 ---
 

@@ -1,12 +1,19 @@
 # Story 001: CI Lints — Closed Mutation API Enforcement
 
 > **Epic**: Stat System
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Core
 > **Type**: Static
 > **Estimate**: M (2-3 hours)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: 2026-05-29
+> **Last Updated**: 2026-05-30
+
+## Completion Notes
+**Completed**: 2026-05-30
+**Criteria**: 4/4 passing (AC-02 ✓ AC-03 ✓ AC-14 ✓ AC-34 ✓)
+**Deviations**: None
+**Test Evidence**: Static — 4 CI lint scripts created at `tools/ci/check_stat_internal_field_access.gd`, `check_stat_mutation_callers.gd`, `check_debug_override_calls.gd`, `check_stat_changed_connect.gd`
+**Code Review**: Complete — APPROVED WITH SUGGESTIONS (suggestion applied: single-search pattern in check_debug_override_calls.gd)
 
 ## Context
 
@@ -93,7 +100,7 @@
 **Story Type**: Static
 **Required evidence**: `tools/ci/check_stat_internal_field_access.gd`, `check_stat_mutation_callers.gd`, `check_debug_override_calls.gd`, `check_stat_changed_connect.gd` — all must exist and pass in CI
 
-**Status**: [ ] Not yet created
+**Status**: [x] Created 2026-05-30
 
 ---
 
