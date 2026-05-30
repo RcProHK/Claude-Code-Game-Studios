@@ -149,25 +149,32 @@ func test_rule2_deferred_reentry_fires_after_lock_release() -> void:
 	# so a scalar counter mutated inside the nested lambda would not survive to
 	# the outer assert. An Array element mutation IS visible (reference type).
 	var deferred_fired: Array[int] = [0]
-	GameStateMachine.state_changed.connect(
-		func(_f: int, _t: int, _p: StateTransitionPayload) -> void:
-			get_tree().process_frame.connect(
-				func() -> void:
-					deferred_fired[0] += 1
-					# By the time this fires, the original transition's lock is released.
-					# Verify the lock is free (we don't need to re-call to prove the pattern).
-					assert_false(
-						GameStateMachine.get(TRANSITIONING_VAR),
-						"AC-32a: by deferred fire time, lock must be released"
-					),
-				CONNECT_ONE_SHOT
-			)
-	)
+	# Stored so it can be DISCONNECTED after the test. GameStateMachine is a real autoload that
+	# outlives this test; an un-disconnected lambda leaks — on a LATER test's GSM transition the
+	# autoload's _process re-fires it, and its inner get_tree() (on this now-freed test node)
+	# returns null, surfacing a spurious "Unexpected Error" against whatever test owns that frame.
+	var outer_handler := func(_f: int, _t: int, _p: StateTransitionPayload) -> void:
+		get_tree().process_frame.connect(
+			func() -> void:
+				deferred_fired[0] += 1
+				# By the time this fires, the original transition's lock is released.
+				# Verify the lock is free (we don't need to re-call to prove the pattern).
+				assert_false(
+					GameStateMachine.get(TRANSITIONING_VAR),
+					"AC-32a: by deferred fire time, lock must be released"
+				),
+			CONNECT_ONE_SHOT
+		)
+	GameStateMachine.state_changed.connect(outer_handler)
 
 	# Act
 	GameStateMachine._request_transition("test", GameStateMachine.GameState.IDLE)
 	await get_tree().process_frame
 	await get_tree().process_frame  # ensure the deferred lambda landed
+
+	# Cleanup — disconnect from the autoload so the lambda cannot leak into later tests.
+	if GameStateMachine.state_changed.is_connected(outer_handler):
+		GameStateMachine.state_changed.disconnect(outer_handler)
 
 	# Assert
 	assert_eq(deferred_fired[0], 1, "AC-32a: deferred re-entry must fire exactly once")
