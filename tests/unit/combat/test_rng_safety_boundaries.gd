@@ -30,7 +30,10 @@ const CombatResolver := preload("res://src/core/combat_resolver.gd")
 func _make_ctx(transition_id: String, hit_seq: int = 0) -> RefCounted:
 	var stats = CombatResolver.StatSnapshot.new()
 	stats.attack_power = 100.0
-	stats.crit_chance = 0.5
+	# crit_chance = 0 so damage-asserting boundary tests (AC-25/AC-29) get a deterministic
+	# non-crit 150 (base 100×2−50). roll_crit still re-seeds ctx.rng from the sub-seed hash
+	# before the randf comparison, so AC-24's seed inspection + crash-safety are unaffected.
+	stats.crit_chance = 0.0
 
 	var enemy = CombatResolver.EnemyState.new()
 	enemy.hp = 1000
