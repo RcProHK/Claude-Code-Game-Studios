@@ -232,13 +232,6 @@ func _assert_knob_invariants() -> void:
 		"MINI_POOL_MAX_ENTRIES must be > 0")
 
 
-## Restore pending drops from PersistenceLayer on boot (Step 3 stub).
-## Full implementation in Story 012.
-func _restore_pending_drops() -> void:
-	# Story 012 will implement the full loot.pending.* namespace read + migration.
-	pass
-
-
 ## Check TTL on restored pending drops (Step 6 stub).
 ## Full implementation uses LootTtlCalc.pending_ttl_expired() (Story 005).
 func _check_pending_ttl() -> void:
