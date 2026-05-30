@@ -3,8 +3,8 @@
 > **Layer**: Core
 > **GDD**: design/gdd/combat-resolver.md
 > **Architecture Module**: CombatResolver (`src/core/combat_resolver.gd` — NOT autoload; stateless pure-function class)
-> **Status**: Ready
-> **Stories**: Not yet created — run `/create-stories combat-resolver`
+> **Status**: Implemented (8/10 Complete; Story 009 Blocked #14, Story 010 Blocked ADR-0001)
+> **Stories**: 10 stories — 8 Complete, 2 Blocked
 
 ## Overview
 
@@ -38,6 +38,24 @@ This epic is complete when:
 - CPU budget benchmark: resolve_hit timing test < 1.0ms per call on WASM target
 - `randf()` CI ban enforced: no direct RNG calls inside CombatResolver (loot RNG owned by LootDrop)
 
+## Stories
+
+| # | Story | Type | Status | ADR |
+|---|-------|------|--------|-----|
+| 001 | [ci-lints-purity-defense](story-001-ci-lints-purity-defense.md) | Static | ✅ Complete | ADR-0006 C12 |
+| 002 | [data-structures](story-002-data-structures.md) | Logic | ✅ Complete | ADR-0006 C3, ADR-0007 |
+| 003 | [formula1-pipeline](story-003-formula1-pipeline.md) | Logic | ✅ Complete | ADR-0006 C12 |
+| 004 | [crit-system-formulas](story-004-crit-system-formulas.md) | Logic | ✅ Complete | ADR-0006 C12 |
+| 005 | [damage-tier-overkill](story-005-damage-tier-overkill.md) | Logic | ✅ Complete | ADR-0006 C12 |
+| 006 | [purity-snapshot-aoe](story-006-purity-snapshot-aoe.md) | Logic | ✅ Complete | ADR-0006 C12 |
+| 007 | [rng-safety-aoe-boundary](story-007-rng-safety-aoe-boundary.md) | Logic | ✅ Complete | ADR-0006 C12 |
+| 008 | [defensive-guards](story-008-defensive-guards.md) | Logic | ✅ Complete | ADR-0006 C12 |
+| 009 | [enemy-director-integration](story-009-enemy-director-integration.md) | Integration | **Blocked** | ADR-0006 C6 (#14 required) |
+| 010 | [adr-ratification-gated](story-010-adr-ratification-gated.md) | Logic | **Blocked** | ADR-0001 ⚠️ Proposed |
+
 ## Next Step
 
-Run `/create-stories combat-resolver` to break this epic into implementable stories.
+Run `/story-readiness production/epics/combat-resolver/story-001-ci-lints-purity-defense.md` to begin.
+
+> Work through stories in dependency order: 001 → 002 → 003 → 004 → 005 → 006 → 007 → 008. Stories 009-010 BLOCKED.
+> **Key**: CombatResolver is NOT an autoload. `class_name CombatResolver extends RefCounted`, ALL methods `static func`. File: `src/core/combat_resolver.gd`.
