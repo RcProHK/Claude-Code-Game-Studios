@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="LootRarityConfig" load_steps=2 format=3 uid="uid://c4loot0cfgres1"]
+
+[ext_resource type="Script" uid="uid://b7loot0cfg5cnf" path="res://src/core/loot_rarity_config.gd" id="1_lrcfg"]
+
+[resource]
+script = ExtResource("1_lrcfg")
+workout_weight = 0.75
+rng_weight = 0.25
+target_exercises = 5
+pr_bonus_per_pr = 0.12
+max_pr_factor = 1.25
+streak_scale = 28.0
+max_streak_bonus = 0.2
+tier_thresholds = Array[float]([0.0, 0.35, 0.55, 0.72, 0.88])
+tier_values = Array[int]([0, 1, 2, 3, 4])

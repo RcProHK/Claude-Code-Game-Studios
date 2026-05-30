@@ -2498,6 +2498,23 @@ constants:
     added: 2026-05-28
     revised: ""
     notes: "Closed signal API per Section C Signal Contract spec。Minimal payload pattern (CI lint AC-30 enforces no full LootDrop object in params — caller must `get_drop(drop_id)` for detail)。Emit timing rules: `loot_dropped` AFTER `loot.pending` write success (5-step optimistic Step 2-3); `loot_committed` AFTER backend ACK rename。INV-8: every commit has prior dropped emit。Section C Rule 18 + INV-4 + INV-8 binding。"
+# ──────────────────────────────────────────────────────────────────────────────
+# BUILD PINS — asset SHA-256 digests that CI lints compare against on-disk files.
+# These prevent silent formula-constant tampering post-build (ADR-0005 no-hot-swap).
+#
+# To update a pin after an intentional change:
+#   1. Run the relevant CI lint (e.g. check_loot_config_hash_pinned.gd).
+#   2. The lint will print the new SHA-256 on FAIL.
+#   3. Replace the "TBD" or old hex here and commit.
+# ──────────────────────────────────────────────────────────────────────────────
+
+build_pins:
+  # SHA-256 of assets/data/loot/loot_rarity_config.tres
+  # Locked by: tools/ci/check_loot_config_hash_pinned.gd (Story 001, AC-29)
+  # Purpose: prevent silent drift of ADR-0005 formula constants (Pillar 1 anti-fabrication)
+  # Status: TBD — compute after first Godot import of the .tres file, then replace here.
+  loot_rarity_config_sha256: "TBD"
+
 #
 # constants:
 #   - name: gold_carry_limit

@@ -36,7 +36,7 @@ Created by: /create-epics Foundation + Core (16 systems)
 | [Combat Resolver](combat-resolver/EPIC.md) | Core | #13 | combat-resolver.md ✅ | **10 stories** (8 Complete, 2 Blocked) | **Implemented 8/10** — pending CI verify |
 | [Enemy Director](enemy-director/EPIC.md) | Core | #14 | enemy-director.md ✅ | Not yet created | Ready (ADR-0007 required for wave archetype stories) |
 | [Workout State Tracker](workout-state-tracker/EPIC.md) | Core | #9 | workout-state-tracker.md ✅ | Not yet created | Ready |
-| [Loot Drop System](loot-drop-system/EPIC.md) | Core | #15 | loot-drop-system.md ⚠️ Pass 2 only | Not yet created | **Pending GDD Pass 3** + ADR-0005 |
+| [Loot Drop System](loot-drop-system/EPIC.md) | Core | #15 | loot-drop-system.md ✅ Pass 2 | **15 stories** (12 Ready, 3 Blocked #2/#9/#14) | Ready — ADR-0005 Accepted 2026-05-30 |
 | [Exercise → Class Mapping](exercise-class-mapping/EPIC.md) | Core | #10 | NOT STARTED | Not yet created | **Placeholder** — ADR-0007 + GDD required (Pre-MVP) |
 | [Attention Budget & Interaction Policy](attention-budget-policy/EPIC.md) | Core | #33 | NOT STARTED | Not yet created | **Placeholder** — GDD + ADR-0008 required (Pre-MVP) ★ Pillar 2 |
 
