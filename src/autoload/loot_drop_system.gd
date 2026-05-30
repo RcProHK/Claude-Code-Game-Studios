@@ -391,8 +391,12 @@ func _force_test_drop(rarity_tier: int) -> LootDrop:
 			"rarity": rarity_tier,
 			"severity": "CRITICAL",
 		})
-		# assert() is a no-op in release builds. Use push_error + crash signal instead.
-		assert(false, "LootDropSystem: loot fabrication blocked in release build — debug API in production")
+		# Fail-loud via push_error (NOT assert(false), which would crash debug/test
+		# builds — assert is also stripped in release so it gives no real protection).
+		# The CI lint check_loot_force_drop_debug_only.gd is the compile-time guard;
+		# this runtime guard refuses to fabricate (returns null) + emits a CRITICAL
+		# telemetry alert. Same pattern as StatSystem DEBUG_OVERRIDE release guard.
+		push_error("[LootDropSystem] _force_test_drop blocked in release build — debug API in production (Rule 12, EC-34)")
 		return null
 	# Debug path: generate a synthetic drop with the requested tier.
 	var drop := LootDrop.new()
