@@ -133,7 +133,11 @@ class UnlockRecord extends SerializableResource:
 	static func from_dict(data: Dictionary) -> SerializableResource:
 		var record: UnlockRecord = UnlockRecord.new()
 		record.first_unlocked_at_unix = int(data.get("first_unlocked_at_unix", 0))
-		var source_str: String = data.get("source", "INITIAL_STATE")
+		# `source` is normally the string name (to_dict emits find_key). Defensively handle a
+		# corrupt / older-schema record where it is a raw int (or any non-String) — coerce to the
+		# INITIAL_STATE sentinel rather than letting a typed-assign error abort from_dict (EC-04).
+		var raw_source: Variant = data.get("source", "INITIAL_STATE")
+		var source_str: String = raw_source if raw_source is String else "INITIAL_STATE"
 		record.source = UnlockSource.get(source_str, UnlockSource.INITIAL_STATE)
 		record.source_event_id = String(data.get("source_event_id", ""))
 		return record
