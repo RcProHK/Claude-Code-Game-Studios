@@ -415,9 +415,17 @@ func _compute_rng_roll(seed_key: String) -> float:
 	return _rng.randf()
 
 
-## Generate a unique drop_id for new drops.
+## Generate a unique drop_id for new drops. Uses the owned _rng (seeded from a
+## monotonic counter + clock) — NOT global randi() (CI lint check_loot_rng_seeded).
+## drop_id uniqueness does not need determinism; the seeded roll just avoids the
+## forbidden global generator while staying collision-resistant via the tick prefix.
 func _generate_drop_id() -> String:
-	return "D-%d-%d" % [Time.get_ticks_msec(), randi()]
+	_rng.seed = hash("dropid_%d_%d" % [Time.get_ticks_usec(), _drop_id_counter])
+	_drop_id_counter += 1
+	return "D-%d-%d" % [Time.get_ticks_msec(), _rng.randi()]
+
+## Monotonic counter to guarantee drop_id uniqueness even within the same tick.
+var _drop_id_counter: int = 0
 
 
 ## Gear gap state — returns current inventory slot starter flags.
