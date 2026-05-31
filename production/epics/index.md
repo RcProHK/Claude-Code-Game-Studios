@@ -8,7 +8,7 @@ Created by: /create-epics Foundation + Core (16 systems)
 > **Critical pre-requisites before any stories start**:
 > - ADR-0007 Class Enum Naming Convention (blocks #12 + #14 class-archetype stories)
 > - ADR-0008 Autoload Full Position Registry (blocks #4 + #10 + #33 placeholder epics)
-> - ADR-0002 + ADR-0004 coordinated ratification (blocks all #2 GymSys stories)
+> - ADR-0002 + ADR-0004 **full** ratification (data contract + topology Accepted 2026-05-31; **live-transport/CORS empirical validation still gated** — blocks #2 GymSys live-HTTP stories)
 > - `/create-control-manifest` (no control-manifest.md exists — required before /create-stories)
 > - `/design-review design/gdd/loot-drop-system.md` Pass 3 (before /create-stories loot-drop-system)
 
@@ -34,8 +34,8 @@ Created by: /create-epics Foundation + Core (16 systems)
 | [Stat System](stat-system/EPIC.md) | Core | #11 | stat-system.md ✅ | **13 stories** (12 Complete, 1 Blocked ADR-003+ADR-005) | **Complete 12/13** — CI green 343/343 (PR #5 merged 2026-05-30) |
 | [Ability System](ability-system/EPIC.md) | Core | #12 | ability-system.md ✅ | **10 stories** (9 Complete, 1 Blocked ADR-002+ADR-003+#10) | **Implemented 9/10** — pending CI verify |
 | [Combat Resolver](combat-resolver/EPIC.md) | Core | #13 | combat-resolver.md ✅ | **10 stories** (8 Complete, 2 Blocked) | **Implemented 8/10** — pending CI verify |
-| [Enemy Director](enemy-director/EPIC.md) | Core | #14 | enemy-director.md ✅ | Not yet created | Ready (ADR-0007 required for wave archetype stories) |
-| [Workout State Tracker](workout-state-tracker/EPIC.md) | Core | #9 | workout-state-tracker.md ✅ | **12 stories** (10 Ready, 2 Blocked ADR-0002/#14) | Ready |
+| [Enemy Director](enemy-director/EPIC.md) | Core | #14 | enemy-director.md ✅ | **24 stories** (20 Ready, 4 Blocked) | Ready — 001 START HERE; 021 Blocked (art); 022 Blocked (hardware); 023 Blocked (#9 WST); 024 Blocked (ADR-0001 CPU) |
+| [Workout State Tracker](workout-state-tracker/EPIC.md) | Core | #9 | workout-state-tracker.md ✅ | **12 stories** (11 Complete, 1 Blocked: 011 ADR-0002-transport/#14) | **Complete 11/12** — 012 done mock-scoped (GUT local: Story 012 13/13, WST integ 27/27 + unit 85/86; CI verify on push); 011 needs #14 + live transport |
 | [Loot Drop System](loot-drop-system/EPIC.md) | Core | #15 | loot-drop-system.md ✅ Pass 2 | **15 stories** (12 Ready, 3 Blocked #2/#9/#14) | Ready — ADR-0005 Accepted 2026-05-30 |
 | [Exercise → Class Mapping](exercise-class-mapping/EPIC.md) | Core | #10 | NOT STARTED | Not yet created | **Placeholder** — ADR-0007 + GDD required (Pre-MVP) |
 | [Attention Budget & Interaction Policy](attention-budget-policy/EPIC.md) | Core | #33 | NOT STARTED | Not yet created | **Placeholder** — GDD + ADR-0008 required (Pre-MVP) ★ Pillar 2 |
