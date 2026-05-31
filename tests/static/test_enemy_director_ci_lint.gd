@@ -11,11 +11,34 @@
 #   AC-14         — check_enemy_director_randf.gd: direct-RNG patterns (scope-aware, RNGFactory)
 #   Story-level AC — check_enemy_director_stat_calls.gd: StatSystem.get_stat() locality
 #                    (scope-aware, _build_stat_snapshot)
+#
+# Story 003 (CI Lint Suite B) coverage appended below:
+#   AC-04         — check_autoload_boot_order.gd: LootDropSystem ≺ EnemyDirector HARD
+#                   constraint (_parse_autoload_order helper) + soft predecessors warn-only
+#   AC-10         — check_enemy_director_signal_lifecycle.gd: .connect()/.disconnect()
+#                   inside _physics_process / _on_ability_cast hot-path bodies (method-scope-aware)
+#   Story-level AC — check_enemy_director_state_locality.gd: 8 state containers present
+#   Story-level AC — check_enemy_director_signal_subscription.gd: raw .connect() on
+#                   AbilitySystem.ability_cast / GameStateMachine.state_changed forbidden
 extends GutTest
 
 const VIOLATION_FIXTURE: String = "res://tests/fixtures/enemy_director_violation_a.gd"
 const CLEAN_FIXTURE: String = "res://tests/fixtures/enemy_director_clean_a.gd"
 const REAL_SOURCE: String = "res://src/autoload/enemy_director.gd"
+
+# Story 003 fixtures (CI Lint Suite B).
+const BOOT_ORDER_VIOLATION_FIXTURE: String = "res://tests/fixtures/enemy_director_boot_order_violation.gd"
+const SIGNAL_VIOLATION_FIXTURE: String = "res://tests/fixtures/enemy_director_signal_violation.gd"
+const SIGNAL_CLEAN_FIXTURE: String = "res://tests/fixtures/enemy_director_signal_clean.gd"
+const LOCALITY_VIOLATION_FIXTURE: String = "res://tests/fixtures/enemy_director_locality_violation.gd"
+const PROJECT_FILE: String = "res://project.godot"
+
+# The 8 Rule 1 state containers (mirrors check_enemy_director_state_locality.gd).
+const REQUIRED_CONTAINERS: Array[String] = [
+	"_catch_up_queue", "_anomaly_rate_tracker", "_enemy_state_pool",
+	"_killed_dedupe_set", "_spawn_pool", "_rng_factory",
+	"_active_wave", "_boss_anchor_state",
+]
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -256,3 +279,317 @@ func test_real_enemy_director_has_no_stat_calls_outside_snapshot() -> void:
 	# Assert
 	assert_eq(count, 0,
 		"Story-AC: real enemy_director.gd must have 0 StatSystem.get_stat() outside _build_stat_snapshot")
+
+# ===========================================================================
+# Story 003 helpers
+# ===========================================================================
+
+## Extract the SIM_AUTOLOAD_BLOCK triple-quoted string content from a fixture, then
+## parse its [autoload] section into {key: 1-based position}. Mirrors the
+## check_autoload_boot_order.gd _parse_autoload_order() logic so the helper test
+## exercises the exact ordering rule. Returns {} if no [autoload] section.
+func _parse_autoload_order_from_block(block_lines: PackedStringArray) -> Dictionary:
+	var order: Dictionary = {}
+	var in_autoload_section: bool = false
+	var seen_section: bool = false
+	var position: int = 0
+	for raw_line: String in block_lines:
+		var stripped: String = raw_line.strip_edges()
+		if stripped.is_empty() or stripped.begins_with(";"):
+			continue
+		if stripped.begins_with("[") and stripped.ends_with("]"):
+			in_autoload_section = stripped == "[autoload]"
+			if in_autoload_section:
+				seen_section = true
+			continue
+		if not in_autoload_section:
+			continue
+		var eq_index: int = stripped.find("=")
+		if eq_index <= 0:
+			continue
+		var key: String = stripped.substr(0, eq_index).strip_edges()
+		if key.is_empty():
+			continue
+		position += 1
+		if not order.has(key):
+			order[key] = position
+	if not seen_section:
+		return {}
+	return order
+
+
+## Extract the multi-line text held in the SIM_AUTOLOAD_BLOCK const of the boot-order
+## fixture. The fixture stores the simulated project.godot text as a `const ... = """..."""`
+## block; we slice the lines between the opening and closing triple-quote.
+func _extract_sim_autoload_block(fixture_lines: PackedStringArray) -> PackedStringArray:
+	var out: PackedStringArray = []
+	var inside: bool = false
+	for line: String in fixture_lines:
+		if not inside:
+			if line.contains("\"\"\""):
+				inside = true  # opening triple-quote line (no content after it in our fixture)
+			continue
+		if line.contains("\"\"\""):
+			break  # closing triple-quote
+		out.append(line)
+	return out
+
+
+## Method-scope-aware match counter for AC-10. Counts forbidden_pattern hits ONLY on
+## lines INSIDE a hot-path method body. A hot-path method opens at a line matching
+## hot_func_re; ANY `func` declaration closes the current hot-path scope; scope also
+## ends at a zero-indent non-blank non-comment line. Mirrors
+## check_enemy_director_signal_lifecycle.gd.
+func _count_matches_hot_path(lines: PackedStringArray, forbidden_pattern: String,
+		hot_func_re_str: String) -> int:
+	var re_forbidden := RegEx.new()
+	assert_eq(re_forbidden.compile(forbidden_pattern), OK, "forbidden regex must compile")
+	var re_hot := RegEx.new()
+	assert_eq(re_hot.compile(hot_func_re_str), OK, "hot-func regex must compile")
+	var re_any_func := RegEx.new()
+	assert_eq(re_any_func.compile("^\\s*func\\s+\\w+"), OK, "any-func regex must compile")
+	var inside_hot: bool = false
+	var count: int = 0
+	for line: String in lines:
+		var stripped: String = line.strip_edges()
+		if stripped.begins_with("#") or stripped == "":
+			continue
+		if inside_hot and not line.begins_with("\t") and not line.begins_with(" "):
+			inside_hot = false
+		if re_any_func.search(line) != null:
+			inside_hot = re_hot.search(line) != null
+			continue
+		if inside_hot and re_forbidden.search(line) != null:
+			count += 1
+	return count
+
+
+## Count `var <name>` declarations present in a set of lines (comment lines skipped).
+## Returns the subset of `names` that are MISSING.
+func _missing_var_declarations(lines: PackedStringArray, names: Array[String]) -> Array[String]:
+	var found: Dictionary = {}
+	for name: String in names:
+		var re := RegEx.new()
+		assert_eq(re.compile("^\\s*var\\s+%s\\b" % name), OK, "var regex must compile")
+		for line: String in lines:
+			if line.strip_edges().begins_with("#"):
+				continue
+			if re.search(line) != null:
+				found[name] = true
+				break
+	var missing: Array[String] = []
+	for name: String in names:
+		if not found.has(name):
+			missing.append(name)
+	return missing
+
+# ===========================================================================
+# AC-04 — autoload boot order: LootDropSystem ≺ EnemyDirector (HARD)
+# ===========================================================================
+
+func test_ac04_boot_order_parser_extracts_ordered_autoload_keys() -> void:
+	# Arrange — read the simulated [autoload] block from the violation fixture.
+	var fixture_lines := _read_lines(BOOT_ORDER_VIOLATION_FIXTURE)
+	assert_true(fixture_lines.size() > 0, "Precondition: boot-order fixture must be readable")
+	var block := _extract_sim_autoload_block(fixture_lines)
+	assert_true(block.size() > 0, "Precondition: SIM_AUTOLOAD_BLOCK must be extractable")
+	# Act
+	var order := _parse_autoload_order_from_block(block)
+	# Assert — keys parsed with 1-based positions; comments/blanks excluded.
+	assert_true(order.has("EnemyDirector"), "AC-04: parser must capture EnemyDirector key")
+	assert_true(order.has("LootDropSystem"), "AC-04: parser must capture LootDropSystem key")
+	assert_eq(order.get("PersistenceLayer", -1), 1,
+		"AC-04: PersistenceLayer must be position 1 in parsed order")
+
+
+func test_ac04_boot_order_violation_fixture_enemy_director_before_lootdrop() -> void:
+	# Arrange
+	var fixture_lines := _read_lines(BOOT_ORDER_VIOLATION_FIXTURE)
+	var order := _parse_autoload_order_from_block(_extract_sim_autoload_block(fixture_lines))
+	# Act
+	var ed_pos: int = order.get("EnemyDirector", -1)
+	var loot_pos: int = order.get("LootDropSystem", -1)
+	# Assert — this is the HARD violation the lint must exit-1 on.
+	assert_true(ed_pos != -1 and loot_pos != -1, "Precondition: both keys present")
+	assert_true(loot_pos > ed_pos,
+		"AC-04: violation fixture must place LootDropSystem AFTER EnemyDirector (HARD violation => exit 1)")
+
+
+func test_ac04_real_project_godot_lootdrop_precedes_enemy_director() -> void:
+	# Arrange — the real project.godot is the clean/PASS case.
+	var lines := _read_lines(PROJECT_FILE)
+	if lines.size() == 0:
+		pending("project.godot not found — skipping")
+		return
+	var order := _parse_autoload_order_from_block(lines)
+	# Act
+	var ed_pos: int = order.get("EnemyDirector", -1)
+	var loot_pos: int = order.get("LootDropSystem", -1)
+	# Assert — HARD constraint satisfied (exit 0).
+	assert_true(ed_pos != -1, "AC-04: EnemyDirector must be registered in project.godot")
+	assert_true(loot_pos != -1, "AC-04: LootDropSystem must be registered in project.godot")
+	assert_true(loot_pos < ed_pos,
+		"AC-04: real project.godot must place LootDropSystem BEFORE EnemyDirector (clean => exit 0)")
+
+
+func test_ac04_soft_predecessors_present_in_real_project_godot() -> void:
+	# Arrange — soft predecessors are advisory; this asserts they exist (warn-only path).
+	var lines := _read_lines(PROJECT_FILE)
+	if lines.size() == 0:
+		pending("project.godot not found — skipping")
+		return
+	var order := _parse_autoload_order_from_block(lines)
+	# Act + Assert — every advisory predecessor is registered (so warn path is exercised, not exit-1).
+	var soft: Array[String] = [
+		"PersistenceLayer", "GameStateMachine", "PlatformDetect", "GymSysBackendClient",
+		"StatSystem", "AbilitySystem", "StreakSystem", "WorkoutStateTracker",
+	]
+	for name: String in soft:
+		assert_true(order.has(name),
+			"AC-04: advisory predecessor `%s` should exist in project.godot (warn-only ordering)" % name)
+
+# ===========================================================================
+# AC-10 — signal lifecycle: no connect/disconnect in hot-path bodies
+# ===========================================================================
+
+func test_ac10_connect_detected_inside_physics_process_in_violation_fixture() -> void:
+	# Arrange
+	var lines := _read_lines(SIGNAL_VIOLATION_FIXTURE)
+	assert_true(lines.size() > 0, "Precondition: signal violation fixture must be readable")
+	# Act — .connect( inside _physics_process body.
+	var count: int = _count_matches_hot_path(
+		lines, "\\.connect\\(", "^\\s*func\\s+(_physics_process|_on_ability_cast)\\b")
+	# Assert
+	assert_true(count > 0,
+		"AC-10: must detect .connect() inside a hot-path body in violation fixture")
+
+
+func test_ac10_disconnect_detected_inside_on_ability_cast_in_violation_fixture() -> void:
+	# Arrange
+	var lines := _read_lines(SIGNAL_VIOLATION_FIXTURE)
+	# Act — .disconnect( inside _on_ability_cast body.
+	var count: int = _count_matches_hot_path(
+		lines, "\\.disconnect\\(", "^\\s*func\\s+(_physics_process|_on_ability_cast)\\b")
+	# Assert
+	assert_true(count > 0,
+		"AC-10: must detect .disconnect() inside _on_ability_cast in violation fixture")
+
+
+func test_ac10_clean_fixture_has_no_hot_path_connect_or_disconnect() -> void:
+	# Arrange
+	var lines := _read_lines(SIGNAL_CLEAN_FIXTURE)
+	assert_true(lines.size() > 0, "Precondition: signal clean fixture must be readable")
+	# Precondition sanity: the clean fixture DOES contain .connect( outside hot path
+	# (in _ready + _spawn_enemy) — proving scope matters, not a flat absence.
+	var flat: int = _count_matches(lines, "\\.connect\\(")
+	assert_true(flat > 0,
+		"Precondition: clean fixture has non-hot-path .connect() (proves method-scope logic)")
+	# Act — hot-path-scoped scan must find ZERO.
+	var hot_connect: int = _count_matches_hot_path(
+		lines, "\\.connect\\(", "^\\s*func\\s+(_physics_process|_on_ability_cast)\\b")
+	var hot_disconnect: int = _count_matches_hot_path(
+		lines, "\\.disconnect\\(", "^\\s*func\\s+(_physics_process|_on_ability_cast)\\b")
+	# Assert
+	assert_eq(hot_connect, 0, "AC-10: clean fixture must have 0 .connect() in hot-path bodies")
+	assert_eq(hot_disconnect, 0, "AC-10: clean fixture must have 0 .disconnect() in hot-path bodies")
+
+
+func test_ac10_real_enemy_director_has_no_hot_path_connect_disconnect() -> void:
+	# Arrange
+	var lines := _read_lines(REAL_SOURCE)
+	if lines.size() == 0:
+		pending("enemy_director.gd not found — skipping")
+		return
+	# Act + Assert
+	for pattern: String in ["\\.connect\\(", "\\.disconnect\\("]:
+		var count: int = _count_matches_hot_path(
+			lines, pattern, "^\\s*func\\s+(_physics_process|_on_ability_cast)\\b")
+		assert_eq(count, 0,
+			"AC-10: real enemy_director.gd must have 0 `%s` in hot-path bodies" % pattern)
+
+# ===========================================================================
+# Story-AC — state locality: 8 containers in EnemyDirector class body
+# ===========================================================================
+
+func test_locality_violation_fixture_is_missing_rng_factory() -> void:
+	# Arrange
+	var lines := _read_lines(LOCALITY_VIOLATION_FIXTURE)
+	assert_true(lines.size() > 0, "Precondition: locality violation fixture must be readable")
+	# Act
+	var missing := _missing_var_declarations(lines, REQUIRED_CONTAINERS)
+	# Assert — fixture omits exactly 2 containers (multi-missing per qa advisory #3);
+	# both must be detected so the test locks the fixture's full omission surface.
+	assert_eq(missing.size(), 2,
+		"Story-AC: locality violation fixture omits exactly 2 containers")
+	assert_true(missing.has("_rng_factory"),
+		"Story-AC: locality violation fixture must omit _rng_factory specifically")
+	assert_true(missing.has("_boss_anchor_state"),
+		"Story-AC: _boss_anchor_state omission must also be detected (multi-container)")
+
+
+func test_locality_real_enemy_director_has_all_8_containers() -> void:
+	# Arrange
+	var lines := _read_lines(REAL_SOURCE)
+	if lines.size() == 0:
+		pending("enemy_director.gd not found — skipping")
+		return
+	# Act
+	var missing := _missing_var_declarations(lines, REQUIRED_CONTAINERS)
+	# Assert — clean => exit 0.
+	assert_eq(missing.size(), 0,
+		"Story-AC: real enemy_director.gd must declare all 8 state containers (missing: %s)" % str(missing))
+
+# ===========================================================================
+# Story-AC — signal subscription: raw .connect() on governed signals forbidden
+# ===========================================================================
+
+func test_subscription_raw_ability_cast_connect_detected_in_violation_fixture() -> void:
+	# Arrange
+	var lines := _read_lines(SIGNAL_VIOLATION_FIXTURE)
+	assert_true(lines.size() > 0, "Precondition: signal violation fixture must be readable")
+	# Act
+	var count: int = _count_matches(lines, "AbilitySystem\\.ability_cast\\.connect\\(")
+	# Assert
+	assert_true(count > 0,
+		"Story-AC: must detect raw AbilitySystem.ability_cast.connect() in violation fixture")
+
+
+func test_subscription_raw_state_changed_connect_detected_in_violation_fixture() -> void:
+	# Arrange
+	var lines := _read_lines(SIGNAL_VIOLATION_FIXTURE)
+	# Act
+	var count: int = _count_matches(lines, "GameStateMachine\\.state_changed\\.connect\\(")
+	# Assert
+	assert_true(count > 0,
+		"Story-AC: must detect raw GameStateMachine.state_changed.connect() in violation fixture")
+
+
+func test_subscription_clean_fixture_uses_helper_not_raw_connect() -> void:
+	# Arrange
+	var lines := _read_lines(SIGNAL_CLEAN_FIXTURE)
+	assert_true(lines.size() > 0, "Precondition: signal clean fixture must be readable")
+	# Act — neither governed-signal raw form may appear...
+	var raw_ability: int = _count_matches(lines, "AbilitySystem\\.ability_cast\\.connect\\(")
+	var raw_state: int = _count_matches(lines, "GameStateMachine\\.state_changed\\.connect\\(")
+	# ...and the sanctioned helper MUST be present.
+	var helper: int = _count_matches(lines, "connect_for_initial_state\\(")
+	# Assert
+	assert_eq(raw_ability, 0, "Story-AC: clean fixture must have 0 raw ability_cast.connect()")
+	assert_eq(raw_state, 0, "Story-AC: clean fixture must have 0 raw state_changed.connect()")
+	assert_true(helper > 0, "Story-AC: clean fixture must subscribe via connect_for_initial_state helper")
+
+
+func test_subscription_real_enemy_director_has_no_raw_governed_connect() -> void:
+	# Arrange
+	var lines := _read_lines(REAL_SOURCE)
+	if lines.size() == 0:
+		pending("enemy_director.gd not found — skipping")
+		return
+	# Act + Assert — Story 005 wires subscriptions via the helper; raw forms must be absent.
+	for pattern: String in [
+		"AbilitySystem\\.ability_cast\\.connect\\(",
+		"GameStateMachine\\.state_changed\\.connect\\(",
+	]:
+		var count: int = _count_matches(lines, pattern)
+		assert_eq(count, 0,
+			"Story-AC: real enemy_director.gd must have 0 raw governed-signal connect for `%s`" % pattern)
