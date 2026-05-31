@@ -1,12 +1,12 @@
 # Story 011: Wave Archetype Scheduler (Rule 12 + Formula 1)
 
 > **Epic**: Enemy Director
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Core
 > **Type**: Logic
 > **Estimate**: 4h
 > **Manifest Version**: 2026-05-29
-> **Last Updated**:
+> **Last Updated**: 2026-05-31
 
 ## Context
 
@@ -40,6 +40,15 @@
 ## Implementation Notes
 
 *Derived from GDD Rules and ADR guidelines:*
+
+**Readiness reconciliation (2026-05-31):**
+- `WorkoutStateTracker.get_dominant_ability_class() -> int` EXISTS (returns AbilityClass ordinal: 0=STRIKE/1=CONTROL/2=MOBILITY/3=UNKNOWN). Accessed via new untyped `_wst_source` DI seam (resolves to WorkoutStateTracker autoload in `_ready`; tests inject a fake).
+- GSM state is the `GameState.REST_PERIOD` enum (not a `"RestPeriod"` string) — `_on_state_changed` compares `to == GameStateMachine.GameState.REST_PERIOD`.
+- New anomaly reasons `UNKNOWN_ABILITY_CLASS_FALLBACK` / `REGISTRY_LOOKUP_NULL` are GDD-sanctioned "future-extension reasons" (GDD Rule 6, §enemy-director.md:162 — the 6 core reasons are extensible). Add as StringName consts.
+- **Scheduler is PAUSED by default** (`_wave_scheduler_paused = true`), unpaused only on `state_changed(to == COMBAT_ACTIVE)`, re-paused on `REST_PERIOD`. This is both correct (waves only spawn in combat) AND prevents the always-in-tree autoload's `_physics_process` from running the scheduler during unrelated tests (same determinism guard as Story 009's catch-up drain).
+- Archetype mapping: `AbilityClass` ordinal → archetype StringName key (`&"STRIKE"` etc.). UNKNOWN/any-other → STRIKE fallback + EC-09 anomaly.
+- `_spawn_enemy(wd)` is a Story 012 hook — Story 011 forwards to an injectable `_spawn_sink` seam (null no-op in production until Story 012) so EC-11 pool-cap (spawn called / not called) is observable.
+- RestPeriod handler sets each `_enemy_state_pool` entry's `ai_state` to `EnemyAIState.IDLE` (pool entries are duck-typed until Story 012's EnemyState; tests inject mocks with an `ai_state` field).
 
 - Wave scheduler tick called from `_physics_process(delta)` via `_spawn_cadence_tick(delta)`.
 - `_spawn_cadence_accumulator: float` tracks time since last spawn. When `>= actual_spawn_interval`: trigger spawn if pool slot available.
@@ -83,7 +92,20 @@
 
 **Story Type**: Logic
 **Required evidence**: `tests/unit/enemy_director/test_wave_scheduler.gd`
-**Status**: [ ] Not yet created
+**Status**: [x] Created; GUT 15/15 PASS (Godot 4.6.3, 2026-05-31); full suite 92/92
+
+---
+
+## Completion Notes
+
+**Completed**: 2026-05-31
+**Criteria**: 5/5 passing (EC-09, EC-10, EC-11, EC-13, Formula 1 + INV-1)
+**Implementation**: Wave scheduler in enemy_director.gd — `_select_archetype_key` (AbilityClass→archetype key, UNKNOWN→STRIKE fallback + anomaly), `_resolve_active_wave` (registry null guard + REGISTRY_LOOKUP_NULL), `_compute_spawn_interval` (Formula 1 + INV-1 fail-loud assert), `_spawn_cadence_tick` (cadence accumulator, pool-cap EC-11), `_spawn_enemy` (injectable _spawn_sink hook), `_idle_active_enemies` (EC-13), `_on_state_changed` (COMBAT_ACTIVE unpause / REST_PERIOD pause+idle). New consts BASE_SPAWN_INTERVAL=4.0, MIN_SPAWN_INTERVAL=2.25, MAX_CONCURRENT_ENEMIES_ON_SCREEN=6; 2 reason consts; _wst_source + _spawn_sink DI seams.
+**Key design**: scheduler PAUSED by default (combat-only + autoload _physics_process determinism guard). INV-1 = fail-loud assert NOT runtime clamp (anti-fabrication). UNKNOWN/registry-null fallbacks emit anomaly, never silent.
+**Reviews**: godot-gdscript-specialist APPROVED WITH SUGGESTIONS; qa-tester TESTABLE (phantom-pass clean; EC-11 positive control verified; EC-13 real EnemyAIState.IDLE ref).
+**Test Evidence**: tests/unit/enemy_director/test_wave_scheduler.gd (15 tests).
+**Code Review**: Complete (full mode).
+**Story 012 follow-ups** (from reviews): (1) tighten `_idle_active_enemies` silent-skip when an entry lacks ai_state (push_warning); (2) add null-entry guard test for _idle_active_enemies; (3) optionally add a real INV-1 assert-trip test (currently boundary-position substitute since assert() halts GUT). (4) `_resolve_active_wave` Variant typing nit.
 
 ---
 

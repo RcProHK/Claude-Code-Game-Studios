@@ -97,6 +97,22 @@ const CATCH_UP_HITS_PER_FRAME_CAP: int = 12
 ## is dropped (FIFO eviction) and a CLAMP_TRIGGERED anomaly is emitted. Const.
 const CATCH_UP_QUEUE_HARD_CAP: int = 1000
 
+# =====================================================================
+# Wave archetype scheduler (Rule 12, Formula 1 — Story 011)
+# =====================================================================
+
+## Base spawn interval (s) before archetype cadence multiplier. Formula 1 input.
+const BASE_SPAWN_INTERVAL: float = 4.0
+
+## INV-1 floor: actual spawn interval must never drop below this. With the locked
+## archetype mults (min 0.75) the computed floor is 4.0×0.75=3.0 ≥ 2.25. Enforced by a
+## dev/CI assert (NOT a runtime clamp — anti-fabrication: a sub-floor value signals a
+## data bug and must fail loudly rather than be silently corrected).
+const MIN_SPAWN_INTERVAL: float = 2.25
+
+## Max enemies alive on screen at once (mobile readability cap, EC-11). No spawn at/above.
+const MAX_CONCURRENT_ENEMIES_ON_SCREEN: int = 6
+
 ## A deferred ability_cast captured during catch-up drain (Rule 7 AOE mutex).
 ## Captures RAW cast params — at defer time (before the GSM gate) no CombatContext
 ## exists yet, so Story 018 re-runs the full pipeline on each drained entry.
@@ -193,6 +209,15 @@ var _active_wave = null
 ## Initialised to BossAnchorState.IDLE (ordinal 0, safe Family A default).
 var _boss_anchor_state: int = BossAnchorState.IDLE
 
+## Wave scheduler pause flag (Story 011). TRUE by default — waves spawn only during
+## COMBAT_ACTIVE (unpaused on state_changed → COMBAT_ACTIVE; re-paused on REST_PERIOD).
+## Default-paused also stops the autoload _physics_process from running the scheduler
+## during unrelated tests (determinism guard, same rationale as the catch-up drain).
+var _wave_scheduler_paused: bool = true
+
+## Time (s) accumulated since the last wave spawn (Formula 1 cadence accumulator).
+var _spawn_cadence_accumulator: float = 0.0
+
 # =====================================================================
 # Dependency-injection seams
 # =====================================================================
@@ -216,6 +241,9 @@ const REASON_NEGATIVE_DAMAGE: StringName = &"NEGATIVE_DAMAGE"
 const REASON_CLAMP_TRIGGERED: StringName = &"CLAMP_TRIGGERED"
 const REASON_DEAD_TARGET_RESOLVE: StringName = &"DEAD_TARGET_RESOLVE"
 const REASON_RNG_INJECTION_MISSING: StringName = &"RNG_INJECTION_MISSING"
+## Future-extension anomaly reasons (Story 011 — GDD Rule 6 §162 sanctions extension).
+const REASON_UNKNOWN_ABILITY_CLASS_FALLBACK: StringName = &"UNKNOWN_ABILITY_CLASS_FALLBACK"
+const REASON_REGISTRY_LOOKUP_NULL: StringName = &"REGISTRY_LOOKUP_NULL"
 
 ## Injectable AOE-classification set (untyped DI seam — Story 009).
 ## A Dictionary used as a set: key = ability_id StringName the EnemyDirector should treat
@@ -230,6 +258,16 @@ var _aoe_ability_set = null
 ## the real AOE pipeline in `_process_catch_up_entry`. A sink-recorded entry has NOT passed the
 ## GSM gate — see the drain-time GSM invariant (Story 009 notes / EC-01).
 var _catch_up_sink = null
+
+## Injectable WorkoutStateTracker reference (untyped DI seam — Story 011).
+## Drives wave archetype selection via get_dominant_ability_class() (anti-fabrication chain).
+## null = resolved to WorkoutStateTracker autoload in _ready(); tests inject a fake.
+var _wst_source = null
+
+## Injectable spawn sink (untyped DI seam — Story 011). When set, `_spawn_enemy` forwards
+## to `_spawn_sink.spawn(wave_descriptor)` so EC-11 pool-cap behaviour is observable in
+## tests. null in production until Story 012 fills the real `_spawn_enemy` lifecycle.
+var _spawn_sink = null
 
 ## Injectable GameStateMachine reference for signal subscription (untyped DI seam).
 ## null = resolved to GameStateMachine autoload in _ready().
@@ -275,6 +313,11 @@ func _ready() -> void:
 	# Story 008: StatSystem DI seam resolution.
 	if _stat_system == null:
 		_stat_system = StatSystem
+	# Story 011: WorkoutStateTracker DI seam resolution + scheduler state reset.
+	if _wst_source == null:
+		_wst_source = WorkoutStateTracker
+	_wave_scheduler_paused = true
+	_spawn_cadence_accumulator = 0.0
 
 	# Story 005: wire signal subscriptions — LAST lines of _ready() per GDD Rule 2.
 	# Resolve DI seams to production autoloads if not injected by tests.
@@ -295,8 +338,20 @@ func _ready() -> void:
 ## Called by GameStateMachine.state_changed via connect_for_initial_state.
 ## Full implementation in Story 008 (GSM Suspended gate + EnemyDirector state machine).
 ## Signature matches ADR-0006 Contract 6: 3 positional args (from, to, payload).
-func _on_state_changed(_from: int, _to: int, _payload) -> void:
-	pass  # Story 008: GSM Suspended gate, WaveActive/BossEncounter state transitions
+func _on_state_changed(_from: int, to: int, _payload) -> void:
+	# Story 011: wave-scheduler pause/resume gating (EC-13).
+	match to:
+		GameStateMachine.GameState.COMBAT_ACTIVE:
+			# Resume wave spawning; fresh cadence window.
+			_wave_scheduler_paused = false
+			_spawn_cadence_accumulator = 0.0
+		GameStateMachine.GameState.REST_PERIOD:
+			# Pause spawning; idle existing enemies WITHOUT despawn (narrative continuity).
+			_wave_scheduler_paused = true
+			_idle_active_enemies()
+		GameStateMachine.GameState.IDLE, GameStateMachine.GameState.SUSPENDED:
+			# Non-combat states also pause the scheduler (no enemy idling required here).
+			_wave_scheduler_paused = true
 
 
 ## Called by AbilitySystem.ability_cast via connect_for_initial_state wrapper (Story 005).
@@ -417,11 +472,12 @@ func _enqueue_catch_up(entry: CatchUpEntry) -> void:
 	_catch_up_queue.push_back(entry)
 
 
-## Per-physics-frame drain entry point (Rule 7).
+## Per-physics-frame entry point.
 ## Story 015 will drain the particle dispatch queue BEFORE the catch-up queue
 ## (visual responsiveness priority) — that queue does not exist yet.
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	_drain_catch_up_queue()
+	_spawn_cadence_tick(delta)
 
 
 ## Drain up to CATCH_UP_HITS_PER_FRAME_CAP entries from the FRONT (FIFO) per call (EC-24).
@@ -442,6 +498,103 @@ func _drain_catch_up_queue() -> void:
 func _process_catch_up_entry(entry: CatchUpEntry) -> void:
 	if _catch_up_sink != null:
 		_catch_up_sink.record(entry)
+
+
+# =====================================================================
+# Wave archetype scheduler (Rule 12, Formula 1 — Story 011)
+# =====================================================================
+
+
+## Formula 1: actual spawn interval (s) = BASE_SPAWN_INTERVAL × archetype_cadence_mult.
+## INV-1: the result must be ≥ MIN_SPAWN_INTERVAL. The assert fails loudly on a data bug
+## (e.g. a new archetype with an out-of-range mult) instead of silently clamping.
+func _compute_spawn_interval(wave: WaveDescriptor) -> float:
+	var interval: float = BASE_SPAWN_INTERVAL * wave.archetype_cadence_mult
+	assert(interval >= MIN_SPAWN_INTERVAL,
+		"INV-1 violated: spawn interval %f < MIN_SPAWN_INTERVAL %f (archetype_cadence_mult=%f)" % [
+			interval, MIN_SPAWN_INTERVAL, wave.archetype_cadence_mult,
+		])
+	return interval
+
+
+## Map a WST dominant AbilityClass ordinal to an EnemyRegistry archetype key.
+## UNKNOWN (or any unrecognised ordinal) → STRIKE fallback + rate-limited anomaly (EC-09).
+func _select_archetype_key() -> StringName:
+	var cls: int = _wst_source.get_dominant_ability_class()
+	match cls:
+		AbilitySystem.AbilityClass.STRIKE:
+			return &"STRIKE"
+		AbilitySystem.AbilityClass.CONTROL:
+			return &"CONTROL"
+		AbilitySystem.AbilityClass.MOBILITY:
+			return &"MOBILITY"
+		_:
+			# EC-09: UNKNOWN / unrecognised → STRIKE fallback (Pillar 4 — better than no wave).
+			var now_ms: int = Time.get_ticks_msec()
+			if rate_limit_check(REASON_UNKNOWN_ABILITY_CLASS_FALLBACK, now_ms):
+				var payload := CombatAnomalyPayload.new()
+				payload.reason = REASON_UNKNOWN_ABILITY_CLASS_FALLBACK
+				payload.context_dump = {"dominant_class": cls}
+				combat_metric_anomaly.emit(payload)
+			return &"STRIKE"
+
+
+## Resolve the WaveDescriptor for the current archetype, updating `_active_wave`.
+## EC-10: a null registry lookup logs an error, emits REGISTRY_LOOKUP_NULL, and returns
+## null (caller skips the wave and the scheduler stays idle — never crashes).
+func _resolve_active_wave() -> WaveDescriptor:
+	var key: StringName = _select_archetype_key()
+	var wave: Variant = null
+	if _enemy_registry != null:
+		wave = _enemy_registry.archetypes.get(key, null)
+	if wave == null:
+		push_error("[EnemyDirector] EnemyRegistry lookup returned null for archetype '%s'" % key)
+		var now_ms: int = Time.get_ticks_msec()
+		if rate_limit_check(REASON_REGISTRY_LOOKUP_NULL, now_ms):
+			var payload := CombatAnomalyPayload.new()
+			payload.reason = REASON_REGISTRY_LOOKUP_NULL
+			payload.context_dump = {"archetype_key": key}
+			combat_metric_anomaly.emit(payload)
+		return null
+	_active_wave = wave
+	return wave
+
+
+## Per-frame wave cadence tick (Formula 1). No-op while paused (non-combat states).
+## Pool cap (EC-11) skips the spawn without emitting an anomaly (legitimate cap behaviour).
+func _spawn_cadence_tick(delta: float) -> void:
+	if _wave_scheduler_paused:
+		return
+	_spawn_cadence_accumulator += delta
+	var wave: WaveDescriptor = _resolve_active_wave()
+	if wave == null:
+		_spawn_cadence_accumulator = 0.0  # EC-10: skip wave, stay idle
+		return
+	var interval: float = _compute_spawn_interval(wave)
+	if _spawn_cadence_accumulator < interval:
+		return
+	_spawn_cadence_accumulator -= interval
+	# EC-11: pool cap — pause spawning while at/above the on-screen ceiling (no anomaly).
+	if _enemy_state_pool.size() >= MAX_CONCURRENT_ENEMIES_ON_SCREEN:
+		return
+	_spawn_enemy(wave)
+
+
+## Spawn-lifecycle hook. Story 012 fills the real `_spawn_enemy` (instance + pool insert).
+## For Story 011 it forwards to the optional `_spawn_sink` seam so the cadence/cap decision
+## is observable in tests; null in production until Story 012.
+func _spawn_enemy(wave: WaveDescriptor) -> void:
+	if _spawn_sink != null:
+		_spawn_sink.spawn(wave)
+
+
+## Set every live enemy's AI state to IDLE without despawning (EC-13 RestPeriod).
+## Pool entries are duck-typed with an `ai_state` field until Story 012's EnemyState.
+func _idle_active_enemies() -> void:
+	for instance_id: int in _enemy_state_pool:
+		var enemy: Variant = _enemy_state_pool[instance_id]
+		if enemy != null and enemy.get(&"ai_state") != null:
+			enemy.set(&"ai_state", EnemyAIState.IDLE)
 
 
 # =====================================================================

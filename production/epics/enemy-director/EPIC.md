@@ -75,7 +75,7 @@ This epic is complete when:
 | 008 | [_on_ability_cast Pipeline: GSM Gate + StatSnapshot](story-008-ability-cast-gsm-gate-statsnapshot.md) | Logic | Complete ✅ | ADR-0006 C2 |
 | 009 | [Catch-up Queue + AOE Serialization Mutex](story-009-catch-up-queue-aoe-mutex.md) | Integration | Complete ✅ | ADR-0006 |
 | 010 | [EnemyRegistry.tres Data File](story-010-enemy-registry-data-file.md) | Config/Data | Complete ✅ | ADR-0007 |
-| 011 | [Wave Archetype Scheduler (Rule 12 + Formula 1)](story-011-wave-archetype-scheduler.md) | Logic | Ready | ADR-0006 + ADR-0007 |
+| 011 | [Wave Archetype Scheduler (Rule 12 + Formula 1)](story-011-wave-archetype-scheduler.md) | Logic | Complete ✅ | ADR-0006 + ADR-0007 |
 | 012 | [Enemy Spawn + Lifecycle Pool Cleanup](story-012-enemy-spawn-lifecycle.md) | Logic | Ready | ADR-0006 |
 | 013 | [Per-enemy AI State Machine 6 States](story-013-per-enemy-ai-state-machine.md) | Logic | Ready | ADR-0006 + ADR-0007 |
 | 014 | [Enemy Locomotion + 4Hz Batch Perception](story-014-enemy-locomotion-perception.md) | Logic | Ready | ADR-0001 structural + ADR-0006 |
