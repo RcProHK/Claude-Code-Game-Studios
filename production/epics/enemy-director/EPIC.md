@@ -83,7 +83,7 @@ This epic is complete when:
 | 016 | [Boss Anchor Pre-spawn + Rollback](story-016-boss-anchor-pre-spawn.md) | Logic | Complete ✅ | ADR-0006 |
 | 017 | [Boss Anchor Commit + Entry Cascade](story-017-boss-anchor-commit-cascade.md) | Integration | Complete ✅ | ADR-0006 + ADR-0001 structural |
 | 018 | [Full AOE Handler Pipeline](story-018-aoe-handler-pipeline.md) | Integration | Complete ✅ | ADR-0006 + ADR-0005 |
-| 019 | [enemy_killed Signal Chain + Idempotency](story-019-enemy-killed-signal-chain.md) | Integration | Ready | ADR-0005 + ADR-0006 |
+| 019 | [enemy_killed Signal Chain + Idempotency](story-019-enemy-killed-signal-chain.md) | Integration | Complete ✅ | ADR-0005 + ADR-0006 |
 | 020 | [Test Infrastructure Helpers](story-020-test-infrastructure-helpers.md) | Config/Data | Ready | N/A |
 | 021 | [BLOCKED: Wave Archetype Readability Playtest](story-021-blocked-wave-readability-playtest.md) | Visual/Feel | Blocked | ADR-0007 ⚠️ (art assets required) |
 | 022 | [BLOCKED: Mobile Particle Floor Benchmark](story-022-blocked-mobile-particle-benchmark.md) | Logic | Blocked | ADR-0001 ⚠️ (hardware required) |

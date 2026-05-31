@@ -1097,8 +1097,16 @@ func _commit_boss_entry() -> void:
 ## Emit enemy_killed synchronously (AC-19 same-frame). Builds the payload from the pool
 ## entry + resolved hit. Story 019 wraps this with the dedupe / idempotency guard.
 func _emit_enemy_killed(instance_id: int, hit_result: CombatResolver.HitResult) -> void:
-	# Idempotency guard (AC-35e / Story 019): at most one enemy_killed per instance_id.
+	# Idempotency guard (Rule 15 / AC-37 / EC-17): at most one enemy_killed per instance_id.
+	# A duplicate kill (AOE × catch-up same-frame race) is BLOCKED and reported as a
+	# rate-limited DEAD_TARGET_RESOLVE anomaly instead of a second enemy_killed.
 	if _killed_dedupe_set.has(instance_id):
+		var now_ms: int = Time.get_ticks_msec()
+		if rate_limit_check(REASON_DEAD_TARGET_RESOLVE, now_ms):
+			var anomaly := CombatAnomalyPayload.new()
+			anomaly.reason = REASON_DEAD_TARGET_RESOLVE
+			anomaly.context_dump = {"instance_id": instance_id, "duplicate_kill": true}
+			combat_metric_anomaly.emit(anomaly)
 		return
 	_killed_dedupe_set[instance_id] = true
 	var payload := EnemyKilledPayload.new()
@@ -1106,7 +1114,7 @@ func _emit_enemy_killed(instance_id: int, hit_result: CombatResolver.HitResult) 
 	if _enemy_state_pool.has(instance_id):
 		payload.enemy_id = _enemy_state_pool[instance_id].enemy_id
 	payload.killing_ability = hit_result.ability_id
-	payload.transition_id = hit_result.transition_id
+	payload.transition_id = hit_result.transition_id  # verbatim — #15 LootDrop RNG seed (ADR-0005 FR-2)
 	payload.is_overkill = hit_result.overkill_excess > 0
 	enemy_killed.emit(payload)
 

@@ -1,7 +1,7 @@
 # Story 019: enemy_killed Signal Chain + Idempotency (Rule 15)
 
 > **Epic**: Enemy Director
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Core
 > **Type**: Integration
 > **Estimate**: 2h
@@ -84,7 +84,17 @@ Edge (same-frame race): enqueue 2 AOE hits both targeting instance_id=42. Proces
 **Required evidence**:
 - `tests/integration/enemy_director/test_enemy_killed_transition_id.gd`
 - `tests/integration/enemy_director/test_enemy_killed_idempotent.gd`
-**Status**: [ ] Not yet created
+**Status**: [x] Created; GUT 6/6 (story) + 242/242 (suite+static) PASS (Godot 4.6.3, 2026-06-01)
+
+---
+
+## Completion Notes
+
+**Completed**: 2026-06-01
+**Criteria**: 2/2 passing (AC-36 transition_id verbatim, AC-37 idempotency EC-17)
+**Implementation**: refined `_emit_enemy_killed` — duplicate kill (in _killed_dedupe_set) is now BLOCKED and reported as a rate-limited DEAD_TARGET_RESOLVE anomaly (context_dump.duplicate_kill) instead of silent return (AC-37); on first kill, payload.transition_id = hit_result.transition_id (= ctx.transition_id verbatim — String value semantics — #15 LootDrop RNG seed, ADR-0005 FR-2; AC-36). Dedupe entry cleared by _on_enemy_despawned (Story 012, no unbounded growth).
+**Test Evidence**: test_enemy_killed_transition_id.gd (2) + test_enemy_killed_idempotent.gd (4).
+**Code Review**: deferred to batch review (autonomous epic completion run).
 
 ---
 
