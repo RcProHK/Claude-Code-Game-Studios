@@ -21,6 +21,46 @@ extends Node
 # class-body containers, inverse of #13 stateless pure-function purity. ----
 
 # =====================================================================
+# RNGFactory — Story 006 (Rule 4 / FR-3 / ADR-0005 seeded determinism)
+# =====================================================================
+
+## Seeded RandomNumberGenerator provisioner.
+##
+## Rule 4 (FR-3) requires every combat RNG draw to be reproducible from the
+## owning transition_id so a replay of the same transition yields a byte-identical
+## sequence (AC-15). ADR-0005 seeds its loot rng_roll on transition_id via this
+## same factory, so create()/create_sub() are the single seeding authority.
+##
+## Determinism contract:
+##   - create(transition_id) seeds with hash(transition_id). Two factories built
+##     from the same transition_id produce identical sequences (AC-12).
+##   - create_sub(transition_id, sub_key) seeds with hash("transition_id:sub_key"),
+##     giving an independent stream per sub_key whose state never aliases the
+##     primary stream or any other sub_key (AC-13).
+##   - hash() accepts arbitrary UTF-8, so Unicode transition_ids are safe and
+##     stay deterministic (AC-16).
+##
+## Accessed as EnemyDirector.RNGFactory.create(...) (EnemyDirector is an autoload).
+class RNGFactory extends RefCounted:
+
+	## Create the primary seeded RNG for a transition.
+	## seed = hash(transition_id). Deterministic per transition_id (AC-12).
+	static func create(transition_id: String) -> RandomNumberGenerator:
+		var rng := RandomNumberGenerator.new()
+		rng.seed = hash(transition_id)
+		return rng
+
+	## Create an independent sub-stream RNG for a transition.
+	## seed = hash("transition_id:sub_key"). Independent of create() and of any
+	## other sub_key for the same transition_id (AC-13). Used for per-purpose
+	## streams (e.g. wave_spawn_0, dodge_<instance_id>) so advancing one stream
+	## never perturbs another within the same replay (AC-15).
+	static func create_sub(transition_id: String, sub_key: String) -> RandomNumberGenerator:
+		var rng := RandomNumberGenerator.new()
+		rng.seed = hash("%s:%s" % [transition_id, sub_key])
+		return rng
+
+# =====================================================================
 # Enums (ADR-0007 — two-family convention)
 # =====================================================================
 
@@ -90,8 +130,8 @@ var _killed_dedupe_set: Dictionary = {}
 ## Key: StringName enemy_id (e.g., &"STRIKE_MOB_T1"); Value: PackedScene.
 var _spawn_pool: Dictionary = {}
 
-## Seeded-RNG provisioner — Story 006 implements RNGFactory class (Rule 4, FR-3).
-## Untyped DI seam: tests inject mock; production gets RNGFactory instance.
+## Seeded-RNG provisioner — Story 006 RNGFactory inner class implemented (Rule 4, FR-3).
+## Untyped DI seam: tests inject mock; production gets an RNGFactory instance.
 var _rng_factory = null
 
 ## Current wave archetype descriptor (Rule 12, Story 011).
@@ -149,9 +189,9 @@ func _ready() -> void:
 	# populates _spawn_pool if the injected/loaded registry exposes it.
 	_preload_spawn_pool()
 
-	# RNGFactory placeholder — Story 006 replaces with full implementation.
+	# Story 006: real RNGFactory inner class (Rule 4 / FR-3 / ADR-0005).
 	if _rng_factory == null:
-		_rng_factory = _create_rng_factory_placeholder()
+		_rng_factory = RNGFactory.new()
 
 	# Story 005: wire signal subscriptions — LAST lines of _ready() per GDD Rule 2.
 	# Resolve DI seams to production autoloads if not injected by tests.
@@ -202,7 +242,9 @@ func _preload_spawn_pool() -> void:
 			_spawn_pool[key] = pool[key]
 
 
-## Placeholder RNGFactory object — Story 006 replaces with seeded RNGFactory class.
-## Returns a RefCounted instance so _rng_factory != null check passes (AC-02).
+## DEPRECATED by Story 006 — superseded by the RNGFactory inner class (now wired
+## directly in _ready() as RNGFactory.new()). Kept because test_init_state.gd's
+## AC-02 test calls this provisioner directly; it now returns a real RNGFactory
+## so the non-null guarantee is identical to the production path.
 func _create_rng_factory_placeholder() -> RefCounted:
-	return RefCounted.new()
+	return RNGFactory.new()
