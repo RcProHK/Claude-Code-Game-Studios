@@ -1,0 +1,30 @@
+# WST CI Lint — Planted Violation Fixture (Story 009)
+# ci:violation-fixture — deliberate rule violations for CI detection testing.
+# Located in tests/fixtures/ (outside SCAN_ROOT = res://src/), so CI scripts
+# do NOT scan this file during clean-repo checks.
+# test_wst_ci_lint.gd targets this file directly to verify detection.
+# THIS FILE MUST NEVER BE IMPORTED OR INSTANTIATED.
+
+# ACTIVE violation (a1): WorkoutStateTracker._field access (Rule 14 / check_workout_state_caller)
+var _phase_read_viol = WorkoutStateTracker._workout_phase
+
+# ACTIVE violation (a1b): WorkoutStateTracker._workout_phase member-access WRITE (Rule 16)
+func _force_phase() -> void:
+	WorkoutStateTracker._workout_phase = 1  # ci:violation-fixture — member-access write
+
+# ACTIVE violation (a2): WorkoutStateTracker.set_* method call (Rule 14 / check_workout_state_caller)
+# This tests the set_ branch explicitly (separate from _field access)
+var _set_call_viol = WorkoutStateTracker.set_deferred("_workout_phase", 0)
+
+# ACTIVE violation (b): PersistenceLayer.write("wst.*") outside owner (Rule 7/14 / check_wst_namespace)
+var _ns_violation = PersistenceLayer.write("wst.current_workout.phase", 0)
+
+# ACTIVE violation (c): preload(...).new() instantiation (Rule 15 / check_wst_singleton_and_nevers)
+var _wst_inst = preload("res://src/autoload/workout_state_tracker.gd").new()
+
+# ACTIVE violation (d): _dominant_class member-access WRITE outside owner (Rule 16)
+# Must be member-access form (.) to match `\._dominant_class\s*=` — a real closed-API bypass.
+# (A bare `_dominant_class = v` is only a self-assignment and is NOT a violation.)
+var _class_write_viol = (WorkoutStateTracker._dominant_class == 0)
+func _force_class() -> void:
+	WorkoutStateTracker._dominant_class = 2  # ci:violation-fixture — member-access write

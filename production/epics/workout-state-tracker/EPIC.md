@@ -4,7 +4,7 @@
 > **GDD**: design/gdd/workout-state-tracker.md
 > **Architecture Module**: WorkoutStateTracker (autoload pos 9, `src/autoload/workout_state_tracker.gd`)
 > **Status**: Ready
-> **Stories**: Not yet created — run `/create-stories workout-state-tracker`
+> **Stories**: 12 stories (10 Ready, 2 Blocked ADR-0002/#14)
 
 ## Overview
 
@@ -39,6 +39,23 @@ This epic is complete when:
 - `workout_completed` signal carries `workout_id` (not null) — anti-fabrication chain verified
 - 4Hz timer stability test: set_progress computed within ≤1ms per tick on WASM
 
+## Stories
+
+| # | Story | Type | Status | ADR |
+|---|-------|------|--------|-----|
+| 001 | [WorkoutPhase FSM + Transition Guards](story-001-phase-fsm-and-guards.md) | Logic | Complete | ADR-0006 |
+| 002 | [Substate Lifecycle + Frozen Flag Orthogonal](story-002-substate-and-frozen.md) | Logic | Complete | ADR-0006 |
+| 003 | [set_progress Derivation + Monotonicity + EWMA](story-003-set-progress-and-ewma.md) | Logic | Complete | ADR-0006 |
+| 004 | [dominant_class Derivation + Hysteresis + VS Stub](story-004-dominant-class.md) | Logic | Complete | ADR-0007 + ADR-0006 |
+| 005 | [Read-Only Query API + workout_id Isolation + Distinct Count](story-005-readonly-api-and-isolation.md) | Logic | Complete | ADR-0006/0007/0009 |
+| 006 | [workout_completed Forwarding + WorkoutSummaryRO + transition_id](story-006-forwarding-and-summary.md) | Logic | Complete | ADR-0006 + ADR-0009 |
+| 007 | [Stat Caller Routing + Delta Queue](story-007-stat-caller-routing.md) | Logic | Complete | ADR-0006 |
+| 008 | [Persistence Snapshot wst.* + Bfcache Resume](story-008-persistence-and-bfcache.md) | Integration | Complete | ADR-0006 Contract 9 |
+| 009 | [CI Lint Scripts + Static Analysis](story-009-ci-lint-scripts.md) | Config/Data | Complete | ADR-0006 (CI pattern) |
+| 010 | [Volume-to-Loot CI-4 Integration](story-010-volume-to-loot-integration.md) | Integration | Complete | ADR-0005 + ADR-0006 |
+| 011 | [BLOCKED: Boss Anchor CI-1/CI-2 + Sub-500ms](story-011-blocked-boss-anchor-integration.md) | Integration | Blocked | ADR-0002 ⚠️ + #14 |
+| 012 | [BLOCKED: Live #2 Signal Subscription + Anti-Fabrication Chain](story-012-blocked-live-signal-wiring.md) | Integration | Blocked | ADR-0002 ⚠️ |
+
 ## Next Step
 
-Run `/create-stories workout-state-tracker` to break this epic into implementable stories.
+Run `/story-readiness production/epics/workout-state-tracker/story-001-phase-fsm-and-guards.md` then `/dev-story` to begin implementation.
