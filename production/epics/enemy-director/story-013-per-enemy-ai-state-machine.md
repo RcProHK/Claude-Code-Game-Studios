@@ -1,7 +1,7 @@
 # Story 013: Per-enemy AI State Machine 6 States (Rule 17)
 
 > **Epic**: Enemy Director
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Core
 > **Type**: Logic
 > **Estimate**: 4h
@@ -82,7 +82,18 @@
 - `tests/unit/enemy_director/test_enemy_ai_perception.gd`
 - `tests/unit/enemy_director/test_enemy_ai_stagger.gd`
 - `tests/unit/enemy_director/test_enemy_ai_dying_priority.gd`
-**Status**: [ ] Not yet created
+**Status**: [x] Created; GUT 16/16 (story) + 125/125 (suite) PASS (Godot 4.6.3, 2026-06-01)
+
+---
+
+## Completion Notes
+
+**Completed**: 2026-06-01
+**Criteria**: 3/3 passing (AC-27 perception+hysteresis, AC-28 stagger EC-35, AC-29 dying priority EC-36)
+**Implementation**: `src/ai/enemy.gd` (`class_name Enemy extends Node2D`) — per-node AI state machine: SPAWNING→IDLE settle; IDLE↔PURSUING with PERCEPTION_RANGE/LEASH_RANGE hysteresis; STAGGERED (HEAVY 0.15s / CRITICAL 0.30s, no re-trigger) via EnemyDirector.hit_resolved filtered by target_id; DYING priority on is_kill (terminal, interrupts animation). New EnemyDirector consts PERCEPTION_RANGE/LEASH_RANGE/STAGGER_DURATION_BY_TIER.
+**Key reconciliation**: payload field is `target_id` (not the story's `target_instance_id`). animation_interrupted flag + virtual `_interrupt_animation()` for AC-29 observability (Story 014+ overrides for real AnimationPlayer).
+**Test Evidence**: test_enemy_ai_perception.gd (5) + test_enemy_ai_stagger.gd (6) + test_enemy_ai_dying_priority.gd (5).
+**Code Review**: deferred to batch review (autonomous epic completion run).
 
 ---
 

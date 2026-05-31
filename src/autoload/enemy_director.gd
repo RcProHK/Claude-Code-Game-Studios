@@ -122,6 +122,24 @@ const SPAWN_JITTER_X: float = 50.0
 ## Tier index used for spawned enemy stats until tiered selection lands (Story 013+).
 const DEFAULT_TIER_INDEX: int = 0
 
+# =====================================================================
+# Per-enemy AI state machine ranges (Rule 17 — Story 013)
+# =====================================================================
+
+## X-distance (px) at which an IDLE enemy begins PURSUING the avatar.
+const PERCEPTION_RANGE: float = 600.0
+
+## X-distance (px) at which a PURSUING enemy leashes back to IDLE.
+## LEASH_RANGE > PERCEPTION_RANGE gives hysteresis (no flicker at the boundary).
+const LEASH_RANGE: float = 900.0
+
+## STAGGERED freeze duration (s) keyed by inflicted DamageTier (EC-35).
+## HEAVY → 0.15s, CRITICAL → 0.30s. Lighter tiers do not stagger.
+const STAGGER_DURATION_BY_TIER: Dictionary = {
+	CombatResolver.DamageTier.HEAVY: 0.15,
+	CombatResolver.DamageTier.CRITICAL: 0.30,
+}
+
 ## A deferred ability_cast captured during catch-up drain (Rule 7 AOE mutex).
 ## Captures RAW cast params — at defer time (before the GSM gate) no CombatContext
 ## exists yet, so Story 018 re-runs the full pipeline on each drained entry.

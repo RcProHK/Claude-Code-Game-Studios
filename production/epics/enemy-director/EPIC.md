@@ -77,7 +77,7 @@ This epic is complete when:
 | 010 | [EnemyRegistry.tres Data File](story-010-enemy-registry-data-file.md) | Config/Data | Complete ✅ | ADR-0007 |
 | 011 | [Wave Archetype Scheduler (Rule 12 + Formula 1)](story-011-wave-archetype-scheduler.md) | Logic | Complete ✅ | ADR-0006 + ADR-0007 |
 | 012 | [Enemy Spawn + Lifecycle Pool Cleanup](story-012-enemy-spawn-lifecycle.md) | Logic | Complete ✅ | ADR-0006 |
-| 013 | [Per-enemy AI State Machine 6 States](story-013-per-enemy-ai-state-machine.md) | Logic | Ready | ADR-0006 + ADR-0007 |
+| 013 | [Per-enemy AI State Machine 6 States](story-013-per-enemy-ai-state-machine.md) | Logic | Complete ✅ | ADR-0006 + ADR-0007 |
 | 014 | [Enemy Locomotion + 4Hz Batch Perception](story-014-enemy-locomotion-perception.md) | Logic | Ready | ADR-0001 structural + ADR-0006 |
 | 015 | [Particle Concurrency Cap + Auto-degrade](story-015-particle-concurrency-auto-degrade.md) | Logic | Ready | ADR-0001 structural |
 | 016 | [Boss Anchor Pre-spawn + Rollback](story-016-boss-anchor-pre-spawn.md) | Logic | Ready | ADR-0006 |
