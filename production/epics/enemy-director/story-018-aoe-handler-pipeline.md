@@ -1,7 +1,7 @@
 # Story 018: Full AOE Handler Pipeline (_on_ability_cast end-to-end)
 
 > **Epic**: Enemy Director
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Core
 > **Type**: Integration
 > **Estimate**: 4h
@@ -92,7 +92,18 @@ Edge (AC-35e): repeat with 5 targets, mock resolver returns `is_kill=true` for i
 **Required evidence**:
 - `tests/unit/enemy_director/test_aoe_target_clamp.gd`
 - `tests/integration/enemy_director/test_aoe_handler_pipeline.gd`
-**Status**: [ ] Not yet created
+**Status**: [x] Created; GUT 11/11 (story) + 236/236 (suite+static) PASS; chokepoint/randf/stat/boss lints PASS (Godot 4.6.3, 2026-06-01)
+
+---
+
+## Completion Notes
+
+**Completed**: 2026-06-01
+**Criteria**: 3/3 passing (AC-34 target clamp EC-21, AC-35 full pipeline incl AC-35e dedupe)
+**Implementation**: completed `_on_ability_cast` Steps 8-11 — `_expand_targets` (distance-sort + clamp 8 + CLAMP_TRIGGERED), per-target loop building `CombatContext` (shared snapshot ref), `_resolve_hit` (injectable `_combat_resolver` seam → falls back to static CombatResolver.resolve_hit), `_emit_hit_resolved`, then `_apply_hit_result` (HP + dedup'd enemy_killed). `_get_ability_targets`, `_build_combat_context` (pool EnemyState → CombatResolver.EnemyState mapping, faction int→name), `_map_target_state`. Dedupe added to `_emit_enemy_killed` (_killed_dedupe_set, AC-35e). Const MAX_TARGETS_PER_CAST=8; _hit_seq_counter.
+**Key**: CombatResolver.resolve_hit is static → mockable only via the `_combat_resolver` seam. All 5 AOE ctx share one snapshot reference (is_same verified). hit_resolved emits before enemy_killed per target.
+**Test Evidence**: test_aoe_target_clamp.gd (4) + test_aoe_handler_pipeline.gd (7).
+**Code Review**: deferred to batch review (autonomous epic completion run).
 
 ---
 

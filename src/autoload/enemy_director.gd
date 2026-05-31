@@ -166,6 +166,9 @@ const PERCEPTION_TICK_INTERVAL: float = 0.25
 ## Per-frame delta clamp (s) — guards physics against long frames (bfcache resume, tab switch).
 const MAX_FRAME_DELTA: float = 0.1
 
+## Max AOE targets resolved per cast (#13 Rule 14). Excess clamped to the nearest 8 (EC-21).
+const MAX_TARGETS_PER_CAST: int = 8
+
 # =====================================================================
 # Particle concurrency cap + throttle hysteresis (Rule 11, Formula 3 — Story 015)
 # =====================================================================
@@ -412,6 +415,13 @@ var _camera_source = null
 var _screen_effects_source = null
 var _particle_source = null
 
+## Injectable combat resolver (untyped DI seam — Story 018). null → CombatResolver.resolve_hit
+## static; tests inject a spy (the static func can't otherwise be mocked). Exposes resolve_hit(ctx).
+var _combat_resolver = null
+
+## Monotonic per-hit sequence counter (CombatContext.hit_seq) — Story 018.
+var _hit_seq_counter: int = 0
+
 # =====================================================================
 # Dependency-injection seams
 # =====================================================================
@@ -522,6 +532,8 @@ func _ready() -> void:
 	# Story 016: reset boss anchor state.
 	_boss_node = null
 	_boss_cascade_params = {}
+	# Story 018: reset hit sequence counter.
+	_hit_seq_counter = 0
 	assert(FRAME_TIME_BUDGET_MS > FRAME_TIME_RECOVERY_MS + THROTTLE_HYSTERESIS_MIN_MS,
 		"INV-4 violated: throttle hysteresis gap (%f) ≤ %f ms" % [
 			FRAME_TIME_BUDGET_MS - FRAME_TIME_RECOVERY_MS, THROTTLE_HYSTERESIS_MIN_MS])
@@ -635,12 +647,17 @@ func _on_ability_cast(ability_id: StringName, caster: Node2D, target: Node2D) ->
 	# same snapshot reference shared across all AOE targets to prevent mid-cast drift).
 	var snapshot: CombatResolver.StatSnapshot = _build_stat_snapshot()
 
-	# Steps 8+ (Story 009 catch-up mutex, Story 018 AOE dispatch + CombatResolver loop).
-	# snapshot and rng are ready; Story 018 builds CombatContext per target using these.
-	# Suppress unused-variable warnings until Story 018 consumes them.
-	var _discard_rng: RandomNumberGenerator = rng
-	var _discard_snap: CombatResolver.StatSnapshot = snapshot
-	var _discard_tid: String = transition_id
+	# Step 8 — Expand AOE targets: distance-sort + clamp to MAX_TARGETS_PER_CAST (Story 018).
+	var origin: Vector2 = (caster as Node2D).global_position if caster is Node2D else Vector2.ZERO
+	var target_ids: Array = _expand_targets(_get_ability_targets(caster), origin)
+
+	# Step 9-11 — per target: resolve_hit → emit hit_resolved → apply HP (+ enemy_killed on kill).
+	# All ctx share the SAME snapshot reference (AOE mid-cast stat drift prevention, AC-35d).
+	for target_id: int in target_ids:
+		var ctx := _build_combat_context(ability_id, caster, snapshot, rng, transition_id, target_id)
+		var hit_result: CombatResolver.HitResult = _resolve_hit(ctx)
+		_emit_hit_resolved(ctx, hit_result)        # hit_resolved before any kill emit
+		_apply_hit_result(target_id, hit_result)   # HP update + dedup'd enemy_killed on kill
 
 
 ## Build a StatSnapshot capturing caster stats at cast time.
@@ -1080,6 +1097,10 @@ func _commit_boss_entry() -> void:
 ## Emit enemy_killed synchronously (AC-19 same-frame). Builds the payload from the pool
 ## entry + resolved hit. Story 019 wraps this with the dedupe / idempotency guard.
 func _emit_enemy_killed(instance_id: int, hit_result: CombatResolver.HitResult) -> void:
+	# Idempotency guard (AC-35e / Story 019): at most one enemy_killed per instance_id.
+	if _killed_dedupe_set.has(instance_id):
+		return
+	_killed_dedupe_set[instance_id] = true
 	var payload := EnemyKilledPayload.new()
 	payload.enemy_instance_id = instance_id
 	if _enemy_state_pool.has(instance_id):
@@ -1088,6 +1109,102 @@ func _emit_enemy_killed(instance_id: int, hit_result: CombatResolver.HitResult) 
 	payload.transition_id = hit_result.transition_id
 	payload.is_overkill = hit_result.overkill_excess > 0
 	enemy_killed.emit(payload)
+
+
+# =====================================================================
+# Full AOE handler pipeline (Rule 14 — Story 018)
+# =====================================================================
+
+
+## Resolve a hit through the injectable resolver seam, falling back to the static
+## CombatResolver.resolve_hit (the static func is otherwise un-mockable in tests).
+func _resolve_hit(ctx: CombatResolver.CombatContext) -> CombatResolver.HitResult:
+	if _combat_resolver != null:
+		return _combat_resolver.resolve_hit(ctx)
+	return CombatResolver.resolve_hit(ctx)
+
+
+## Targets for an AOE cast — every live enemy in the pool. (Ability-radius filtering is a
+## future refinement; for now the wave size is bounded by MAX_CONCURRENT_ENEMIES_ON_SCREEN.)
+func _get_ability_targets(_caster: Node2D) -> Array:
+	return _enemy_state_pool.keys()
+
+
+## Distance-sort + clamp targets to MAX_TARGETS_PER_CAST nearest the origin (AC-34 / EC-21).
+## ≤ cap: returned unchanged (no position lookup). > cap: keep the 8 nearest + CLAMP anomaly.
+func _expand_targets(target_ids: Array, origin: Vector2) -> Array:
+	if target_ids.size() <= MAX_TARGETS_PER_CAST:
+		return target_ids
+	var sorted: Array = target_ids.duplicate()
+	sorted.sort_custom(func(a: int, b: int) -> bool:
+		return _target_dist_sq(a, origin) < _target_dist_sq(b, origin))
+	var capped: Array = sorted.slice(0, MAX_TARGETS_PER_CAST)
+	var now_ms: int = Time.get_ticks_msec()
+	if rate_limit_check(REASON_CLAMP_TRIGGERED, now_ms):
+		var payload := CombatAnomalyPayload.new()
+		payload.reason = REASON_CLAMP_TRIGGERED
+		payload.context_dump = {"requested": target_ids.size(), "capped": MAX_TARGETS_PER_CAST}
+		combat_metric_anomaly.emit(payload)
+	return capped
+
+
+## Squared distance (cheaper than distance) from a target node to the cast origin; INF if
+## the instance is gone / not a Node2D (sorts such entries last).
+func _target_dist_sq(instance_id: int, origin: Vector2) -> float:
+	var node: Object = instance_from_id(instance_id)
+	if node is Node2D:
+		return (node as Node2D).global_position.distance_squared_to(origin)
+	return INF
+
+
+## Build a CombatContext for one target, mapping the pool EnemyState → CombatResolver.EnemyState.
+## caster_stats is the SHARED snapshot reference (not copied) — AOE drift prevention (AC-35d).
+func _build_combat_context(ability_id: StringName, caster: Node2D,
+		snapshot: CombatResolver.StatSnapshot, rng: RandomNumberGenerator,
+		transition_id: String, target_id: int) -> CombatResolver.CombatContext:
+	var ctx := CombatResolver.CombatContext.new()
+	ctx.ability_id = ability_id
+	ctx.caster = caster
+	var target_node: Object = instance_from_id(target_id)
+	if target_node is Node2D:
+		ctx.target = target_node
+	ctx.caster_stats = snapshot
+	ctx.target_state = _map_target_state(target_id)
+	ctx.rng = rng
+	ctx.transition_id = transition_id
+	ctx.gsm_state = GameStateMachine.GameState.find_key(_gsm_source.get_current_state())
+	ctx.hit_seq = _hit_seq_counter
+	_hit_seq_counter += 1
+	return ctx
+
+
+## Map a pool EnemyState to the resolver's CombatResolver.EnemyState struct (faction int→name).
+func _map_target_state(target_id: int) -> CombatResolver.EnemyState:
+	var ts := CombatResolver.EnemyState.new()
+	if _enemy_state_pool.has(target_id):
+		var es = _enemy_state_pool[target_id]
+		ts.instance_id = target_id
+		ts.hp = int(es.hp)
+		ts.max_hp = maxi(1, int(es.max_hp))
+		ts.defense = es.defense
+		ts.faction = Faction.find_key(es.faction)
+	return ts
+
+
+## Emit a hit_resolved broadcast (Rule 5) built from the ctx + resolved hit.
+func _emit_hit_resolved(ctx: CombatResolver.CombatContext, hit_result: CombatResolver.HitResult) -> void:
+	var payload := CombatResolver.HitResolvedPayload.new()
+	payload.ability_id = ctx.ability_id
+	payload.caster_id = ctx.caster.get_instance_id() if ctx.caster != null else 0
+	payload.target_id = ctx.target_state.instance_id if ctx.target_state != null else 0
+	payload.outcome = hit_result.outcome
+	payload.damage_tier = hit_result.damage_tier
+	payload.damage_dealt = hit_result.damage_dealt
+	payload.target_hp_after = hit_result.target_hp_after
+	payload.is_crit = hit_result.is_crit
+	payload.is_kill = hit_result.is_kill
+	payload.transition_id = ctx.transition_id
+	hit_resolved.emit(payload)
 
 
 # =====================================================================
