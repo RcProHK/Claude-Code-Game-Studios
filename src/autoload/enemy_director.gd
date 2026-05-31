@@ -176,6 +176,21 @@ var _boss_anchor_state: int = BossAnchorState.IDLE
 ## Tests inject a FakeEnemyRegistry via EnemyDirector.set(&"_enemy_registry", mock).
 var _enemy_registry = null
 
+## Injectable StatSystem reference (untyped DI seam per project convention).
+## null = resolved to StatSystem autoload in _ready(). Tests inject a fake StatSystem
+## spy via EnemyDirector.set(&"_stat_system", spy) to count get_stat() calls (Story 008 AC-4).
+## Untyped — typed Node fails compile-time member check for StatSystem's custom API.
+var _stat_system = null
+
+## Anomaly reason StringName constants — locked 6-reason set per GDD Rule 6.
+## Consumed by rate_limit_check() + CombatAnomalyPayload in _on_ability_cast pipeline.
+const REASON_GSM_SUSPENDED: StringName = &"GSM_SUSPENDED"
+const REASON_INVALID_ABILITY_ID: StringName = &"INVALID_ABILITY_ID"
+const REASON_NEGATIVE_DAMAGE: StringName = &"NEGATIVE_DAMAGE"
+const REASON_CLAMP_TRIGGERED: StringName = &"CLAMP_TRIGGERED"
+const REASON_DEAD_TARGET_RESOLVE: StringName = &"DEAD_TARGET_RESOLVE"
+const REASON_RNG_INJECTION_MISSING: StringName = &"RNG_INJECTION_MISSING"
+
 ## Injectable GameStateMachine reference for signal subscription (untyped DI seam).
 ## null = resolved to GameStateMachine autoload in _ready().
 ## Tests inject a mock via EnemyDirector.set(&"_gsm_source", mock).
@@ -217,6 +232,9 @@ func _ready() -> void:
 	# Story 006: real RNGFactory inner class (Rule 4 / FR-3 / ADR-0005).
 	if _rng_factory == null:
 		_rng_factory = RNGFactory.new()
+	# Story 008: StatSystem DI seam resolution.
+	if _stat_system == null:
+		_stat_system = StatSystem
 
 	# Story 005: wire signal subscriptions — LAST lines of _ready() per GDD Rule 2.
 	# Resolve DI seams to production autoloads if not injected by tests.
@@ -242,11 +260,83 @@ func _on_state_changed(_from: int, _to: int, _payload) -> void:
 
 
 ## Called by AbilitySystem.ability_cast via connect_for_initial_state wrapper (Story 005).
-## Full implementation in Story 008 (_on_ability_cast pipeline: Rule 10 GSM gate, Rule 8
-## StatSnapshot, Rule 4 RNG, Rule 7 catch-up mutex, CombatResolver.resolve_hit loop).
-## Signature matches AbilitySystem.ability_cast: ability_id, caster, target.
-func _on_ability_cast(_ability_id: StringName, _caster: Node2D, _target: Node2D) -> void:
-	pass  # Story 008: full 5-obligation _on_ability_cast pipeline
+## This is the primary entry point for all combat math in EnemyDirector (Rule 2 / ADR-0006).
+## Steps 1-7 per GDD Rule 2 + Story 008 scope (gate + snapshot only; AOE dispatch in Story 018):
+##   1. Sync read GSM state.
+##   2. GSM Suspended gate (EC-01) — rate-limited anomaly if Suspended.
+##   3. Null caster guard (EC-04) — anomaly on null caster.
+##   4. Acquire transition_id from GSM (ADR-0006 Contract 2 sync read).
+##   5. Empty transition_id guard (EC-45) — RNG_INJECTION_MISSING anomaly.
+##   6. Create per-cast seeded RNG from RNGFactory (Rule 4 / FR-3).
+##   7. Build StatSnapshot (Rule 8 — exactly 2 get_stat() calls; same reference for all AOE ctx).
+## Story 009 (catch-up mutex), Story 018 (AOE dispatch + CombatResolver loop) continue from step 7.
+func _on_ability_cast(ability_id: StringName, caster: Node2D, _target: Node2D) -> void:
+	# Step 1 — Sync read GSM state (ADR-0006 Contract 2).
+	var gsm_state: int = _gsm_source.get_current_state()
+
+	# Step 2 — GSM Suspended gate (EC-01 / Rule 10).
+	if gsm_state == GameStateMachine.GameState.SUSPENDED:
+		var now_ms: int = Time.get_ticks_msec()
+		if rate_limit_check(REASON_GSM_SUSPENDED, now_ms):
+			var payload := CombatAnomalyPayload.new()
+			payload.reason = REASON_GSM_SUSPENDED
+			payload.context_dump = {"gsm_state": GameStateMachine.GameState.find_key(gsm_state)}
+			combat_metric_anomaly.emit(payload)
+		return
+
+	# Step 3 — Null caster guard (EC-04).
+	if caster == null:
+		var now_ms: int = Time.get_ticks_msec()
+		if rate_limit_check(REASON_INVALID_ABILITY_ID, now_ms):
+			var payload := CombatAnomalyPayload.new()
+			payload.reason = REASON_INVALID_ABILITY_ID
+			payload.context_dump = {"caster": null, "ability_id": ability_id}
+			combat_metric_anomaly.emit(payload)
+		return
+
+	# Step 4 — Acquire transition_id (ADR-0006 Contract 2 sync read at cast time).
+	# GSM has no `current_transition_id` property; use acquire_transition_id(state, state)
+	# to obtain a fresh collision-safe id for this cast's RNG seeding (ADR-0005 binding).
+	var transition_id: String = _gsm_source.acquire_transition_id(
+		_gsm_source.get_current_state(),
+		_gsm_source.get_current_state()
+	)
+
+	# Step 5 — Empty transition_id guard (EC-45).
+	if transition_id.is_empty():
+		var now_ms: int = Time.get_ticks_msec()
+		if rate_limit_check(REASON_RNG_INJECTION_MISSING, now_ms):
+			var payload := CombatAnomalyPayload.new()
+			payload.reason = REASON_RNG_INJECTION_MISSING
+			payload.context_dump = {"transition_id": "", "ability_id": ability_id}
+			combat_metric_anomaly.emit(payload)
+		return
+
+	# Step 6 — Create per-cast seeded RNG (Rule 4 / FR-3 / ADR-0005).
+	var rng: RandomNumberGenerator = _rng_factory.create(transition_id)
+
+	# Step 7 — Build StatSnapshot (Rule 8 — exactly 2 get_stat() calls per cast,
+	# same snapshot reference shared across all AOE targets to prevent mid-cast drift).
+	var snapshot: CombatResolver.StatSnapshot = _build_stat_snapshot()
+
+	# Steps 8+ (Story 009 catch-up mutex, Story 018 AOE dispatch + CombatResolver loop).
+	# snapshot and rng are ready; Story 018 builds CombatContext per target using these.
+	# Suppress unused-variable warnings until Story 018 consumes them.
+	var _discard_rng: RandomNumberGenerator = rng
+	var _discard_snap: CombatResolver.StatSnapshot = snapshot
+	var _discard_tid: String = transition_id
+
+
+## Build a StatSnapshot capturing caster stats at cast time.
+## Called ONCE per ability_cast; the returned snapshot is shared across all AOE targets
+## (Rule 8 mid-cast stat drift prevention per #13 Rule 6).
+## EXACTLY 2 StatSystem.get_stat() calls — CI lint check_enemy_director_stat_calls.gd
+## enforces all get_stat() calls reside inside this method body.
+func _build_stat_snapshot() -> CombatResolver.StatSnapshot:
+	var snapshot := CombatResolver.StatSnapshot.new()
+	snapshot.attack_power = _stat_system.get_stat(StatSystem.StatId.ATTACK_POWER)
+	snapshot.crit_chance = _stat_system.get_stat(StatSystem.StatId.CRIT_CHANCE)
+	return snapshot
 
 
 # =====================================================================
