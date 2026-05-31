@@ -351,6 +351,18 @@ func _notify_in_memory_spies(old_state: GameState, new_state: GameState) -> void
 const TRANSITION_ID_COUNTER_KEY: String = "gsm._transition_id_counter"
 
 
+## Public entry point for external systems that need a coordinated transition_id
+## (e.g. WorkoutStateTracker #9 acquiring an ID for WorkoutSummaryRO before
+## forwarding workout_completed_forwarded — ADR-0006 Contract 2 + GDD Rule 11).
+## Delegates to _generate_transition_id; increments the shared monotonic counter.
+##
+## Callers MUST NOT call this more than once per logical transition event.
+## The caller owns the returned ID and uses it in both the signal payload AND
+## any downstream resource that requires the same ID (e.g. LootDrop idempotency key).
+func acquire_transition_id(from_state: GameState, to_state: GameState) -> String:
+	return _generate_transition_id(from_state, to_state)
+
+
 ## Generate a collision-safe opaque transition_id.
 ## Format: `"%d_%d_%s_%s" % [wall_clock_ms, counter, from_name, to_name]`
 ##
