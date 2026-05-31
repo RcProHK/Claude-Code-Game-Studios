@@ -18,12 +18,28 @@ extends GutTest
 ## can populate _spawn_pool with deterministic test data (AC-02 preloaded assertion).
 class FakeEnemyRegistry:
 	var pool: Dictionary = {&"STRIKE_MOB_T1": null}
-
 	func get_preloaded_pool() -> Dictionary:
 		return pool
 
 
+## Minimal fake GameStateMachine (Story 005 DI seam) — needed because _ready()
+## now calls _gsm_source.connect_for_initial_state() (Story 005 subscription wiring).
+class FakeGSMForInit:
+	signal state_changed(from_state: int, to_state: int, payload)
+	func connect_for_initial_state(callable: Callable) -> void:
+		state_changed.connect(callable)
+
+
+## Minimal fake AbilitySystem (Story 005 DI seam).
+class FakeAbilityForInit:
+	signal ability_cast(ability_id: StringName, caster: Node2D, target: Node2D)
+	func connect_for_initial_state(callable: Callable) -> void:
+		ability_cast.connect(callable)
+
+
 var _fake_registry: FakeEnemyRegistry
+var _fake_gsm: FakeGSMForInit
+var _fake_ability: FakeAbilityForInit
 
 
 func before_each() -> void:
@@ -42,12 +58,20 @@ func before_each() -> void:
 	# Inject fake registry so _preload_spawn_pool() has a deterministic source.
 	_fake_registry = FakeEnemyRegistry.new()
 	EnemyDirector.set(&"_enemy_registry", _fake_registry)
+	# Inject fake GSM/AbilitySystem (Story 005 DI seams) so _ready() subscription
+	# wiring uses fakes — prevents real autoload signal connection in unit tests.
+	_fake_gsm = FakeGSMForInit.new()
+	_fake_ability = FakeAbilityForInit.new()
+	EnemyDirector.set(&"_gsm_source", _fake_gsm)
+	EnemyDirector.set(&"_ability_source", _fake_ability)
 
 
 func after_each() -> void:
 	await get_tree().process_frame
-	# Restore DI seam — production resolves registry from .tres in _ready().
+	# Restore all DI seams to null (production autoloads in real _ready()).
 	EnemyDirector.set(&"_enemy_registry", null)
+	EnemyDirector.set(&"_gsm_source", null)
+	EnemyDirector.set(&"_ability_source", null)
 
 
 # ---------------------------------------------------------------------------

@@ -69,7 +69,7 @@ This epic is complete when:
 | 002 | [CI Lint Suite A — RNG / Chokepoint / Stat](story-002-ci-lint-suite-a.md) | Logic | Complete ✅ | N/A (tooling) |
 | 003 | [CI Lint Suite B — Boot Order / Signal Lifecycle / State Locality](story-003-ci-lint-suite-b.md) | Logic | Complete ✅ | ADR-0006 |
 | 004 | [CI Lint Suite C — Forbidden Patterns / Move Cap / Dodge Invariant](story-004-ci-lint-suite-c.md) | Logic | Complete ✅ | ADR-0001 structural |
-| 005 | [Signal Surface + Contract 6 Subscription + Payload Schemas](story-005-signal-surface-contract6.md) | Integration | Ready | ADR-0006 C6 |
+| 005 | [Signal Surface + Contract 6 Subscription + Payload Schemas](story-005-signal-surface-contract6.md) | Integration | Complete ✅ | ADR-0006 C6 |
 | 006 | [RNG Factory + Sub-RNG Determinism](story-006-rng-factory-determinism.md) | Logic | Ready | ADR-0005 + ADR-0006 C2 |
 | 007 | [Anomaly Rate-Limiter (Formula 4)](story-007-anomaly-rate-limiter.md) | Logic | Ready | ADR-0006 |
 | 008 | [_on_ability_cast Pipeline: GSM Gate + StatSnapshot](story-008-ability-cast-gsm-gate-statsnapshot.md) | Logic | Ready | ADR-0006 C2 |

@@ -111,6 +111,17 @@ var _boss_anchor_state: int = BossAnchorState.IDLE
 ## Tests inject a FakeEnemyRegistry via EnemyDirector.set(&"_enemy_registry", mock).
 var _enemy_registry = null
 
+## Injectable GameStateMachine reference for signal subscription (untyped DI seam).
+## null = resolved to GameStateMachine autoload in _ready().
+## Tests inject a mock via EnemyDirector.set(&"_gsm_source", mock).
+## Named _gsm_source (not _gsm) to avoid clash with AbilitySystem's own _gsm field.
+var _gsm_source = null
+
+## Injectable AbilitySystem reference for signal subscription (untyped DI seam).
+## null = resolved to AbilitySystem autoload in _ready().
+## Tests inject a mock via EnemyDirector.set(&"_ability_source", mock).
+var _ability_source = null
+
 # =====================================================================
 # Built-in virtual methods
 # =====================================================================
@@ -142,9 +153,36 @@ func _ready() -> void:
 	if _rng_factory == null:
 		_rng_factory = _create_rng_factory_placeholder()
 
-	# Signal subscriptions are the LAST two lines of _ready() per GDD Rule 2.
-	# Story 005 implements connect_for_initial_state wiring (out of scope here).
+	# Story 005: wire signal subscriptions — LAST lines of _ready() per GDD Rule 2.
+	# Resolve DI seams to production autoloads if not injected by tests.
+	if _gsm_source == null:
+		_gsm_source = GameStateMachine
+	if _ability_source == null:
+		_ability_source = AbilitySystem
+	# ADR-0006 Contract 6: use connect_for_initial_state (never raw .connect()).
+	_gsm_source.connect_for_initial_state(_on_state_changed)
+	_ability_source.connect_for_initial_state(_on_ability_cast)
 	print_verbose("[EnemyDirector] initialized — autoload pos 10 (#14); core class ready")
+
+# =====================================================================
+# Signal handlers — stub implementations (full logic in Story 008)
+# =====================================================================
+
+
+## Called by GameStateMachine.state_changed via connect_for_initial_state.
+## Full implementation in Story 008 (GSM Suspended gate + EnemyDirector state machine).
+## Signature matches ADR-0006 Contract 6: 3 positional args (from, to, payload).
+func _on_state_changed(_from: int, _to: int, _payload) -> void:
+	pass  # Story 008: GSM Suspended gate, WaveActive/BossEncounter state transitions
+
+
+## Called by AbilitySystem.ability_cast via connect_for_initial_state wrapper (Story 005).
+## Full implementation in Story 008 (_on_ability_cast pipeline: Rule 10 GSM gate, Rule 8
+## StatSnapshot, Rule 4 RNG, Rule 7 catch-up mutex, CombatResolver.resolve_hit loop).
+## Signature matches AbilitySystem.ability_cast: ability_id, caster, target.
+func _on_ability_cast(_ability_id: StringName, _caster: Node2D, _target: Node2D) -> void:
+	pass  # Story 008: full 5-obligation _on_ability_cast pipeline
+
 
 # =====================================================================
 # Private methods

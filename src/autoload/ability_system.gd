@@ -395,6 +395,18 @@ func _ready() -> void:
 	boot_completed.emit()
 
 
+## Contract 6 subscription seam (ADR-0006 Contract 6) — the ONLY way a downstream consumer (e.g.
+## #14 EnemyDirector) may observe ability_cast. Mirrors the StatSystem / GSM connect_for_initial_state
+## contract: connect the supplied callable to the future-mutation signal (ability_cast). The cast
+## signal carries no persisted "current value" the way StatSystem's stat_changed does — an ability
+## cast is a transient event, not a state snapshot — so there is NO synchronous initial-state burst
+## here: the subscriber simply begins receiving casts from the next emit forward (AC-09). NO await
+## (ADR-0006 Contract 12). The callable receives the ability_cast 3-arg layout
+## (ability_id: StringName, caster: Node2D, target: Node2D).
+func connect_for_initial_state(callable: Callable) -> void:
+	ability_cast.connect(callable)
+
+
 ## Defensive boot reader (Story 007 / EC-02/03/04). Reads one "ability.unlocked.<id>" key and,
 ## if it round-trips to a valid UnlockRecord for a KNOWN ability id, installs it into
 ## _unlocked_abilities. Every failure mode degrades gracefully (boot never blocks — AC-14b):
