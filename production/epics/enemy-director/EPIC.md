@@ -65,7 +65,7 @@ This epic is complete when:
 
 | # | Story | Type | Status | ADR |
 |---|-------|------|--------|-----|
-| 001 | [Core Class + 8 State Containers](story-001-core-class-state-containers.md) | Logic | Ready | ADR-0006 C4 |
+| 001 | [Core Class + 8 State Containers](story-001-core-class-state-containers.md) | Logic | Complete ✅ | ADR-0006 C4 |
 | 002 | [CI Lint Suite A — RNG / Chokepoint / Stat](story-002-ci-lint-suite-a.md) | Logic | Ready | N/A (tooling) |
 | 003 | [CI Lint Suite B — Boot Order / Signal Lifecycle / State Locality](story-003-ci-lint-suite-b.md) | Logic | Ready | ADR-0006 |
 | 004 | [CI Lint Suite C — Forbidden Patterns / Move Cap / Dodge Invariant](story-004-ci-lint-suite-c.md) | Logic | Ready | ADR-0001 structural |
