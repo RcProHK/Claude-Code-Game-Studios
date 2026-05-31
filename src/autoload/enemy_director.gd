@@ -140,6 +140,32 @@ const STAGGER_DURATION_BY_TIER: Dictionary = {
 	CombatResolver.DamageTier.CRITICAL: 0.30,
 }
 
+## Melee threat distance (px). Dodge swing must stay strictly inside this (INV-8).
+const MELEE_RANGE: float = 80.0
+
+# =====================================================================
+# Locomotion + perception budget (Rule 18, Formula 6 — Story 014)
+# =====================================================================
+
+## Absolute per-enemy locomotion speed cap (px/s). Matches the move-cap CI lint (INV-7).
+const ENEMY_MOVE_CAP: float = 420.0
+
+## Locomotion acceleration multiplier — accel = _template_move_speed × this (Formula 6).
+const ACCEL_MULTIPLIER: float = 10.0
+
+## MOBILITY dodge sidestep half-amplitude (px). INV-8: DODGE_AMPLITUDE_PX×2 < MELEE_RANGE
+## (30×2=60 < 80). CI lint check_dodge_amplitude_invariant.gd enforces.
+const DODGE_AMPLITUDE_PX: float = 30.0
+
+## MOBILITY dodge re-roll interval (s).
+const DODGE_INTERVAL_SEC: float = 1.5
+
+## Batch-perception cadence (s) — avatar position is read once per this window (4Hz).
+const PERCEPTION_TICK_INTERVAL: float = 0.25
+
+## Per-frame delta clamp (s) — guards physics against long frames (bfcache resume, tab switch).
+const MAX_FRAME_DELTA: float = 0.1
+
 ## A deferred ability_cast captured during catch-up drain (Rule 7 AOE mutex).
 ## Captures RAW cast params — at defer time (before the GSM gate) no CombatContext
 ## exists yet, so Story 018 re-runs the full pipeline on each drained entry.
@@ -280,6 +306,13 @@ var _spawn_cadence_accumulator: float = 0.0
 ## Monotonic spawn counter — feeds the per-spawn sub-RNG key "wave_spawn_{seq}" (Story 012).
 var _wave_seq_counter: int = 0
 
+## Time (s) accumulated toward the next 4Hz batch-perception read (Story 014).
+var _perception_tick_accumulator: float = 0.0
+
+## Injectable avatar reference (untyped DI seam — Story 014). Exposes global_position.
+## null = no avatar (perception skipped); tests inject a mock with a global_position read.
+var _avatar_source = null
+
 # =====================================================================
 # Dependency-injection seams
 # =====================================================================
@@ -381,6 +414,7 @@ func _ready() -> void:
 	_wave_scheduler_paused = true
 	_spawn_cadence_accumulator = 0.0
 	_wave_seq_counter = 0
+	_perception_tick_accumulator = 0.0
 
 	# Story 005: wire signal subscriptions — LAST lines of _ready() per GDD Rule 2.
 	# Resolve DI seams to production autoloads if not injected by tests.
@@ -539,8 +573,27 @@ func _enqueue_catch_up(entry: CatchUpEntry) -> void:
 ## Story 015 will drain the particle dispatch queue BEFORE the catch-up queue
 ## (visual responsiveness priority) — that queue does not exist yet.
 func _physics_process(delta: float) -> void:
+	var clamped_delta: float = minf(delta, MAX_FRAME_DELTA)  # long-frame guard (Story 014)
 	_drain_catch_up_queue()
-	_spawn_cadence_tick(delta)
+	_spawn_cadence_tick(clamped_delta)
+	_perception_tick(clamped_delta)
+
+
+## 4Hz batch perception (Rule 18 / Story 014). Reads the avatar position ONCE per
+## PERCEPTION_TICK_INTERVAL and pushes the distance to every live enemy node — a single
+## avatar read per 250ms instead of one read per enemy per frame (ADR-0001 budget).
+func _perception_tick(delta: float) -> void:
+	if _avatar_source == null:
+		return
+	_perception_tick_accumulator += delta
+	if _perception_tick_accumulator < PERCEPTION_TICK_INTERVAL:
+		return
+	_perception_tick_accumulator = 0.0
+	var avatar_pos: Vector2 = _avatar_source.global_position  # ONE read per window
+	for instance_id: int in _enemy_state_pool:
+		var node: Object = instance_from_id(instance_id)
+		if node != null and node.has_method("set_avatar_distance"):
+			node.set_avatar_distance(avatar_pos.distance_to(node.global_position))
 
 
 ## Drain up to CATCH_UP_HITS_PER_FRAME_CAP entries from the FRONT (FIFO) per call (EC-24).

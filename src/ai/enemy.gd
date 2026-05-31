@@ -15,7 +15,7 @@
 #   any non-DYING → STAGGERED (HEAVY/CRITICAL hit) → PURSUING (timer elapses)
 #   any non-DYING → DYING (kill hit; highest priority, terminal)
 class_name Enemy
-extends Node2D
+extends CharacterBody2D
 
 ## Current AI state (EnemyDirector.EnemyAIState ordinal). SPAWNING is the safe default.
 var _ai_state: int = EnemyDirector.EnemyAIState.SPAWNING
@@ -36,6 +36,26 @@ var animation_interrupted: bool = false
 ## Injectable hit-signal source (untyped DI seam). null → real EnemyDirector autoload.
 var _hit_source = null
 
+# ---- Story 014: locomotion + MOBILITY dodge ----
+
+## Max locomotion speed (px/s) for this enemy — set from its WaveDescriptor at spawn.
+var _template_move_speed: float = 0.0
+
+## Locomotion direction along X (+1 right / -1 left). Default left (toward an avatar on the left).
+var _direction: int = -1
+
+## True if this enemy is a MOBILITY archetype (enables the dodge sidestep).
+var _is_mobility: bool = false
+
+## Per-enemy deterministic dodge RNG (sub-stream keyed by transition_id + instance_id).
+var _dodge_rng: RandomNumberGenerator = null
+
+## Time (s) accumulated toward the next dodge re-roll.
+var _dodge_accumulator: float = 0.0
+
+## Last rolled dodge offset (px), observable for tests. In [-DODGE_AMPLITUDE_PX, +amp].
+var dodge_offset_x: float = 0.0
+
 
 func _ready() -> void:
 	_instance_id = get_instance_id()
@@ -54,6 +74,16 @@ func get_ai_state() -> int:
 	return _ai_state
 
 
+## Configure locomotion/dodge for this enemy at spawn (Story 014).
+## is_mobility enables the dodge sidestep with a deterministic per-instance sub-RNG.
+func setup_locomotion(move_speed: float, direction: int, is_mobility: bool, transition_id: String) -> void:
+	_template_move_speed = move_speed
+	_direction = direction
+	_is_mobility = is_mobility
+	if is_mobility:
+		_dodge_rng = EnemyDirector.RNGFactory.create_sub(transition_id, "dodge_%d" % get_instance_id())
+
+
 func _physics_process(delta: float) -> void:
 	if _ai_state == EnemyDirector.EnemyAIState.DYING:
 		return  # terminal — no further behaviour
@@ -62,8 +92,11 @@ func _physics_process(delta: float) -> void:
 		return
 	if _ai_state == EnemyDirector.EnemyAIState.STAGGERED:
 		_tick_stagger(delta)
-		return  # frozen during stagger — no perception
+		return  # frozen during stagger — no perception / locomotion
 	_update_perception()
+	_tick_dodge(delta)
+	if _ai_state == EnemyDirector.EnemyAIState.PURSUING or _ai_state == EnemyDirector.EnemyAIState.ATTACKING:
+		_apply_locomotion(delta)
 
 
 ## IDLE↔PURSUING perception with hysteresis (AC-27).
@@ -111,3 +144,36 @@ func _enter_dying() -> void:
 ## to drive a real AnimationPlayer.
 func _interrupt_animation() -> void:
 	animation_interrupted = true
+
+
+# ---- Story 014: locomotion (Formula 6) + MOBILITY dodge ----
+
+## Formula 6 velocity step (pure of move_and_slide): accelerate toward target speed,
+## clamp to ENEMY_MOVE_CAP, zero vertical. Separated so AC-30 can assert velocity directly.
+func _step_velocity(delta: float) -> void:
+	var accel: float = _template_move_speed * EnemyDirector.ACCEL_MULTIPLIER
+	velocity.x = move_toward(velocity.x, _template_move_speed * _direction, accel * delta)
+	velocity.x = clampf(velocity.x, -EnemyDirector.ENEMY_MOVE_CAP, EnemyDirector.ENEMY_MOVE_CAP)
+	velocity.y = 0.0
+
+
+## Apply Formula 6 locomotion then resolve collisions (PURSUING/ATTACKING only).
+func _apply_locomotion(delta: float) -> void:
+	_step_velocity(delta)
+	move_and_slide()
+
+
+## MOBILITY dodge sidestep — every DODGE_INTERVAL_SEC re-roll a deterministic offset and
+## apply it to X. Only while MOBILITY + PURSUING. Amplitude bounded by INV-8.
+func _tick_dodge(delta: float) -> void:
+	if not _is_mobility or _dodge_rng == null:
+		return
+	if _ai_state != EnemyDirector.EnemyAIState.PURSUING:
+		return
+	_dodge_accumulator += delta
+	if _dodge_accumulator < EnemyDirector.DODGE_INTERVAL_SEC:
+		return
+	_dodge_accumulator -= EnemyDirector.DODGE_INTERVAL_SEC
+	dodge_offset_x = _dodge_rng.randf_range(
+		-EnemyDirector.DODGE_AMPLITUDE_PX, EnemyDirector.DODGE_AMPLITUDE_PX)
+	global_position.x += dodge_offset_x

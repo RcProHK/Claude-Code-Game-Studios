@@ -794,13 +794,30 @@ func test_ac32_dodge_amplitude_30_satisfies_inv8() -> void:
 	assert_true(value * 2 < 80, "AC-32: 30*2=60 < MELEE_RANGE=80 — INV-8 satisfied")
 
 
-func test_ac32_const_absent_in_real_source_confirms_exit2_path() -> void:
+## AC-32 unblocked by Story 014: DODGE_AMPLITUDE_PX + MELEE_RANGE now exist in the real
+## source, so the dodge lint enforces INV-8 (amplitude×2 < melee range) on real values.
+func test_ac32_const_present_in_real_source_and_inv8_holds() -> void:
 	var lines := _read_lines(REAL_SOURCE)
 	if lines.size() == 0:
 		pending("enemy_director.gd not found — skipping")
 		return
-	assert_eq(_extract_const_value(lines, "DODGE_AMPLITUDE_PX"), -1,
-		"AC-32: DODGE_AMPLITUDE_PX must not yet exist in real source (Story 015 scope — exit-2 path active)")
+	# DODGE_AMPLITUDE_PX = 30.0 (float) — match the declaration + capture the value.
+	var re := RegEx.new()
+	assert_eq(re.compile("const\\s+DODGE_AMPLITUDE_PX\\s*(?::\\s*\\w+\\s*)?=\\s*([0-9]+(?:\\.[0-9]+)?)"), OK)
+	var amp_match: RegExMatch = null
+	var melee_match: RegExMatch = null
+	var re_melee := RegEx.new()
+	assert_eq(re_melee.compile("const\\s+MELEE_RANGE\\s*(?::\\s*\\w+\\s*)?=\\s*([0-9]+(?:\\.[0-9]+)?)"), OK)
+	for line: String in lines:
+		if amp_match == null:
+			amp_match = re.search(line)
+		if melee_match == null:
+			melee_match = re_melee.search(line)
+	assert_not_null(amp_match, "AC-32: DODGE_AMPLITUDE_PX must exist in real source (Story 014 done)")
+	assert_not_null(melee_match, "AC-32: MELEE_RANGE must exist in real source")
+	var amp := amp_match.get_string(1).to_float()
+	var melee := melee_match.get_string(1).to_float()
+	assert_lt(amp * 2.0, melee, "AC-32: real DODGE_AMPLITUDE_PX×2 (%f) < MELEE_RANGE (%f) — INV-8" % [amp * 2.0, melee])
 
 
 # ---------------------------------------------------------------------------

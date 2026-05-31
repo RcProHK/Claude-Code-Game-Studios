@@ -1,7 +1,7 @@
 # Story 014: Enemy Locomotion + 4Hz Batch Perception (Rule 18 + Formula 6)
 
 > **Epic**: Enemy Director
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Core
 > **Type**: Logic
 > **Estimate**: 3h
@@ -84,7 +84,18 @@
 **Required evidence**:
 - `tests/unit/enemy_director/test_locomotion_formula.gd`
 - `tests/unit/enemy_director/test_mobility_dodge.gd`
-**Status**: [ ] Not yet created
+**Status**: [x] Created; GUT 12/12 (story) + 137/137 (suite) + 45/45 (static) PASS; dodge+randf lints PASS (Godot 4.6.3, 2026-06-01)
+
+---
+
+## Completion Notes
+
+**Completed**: 2026-06-01
+**Criteria**: 3/3 passing (AC-30 Formula 6, MOBILITY dodge INV-8, 4Hz batch perception)
+**Implementation**: Enemy node changed to `extends CharacterBody2D`. `_step_velocity` (Formula 6: move_toward + ENEMY_MOVE_CAP clamp + velocity.y=0) / `_apply_locomotion` (+move_and_slide, PURSUING/ATTACKING only); `_tick_dodge` (MOBILITY-only, deterministic create_sub("dodge_{id}"), DODGE_AMPLITUDE_PX=30, INV-8); `setup_locomotion()`. EnemyDirector `_perception_tick` (4Hz single avatar read → all enemies via instance_from_id) + `_avatar_source` seam + delta clamp (MAX_FRAME_DELTA). New consts MELEE_RANGE/ENEMY_MOVE_CAP/ACCEL_MULTIPLIER/DODGE_AMPLITUDE_PX/DODGE_INTERVAL_SEC/PERCEPTION_TICK_INTERVAL/MAX_FRAME_DELTA.
+**Unblocks**: Story 004 AC-32 (dodge-amplitude lint now enforces on real DODGE_AMPLITUDE_PX/MELEE_RANGE; flipped the stale "const absent" static test).
+**Test Evidence**: test_locomotion_formula.gd (6, incl 4Hz) + test_mobility_dodge.gd (6).
+**Code Review**: deferred to batch review (autonomous epic completion run).
 
 ---
 
