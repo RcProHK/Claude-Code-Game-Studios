@@ -230,17 +230,24 @@ func test_ac20_formula1_estimated_path_example_b() -> void:
 
 ## Bonus set (current > planned) → clamp ≤ SET_PROGRESS_BONUS_SET_CLAMP (0.95).
 func test_ac20_bonus_set_clamped_to_095() -> void:
-	WorkoutStateTracker.set(&"_planned_total_sets", 3)
-	WorkoutStateTracker.set(&"_planned_reps_per_set", 5)
+	# planned 2 sets × 10 reps. Use partial reps on planned sets so set_progress stays
+	# BELOW 0.95 through the planned sets — otherwise the last planned set (full reps)
+	# legitimately reaches 1.0 and monotonicity correctly blocks the bonus clamp from
+	# lowering it. The 3rd set is the bonus set (current_set_index 3 > planned_total 2).
+	WorkoutStateTracker.set(&"_planned_total_sets", 2)
+	WorkoutStateTracker.set(&"_planned_reps_per_set", 10)
 	WorkoutStateTracker.set(&"_cached_set_progress", 0.0)
 
 	WorkoutStateTracker.call("_on_workout_started")
-	# Log 4 sets — 4th is a bonus set (> planned 3)
-	for i in range(4):
-		WorkoutStateTracker.call("_on_set_logged", &"bench", 5, 60.0)
+	# Set 1: (1-1 + 5/10)/2 = 0.25
+	WorkoutStateTracker.call("_on_set_logged", &"bench_press", 5, 60.0)
+	# Set 2: (2-1 + 5/10)/2 = 0.75 (not > planned, no clamp)
+	WorkoutStateTracker.call("_on_set_logged", &"bench_press", 5, 60.0)
+	# Set 3 (BONUS, current 3 > planned 2): raw=(3-1+10/10)/2=1.5→clamp 1.0→bonus min(1.0,0.95)=0.95
+	WorkoutStateTracker.call("_on_set_logged", &"bench_press", 10, 60.0)
 
-	assert_true(WorkoutStateTracker.get(&"_cached_set_progress") <= 0.95,
-		"AC-20: bonus set must clamp set_progress to ≤ SET_PROGRESS_BONUS_SET_CLAMP (0.95)")
+	assert_almost_eq(WorkoutStateTracker.get(&"_cached_set_progress"), 0.95, 0.001,
+		"AC-20: bonus set must clamp set_progress to exactly SET_PROGRESS_BONUS_SET_CLAMP (0.95)")
 
 
 # ---------------------------------------------------------------------------

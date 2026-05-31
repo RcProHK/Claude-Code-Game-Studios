@@ -132,14 +132,15 @@ func test_ac33_suspended_entry_deferred_during_workout_complete() -> void:
 		"Precondition: phase must be WORKOUT_COMPLETE")
 
 	# Simulate pending stat-apply callable in the deferred queue (EC-08 scenario).
-	# The spy also records the WST substate at the moment it fires — proving that
-	# stat-apply ran WHILE still READY (i.e. before SUSPENDED entry). This is the
-	# strict EC-08 invariant: stat-apply ≺ SUSPENDED.
-	var stat_spy_applied: bool = false
-	var stat_spy_saw_substate: int = -1
+	# The spy records (a) that it fired and (b) the WST substate at fire time — proving
+	# stat-apply ran WHILE still READY (strict EC-08 invariant: stat-apply ≺ SUSPENDED).
+	# NOTE: array-wrap the captured state — GDScript lambdas capture outer locals BY VALUE,
+	# so a bare `var applied := false; func(): applied = true` would mutate the lambda's
+	# own copy and never update the test's local (a known project gotcha).
+	var spy: Array = [false, -1]  # [applied, saw_substate]
 	(func() -> void:
-		stat_spy_applied = true
-		stat_spy_saw_substate = WorkoutStateTracker.get(&"_substate")
+		spy[0] = true
+		spy[1] = WorkoutStateTracker.get(&"_substate")
 	).call_deferred()
 
 	# Act: GSM sends Suspended in the same frame (direct handler call — unit isolation)
@@ -153,16 +154,16 @@ func test_ac33_suspended_entry_deferred_during_workout_complete() -> void:
 	# Assert: SUSPENDED must NOT have been entered synchronously (EC-08 deferred)
 	assert_eq(WorkoutStateTracker.get(&"_substate"), WorkoutStateTracker.Substate.READY,
 		"Substate must still be READY before frame boundary (EC-08 deferred entry)")
-	assert_false(stat_spy_applied,
+	assert_false(spy[0],
 		"Stat spy must NOT have applied yet (deferred queue not yet drained)")
 
 	# Drive one process_frame — drains call_deferred queue + fires process_frame callback
 	await get_tree().process_frame
 
 	# Assert: deferred queue drained + SUSPENDED entered
-	assert_true(stat_spy_applied,
+	assert_true(spy[0],
 		"Stat spy must have applied after process_frame (deferred queue drained)")
-	assert_eq(stat_spy_saw_substate, WorkoutStateTracker.Substate.READY,
+	assert_eq(spy[1], WorkoutStateTracker.Substate.READY,
 		"Stat spy must have fired WHILE substate was still READY (EC-08: stat-apply ≺ SUSPENDED)")
 	assert_eq(WorkoutStateTracker.get(&"_substate"), WorkoutStateTracker.Substate.SUSPENDED,
 		"Substate must be SUSPENDED after process_frame (EC-08 deferred chain complete)")

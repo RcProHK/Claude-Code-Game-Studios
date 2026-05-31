@@ -140,12 +140,13 @@ func test_ac17a_pattern_allows_autoload_usage() -> void:
 # AC-17(b): _workout_phase = outside owner detection
 # ---------------------------------------------------------------------------
 
-## Pattern detects _workout_phase assignment in fixture.
+## Pattern detects ._workout_phase = member-access assignment in fixture.
+## Member-access form (leading dot) matches the narrowed production lint.
 func test_ac17b_pattern_detects_phase_assignment_in_fixture() -> void:
 	var lines := _read_lines("res://tests/fixtures/wst_ci_violation_sample.gd")
-	var count: int = _count_matches(lines, "_workout_phase\\s*=")
+	var count: int = _count_matches(lines, "\\._workout_phase\\s*=")
 	assert_true(count > 0,
-		"AC-17(b): pattern must detect _workout_phase = assignments in fixture")
+		"AC-17(b): pattern must detect `WorkoutStateTracker._workout_phase =` member-access write in fixture")
 
 
 ## Stat.get_* FORBIDDEN inside workout_state_tracker.gd (Rule 16 NEVER #6).

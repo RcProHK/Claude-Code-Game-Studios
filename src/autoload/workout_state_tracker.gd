@@ -206,9 +206,10 @@ var _previous_dominant_class: int = -1
 ## Timestamp (ms) of last _cached_dominant_class flip. Used for DOMINANT_CLASS_CHANGE_COOLDOWN_MS.
 var _dominant_class_last_change_ms: int = 0
 
-## Injectable time-source for cooldown testing (DI seam, untyped Node per project convention).
-## null → uses Time.get_ticks_msec(). Tests inject a mock object via set(&"_time_source", mock).
-var _time_source: Node = null
+## Injectable time-source for cooldown testing (DI seam — UNTYPED per project convention:
+## a typed `Node` property silently rejects RefCounted test doubles via Object.set()).
+## null → uses Time.get_ticks_msec(). Tests inject a mock via set(&"_time_source", mock).
+var _time_source = null
 
 # ---- Story 007: Stat caller routing ----
 
@@ -219,9 +220,10 @@ const PENDING_STAT_DELTAS_MAX: int = 100
 ## Payload: dropped_count (int) — how many entries were dropped this overflow event.
 signal wst_queue_overflow(dropped_count: int)
 
-## Injectable #11 StatSystem reference (untyped Node — project DI convention per memory).
-## null = use StatSystem autoload directly. Tests inject a spy double via set(&"_stat_system", spy).
-var _stat_system: Node = null
+## Injectable #11 StatSystem reference (UNTYPED — project DI convention: a typed Node
+## property silently rejects RefCounted test doubles via Object.set()).
+## null = resolved to StatSystem autoload in _ready(). Tests inject a spy via set(&"_stat_system", spy).
+var _stat_system = null
 
 ## Pending apply_stat_delta calls buffered while #11 is not READY (substate != READY).
 ## Each entry: { "stat_id": StringName, "source": int, "delta": float, "source_key": String }
@@ -232,9 +234,10 @@ var _stat_delta_overflow_count: int = 0
 
 # ---- Story 008: PersistenceLayer DI seam + snapshot state ----
 
-## Injectable PersistenceLayer reference (untyped Node — project DI convention).
+## Injectable PersistenceLayer reference (UNTYPED — project DI convention: a typed Node
+## property silently rejects RefCounted test doubles via Object.set()).
 ## null → resolved to PersistenceLayer autoload in _ready(). Tests inject a mock.
-var _persistence_layer: Node = null
+var _persistence_layer = null
 
 ## Unix timestamp (seconds) when the current workout was started. Stored in
 ## wst.current_workout.started_at for TTL check on bfcache resume.

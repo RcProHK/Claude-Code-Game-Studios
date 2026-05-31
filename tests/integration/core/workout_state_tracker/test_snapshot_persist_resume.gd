@@ -34,8 +34,7 @@ class FakePersistenceLayer:
 		# Strict greater-than (EC-26): boundary exactly at TTL is NOT expired.
 		return (now_s - anchor_unix) > ttl_seconds
 
-	func has_method(method_name: String) -> bool:
-		return method_name in ["read", "write", "is_expired"]
+	# No custom has_method() — built-in Object.has_method detects the methods above.
 
 	func clear_calls() -> void:
 		write_calls.clear()
@@ -207,11 +206,10 @@ func test_ac32_boundary_exactly_24h_is_valid() -> void:
 ## Oversized set_history triggers truncation; WST_SNAPSHOT_TRUNC_001 logged.
 func test_ac35_large_set_history_truncated_on_persist() -> void:
 	WorkoutStateTracker.call("_on_workout_started")
-	# Log enough sets to exceed 256KB threshold (each dict ~100 bytes JSON → ~2600 needed)
-	# Use 300 sets to be safe — each entry {"exercise_id":&"bench_press","reps":8,"weight":60.0}
-	# JSON: ~65 chars = ~65 bytes per entry; 300 × 65 = 19500 bytes — NOT enough for 256KB
-	# Need ~4000 sets for > 262144 bytes. Use 4100 sets.
-	for i in range(4100):
+	# Must exceed SNAPSHOT_BYTE_TRUNCATION_THRESHOLD (262144 bytes). JSON.stringify of each
+	# entry {"exercise_id":"bench_press","reps":8,"weight":60.0} ≈ 50 chars/bytes, so we need
+	# ~5250+ entries. Use 7000 to comfortably clear the threshold (~350KB).
+	for i in range(7000):
 		WorkoutStateTracker.get(&"_set_history").append(
 			{"exercise_id": &"bench_press", "reps": 8, "weight": 60.0}
 		)

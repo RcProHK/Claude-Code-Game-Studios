@@ -65,12 +65,14 @@ func test_ac05_all_five_getters_callable_return_defaults() -> void:
 ## NOT inherited Node/Object built-ins (set_deferred, set_meta, etc.).
 func test_ac05_no_public_setter_methods_on_wst() -> void:
 	var script_method_list: Array = WorkoutStateTracker.get_script().get_script_method_list()
+	var offending: Array[String] = []
 	for method_info: Dictionary in script_method_list:
 		var method_name: String = method_info.get("name", "")
 		if method_name.begins_with("set_") or method_name.begins_with("mutate_") \
 				or method_name.begins_with("force_"):
-			assert_true(false,
-				"AC-05: WST script must not have method '%s' (closed-API contract)" % method_name)
+			offending.append(method_name)
+	assert_eq(offending.size(), 0,
+		"AC-05: WST script must have no set_*/mutate_*/force_* methods (closed-API). Found: %s" % str(offending))
 
 
 ## WorkoutSnapshotRO is immutable after seal() — mutation attempt is blocked.

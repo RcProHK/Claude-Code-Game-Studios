@@ -25,8 +25,9 @@ class FakeStatSystem:
 		calls.append({"stat_id": stat_id, "source": source, "delta": delta})
 		return true
 
-	func has_method(method_name: String) -> bool:
-		return method_name == "get_substate" or method_name == "apply_stat_delta"
+	# Note: no custom has_method() override — Godot's built-in Object.has_method
+	# correctly detects the methods declared above. Overriding it with a mismatched
+	# signature triggers a parse error (warnings-as-errors in CI).
 
 	func clear_calls() -> void:
 		calls.clear()

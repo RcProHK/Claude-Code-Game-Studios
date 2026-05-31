@@ -16,7 +16,7 @@ class FakePersistenceLayer:
 	func read(key: String) -> Variant: return data.get(key, null)
 	func write(_key: String, _value: Variant, _flush: bool = false) -> bool: return true
 	func is_expired(_anchor: int, _ttl: int, _mono: int = 0) -> bool: return false
-	func has_method(m: String) -> bool: return m in ["read", "write", "is_expired"]
+	# No custom has_method() — built-in Object.has_method detects the methods above.
 
 
 ## Mock #15 LootDrop subscriber — connects to workout_summary_available and records fields.

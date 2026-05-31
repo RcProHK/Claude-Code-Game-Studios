@@ -8,6 +8,10 @@
 # ACTIVE violation (a1): WorkoutStateTracker._field access (Rule 14 / check_workout_state_caller)
 var _phase_read_viol = WorkoutStateTracker._workout_phase
 
+# ACTIVE violation (a1b): WorkoutStateTracker._workout_phase member-access WRITE (Rule 16)
+func _force_phase() -> void:
+	WorkoutStateTracker._workout_phase = 1  # ci:violation-fixture — member-access write
+
 # ACTIVE violation (a2): WorkoutStateTracker.set_* method call (Rule 14 / check_workout_state_caller)
 # This tests the set_ branch explicitly (separate from _field access)
 var _set_call_viol = WorkoutStateTracker.set_deferred("_workout_phase", 0)
