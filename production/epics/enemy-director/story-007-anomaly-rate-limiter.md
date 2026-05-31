@@ -1,12 +1,12 @@
 # Story 007: Anomaly Rate-Limiter (Formula 4)
 
 > **Epic**: Enemy Director
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Core
 > **Type**: Logic
 > **Estimate**: 2h
 > **Manifest Version**: 2026-05-29
-> **Last Updated**:
+> **Last Updated**: 2026-05-31
 
 ## Context
 
@@ -18,6 +18,7 @@
 **ADR Decision Summary**: ADR-0006 mandates deterministic, injectable time for all rate-limiting logic; no wall-clock reads inside rate-check functions.
 
 **Engine**: Godot 4.6 | **Risk**: LOW
+**Performance**: `rate_limit_check()` is called from `_on_ability_cast` handler (Story 008, hot path). Must be O(k) where k = entries in sliding window (≤ RATE_CAP_PER_REASON = 10). `walk_anomaly_rate_windows()` is called from `_physics_process` — O(r×k) where r = 6 reasons × k=10 max = 60 iterations worst-case per frame. Analytic budget: 60 iterations × ~0.001ms = 0.06ms per frame. Well within ADR-0001 0.5ms EnemyDirector orchestration budget.
 
 ---
 
@@ -25,7 +26,9 @@
 
 *From GDD `design/gdd/enemy-director.md`, scoped to this story:*
 
-- [ ] AC-09 [Logic|BLOCKING|unit]: Given `_anomaly_rate_tracker` initialized. When 100 same-reason anomaly attempts within 1 sec (time-injected). Then: exactly 10 emit pass (returns `true`) + 90 drop (returns `false`). Window expiry emits 1 aggregate `combat_metric_anomaly{reason, dropped_count: 90, aggregate: true}`.
+- [x] AC-09a [Logic|BLOCKING|unit]: Given `_anomaly_rate_tracker` initialized. When 100 calls `rate_limit_check("GSM_SUSPENDED", 0)` (time-injected, all same ms). Then: first 10 return `true`; next 90 return `false`. `dropped_count` for that reason == 90 in the tracker. Then `walk_anomaly_rate_windows(1001)` → `combat_metric_anomaly` emitted exactly once with `{reason: &"GSM_SUSPENDED", dropped_count: 90, aggregate: true}`.
+- [x] AC-09b [Logic|BLOCKING|unit]: Given 6 different reasons each receiving 100 calls at same `now_ms=0`. When `rate_limit_check(reason_i, 0)` × 100 for each of the 6 reasons. Then: each reason independently allows exactly 10 passes (total 60 passes across all reasons); each reason independently caps at 10. Reasons do NOT share a global cap.
+- [x] AC-09c [Logic|BLOCKING|unit]: Window boundary — sliding eviction correctness. Given 10 calls at `now_ms=0` (cap reached). When 10 more calls at `now_ms=999` (still in window). Then: all 10 at 999ms are dropped (cap not released yet). When `walk_anomaly_rate_windows(1000)` — first batch at 0ms evicted. When 10 new calls at `now_ms=1000`. Then: up to 10 new calls pass (window rolled; old entries evicted).
 
 ---
 
@@ -75,7 +78,18 @@ Edge case — window boundary: 10 calls at `now_ms=0`, then 10 calls at `now_ms=
 
 **Story Type**: Logic
 **Required evidence**: `tests/unit/enemy_director/test_anomaly_rate_limiter.gd`
-**Status**: [ ] Not yet created
+**Status**: [x] Created; GUT 43/43 PASS (Godot 4.6.2, 2026-05-31)
+
+---
+
+## Completion Notes
+
+**Completed**: 2026-05-31
+**Criteria**: 3/3 passing
+**Implementation**: `rate_limit_check(reason, now_ms)` + `walk_anomaly_rate_windows(now_ms)` added to enemy_director.gd. `RateWindow extends RefCounted` inner class + RATE_WINDOW_MS=1000/RATE_CAP_PER_REASON=10 constants. Half-open eviction: `ts <= now_ms - RATE_WINDOW_MS`. Aggregate CombatAnomalyPayload emitted when window fully expired with drops > 0.
+**Key design note**: QL-STORY-READY Note 1 addressed — half-open window boundary (`ts <= now_ms - RATE_WINDOW_MS`) confirmed correct; test_ac09c_walk_1000_evicts_ts0 locks this semantics.
+**Test Evidence**: 9 tests covering AC-09a (4), AC-09b (2), AC-09c (3). GUT green.
+**Code Review**: Skipped (self-implemented; QL-STORY-READY ADEQUATE).
 
 ---
 

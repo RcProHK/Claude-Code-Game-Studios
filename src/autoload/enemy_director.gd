@@ -61,6 +61,31 @@ class RNGFactory extends RefCounted:
 		return rng
 
 # =====================================================================
+# Anomaly rate-limiter (Rule 6, Formula 4, FR-5 — Story 007)
+# =====================================================================
+
+## Sliding-window duration for per-reason anomaly rate-limiting.
+## Default 1000 ms (1 s). Safe range [500, 5000] per GDD Section G.
+const RATE_WINDOW_MS: int = 1000
+
+## Maximum anomaly emits per reason per sliding window.
+## Excess calls are counted in RateWindow.dropped and emitted as an aggregate.
+## Default 10. Safe range [3, 50] per GDD Section G / #13 Rule 17.
+const RATE_CAP_PER_REASON: int = 10
+
+
+## Sliding-window state for one anomaly reason, stored in _anomaly_rate_tracker.
+##
+## timestamps: front = oldest accepted emit (ms). Entries are evicted by
+## rate_limit_check / walk_anomaly_rate_windows when ts <= now_ms - RATE_WINDOW_MS
+## (half-open window — entries AT the boundary are considered expired).
+## dropped: cumulative drop count since last aggregate emit.
+class RateWindow extends RefCounted:
+	var timestamps: Array[int] = []
+	var dropped: int = 0
+
+
+# =====================================================================
 # Enums (ADR-0007 — two-family convention)
 # =====================================================================
 
@@ -240,6 +265,55 @@ func _preload_spawn_pool() -> void:
 		var pool: Dictionary = _enemy_registry.get_preloaded_pool()
 		for key: StringName in pool:
 			_spawn_pool[key] = pool[key]
+
+
+## Sliding-window rate-limit gate for anomaly emission (Formula 4, Rule 6, FR-5).
+##
+## Returns true if the caller should emit `combat_metric_anomaly` for this reason;
+## false if the call is rate-limited (dropped). Dropped calls are accumulated in the
+## window's `dropped` counter; walk_anomaly_rate_windows() will emit an aggregate
+## CombatAnomalyPayload when the window expires (FR-5 silent-fail prevention).
+##
+## IMPORTANT: the caller MUST pass now_ms (typically Time.get_ticks_msec()).
+## NEVER call Time.get_ticks_msec() inside this function — injectable time only (ADR-0006).
+## Eviction uses a half-open window: ts <= now_ms - RATE_WINDOW_MS is expired.
+func rate_limit_check(reason: StringName, now_ms: int) -> bool:
+	if not _anomaly_rate_tracker.has(reason):
+		_anomaly_rate_tracker[reason] = RateWindow.new()
+	var window: RateWindow = _anomaly_rate_tracker[reason]
+	# Evict expired entries (half-open: ts at boundary is considered expired).
+	while window.timestamps.size() > 0 and window.timestamps[0] <= now_ms - RATE_WINDOW_MS:
+		window.timestamps.pop_front()
+	# Cap check.
+	if window.timestamps.size() >= RATE_CAP_PER_REASON:
+		window.dropped += 1
+		return false
+	# Accept.
+	window.timestamps.append(now_ms)
+	return true
+
+
+## Evict expired entries across all reason windows and emit aggregate anomaly signals
+## for fully-expired windows that accumulated drops (FR-5 binding).
+##
+## Call from _physics_process with Time.get_ticks_msec() as now_ms.
+## An aggregate CombatAnomalyPayload{aggregate:true, dropped_count:N} is emitted once
+## per reason whose window has fully expired (empty) with accumulated drops.
+func walk_anomaly_rate_windows(now_ms: int) -> void:
+	for reason: StringName in _anomaly_rate_tracker.keys():
+		var window: RateWindow = _anomaly_rate_tracker[reason]
+		# Evict expired entries.
+		while window.timestamps.size() > 0 and window.timestamps[0] <= now_ms - RATE_WINDOW_MS:
+			window.timestamps.pop_front()
+		# Emit aggregate when window is fully expired and drops > 0 (FR-5).
+		if window.dropped > 0 and window.timestamps.is_empty():
+			var payload := CombatAnomalyPayload.new()
+			payload.reason = reason
+			payload.aggregate = true
+			payload.dropped_count = window.dropped
+			payload.context_dump = {}
+			combat_metric_anomaly.emit(payload)
+			window.dropped = 0
 
 
 ## DEPRECATED by Story 006 — superseded by the RNGFactory inner class (now wired
