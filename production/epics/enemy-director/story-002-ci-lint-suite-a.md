@@ -1,12 +1,12 @@
 # Story 002: CI Lint Suite A — RNG / Chokepoint / Stat
 
 > **Epic**: Enemy Director
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Core
 > **Type**: Logic
 > **Estimate**: 3h
 > **Manifest Version**: 2026-05-29
-> **Last Updated**:
+> **Last Updated**: 2026-05-31
 
 ## Context
 
@@ -25,9 +25,9 @@
 
 *From GDD `design/gdd/enemy-director.md`, scoped to this story:*
 
-- [ ] AC-03 [Logic|BLOCKING|static]: `tools/ci/check_enemy_director_chokepoint.gd` — AST scan `src/autoload/enemy_director.gd`; reject inline arithmetic resembling damage math (`caster.attack_power * 1.5`, `target.hp -= ...`); all damage MUST go via `CombatResolver.resolve_hit()`. Script must have fixture test: positive fixture (violation present → exit 1) + negative fixture (clean → exit 0).
-- [ ] AC-14 [Logic|BLOCKING|static]: `tools/ci/check_enemy_director_randf.gd` — reject `randf(` / `randi(` / `randf_range(` / `Time.get_ticks_msec(` / direct `RandomNumberGenerator.new()` in `enemy_director.gd` outside RNGFactory class body. Fixture: positive (violation) + negative (clean).
-- [ ] (Story-level AC) `tools/ci/check_enemy_director_stat_calls.gd` — verify all `StatSystem.get_stat()` calls in `enemy_director.gd` exist ONLY inside `_build_stat_snapshot()` method body (Rule 8). Fixture: positive (stat call outside snapshot method → exit 1) + negative (clean → exit 0).
+- [x] AC-03 [Logic|BLOCKING|static]: `tools/ci/check_enemy_director_chokepoint.gd` — AST scan `src/autoload/enemy_director.gd`; reject inline arithmetic resembling damage math (`caster.attack_power * 1.5`, `target.hp -= ...`); all damage MUST go via `CombatResolver.resolve_hit()`. Script must have fixture test: positive fixture (violation present → exit 1) + negative fixture (clean → exit 0).
+- [x] AC-14 [Logic|BLOCKING|static]: `tools/ci/check_enemy_director_randf.gd` — reject `randf(` / `randi(` / `randf_range(` / `Time.get_ticks_msec(` / direct `RandomNumberGenerator.new()` in `enemy_director.gd` outside RNGFactory class body. Fixture: positive (violation) + negative (clean).
+- [x] (Story-level AC) `tools/ci/check_enemy_director_stat_calls.gd` — verify all `StatSystem.get_stat()` calls in `enemy_director.gd` exist ONLY inside `_build_stat_snapshot()` method body (Rule 8). Fixture: positive (stat call outside snapshot method → exit 1) + negative (clean → exit 0).
 
 ---
 
@@ -69,7 +69,19 @@
 
 **Story Type**: Logic
 **Required evidence**: `tools/ci/check_enemy_director_chokepoint.gd` + `tools/ci/check_enemy_director_randf.gd` + `tools/ci/check_enemy_director_stat_calls.gd` — all with fixture tests in `tests/ci_fixtures/`
-**Status**: [ ] Not yet created
+**Status**: [x] 6 files created; GUT 25/25 PASS (11 new + 14 WST tests, no regression; Godot 4.6.2, 2026-05-31)
+
+---
+
+## Completion Notes
+
+**Completed**: 2026-05-31
+**Criteria**: 3/3 passing
+**Deviations**:
+- ADVISORY: Exit-code contract (0/1/2) verified via inline regex, not subprocess. Precedent: test_wst_ci_lint.gd uses same approach. User accepted.
+- ADVISORY: 3/5 chokepoint + 3/5 randf patterns have no positive violation coverage (regex typo risk). Defer to Story 006/008 regression when RNGFactory / _build_stat_snapshot are implemented.
+**Test Evidence**: `tests/static/test_enemy_director_ci_lint.gd` — 11 tests, 25/25 PASS (incl. WST regression). Key test: `test_ac14_randf_inside_rng_factory_not_detected_in_clean_fixture` proves scope-aware logic.
+**Code Review**: Complete — LP-CODE-REVIEW APPROVED WITH SUGGESTIONS (0 CRITICAL/MAJOR; 3 MINOR scope-heuristic edge cases; consistent with established project pattern).
 
 ---
 
