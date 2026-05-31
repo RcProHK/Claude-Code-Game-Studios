@@ -86,6 +86,32 @@ class RateWindow extends RefCounted:
 
 
 # =====================================================================
+# Catch-up queue serialization (Rule 7 — Story 009)
+# =====================================================================
+
+## Per-frame ceiling for draining the catch-up queue. Protects the frame budget
+## when a bfcache resume delivers a burst of buffered casts. Const (not var).
+const CATCH_UP_HITS_PER_FRAME_CAP: int = 12
+
+## Absolute backlog ceiling for the catch-up queue. On overflow the oldest entry
+## is dropped (FIFO eviction) and a CLAMP_TRIGGERED anomaly is emitted. Const.
+const CATCH_UP_QUEUE_HARD_CAP: int = 1000
+
+## A deferred ability_cast captured during catch-up drain (Rule 7 AOE mutex).
+## Captures RAW cast params — at defer time (before the GSM gate) no CombatContext
+## exists yet, so Story 018 re-runs the full pipeline on each drained entry.
+class CatchUpEntry extends RefCounted:
+	var ability_id: StringName
+	var caster: Node2D
+	var target: Node2D
+
+	func _init(p_ability_id: StringName = &"", p_caster: Node2D = null, p_target: Node2D = null) -> void:
+		ability_id = p_ability_id
+		caster = p_caster
+		target = p_target
+
+
+# =====================================================================
 # Enums (ADR-0007 — two-family convention)
 # =====================================================================
 
@@ -191,6 +217,20 @@ const REASON_CLAMP_TRIGGERED: StringName = &"CLAMP_TRIGGERED"
 const REASON_DEAD_TARGET_RESOLVE: StringName = &"DEAD_TARGET_RESOLVE"
 const REASON_RNG_INJECTION_MISSING: StringName = &"RNG_INJECTION_MISSING"
 
+## Injectable AOE-classification set (untyped DI seam — Story 009).
+## A Dictionary used as a set: key = ability_id StringName the EnemyDirector should treat
+## as AOE_RADIUS for the catch-up serialization mutex. null/empty = no abilities are AOE.
+## Real ability-metadata taxonomy (a TargetType registry) is wired in Story 018; until then
+## tests inject the set directly to exercise the AOE-defer path.
+var _aoe_ability_set = null
+
+## Injectable catch-up drain sink (untyped DI seam — Story 009).
+## When set, `_process_catch_up_entry` forwards each drained entry to `_catch_up_sink.record(entry)`
+## so integration tests can observe FIFO drain order. null in production until Story 018 fills
+## the real AOE pipeline in `_process_catch_up_entry`. A sink-recorded entry has NOT passed the
+## GSM gate — see the drain-time GSM invariant (Story 009 notes / EC-01).
+var _catch_up_sink = null
+
 ## Injectable GameStateMachine reference for signal subscription (untyped DI seam).
 ## null = resolved to GameStateMachine autoload in _ready().
 ## Tests inject a mock via EnemyDirector.set(&"_gsm_source", mock).
@@ -270,7 +310,16 @@ func _on_state_changed(_from: int, _to: int, _payload) -> void:
 ##   6. Create per-cast seeded RNG from RNGFactory (Rule 4 / FR-3).
 ##   7. Build StatSnapshot (Rule 8 — exactly 2 get_stat() calls; same reference for all AOE ctx).
 ## Story 009 (catch-up mutex), Story 018 (AOE dispatch + CombatResolver loop) continue from step 7.
-func _on_ability_cast(ability_id: StringName, caster: Node2D, _target: Node2D) -> void:
+func _on_ability_cast(ability_id: StringName, caster: Node2D, target: Node2D) -> void:
+	# Step 0 — Catch-up × AOE serialization mutex (Rule 7 / Story 009 / AC-11).
+	# While the catch-up queue is draining, AOE casts are deferred to the tail to
+	# prevent interleaving with in-flight catch-up hits (hit-sequence corruption guard).
+	# Non-AOE casts during drain proceed normally. Defer is a postponement, NOT a gate
+	# bypass — Story 018's drain pipeline re-runs the GSM gate per entry (EC-01 invariant).
+	if _catch_up_queue.size() > 0 and _is_aoe_cast(ability_id):
+		_enqueue_catch_up(CatchUpEntry.new(ability_id, caster, target))
+		return
+
 	# Step 1 — Sync read GSM state (ADR-0006 Contract 2).
 	var gsm_state: int = _gsm_source.get_current_state()
 
@@ -337,6 +386,62 @@ func _build_stat_snapshot() -> CombatResolver.StatSnapshot:
 	snapshot.attack_power = _stat_system.get_stat(StatSystem.StatId.ATTACK_POWER)
 	snapshot.crit_chance = _stat_system.get_stat(StatSystem.StatId.CRIT_CHANCE)
 	return snapshot
+
+
+# =====================================================================
+# Catch-up queue serialization mutex (Rule 7 — Story 009)
+# =====================================================================
+
+
+## Classify an ability_id as AOE for the serialization mutex (Story 009).
+## Reads the injectable `_aoe_ability_set` seam (Dictionary-as-set). null/missing → false.
+## Story 018 replaces this with a real ability-metadata TargetType lookup.
+func _is_aoe_cast(ability_id: StringName) -> bool:
+	if _aoe_ability_set == null:
+		return false
+	return _aoe_ability_set.has(ability_id)
+
+
+## Append a deferred cast to the catch-up queue tail with hard-cap protection (AC EC-25).
+## At CATCH_UP_QUEUE_HARD_CAP the oldest entry is dropped (FIFO eviction) and a
+## rate-limited CLAMP_TRIGGERED anomaly is emitted before the new entry is pushed.
+func _enqueue_catch_up(entry: CatchUpEntry) -> void:
+	if _catch_up_queue.size() >= CATCH_UP_QUEUE_HARD_CAP:
+		_catch_up_queue.pop_front()  # drop oldest (FIFO eviction)
+		var now_ms: int = Time.get_ticks_msec()
+		if rate_limit_check(REASON_CLAMP_TRIGGERED, now_ms):
+			var payload := CombatAnomalyPayload.new()
+			payload.reason = REASON_CLAMP_TRIGGERED
+			payload.context_dump = {"queue_overflow": true, "dropped": 1}
+			combat_metric_anomaly.emit(payload)
+	_catch_up_queue.push_back(entry)
+
+
+## Per-physics-frame drain entry point (Rule 7).
+## Story 015 will drain the particle dispatch queue BEFORE the catch-up queue
+## (visual responsiveness priority) — that queue does not exist yet.
+func _physics_process(_delta: float) -> void:
+	_drain_catch_up_queue()
+
+
+## Drain up to CATCH_UP_HITS_PER_FRAME_CAP entries from the FRONT (FIFO) per call (EC-24).
+## Bounds per-frame work so a large bfcache-resume backlog cannot blow the frame budget;
+## the queue size decreases monotonically across successive frames.
+func _drain_catch_up_queue() -> void:
+	var processed: int = 0
+	while _catch_up_queue.size() > 0 and processed < CATCH_UP_HITS_PER_FRAME_CAP:
+		var entry: CatchUpEntry = _catch_up_queue.pop_front()
+		_process_catch_up_entry(entry)
+		processed += 1
+
+
+## Process one drained catch-up entry. Story 018 fills the real AOE pipeline here
+## (and MUST re-run the GSM Suspended gate per entry — defer is not a gate bypass, EC-01).
+## For Story 009 this forwards to the optional `_catch_up_sink` seam so tests can observe
+## FIFO drain order; null in production → no-op until Story 018.
+func _process_catch_up_entry(entry: CatchUpEntry) -> void:
+	if _catch_up_sink != null:
+		_catch_up_sink.record(entry)
 
 
 # =====================================================================

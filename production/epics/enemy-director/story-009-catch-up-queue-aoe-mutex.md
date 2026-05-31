@@ -1,12 +1,12 @@
 # Story 009: Catch-up Queue + AOE Serialization Mutex
 
 > **Epic**: Enemy Director
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Core
 > **Type**: Integration
 > **Estimate**: 3h
 > **Manifest Version**: 2026-05-29
-> **Last Updated**:
+> **Last Updated**: 2026-05-31
 
 ## Context
 
@@ -35,15 +35,42 @@
 
 *Derived from GDD Rules and ADR guidelines:*
 
-- In `_on_ability_cast`: before GSM gate, check: `if _catch_up_queue.size() > 0 AND ability_def.target_type == TargetType.AOE_RADIUS` → append current ctx to queue tail → return (defer).
-- In `_physics_process(delta)`:
-  1. `_drain_particle_dispatch_queue()` (particle dispatches drain first)
-  2. `_drain_catch_up_queue(delta)` — pop and process max `CATCH_UP_HITS_PER_FRAME_CAP=12` per frame
-- `CATCH_UP_QUEUE_HARD_CAP = 1000` — const (not var). When size exceeds cap: `_catch_up_queue.pop_front()` (drop oldest) + emit anomaly.
-- `CATCH_UP_HITS_PER_FRAME_CAP = 12` — const. Per-frame drain ceiling to protect frame budget.
-- Order preservation: queue is FIFO — `push_back` on enqueue, `pop_front` on drain.
-- bfcache resume scenario: when browser tab becomes visible again, buffered events arrive burst; queue absorbs burst, drains over subsequent frames.
-- Particle dispatch queue: separate `_particle_dispatch_queue: Array[ParticleDispatch]` drained before catch-up queue (visual responsiveness priority).
+**AOE classification reconciliation (readiness fix 2026-05-31):** `TargetType` enum and
+`ability_def.target_type` do NOT exist in the codebase — `ability_cast` passes only
+`ability_id: StringName` (no `ability_def` object), and AbilitySystem exposes `AbilityClass`
+(STRIKE/CONTROL/MOBILITY) not a target-type taxonomy. Story 009 uses an honest primitive
+`_is_aoe_cast(ability_id) -> bool` reading from an injectable `_aoe_ability_set` seam
+(untyped, default null → false). Real ability-metadata wiring (a `TargetType` taxonomy) is
+deferred to Story 018 (AOE pipeline) when an ability metadata registry exists. This story
+only needs the AOE/non-AOE boolean to drive the serialization mutex.
+
+- In `_on_ability_cast`: at the TOP, before the GSM gate, check:
+  `if _catch_up_queue.size() > 0 and _is_aoe_cast(ability_id)` → `_enqueue_catch_up(CatchUpEntry.new(ability_id, caster, target))` → return (defer). Non-AOE casts during drain proceed normally.
+- `CatchUpEntry` inner class (`extends RefCounted`): captures raw `{ability_id, caster, target}`
+  (ctx is NOT yet built at defer time — defer is before the gate, so we capture raw params;
+  Story 018 re-runs the pipeline on each drained entry).
+- `_enqueue_catch_up(entry)`: hard-cap guard — `if _catch_up_queue.size() >= CATCH_UP_QUEUE_HARD_CAP: pop_front() (drop oldest) + rate-limited CLAMP_TRIGGERED anomaly`; then `push_back(entry)`.
+- `_physics_process(_delta)`: calls `_drain_catch_up_queue()`. (Story 015 adds particle dispatch
+  queue drain BEFORE catch-up — `_particle_dispatch_queue` does not exist yet; out of scope here.)
+- `_drain_catch_up_queue()`: pop from FRONT, process via `_process_catch_up_entry(entry)`,
+  max `CATCH_UP_HITS_PER_FRAME_CAP=12` per call. FIFO: `push_back` enqueue, `pop_front` drain.
+- `_process_catch_up_entry(entry)`: Story 018 fills the real AOE pipeline. For Story 009 it
+  forwards to an optional injectable `_catch_up_sink` seam (untyped, default null) so drain
+  FIFO order is observable in integration tests; null in production → no-op until Story 018.
+- `CATCH_UP_QUEUE_HARD_CAP = 1000` — const (frame-budget / memory cap).
+- `CATCH_UP_HITS_PER_FRAME_CAP = 12` — const (per-frame drain ceiling).
+- `REASON_CLAMP_TRIGGERED` anomaly reason const already added in Story 008.
+- **Drain-time GSM invariant (carries to Story 018)**: defer is a *postponement*, NOT a gate
+  bypass. When Story 018 fills the real `_process_catch_up_entry` pipeline, it MUST re-run the
+  GSM Suspended gate on each drained entry before resolving any hit (a Suspended drain frame
+  must skip / re-defer the entry, never resolve). Story 009's `_catch_up_sink` only observes
+  FIFO order — a sink-recorded entry has NOT passed the gate. Documenting this here prevents
+  Story 018 from silently breaking EC-01.
+- **Test determinism**: EnemyDirector is an always-in-tree autoload, so its real `_physics_process`
+  would drain queues between assertions. Tests MUST call `set_physics_process(false)` in
+  `before_each` and invoke `_drain_catch_up_queue()` / `_physics_process(delta)` explicitly.
+- bfcache resume scenario: tab becomes visible → buffered events arrive burst; queue absorbs
+  burst, drains over subsequent frames at ≤12/frame.
 
 ---
 
@@ -71,7 +98,20 @@
 
 **Story Type**: Integration
 **Required evidence**: `tests/integration/combat/test_catch_up_aoe_mutex.gd`
-**Status**: [ ] Not yet created
+**Status**: [x] Created; GUT 14/14 PASS (Godot 4.6.2, 2026-05-31)
+
+---
+
+## Completion Notes
+
+**Completed**: 2026-05-31
+**Criteria**: 3/3 passing (AC-11, EC-25, EC-24)
+**Implementation**: `_on_ability_cast` Step 0 AOE-defer mutex; `CatchUpEntry` inner class; consts `CATCH_UP_HITS_PER_FRAME_CAP=12` / `CATCH_UP_QUEUE_HARD_CAP=1000`; `_is_aoe_cast` (injectable `_aoe_ability_set` seam); `_enqueue_catch_up` (hard-cap FIFO eviction + CLAMP_TRIGGERED); `_physics_process` → `_drain_catch_up_queue` (≤12/frame); `_process_catch_up_entry` (injectable `_catch_up_sink` seam).
+**Key design**: `TargetType`/`ability_def` don't exist → AOE classification via injectable boolean seam, real taxonomy deferred to Story 018. Drain-time GSM gate re-run documented as Story 018 invariant (EC-01). Test uses `set_physics_process(false)` + explicit drain for determinism.
+**Reviews**: godot-gdscript-specialist APPROVED; qa-tester TESTABLE (phantom-pass clean, no native-method override in fakes).
+**Test Evidence**: tests/integration/combat/test_catch_up_aoe_mutex.gd (14 tests).
+**Code Review**: Complete (full mode — GDScript specialist + qa-tester).
+**Follow-up noted**: `_physics_process` does not yet call `walk_anomaly_rate_windows()` (FR-5 aggregate auto-walk) — pre-existing Story 007 wiring gap, out of Story 009 scope.
 
 ---
 

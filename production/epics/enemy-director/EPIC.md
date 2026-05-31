@@ -73,7 +73,7 @@ This epic is complete when:
 | 006 | [RNG Factory + Sub-RNG Determinism](story-006-rng-factory-determinism.md) | Logic | Complete ✅ | ADR-0005 + ADR-0006 C2 |
 | 007 | [Anomaly Rate-Limiter (Formula 4)](story-007-anomaly-rate-limiter.md) | Logic | Complete ✅ | ADR-0006 |
 | 008 | [_on_ability_cast Pipeline: GSM Gate + StatSnapshot](story-008-ability-cast-gsm-gate-statsnapshot.md) | Logic | Complete ✅ | ADR-0006 C2 |
-| 009 | [Catch-up Queue + AOE Serialization Mutex](story-009-catch-up-queue-aoe-mutex.md) | Integration | Ready | ADR-0006 |
+| 009 | [Catch-up Queue + AOE Serialization Mutex](story-009-catch-up-queue-aoe-mutex.md) | Integration | Complete ✅ | ADR-0006 |
 | 010 | [EnemyRegistry.tres Data File](story-010-enemy-registry-data-file.md) | Config/Data | Ready | ADR-0007 |
 | 011 | [Wave Archetype Scheduler (Rule 12 + Formula 1)](story-011-wave-archetype-scheduler.md) | Logic | Ready | ADR-0006 + ADR-0007 |
 | 012 | [Enemy Spawn + Lifecycle Pool Cleanup](story-012-enemy-spawn-lifecycle.md) | Logic | Ready | ADR-0006 |
