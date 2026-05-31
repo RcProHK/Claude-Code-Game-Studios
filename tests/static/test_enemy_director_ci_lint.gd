@@ -593,3 +593,260 @@ func test_subscription_real_enemy_director_has_no_raw_governed_connect() -> void
 		var count: int = _count_matches(lines, pattern)
 		assert_eq(count, 0,
 			"Story-AC: real enemy_director.gd must have 0 raw governed-signal connect for `%s`" % pattern)
+
+
+# ===========================================================================
+# Story 004 — CI Lint Suite C: Forbidden Patterns / Move Cap / Dodge Invariant
+# ===========================================================================
+# Coverage:
+#   AC-05 — check_camera_callers.gd: Camera2D.position/zoom/make_current mutation
+#   AC-26 — check_particle_callers.gd: GPUParticles2D.new() + emitting=true
+#   AC-31 — check_enemy_template_move_cap.gd: _template_move_speed ≤ 420 (exit2 if .tres absent)
+#   AC-32 — check_dodge_amplitude_invariant.gd: DODGE_AMPLITUDE_PX*2 < MELEE_RANGE (exit2 if const absent)
+#   Story-AC boss — check_boss_anchor_state_transitions.gd: only IDLE direct assignment legal
+#   Story-AC cap — check_particle_concurrency_cap.gd: const not var (exit2 if absent)
+
+const CAMERA_VIOLATION_FIXTURE: String = "res://tests/fixtures/enemy_director_camera_violation.gd"
+const PARTICLE_VIOLATION_FIXTURE: String = "res://tests/fixtures/enemy_director_particle_violation.gd"
+const CAMERA_PARTICLE_CLEAN_FIXTURE: String = "res://tests/fixtures/enemy_director_camera_particle_clean.gd"
+const MOVE_CAP_VIOLATION_FIXTURE: String = "res://tests/fixtures/enemy_director_move_cap_violation.gd"
+const MOVE_CAP_CLEAN_FIXTURE: String = "res://tests/fixtures/enemy_director_move_cap_clean.gd"
+const DODGE_VIOLATION_FIXTURE: String = "res://tests/fixtures/enemy_director_dodge_violation.gd"
+const DODGE_CLEAN_FIXTURE: String = "res://tests/fixtures/enemy_director_dodge_clean.gd"
+const BOSS_TRANSITION_VIOLATION_FIXTURE: String = "res://tests/fixtures/enemy_director_boss_transition_violation.gd"
+const CONCURRENCY_VIOLATION_FIXTURE: String = "res://tests/fixtures/enemy_director_concurrency_violation.gd"
+const CONCURRENCY_CLEAN_FIXTURE: String = "res://tests/fixtures/enemy_director_concurrency_clean.gd"
+
+
+## Extract all _template_move_speed values from simulated .tres text lines.
+func _extract_template_speeds(lines: PackedStringArray) -> Array[float]:
+	var re := RegEx.new()
+	assert_eq(re.compile("_template_move_speed\\s*=\\s*([0-9]+(?:\\.[0-9]+)?)"), OK)
+	var speeds: Array[float] = []
+	for line: String in lines:
+		if line.strip_edges(true, false).begins_with("#"):
+			continue
+		var m := re.search(line)
+		if m != null:
+			speeds.append(float(m.get_string(1)))
+	return speeds
+
+
+## Extract the integer value of a named const from lines. Returns -1 if not found.
+func _extract_const_value(lines: PackedStringArray, const_name: String) -> int:
+	var re := RegEx.new()
+	assert_eq(re.compile("const\\s+" + const_name + "\\s*(?::\\s*\\w+\\s*)?=\\s*(-?[0-9]+)"), OK)
+	for line: String in lines:
+		if line.strip_edges(true, false).begins_with("#"):
+			continue
+		var m := re.search(line)
+		if m != null:
+			return int(m.get_string(1))
+	return -1
+
+
+# ---------------------------------------------------------------------------
+# AC-05 — Camera2D mutation detection
+# ---------------------------------------------------------------------------
+
+func test_ac05_camera_position_mutation_detected() -> void:
+	var lines := _read_lines(CAMERA_VIOLATION_FIXTURE)
+	assert_true(lines.size() > 0, "Precondition: camera violation fixture must be readable")
+	var count: int = _count_matches(lines, "Camera2D[^\\n]*\\.position\\s*=")
+	assert_true(count > 0,
+		"AC-05: Camera2D.position mutation must be detected in camera violation fixture")
+
+
+func test_ac05_camera_zoom_mutation_detected() -> void:
+	var lines := _read_lines(CAMERA_VIOLATION_FIXTURE)
+	var count: int = _count_matches(lines, "Camera2D[^\\n]*\\.zoom\\s*=")
+	assert_true(count > 0,
+		"AC-05: Camera2D.zoom mutation must be detected in camera violation fixture")
+
+
+func test_ac05_camera_make_current_detected() -> void:
+	var lines := _read_lines(CAMERA_VIOLATION_FIXTURE)
+	var count: int = _count_matches(lines, "Camera2D[^\\n]*\\.make_current\\s*\\(")
+	assert_true(count > 0,
+		"AC-05: Camera2D.make_current() must be detected in camera violation fixture")
+
+
+func test_ac05_clean_fixture_no_camera_violations() -> void:
+	var lines := _read_lines(CAMERA_PARTICLE_CLEAN_FIXTURE)
+	assert_true(lines.size() > 0, "Precondition: clean fixture must be readable")
+	for pattern: String in [
+		"Camera2D[^\\n]*\\.position\\s*=",
+		"Camera2D[^\\n]*\\.zoom\\s*=",
+		"Camera2D[^\\n]*\\.make_current\\s*\\(",
+	]:
+		assert_eq(_count_matches(lines, pattern), 0,
+			"AC-05: clean fixture must have 0 Camera2D violations for pattern")
+
+
+func test_ac05_real_enemy_director_no_camera_violations() -> void:
+	var lines := _read_lines(REAL_SOURCE)
+	if lines.size() == 0:
+		pending("enemy_director.gd not found — skipping")
+		return
+	for pattern: String in [
+		"Camera2D[^\\n]*\\.position\\s*=",
+		"Camera2D[^\\n]*\\.zoom\\s*=",
+		"Camera2D[^\\n]*\\.make_current\\s*\\(",
+	]:
+		assert_eq(_count_matches(lines, pattern), 0,
+			"AC-05: real enemy_director.gd must have 0 Camera2D mutation")
+
+
+# ---------------------------------------------------------------------------
+# AC-26 — GPUParticles2D.new() + emitting=true detection
+# ---------------------------------------------------------------------------
+
+func test_ac26_gpu_particles_new_detected() -> void:
+	var lines := _read_lines(PARTICLE_VIOLATION_FIXTURE)
+	assert_true(lines.size() > 0, "Precondition: particle violation fixture must be readable")
+	assert_true(_count_matches(lines, "GPUParticles2D\\.new\\(") > 0,
+		"AC-26: GPUParticles2D.new() must be detected in particle violation fixture")
+
+
+func test_ac26_emitting_true_detected() -> void:
+	var lines := _read_lines(PARTICLE_VIOLATION_FIXTURE)
+	assert_true(_count_matches(lines, "GPUParticles2D[^\\n]*\\.emitting\\s*=") > 0,
+		"AC-26: .emitting = true must be detected in particle violation fixture")
+
+
+func test_ac26_clean_fixture_no_particle_violations() -> void:
+	var lines := _read_lines(CAMERA_PARTICLE_CLEAN_FIXTURE)
+	for pattern: String in ["GPUParticles2D\\.new\\(", "GPUParticles2D[^\\n]*\\.emitting\\s*="]:
+		assert_eq(_count_matches(lines, pattern), 0,
+			"AC-26: clean fixture must have 0 particle violations")
+
+
+func test_ac26_real_enemy_director_no_particle_violations() -> void:
+	var lines := _read_lines(REAL_SOURCE)
+	if lines.size() == 0:
+		pending("enemy_director.gd not found — skipping")
+		return
+	for pattern: String in ["GPUParticles2D\\.new\\(", "GPUParticles2D[^\\n]*\\.emitting\\s*="]:
+		assert_eq(_count_matches(lines, pattern), 0,
+			"AC-26: real enemy_director.gd must have 0 direct particle instantiation")
+
+
+# ---------------------------------------------------------------------------
+# AC-31 — _template_move_speed ≤ 420 (exit2 if target absent)
+# ---------------------------------------------------------------------------
+
+func test_ac31_speed_above_420_detected() -> void:
+	var lines := _read_lines(MOVE_CAP_VIOLATION_FIXTURE)
+	assert_true(lines.size() > 0, "Precondition: move cap violation fixture must be readable")
+	var speeds := _extract_template_speeds(lines)
+	assert_true(speeds.size() > 0, "Precondition: fixture must contain speed values")
+	var any_violation: bool = false
+	for s: float in speeds:
+		if s > 420.0:
+			any_violation = true
+	assert_true(any_violation,
+		"AC-31: violation fixture must contain at least one _template_move_speed > 420")
+
+
+func test_ac31_all_speeds_within_420_passes() -> void:
+	var lines := _read_lines(MOVE_CAP_CLEAN_FIXTURE)
+	assert_true(lines.size() > 0, "Precondition: clean fixture must be readable")
+	var speeds := _extract_template_speeds(lines)
+	assert_true(speeds.size() > 0, "Precondition: clean fixture must contain speed values")
+	for s: float in speeds:
+		assert_true(s <= 420.0, "AC-31: all speeds in clean fixture must be ≤ 420")
+
+
+func test_ac31_real_registry_tres_absent_confirms_exit2_path() -> void:
+	var abs_path: String = ProjectSettings.globalize_path("res://assets/data/EnemyRegistry.tres")
+	assert_false(FileAccess.file_exists(abs_path),
+		"AC-31: EnemyRegistry.tres must be absent (Story 010 not done) — exit-2 forward-compat active")
+
+
+# ---------------------------------------------------------------------------
+# AC-32 — DODGE_AMPLITUDE_PX * 2 < MELEE_RANGE=80 (exit2 if const absent)
+# ---------------------------------------------------------------------------
+
+func test_ac32_dodge_amplitude_50_violates_inv8() -> void:
+	var lines := _read_lines(DODGE_VIOLATION_FIXTURE)
+	assert_true(lines.size() > 0, "Precondition: dodge violation fixture must be readable")
+	var value: int = _extract_const_value(lines, "DODGE_AMPLITUDE_PX")
+	assert_eq(value, 50, "AC-32: violation fixture must declare DODGE_AMPLITUDE_PX = 50")
+	assert_true(value * 2 >= 80, "AC-32: 50*2=100 >= MELEE_RANGE=80 — INV-8 violation confirmed")
+
+
+func test_ac32_dodge_amplitude_30_satisfies_inv8() -> void:
+	var lines := _read_lines(DODGE_CLEAN_FIXTURE)
+	assert_true(lines.size() > 0, "Precondition: dodge clean fixture must be readable")
+	var value: int = _extract_const_value(lines, "DODGE_AMPLITUDE_PX")
+	assert_eq(value, 30, "AC-32: clean fixture must declare DODGE_AMPLITUDE_PX = 30")
+	assert_true(value * 2 < 80, "AC-32: 30*2=60 < MELEE_RANGE=80 — INV-8 satisfied")
+
+
+func test_ac32_const_absent_in_real_source_confirms_exit2_path() -> void:
+	var lines := _read_lines(REAL_SOURCE)
+	if lines.size() == 0:
+		pending("enemy_director.gd not found — skipping")
+		return
+	assert_eq(_extract_const_value(lines, "DODGE_AMPLITUDE_PX"), -1,
+		"AC-32: DODGE_AMPLITUDE_PX must not yet exist in real source (Story 015 scope — exit-2 path active)")
+
+
+# ---------------------------------------------------------------------------
+# Story-AC — boss anchor state transitions
+# ---------------------------------------------------------------------------
+
+func test_boss_transition_illegal_non_idle_direct_detected() -> void:
+	var lines := _read_lines(BOSS_TRANSITION_VIOLATION_FIXTURE)
+	assert_true(lines.size() > 0, "Precondition: boss transition violation fixture must be readable")
+	var count: int = _count_matches(lines,
+		"_boss_anchor_state\\s*=\\s*BossAnchorState\\.(?!IDLE)[A-Z_]+")
+	assert_true(count > 0,
+		"Story-AC: illegal non-IDLE direct BossAnchorState assignment must be detected")
+
+
+func test_boss_transition_idle_init_legal_in_real_source() -> void:
+	var lines := _read_lines(REAL_SOURCE)
+	if lines.size() == 0:
+		pending("enemy_director.gd not found — skipping")
+		return
+	var idle_count: int = _count_matches(lines,
+		"_boss_anchor_state\\s*=\\s*BossAnchorState\\.IDLE")
+	var non_idle_count: int = _count_matches(lines,
+		"_boss_anchor_state\\s*=\\s*BossAnchorState\\.(?!IDLE)[A-Z_]+")
+	assert_true(idle_count > 0,
+		"Story-AC: real source must have at least one IDLE init assignment")
+	assert_eq(non_idle_count, 0,
+		"Story-AC: real source must have 0 direct non-IDLE assignments (Story 016 implements FSM helpers)")
+
+
+# ---------------------------------------------------------------------------
+# Story-AC — particle concurrency cap: const not var (exit2 if absent)
+# ---------------------------------------------------------------------------
+
+func test_particle_cap_var_declaration_detected() -> void:
+	var lines := _read_lines(CONCURRENCY_VIOLATION_FIXTURE)
+	assert_true(lines.size() > 0, "Precondition: concurrency violation fixture must be readable")
+	var var_count: int = _count_matches(lines, "^\\s*var\\s+MAX_CONCURRENT_PARTICLE_EMITTERS\\b")
+	assert_true(var_count > 0,
+		"Story-AC: var MAX_CONCURRENT_PARTICLE_EMITTERS must be detected as violation")
+
+
+func test_particle_cap_const_declaration_passes() -> void:
+	var lines := _read_lines(CONCURRENCY_CLEAN_FIXTURE)
+	assert_true(lines.size() > 0, "Precondition: concurrency clean fixture must be readable")
+	var const_count: int = _count_matches(lines, "^\\s*const\\s+MAX_CONCURRENT_PARTICLE_EMITTERS\\b")
+	assert_true(const_count > 0,
+		"Story-AC: const MAX_CONCURRENT_PARTICLE_EMITTERS must be present in clean fixture")
+	var var_count: int = _count_matches(lines, "^\\s*var\\s+MAX_CONCURRENT_PARTICLE_EMITTERS\\b")
+	assert_eq(var_count, 0,
+		"Story-AC: clean fixture must have 0 var MAX_CONCURRENT_PARTICLE_EMITTERS")
+
+
+func test_particle_cap_absent_in_real_source_confirms_exit2_path() -> void:
+	var lines := _read_lines(REAL_SOURCE)
+	if lines.size() == 0:
+		pending("enemy_director.gd not found — skipping")
+		return
+	assert_eq(_extract_const_value(lines, "MAX_CONCURRENT_PARTICLE_EMITTERS"), -1,
+		"Story-AC: MAX_CONCURRENT_PARTICLE_EMITTERS must not yet exist in real source (Story 015 scope)")
