@@ -12,8 +12,17 @@
 ##   res://src/autoload/enemy_director.gd  (this single file ONLY).
 ##
 ## Forbidden patterns (regex), outside RNGFactory class body only:
-##   randf\(                       randi\(                  randf_range\(
-##   Time\.get_ticks_msec\(        RandomNumberGenerator\.new\(
+##   randf\(   randi\(   randf_range\(   randi_range\(   — BARE global RNG only
+##   RandomNumberGenerator\.new\(
+##
+## Provenance model (refined Story 012): the determinism guarantee is "all RNG comes from
+## RNGFactory". That is enforced by (a) banning RandomNumberGenerator.new() outside the
+## factory and (b) banning BARE global RNG functions. Calling `.randf_range()` on a
+## factory-produced RandomNumberGenerator instance (e.g. `sub_rng.randf_range(...)`) is the
+## sanctioned path, so a negative lookbehind `(?<![\w.])` exempts any `.method`/word-prefixed
+## form. Time.get_ticks_msec() is NOT a forbidden pattern — it cannot seed RNG (the factory
+## seeds on hash(transition_id), never the clock; ad-hoc RNG construction is already banned),
+## and it is legitimately needed for the rate-limiter's now_ms boundary read.
 ##
 ## Class-scope heuristic: `class RNGFactory:` line sets inside_rng_factory = true.
 ## Ends when a zero-indented non-blank non-comment line is encountered after entering
@@ -35,11 +44,14 @@ extends SceneTree
 const TARGET_FILE: String = "res://src/autoload/enemy_director.gd"
 
 ## Forbidden direct-RNG patterns. Checked only OUTSIDE the RNGFactory class body.
+## Negative lookbehind `(?<![\w.])` on the global RNG functions exempts seeded-instance
+## method calls (`sub_rng.randf_range(...)`) — the sanctioned governed path — while still
+## catching bare global calls (`randf_range(...)`).
 const FORBIDDEN_PATTERNS: Array[String] = [
-	"randf\\(",
-	"randi\\(",
-	"randf_range\\(",
-	"Time\\.get_ticks_msec\\(",
+	"(?<![\\w.])randf\\(",
+	"(?<![\\w.])randi\\(",
+	"(?<![\\w.])randf_range\\(",
+	"(?<![\\w.])randi_range\\(",
 	"RandomNumberGenerator\\.new\\(",
 ]
 

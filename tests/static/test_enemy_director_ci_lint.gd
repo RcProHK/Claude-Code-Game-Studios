@@ -220,12 +220,15 @@ func test_ac14_real_enemy_director_clean_check() -> void:
 	if lines.size() == 0:
 		pending("enemy_director.gd not found — skipping")
 		return
-	# Act + Assert — all direct-RNG patterns must be absent outside any RNGFactory body.
+	# Act + Assert — BARE global RNG + ad-hoc RNG construction must be absent outside any
+	# RNGFactory body. Patterns mirror the refined check_enemy_director_randf.gd (Story 012):
+	# negative lookbehind exempts seeded-instance `.randf_range(` calls; Time.get_ticks_msec()
+	# is NOT forbidden (legitimate rate-limiter boundary read, cannot seed RNG).
 	var patterns: Array[String] = [
-		"randf\\(",
-		"randi\\(",
-		"randf_range\\(",
-		"Time\\.get_ticks_msec\\(",
+		"(?<![\\w.])randf\\(",
+		"(?<![\\w.])randi\\(",
+		"(?<![\\w.])randf_range\\(",
+		"(?<![\\w.])randi_range\\(",
 		"RandomNumberGenerator\\.new\\(",
 	]
 	for pattern: String in patterns:
@@ -757,10 +760,18 @@ func test_ac31_all_speeds_within_420_passes() -> void:
 		assert_true(s <= 420.0, "AC-31: all speeds in clean fixture must be ≤ 420")
 
 
-func test_ac31_real_registry_tres_absent_confirms_exit2_path() -> void:
+## AC-31 unblocked by Story 010: EnemyRegistry.tres now exists, so the move-cap lint
+## enforces on a real target. Verify the file is present AND every real _template_move_speed
+## is within the cap (the lint's exit-0 condition).
+func test_ac31_real_registry_tres_present_and_within_cap() -> void:
 	var abs_path: String = ProjectSettings.globalize_path("res://assets/data/EnemyRegistry.tres")
-	assert_false(FileAccess.file_exists(abs_path),
-		"AC-31: EnemyRegistry.tres must be absent (Story 010 not done) — exit-2 forward-compat active")
+	assert_true(FileAccess.file_exists(abs_path),
+		"AC-31: EnemyRegistry.tres must exist (Story 010 done) — move-cap lint now enforces")
+	var lines := _read_lines("res://assets/data/EnemyRegistry.tres")
+	var speeds := _extract_template_speeds(lines)
+	assert_true(speeds.size() > 0, "AC-31: real registry must declare _template_move_speed values")
+	for s: float in speeds:
+		assert_true(s <= 420.0, "AC-31: real registry speed %f must be ≤ 420 (INV-7)" % s)
 
 
 # ---------------------------------------------------------------------------

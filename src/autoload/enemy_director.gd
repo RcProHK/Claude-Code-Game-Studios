@@ -113,6 +113,15 @@ const MIN_SPAWN_INTERVAL: float = 2.25
 ## Max enemies alive on screen at once (mobile readability cap, EC-11). No spawn at/above.
 const MAX_CONCURRENT_ENEMIES_ON_SCREEN: int = 6
 
+## Off-screen-right spawn origin (px). Enemies enter from the right edge (Story 012).
+const SPAWN_ORIGIN: Vector2 = Vector2(1200.0, 360.0)
+
+## Spawn X jitter half-range (px) — deterministic offset from the per-spawn sub-RNG.
+const SPAWN_JITTER_X: float = 50.0
+
+## Tier index used for spawned enemy stats until tiered selection lands (Story 013+).
+const DEFAULT_TIER_INDEX: int = 0
+
 ## A deferred ability_cast captured during catch-up drain (Rule 7 AOE mutex).
 ## Captures RAW cast params — at defer time (before the GSM gate) no CombatContext
 ## exists yet, so Story 018 re-runs the full pipeline on each drained entry.
@@ -162,6 +171,38 @@ enum BossAnchorState {
 	COMMITTED,      ## 3 — visible reveal triggered (entry cascade in progress)
 	ENGAGED,        ## 4 — boss in normal combat loop (handed off to #16 Boss System)
 }
+
+
+## Runtime per-enemy state record (Story 012, Rule 3 caller-side state locality).
+## Inner class (NOT global `class_name EnemyState` — that collides with the inner
+## CombatResolver.EnemyState). Value stored in _enemy_state_pool (instance_id → EnemyState).
+## RefCounted — transient, never serialized. Declared after the enums so EnemyAIState resolves.
+class EnemyState extends RefCounted:
+	var instance_id: int = 0
+	var enemy_id: StringName = &""
+	var hp: float = 0.0
+	var max_hp: float = 0.0
+	var defense: float = 0.0
+	var faction: int = Faction.ENEMY
+	var ai_state: int = EnemyAIState.SPAWNING  ## ordinal 0 — safe Family A default
+
+	func _init(
+		p_instance_id: int = 0,
+		p_enemy_id: StringName = &"",
+		p_hp: float = 0.0,
+		p_max_hp: float = 0.0,
+		p_defense: float = 0.0,
+		p_faction: int = Faction.ENEMY,
+		p_ai_state: int = EnemyAIState.SPAWNING,
+	) -> void:
+		instance_id = p_instance_id
+		enemy_id = p_enemy_id
+		hp = p_hp
+		max_hp = p_max_hp
+		defense = p_defense
+		faction = p_faction
+		ai_state = p_ai_state
+
 
 # =====================================================================
 # Signals (LOCKED surface per GDD Rule 5 + AC-07)
@@ -217,6 +258,9 @@ var _wave_scheduler_paused: bool = true
 
 ## Time (s) accumulated since the last wave spawn (Formula 1 cadence accumulator).
 var _spawn_cadence_accumulator: float = 0.0
+
+## Monotonic spawn counter — feeds the per-spawn sub-RNG key "wave_spawn_{seq}" (Story 012).
+var _wave_seq_counter: int = 0
 
 # =====================================================================
 # Dependency-injection seams
@@ -318,6 +362,7 @@ func _ready() -> void:
 		_wst_source = WorkoutStateTracker
 	_wave_scheduler_paused = true
 	_spawn_cadence_accumulator = 0.0
+	_wave_seq_counter = 0
 
 	# Story 005: wire signal subscriptions — LAST lines of _ready() per GDD Rule 2.
 	# Resolve DI seams to production autoloads if not injected by tests.
@@ -580,12 +625,61 @@ func _spawn_cadence_tick(delta: float) -> void:
 	_spawn_enemy(wave)
 
 
-## Spawn-lifecycle hook. Story 012 fills the real `_spawn_enemy` (instance + pool insert).
-## For Story 011 it forwards to the optional `_spawn_sink` seam so the cadence/cap decision
-## is observable in tests; null in production until Story 012.
+## Spawn one enemy for the given wave archetype (Story 012 + Rule 3).
+## Test-observability mode: if `_spawn_sink` is injected, forward + return (no real
+## instantiation — Story 011 cadence/cap tests). Production runs the real path below.
+## Atomicity (ADR-0006): the node is added to the tree AND its EnemyState is inserted into
+## the pool together, and a one-shot tree_exited connection guarantees pool cleanup.
 func _spawn_enemy(wave: WaveDescriptor) -> void:
 	if _spawn_sink != null:
 		_spawn_sink.spawn(wave)
+		return
+	if wave.enemy_templates.is_empty():
+		return
+	var enemy_id: StringName = wave.enemy_templates[DEFAULT_TIER_INDEX] if wave.enemy_templates.size() > DEFAULT_TIER_INDEX else wave.enemy_templates[0]
+	if not _spawn_pool.has(enemy_id):
+		return  # no preloaded scene (production until enemy art ships) — nothing to spawn
+
+	# (a) Per-spawn deterministic sub-RNG for position jitter (Rule 4 / ADR-0005).
+	var transition_id: String = _gsm_source.acquire_transition_id(
+		_gsm_source.get_current_state(), _gsm_source.get_current_state())
+	var sub_rng: RandomNumberGenerator = _rng_factory.create_sub(
+		transition_id, "wave_spawn_%d" % _wave_seq_counter)
+	var jitter_x: float = sub_rng.randf_range(-SPAWN_JITTER_X, SPAWN_JITTER_X)
+
+	# (b) Instantiate the preloaded PackedScene.
+	var packed: PackedScene = _spawn_pool[enemy_id]
+	var enemy: Node = packed.instantiate()
+	if enemy is Node2D:
+		(enemy as Node2D).position = SPAWN_ORIGIN + Vector2(jitter_x, 0.0)
+	add_child(enemy)
+
+	# (c) Insert EnemyState (hp = max_hp at spawn). Tier stats from the WaveDescriptor.
+	var instance_id: int = enemy.get_instance_id()
+	var tier: int = DEFAULT_TIER_INDEX
+	var max_hp: float = float(wave.max_hp[tier]) if wave.max_hp.size() > tier else 0.0
+	var defense: float = float(wave.defense[tier]) if wave.defense.size() > tier else 0.0
+	_enemy_state_pool[instance_id] = EnemyState.new(
+		instance_id, enemy_id, max_hp, max_hp, defense, wave.faction, EnemyAIState.SPAWNING)
+
+	# (d) One-shot despawn cleanup — auto-disconnects after the first tree_exited.
+	enemy.tree_exited.connect(_on_enemy_despawned.bind(instance_id), CONNECT_ONE_SHOT)
+	_wave_seq_counter += 1
+
+
+## Despawn cleanup (EC-38). Erase BOTH the pool entry and the dedupe-set entry so a
+## long session never leaks (EC-47). Bound to the enemy's one-shot tree_exited.
+func _on_enemy_despawned(instance_id: int) -> void:
+	_enemy_state_pool.erase(instance_id)
+	_killed_dedupe_set.erase(instance_id)
+
+
+## Apply a resolved hit to the live enemy's pool state (Rule 3 mutation).
+## Guard: a hit for an instance no longer in the pool (already despawned) is a no-op.
+func _apply_hit_result(instance_id: int, hit_result: CombatResolver.HitResult) -> void:
+	if not _enemy_state_pool.has(instance_id):
+		return
+	_enemy_state_pool[instance_id].hp = hit_result.target_hp_after
 
 
 ## Set every live enemy's AI state to IDLE without despawning (EC-13 RestPeriod).

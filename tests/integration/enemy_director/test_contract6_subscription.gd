@@ -8,11 +8,16 @@
 extends GutTest
 
 
-## Minimal fake GameStateMachine — has connect_for_initial_state + state_changed.
+## Minimal fake GameStateMachine — connect_for_initial_state + state_changed, plus the
+## get_current_state / acquire_transition_id the _on_ability_cast handler reads (Story 008+).
 class FakeGSM:
 	signal state_changed(from_state: int, to_state: int, payload)
 	func connect_for_initial_state(callable: Callable) -> void:
 		state_changed.connect(callable)
+	func get_current_state() -> int:
+		return GameStateMachine.GameState.COMBAT_ACTIVE
+	func acquire_transition_id(_from: int, _to: int) -> String:
+		return "TX-contract6-001"
 
 
 ## Minimal fake AbilitySystem — has connect_for_initial_state + ability_cast.
