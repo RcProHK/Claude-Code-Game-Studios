@@ -3,8 +3,8 @@
 > **Layer**: Core
 > **GDD**: design/gdd/enemy-director.md
 > **Architecture Module**: EnemyDirector (autoload pos 10 — LAST among current autoloads, `src/autoload/enemy_director.gd`)
-> **Status**: Ready
-> **Stories**: 24 stories (20 Ready, 4 Blocked)
+> **Status**: Implementation Complete (20/20 Ready stories done; 4 Blocked on external gates)
+> **Stories**: 24 stories (20 Complete ✅, 4 Blocked)
 
 ## Overview
 
@@ -84,7 +84,7 @@ This epic is complete when:
 | 017 | [Boss Anchor Commit + Entry Cascade](story-017-boss-anchor-commit-cascade.md) | Integration | Complete ✅ | ADR-0006 + ADR-0001 structural |
 | 018 | [Full AOE Handler Pipeline](story-018-aoe-handler-pipeline.md) | Integration | Complete ✅ | ADR-0006 + ADR-0005 |
 | 019 | [enemy_killed Signal Chain + Idempotency](story-019-enemy-killed-signal-chain.md) | Integration | Complete ✅ | ADR-0005 + ADR-0006 |
-| 020 | [Test Infrastructure Helpers](story-020-test-infrastructure-helpers.md) | Config/Data | Ready | N/A |
+| 020 | [Test Infrastructure Helpers](story-020-test-infrastructure-helpers.md) | Config/Data | Complete ✅ | N/A |
 | 021 | [BLOCKED: Wave Archetype Readability Playtest](story-021-blocked-wave-readability-playtest.md) | Visual/Feel | Blocked | ADR-0007 ⚠️ (art assets required) |
 | 022 | [BLOCKED: Mobile Particle Floor Benchmark](story-022-blocked-mobile-particle-benchmark.md) | Logic | Blocked | ADR-0001 ⚠️ (hardware required) |
 | 023 | [BLOCKED: Boss Anchor Latency Gate](story-023-blocked-boss-anchor-latency.md) | Integration | Blocked | ADR-0002 ⚠️ (#9 WST required) |

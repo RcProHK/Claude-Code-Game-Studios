@@ -1,7 +1,7 @@
 # Story 020: Test Infrastructure Helpers
 
 > **Epic**: Enemy Director
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Core
 > **Type**: Config/Data
 > **Estimate**: 3h
@@ -76,7 +76,17 @@ Self-check: each helper file should include a `static func _static_check()` meth
 
 **Story Type**: Config/Data
 **Required evidence**: N/A — helpers are validated indirectly when Stories 011-019 tests pass
-**Status**: [ ] Not yet created
+**Status**: [x] Created; 5 helpers + GUT 8/8 validation PASS; full suite 250/250 (Godot 4.6.3, 2026-06-01)
+
+---
+
+## Completion Notes
+
+**Completed**: 2026-06-01 (retroactive consolidation — Stories 011-019 were built with inline fakes; these helpers formalise the reusable infrastructure with `_static_check()` self-tests)
+**Criteria**: 5/5 helpers delivered
+**Implementation**: `tests/helpers/` — `rng_determinism_helper.gd` (compare_sequences), `enemy_signal_recorder.gd` (3-signal recorder + by-reason query), `archetype_resource_factory.gd` (in-memory EnemyRegistry/WaveDescriptor, baselines mirror shipped .tres), `mock_workout_state_tracker.gd` (configurable WST stub), `enemy_director_test_harness.gd` (fresh EnemyDirector instance + 5 mock seams via load-by-path). All RefCounted, no scene-tree/autoload coupling, no class_name (preloaded by path).
+**Key fix**: WaveDescriptor.max_hp/defense are typed Array[int] — factory uses Array.assign() to convert.
+**Test Evidence**: test_helpers_static_check.gd (8 — each helper's _static_check + behaviour spot-checks).
 
 ---
 
