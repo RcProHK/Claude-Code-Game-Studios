@@ -166,6 +166,34 @@ const PERCEPTION_TICK_INTERVAL: float = 0.25
 ## Per-frame delta clamp (s) — guards physics against long frames (bfcache resume, tab switch).
 const MAX_FRAME_DELTA: float = 0.1
 
+# =====================================================================
+# Particle concurrency cap + throttle hysteresis (Rule 11, Formula 3 — Story 015)
+# =====================================================================
+
+## Hard ceiling on concurrent particle emitters (ADR-0001 budget). MUST be const
+## (CI lint check_particle_concurrency_cap.gd forbids the var form — a mutable cap
+## could be raised mid-session and silently blow the budget).
+const MAX_CONCURRENT_PARTICLE_EMITTERS: int = 8
+
+## Frame-time emergency window size (immediate response, not EWMA).
+const FRAME_TIME_SAMPLE_SIZE: int = 3
+
+## Recovery window size (60 frames ≈ 1s at 60fps) — slow, hysteretic release.
+const RECOVERY_SAMPLE_SIZE: int = 60
+
+## Throttle ENGAGE threshold (ms). All FRAME_TIME_SAMPLE_SIZE samples above → throttle.
+const FRAME_TIME_BUDGET_MS: float = 33.0
+
+## Throttle RELEASE threshold (ms). All RECOVERY_SAMPLE_SIZE samples below → release.
+const FRAME_TIME_RECOVERY_MS: float = 20.0
+
+## Particle caller multiplier — normal spectacle vs throttled (reduced emission).
+const CALLER_MULT_NORMAL: float = 1.5
+const CALLER_MULT_THROTTLED: float = 1.0
+
+## INV-4 minimum hysteresis gap (ms) between engage + release thresholds (anti-thrash).
+const THROTTLE_HYSTERESIS_MIN_MS: float = 5.0
+
 ## A deferred ability_cast captured during catch-up drain (Rule 7 AOE mutex).
 ## Captures RAW cast params — at defer time (before the GSM gate) no CombatContext
 ## exists yet, so Story 018 re-runs the full pipeline on each drained entry.
@@ -313,6 +341,20 @@ var _perception_tick_accumulator: float = 0.0
 ## null = no avatar (perception skipped); tests inject a mock with a global_position read.
 var _avatar_source = null
 
+# ---- Story 015: particle throttle hysteresis state ----
+
+## Rolling FIFO of the last FRAME_TIME_SAMPLE_SIZE frame times (ms) — engage detection.
+var _frame_time_window: Array[float] = []
+
+## Rolling FIFO of the last RECOVERY_SAMPLE_SIZE frame times (ms) — release detection.
+var _recovery_window: Array[float] = []
+
+## True while the particle throttle is engaged.
+var _throttle_active: bool = false
+
+## Current particle caller multiplier (CALLER_MULT_NORMAL normally, _THROTTLED when active).
+var _caller_mult: float = CALLER_MULT_NORMAL
+
 # =====================================================================
 # Dependency-injection seams
 # =====================================================================
@@ -415,6 +457,14 @@ func _ready() -> void:
 	_spawn_cadence_accumulator = 0.0
 	_wave_seq_counter = 0
 	_perception_tick_accumulator = 0.0
+	# Story 015: reset throttle state + assert INV-4 hysteresis gap (fail loud on bad tuning).
+	_frame_time_window.clear()
+	_recovery_window.clear()
+	_throttle_active = false
+	_caller_mult = CALLER_MULT_NORMAL
+	assert(FRAME_TIME_BUDGET_MS > FRAME_TIME_RECOVERY_MS + THROTTLE_HYSTERESIS_MIN_MS,
+		"INV-4 violated: throttle hysteresis gap (%f) ≤ %f ms" % [
+			FRAME_TIME_BUDGET_MS - FRAME_TIME_RECOVERY_MS, THROTTLE_HYSTERESIS_MIN_MS])
 
 	# Story 005: wire signal subscriptions — LAST lines of _ready() per GDD Rule 2.
 	# Resolve DI seams to production autoloads if not injected by tests.
@@ -760,6 +810,74 @@ func _idle_active_enemies() -> void:
 		var enemy: Variant = _enemy_state_pool[instance_id]
 		if enemy != null and enemy.get(&"ai_state") != null:
 			enemy.set(&"ai_state", EnemyAIState.IDLE)
+
+
+# =====================================================================
+# Particle throttle hysteresis (Rule 11, Formula 3 — Story 015)
+# =====================================================================
+
+
+## Record one frame time (ms) and re-evaluate the throttle. Public + injectable —
+## the game's frame-time monitor feeds this; the throttle logic itself reads NO clock
+## (deterministic / testable). EC-29 engage, EC-30 release.
+func _record_frame_time(frame_time_ms: float) -> void:
+	_frame_time_window.push_back(frame_time_ms)
+	while _frame_time_window.size() > FRAME_TIME_SAMPLE_SIZE:
+		_frame_time_window.pop_front()
+	_recovery_window.push_back(frame_time_ms)
+	while _recovery_window.size() > RECOVERY_SAMPLE_SIZE:
+		_recovery_window.pop_front()
+	_evaluate_throttle()
+
+
+## Engage (all emergency samples above budget) / release (all recovery samples below
+## recovery) with hysteresis. Emits a rate-limited anomaly on each transition only.
+func _evaluate_throttle() -> void:
+	if not _throttle_active:
+		if _frame_time_window.size() == FRAME_TIME_SAMPLE_SIZE \
+				and _all_above(_frame_time_window, FRAME_TIME_BUDGET_MS):
+			_throttle_active = true
+			_caller_mult = CALLER_MULT_THROTTLED
+			_emit_throttle_anomaly(&"PARTICLE_THROTTLE_ENGAGED")
+	else:
+		if _recovery_window.size() == RECOVERY_SAMPLE_SIZE \
+				and _all_below(_recovery_window, FRAME_TIME_RECOVERY_MS):
+			_throttle_active = false
+			_caller_mult = CALLER_MULT_NORMAL
+			_emit_throttle_anomaly(&"PARTICLE_THROTTLE_RELEASED")
+
+
+## True while the particle throttle is engaged (AC-23).
+func _is_throttle_active() -> bool:
+	return _throttle_active
+
+
+## Current particle caller multiplier (1.5 normal / 1.0 throttled).
+func get_caller_mult() -> float:
+	return _caller_mult
+
+
+func _all_above(window: Array[float], threshold: float) -> bool:
+	for v: float in window:
+		if v <= threshold:
+			return false
+	return true
+
+
+func _all_below(window: Array[float], threshold: float) -> bool:
+	for v: float in window:
+		if v >= threshold:
+			return false
+	return true
+
+
+func _emit_throttle_anomaly(reason: StringName) -> void:
+	var now_ms: int = Time.get_ticks_msec()
+	if rate_limit_check(reason, now_ms):
+		var payload := CombatAnomalyPayload.new()
+		payload.reason = reason
+		payload.context_dump = {"caller_mult": _caller_mult}
+		combat_metric_anomaly.emit(payload)
 
 
 # =====================================================================

@@ -1,7 +1,7 @@
 # Story 015: Particle Concurrency Cap + Auto-degrade (Rule 11 + Formula 3)
 
 > **Epic**: Enemy Director
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Core
 > **Type**: Logic
 > **Estimate**: 3h
@@ -81,7 +81,19 @@
 **Required evidence**:
 - `tests/unit/enemy_director/test_throttle_engagement.gd`
 - `tests/unit/enemy_director/test_throttle_recovery.gd`
-**Status**: [ ] Not yet created
+**Status**: [x] Created; GUT 9/9 (story) + 205/205 (enemy+combat+static suite) PASS; concurrency lint PASS (Godot 4.6.3, 2026-06-01)
+
+---
+
+## Completion Notes
+
+**Completed**: 2026-06-01
+**Criteria**: 3/3 passing (AC-23 engage EC-29, AC-24 release EC-30, INV-4 hysteresis; AC-25 → Story 022 BLOCKED hardware)
+**Implementation**: throttle hysteresis on EnemyDirector — `_record_frame_time` (public injectable, no clock in throttle logic) → `_evaluate_throttle` (engage: 3 samples all >33ms; release: 60 samples all <20ms) → `_is_throttle_active`/`get_caller_mult` (1.5↔1.0); `_emit_throttle_anomaly` (PARTICLE_THROTTLE_ENGAGED/RELEASED, rate-limited, transition-only). Consts MAX_CONCURRENT_PARTICLE_EMITTERS=8 (const, lint-enforced), FRAME_TIME_SAMPLE_SIZE/RECOVERY_SAMPLE_SIZE/FRAME_TIME_BUDGET_MS/FRAME_TIME_RECOVERY_MS/CALLER_MULT_*. INV-4 fail-loud assert in _ready.
+**Unblocks**: Story 004 particle-concurrency-cap lint (const enforced; flipped stale "cap absent" static test).
+**Scope note**: `_record_frame_time` is NOT auto-wired into _physics_process (avoids cross-test pollution + frame-time source is a presentation concern) — the game frame-monitor feeds it; `_particle_dispatch_queue` deferred to Story 017 (boss cascade) — no AC requires it here.
+**Test Evidence**: test_throttle_engagement.gd (5) + test_throttle_recovery.gd (4).
+**Code Review**: deferred to batch review (autonomous epic completion run).
 
 ---
 

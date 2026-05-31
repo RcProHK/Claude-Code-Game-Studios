@@ -871,10 +871,14 @@ func test_particle_cap_const_declaration_passes() -> void:
 		"Story-AC: clean fixture must have 0 var MAX_CONCURRENT_PARTICLE_EMITTERS")
 
 
-func test_particle_cap_absent_in_real_source_confirms_exit2_path() -> void:
+## Story 015 unblocked this: MAX_CONCURRENT_PARTICLE_EMITTERS now exists in the real source
+## and MUST be declared as const (never var) so the concurrency-cap lint enforces.
+func test_particle_cap_present_as_const_in_real_source() -> void:
 	var lines := _read_lines(REAL_SOURCE)
 	if lines.size() == 0:
 		pending("enemy_director.gd not found — skipping")
 		return
-	assert_eq(_extract_const_value(lines, "MAX_CONCURRENT_PARTICLE_EMITTERS"), -1,
-		"Story-AC: MAX_CONCURRENT_PARTICLE_EMITTERS must not yet exist in real source (Story 015 scope)")
+	var const_count: int = _count_matches(lines, "^\\s*const\\s+MAX_CONCURRENT_PARTICLE_EMITTERS\\b")
+	var var_count: int = _count_matches(lines, "^\\s*var\\s+MAX_CONCURRENT_PARTICLE_EMITTERS\\b")
+	assert_eq(const_count, 1, "Story-AC: MAX_CONCURRENT_PARTICLE_EMITTERS declared as const (Story 015 done)")
+	assert_eq(var_count, 0, "Story-AC: MAX_CONCURRENT_PARTICLE_EMITTERS must NOT be a mutable var")
