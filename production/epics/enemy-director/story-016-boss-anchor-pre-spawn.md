@@ -1,7 +1,7 @@
 # Story 016: Boss Anchor Pre-spawn + Rollback (Rule 13 part 1)
 
 > **Epic**: Enemy Director
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Core
 > **Type**: Logic
 > **Estimate**: 3h
@@ -84,7 +84,18 @@
 **Required evidence**:
 - `tests/unit/enemy_director/test_boss_rollback.gd`
 - `tests/unit/enemy_director/test_light_workout_mini_boss.gd`
-**Status**: [ ] Not yet created
+**Status**: [x] Created; GUT 11/11 (story) + 157/157 (suite) PASS (Godot 4.6.3, 2026-06-01)
+
+---
+
+## Completion Notes
+
+**Completed**: 2026-06-01
+**Criteria**: 3/3 passing (AC-21 silent rollback EC-15, AC-22 mini-boss params EC-19, Formula 5 trigger EC-14)
+**Implementation**: boss anchor FSM on EnemyDirector — `_check_boss_anchor_state(set_progress, is_final_set, total_planned_sets)` (parameterized pure core: IDLE→PRE_SPAWN on final+≥0.8, PRE_SPAWN→IDLE on progress drop); `pre_spawn_boss` (mini/final scene select, hidden off-screen, add_child, store cascade params); `despawn_boss_silently` (free + IDLE, NO enemy_killed/anomaly); `_select_boss_cascade_params` (mini ≤2 sets: cam0.4/shake0.25/mult1.0; standard: 0.6/0.4/1.2); `_poll_boss_anchor` (4Hz-gated WST read). Consts LIGHT_WORKOUT_THRESHOLD_SETS/BOSS_PRESPAWN_PROGRESS/BOSS_OFFSCREEN_X + cascade param consts. Seams _boss_scene_mini/_boss_scene_final.
+**Scope split**: cascade EXECUTION (real Camera.focal_request/ScreenEffects.shake/Particle.play) + WST snapshot wiring (is_final_set/get_planned_total_sets) → Story 017 (those autoloads are stubs; AC-22 here verifies PARAM SELECTION). WST get_set_progress() already handles the EC-14 estimated fallback internally (Story 003).
+**Test Evidence**: test_boss_rollback.gd (6) + test_light_workout_mini_boss.gd (5).
+**Code Review**: deferred to batch review (autonomous epic completion run).
 
 ---
 

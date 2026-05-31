@@ -194,6 +194,29 @@ const CALLER_MULT_THROTTLED: float = 1.0
 ## INV-4 minimum hysteresis gap (ms) between engage + release thresholds (anti-thrash).
 const THROTTLE_HYSTERESIS_MIN_MS: float = 5.0
 
+# =====================================================================
+# Boss anchor pre-spawn + cascade params (Rule 13, Formula 5 — Story 016)
+# =====================================================================
+
+## At/under this planned-set count, the encounter uses the mini-boss path (EC-19).
+const LIGHT_WORKOUT_THRESHOLD_SETS: int = 2
+
+## set_progress threshold that triggers boss pre-spawn on the final set (Formula 5).
+const BOSS_PRESPAWN_PROGRESS: float = 0.8
+
+## Off-screen X (px, left) where a pre-spawned boss waits hidden until commit.
+const BOSS_OFFSCREEN_X: float = -300.0
+
+## Standard boss entry-cascade params (consumed by Story 017 commit cascade).
+const BOSS_CASCADE_CAMERA_SEC: float = 0.6
+const BOSS_CASCADE_SHAKE: float = 0.4
+const BOSS_CASCADE_PARTICLE_MULT: float = 1.2
+
+## Mini-boss (light-workout) entry-cascade params — reduced intensity (EC-19).
+const MINI_BOSS_CASCADE_CAMERA_SEC: float = 0.4
+const MINI_BOSS_CASCADE_SHAKE: float = 0.25
+const MINI_BOSS_CASCADE_PARTICLE_MULT: float = 1.0
+
 ## A deferred ability_cast captured during catch-up drain (Rule 7 AOE mutex).
 ## Captures RAW cast params — at defer time (before the GSM gate) no CombatContext
 ## exists yet, so Story 018 re-runs the full pipeline on each drained entry.
@@ -355,6 +378,18 @@ var _throttle_active: bool = false
 ## Current particle caller multiplier (CALLER_MULT_NORMAL normally, _THROTTLED when active).
 var _caller_mult: float = CALLER_MULT_NORMAL
 
+# ---- Story 016: boss anchor pre-spawn state ----
+
+## The pre-spawned (hidden, off-screen) boss node, or null when none. Owned PRE_SPAWN→COMMITTED.
+var _boss_node = null
+
+## Entry-cascade params selected at pre-spawn (mini vs standard) — consumed by Story 017.
+var _boss_cascade_params: Dictionary = {}
+
+## Injectable boss PackedScenes (untyped DI seams). Tests inject; production loads in Story 017.
+var _boss_scene_mini = null
+var _boss_scene_final = null
+
 # =====================================================================
 # Dependency-injection seams
 # =====================================================================
@@ -462,6 +497,9 @@ func _ready() -> void:
 	_recovery_window.clear()
 	_throttle_active = false
 	_caller_mult = CALLER_MULT_NORMAL
+	# Story 016: reset boss anchor state.
+	_boss_node = null
+	_boss_cascade_params = {}
 	assert(FRAME_TIME_BUDGET_MS > FRAME_TIME_RECOVERY_MS + THROTTLE_HYSTERESIS_MIN_MS,
 		"INV-4 violated: throttle hysteresis gap (%f) ≤ %f ms" % [
 			FRAME_TIME_BUDGET_MS - FRAME_TIME_RECOVERY_MS, THROTTLE_HYSTERESIS_MIN_MS])
@@ -644,6 +682,7 @@ func _perception_tick(delta: float) -> void:
 		var node: Object = instance_from_id(instance_id)
 		if node != null and node.has_method("set_avatar_distance"):
 			node.set_avatar_distance(avatar_pos.distance_to(node.global_position))
+	_poll_boss_anchor()  # Story 016: 4Hz-gated boss anchor Formula 5 check
 
 
 ## Drain up to CATCH_UP_HITS_PER_FRAME_CAP entries from the FRONT (FIFO) per call (EC-24).
@@ -878,6 +917,81 @@ func _emit_throttle_anomaly(reason: StringName) -> void:
 		payload.reason = reason
 		payload.context_dump = {"caller_mult": _caller_mult}
 		combat_metric_anomaly.emit(payload)
+
+
+# =====================================================================
+# Boss anchor pre-spawn + rollback (Rule 13 part 1, Formula 5 — Story 016)
+# =====================================================================
+
+
+## Select entry-cascade params by planned-set count (EC-19). Light workouts (≤ threshold)
+## get the reduced mini-boss cascade; otherwise the standard cascade. Pure — Story 017
+## consumes the returned params when executing the actual Camera/ScreenEffects/Particle cascade.
+func _select_boss_cascade_params(total_planned_sets: int) -> Dictionary:
+	var is_mini: bool = total_planned_sets <= LIGHT_WORKOUT_THRESHOLD_SETS
+	if is_mini:
+		return {
+			"is_mini": true,
+			"camera_sec": MINI_BOSS_CASCADE_CAMERA_SEC,
+			"shake": MINI_BOSS_CASCADE_SHAKE,
+			"particle_mult": MINI_BOSS_CASCADE_PARTICLE_MULT,
+		}
+	return {
+		"is_mini": false,
+		"camera_sec": BOSS_CASCADE_CAMERA_SEC,
+		"shake": BOSS_CASCADE_SHAKE,
+		"particle_mult": BOSS_CASCADE_PARTICLE_MULT,
+	}
+
+
+## Pre-spawn the boss hidden off-screen (Formula 5). Selects the mini/final scene by
+## planned-set count, instantiates hidden, adds to the tree (NOT the enemy pool — pool
+## insertion is the COMMITTED step, Story 017), records cascade params, → PRE_SPAWN.
+func pre_spawn_boss(total_planned_sets: int) -> void:
+	_boss_cascade_params = _select_boss_cascade_params(total_planned_sets)
+	var scene: Variant = _boss_scene_mini if _boss_cascade_params["is_mini"] else _boss_scene_final
+	if scene != null:
+		_boss_node = scene.instantiate()
+		if _boss_node is Node2D:
+			(_boss_node as Node2D).position = Vector2(BOSS_OFFSCREEN_X, SPAWN_ORIGIN.y)
+		if _boss_node is CanvasItem:
+			(_boss_node as CanvasItem).visible = false
+		add_child(_boss_node)
+	_boss_anchor_state = BossAnchorState.PRE_SPAWN
+
+
+## Silent rollback (EC-15) — the pre-spawned boss never entered COMMITTED/ENGAGED, so it is
+## freed with NO enemy_killed and NO anomaly (rollback is expected, not an error).
+func despawn_boss_silently() -> void:
+	if _boss_node != null and is_instance_valid(_boss_node):
+		_boss_node.queue_free()
+	_boss_node = null
+	_boss_anchor_state = BossAnchorState.IDLE
+
+
+## Formula 5 FSM core (parameterized for deterministic unit testing).
+##   IDLE + final set + set_progress ≥ threshold → pre_spawn_boss (→ PRE_SPAWN).
+##   PRE_SPAWN + set_progress dropped below threshold → despawn_boss_silently (→ IDLE).
+func _check_boss_anchor_state(set_progress: float, is_final_set: bool, total_planned_sets: int) -> void:
+	if _boss_anchor_state == BossAnchorState.IDLE:
+		if is_final_set and set_progress >= BOSS_PRESPAWN_PROGRESS:
+			pre_spawn_boss(total_planned_sets)
+	elif _boss_anchor_state == BossAnchorState.PRE_SPAWN:
+		if set_progress < BOSS_PRESPAWN_PROGRESS:
+			despawn_boss_silently()
+
+
+## 4Hz-gated poll: reads boss-trigger inputs from the WST seam and runs the FSM core.
+## Defensive about which queries the WST exposes (real WST integration completes in Story 017).
+func _poll_boss_anchor() -> void:
+	if _wst_source == null or not _wst_source.has_method("get_set_progress"):
+		return
+	var set_progress: float = _wst_source.get_set_progress()
+	var is_final: bool = _wst_source.has_method("is_final_set") and _wst_source.is_final_set()
+	var total: int = 0
+	if _wst_source.has_method("get_planned_total_sets"):
+		total = _wst_source.get_planned_total_sets()
+	_check_boss_anchor_state(set_progress, is_final, total)
 
 
 # =====================================================================
