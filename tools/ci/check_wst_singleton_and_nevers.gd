@@ -38,10 +38,15 @@ func _init() -> void:
 		quit(2)
 		return
 
-	# Check (b): internal field mutation outside owner
+	# Check (b): internal field mutation outside owner — MEMBER-ACCESS form only.
+	# Require a leading `.` so we match `WorkoutStateTracker._workout_phase = x` (a real
+	# closed-API bypass) but NOT a bare `_workout_phase = v` self-assignment inside an
+	# unrelated class that happens to declare a same-named backing var (e.g. the
+	# WorkoutSnapshotRO / WorkoutSummaryRO inline setters). A bare `_field =` can only
+	# ever be self-scoped, so it is never a Rule 16 cross-object violation.
 	var re_phase := RegEx.new()
 	var re_class := RegEx.new()
-	if re_phase.compile("_workout_phase\\s*=") != OK or re_class.compile("_dominant_class\\s*=") != OK:
+	if re_phase.compile("\\._workout_phase\\s*=") != OK or re_class.compile("\\._dominant_class\\s*=") != OK:
 		push_error("[check_wst_singleton_and_nevers] field mutation regex compile failed")
 		quit(2)
 		return

@@ -18,6 +18,9 @@ var _ns_violation = PersistenceLayer.write("wst.current_workout.phase", 0)
 # ACTIVE violation (c): preload(...).new() instantiation (Rule 15 / check_wst_singleton_and_nevers)
 var _wst_inst = preload("res://src/autoload/workout_state_tracker.gd").new()
 
-# ACTIVE violation (d): _dominant_class WRITE outside owner (Rule 16 / check_wst_singleton_and_nevers)
-# Must be an ASSIGNMENT (=), not just a read, to match `_dominant_class\s*=` pattern
-var _dominant_class = 2  # ci:violation-fixture — matches `_dominant_class\s*=` write pattern
+# ACTIVE violation (d): _dominant_class member-access WRITE outside owner (Rule 16)
+# Must be member-access form (.) to match `\._dominant_class\s*=` — a real closed-API bypass.
+# (A bare `_dominant_class = v` is only a self-assignment and is NOT a violation.)
+var _class_write_viol = (WorkoutStateTracker._dominant_class == 0)
+func _force_class() -> void:
+	WorkoutStateTracker._dominant_class = 2  # ci:violation-fixture — member-access write

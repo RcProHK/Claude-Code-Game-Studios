@@ -159,13 +159,27 @@ func test_ac17c_wst_source_has_no_stat_get_calls() -> void:
 		"AC-17(c): workout_state_tracker.gd must NOT contain Stat.get_* calls (Rule 16 NEVER #6)")
 
 
-## Pattern detects _dominant_class = write assignment in fixture (AC-17b second branch).
+## Pattern detects ._dominant_class = member-access write in fixture (AC-17b second branch).
+## Member-access form (leading dot) — matches production lint which narrowed the pattern
+## to avoid false positives on same-named backing vars in RO resources.
 func test_ac17b_pattern_detects_dominant_class_write_in_fixture() -> void:
 	var lines := _read_lines("res://tests/fixtures/wst_ci_violation_sample.gd")
-	# Pattern: `_dominant_class\s*=` (write assignment, not read)
-	var count: int = _count_matches(lines, "_dominant_class\\s*=")
+	# Pattern: `\._dominant_class\s*=` (member-access write, not a bare self-assignment)
+	var count: int = _count_matches(lines, "\\._dominant_class\\s*=")
 	assert_true(count > 0,
-		"AC-17(b): pattern must detect `_dominant_class =` write assignment in fixture")
+		"AC-17(b): pattern must detect `WorkoutStateTracker._dominant_class =` member-access write in fixture")
+
+
+## Bare `_dominant_class = v` self-assignment must NOT match the narrowed member-access pattern.
+## This guards against the false positive that failed CI (RO resource backing-var setters).
+func test_ac17b_bare_self_assignment_not_flagged() -> void:
+	var clean_lines: PackedStringArray = [
+		"\t\t_dominant_class = v",  # RO resource inline setter — self-scoped, not a violation
+		"var _dominant_class: int = 3",  # backing var declaration
+	]
+	var count: int = _count_matches(clean_lines, "\\._dominant_class\\s*=")
+	assert_eq(count, 0,
+		"AC-17(b): bare `_dominant_class = v` self-assignment must NOT match (no leading dot)")
 
 
 ## Pattern also detects explicit WorkoutStateTracker.set_* call (BLOCKING-1 coverage).
