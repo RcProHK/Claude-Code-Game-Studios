@@ -74,6 +74,12 @@ func get_ai_state() -> int:
 	return _ai_state
 
 
+## Engage trigger — used by the boss entry cascade (Story 017) to drop the boss into
+## active combat. Maps to PURSUING (the boss now actively pursues the avatar).
+func engage() -> void:
+	_ai_state = EnemyDirector.EnemyAIState.PURSUING
+
+
 ## Configure locomotion/dodge for this enemy at spawn (Story 014).
 ## is_mobility enables the dodge sidestep with a deterministic per-instance sub-RNG.
 func setup_locomotion(move_speed: float, direction: int, is_mobility: bool, transition_id: String) -> void:

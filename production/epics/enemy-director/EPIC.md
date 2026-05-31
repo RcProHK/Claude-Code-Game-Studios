@@ -81,7 +81,7 @@ This epic is complete when:
 | 014 | [Enemy Locomotion + 4Hz Batch Perception](story-014-enemy-locomotion-perception.md) | Logic | Complete ✅ | ADR-0001 structural + ADR-0006 |
 | 015 | [Particle Concurrency Cap + Auto-degrade](story-015-particle-concurrency-auto-degrade.md) | Logic | Complete ✅ | ADR-0001 structural |
 | 016 | [Boss Anchor Pre-spawn + Rollback](story-016-boss-anchor-pre-spawn.md) | Logic | Complete ✅ | ADR-0006 |
-| 017 | [Boss Anchor Commit + Entry Cascade](story-017-boss-anchor-commit-cascade.md) | Integration | Ready | ADR-0006 + ADR-0001 structural |
+| 017 | [Boss Anchor Commit + Entry Cascade](story-017-boss-anchor-commit-cascade.md) | Integration | Complete ✅ | ADR-0006 + ADR-0001 structural |
 | 018 | [Full AOE Handler Pipeline](story-018-aoe-handler-pipeline.md) | Integration | Ready | ADR-0006 + ADR-0005 |
 | 019 | [enemy_killed Signal Chain + Idempotency](story-019-enemy-killed-signal-chain.md) | Integration | Ready | ADR-0005 + ADR-0006 |
 | 020 | [Test Infrastructure Helpers](story-020-test-infrastructure-helpers.md) | Config/Data | Ready | N/A |

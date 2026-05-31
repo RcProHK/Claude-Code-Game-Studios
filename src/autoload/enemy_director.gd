@@ -217,6 +217,22 @@ const MINI_BOSS_CASCADE_CAMERA_SEC: float = 0.4
 const MINI_BOSS_CASCADE_SHAKE: float = 0.25
 const MINI_BOSS_CASCADE_PARTICLE_MULT: float = 1.0
 
+## Legal forward edges of the boss-anchor FSM (IDLE rollback is always legal + direct).
+## Forward moves MUST go through _transition_boss_anchor (CI lint forbids literal
+## `_boss_anchor_state = BossAnchorState.<non-IDLE>` assignments — bypasses validation).
+const BOSS_ANCHOR_LEGAL_EDGES: Dictionary = {
+	BossAnchorState.IDLE: [BossAnchorState.PRE_SPAWN],
+	BossAnchorState.PRE_SPAWN: [BossAnchorState.COMMIT_PENDING],
+	BossAnchorState.COMMIT_PENDING: [BossAnchorState.COMMITTED],
+	BossAnchorState.COMMITTED: [BossAnchorState.ENGAGED],
+	BossAnchorState.ENGAGED: [],
+}
+
+## Boss entry-cascade fixed params (Story 017).
+const BOSS_SHAKE_DURATION: float = 0.08
+const BOSS_FOCAL_EASING: String = "quart_ease_out"
+const BOSS_ENTRY_PARTICLE_PRESET: StringName = &"BOSS_ENTRY"
+
 ## A deferred ability_cast captured during catch-up drain (Rule 7 AOE mutex).
 ## Captures RAW cast params — at defer time (before the GSM gate) no CombatContext
 ## exists yet, so Story 018 re-runs the full pipeline on each drained entry.
@@ -390,6 +406,12 @@ var _boss_cascade_params: Dictionary = {}
 var _boss_scene_mini = null
 var _boss_scene_final = null
 
+# ---- Story 017: entry-cascade autoload seams (untyped DI; ADR-0001 chokepoints) ----
+## null = cascade step skipped (autoloads are stubs until their epics land); tests inject spies.
+var _camera_source = null
+var _screen_effects_source = null
+var _particle_source = null
+
 # =====================================================================
 # Dependency-injection seams
 # =====================================================================
@@ -534,6 +556,11 @@ func _on_state_changed(_from: int, to: int, _payload) -> void:
 			# Pause spawning; idle existing enemies WITHOUT despawn (narrative continuity).
 			_wave_scheduler_paused = true
 			_idle_active_enemies()
+		GameStateMachine.GameState.BOSS_ENCOUNTER:
+			# Story 017: commit the pre-spawned boss if armed (COMMIT_PENDING).
+			_wave_scheduler_paused = true
+			if _boss_anchor_state == BossAnchorState.COMMIT_PENDING:
+				_commit_boss_entry()
 		GameStateMachine.GameState.IDLE, GameStateMachine.GameState.SUSPENDED:
 			# Non-combat states also pause the scheduler (no enemy idling required here).
 			_wave_scheduler_paused = true
@@ -840,6 +867,11 @@ func _apply_hit_result(instance_id: int, hit_result: CombatResolver.HitResult) -
 	if not _enemy_state_pool.has(instance_id):
 		return
 	_enemy_state_pool[instance_id].hp = hit_result.target_hp_after
+	# Story 017 AC-19: a kill emits enemy_killed in the SAME frame (synchronous, no defer).
+	# Non-boss enemies are untouched (no force-despawn — narrative continuity, Rule 13).
+	# Story 019 hardens this with the dedupe guard + idempotency.
+	if hit_result.is_kill:
+		_emit_enemy_killed(instance_id, hit_result)
 
 
 ## Set every live enemy's AI state to IDLE without despawning (EC-13 RestPeriod).
@@ -957,7 +989,7 @@ func pre_spawn_boss(total_planned_sets: int) -> void:
 		if _boss_node is CanvasItem:
 			(_boss_node as CanvasItem).visible = false
 		add_child(_boss_node)
-	_boss_anchor_state = BossAnchorState.PRE_SPAWN
+	_transition_boss_anchor(BossAnchorState.PRE_SPAWN)
 
 
 ## Silent rollback (EC-15) — the pre-spawned boss never entered COMMITTED/ENGAGED, so it is
@@ -992,6 +1024,70 @@ func _poll_boss_anchor() -> void:
 	if _wst_source.has_method("get_planned_total_sets"):
 		total = _wst_source.get_planned_total_sets()
 	_check_boss_anchor_state(set_progress, is_final, total)
+
+
+# =====================================================================
+# Boss anchor commit + entry cascade (Rule 13 part 2 — Story 017)
+# =====================================================================
+
+
+## Boss-anchor FSM forward transition (ADR-0006 atomicity). Validates the edge against
+## BOSS_ANCHOR_LEGAL_EDGES then commits via a parameterised local (NOT a literal
+## BossAnchorState.<value> assignment — that is the CI-forbidden bypass). IDLE rollback
+## stays a direct assignment in despawn_boss_silently (the always-legal reset target).
+func _transition_boss_anchor(to_state: int) -> void:
+	assert(to_state in BOSS_ANCHOR_LEGAL_EDGES.get(_boss_anchor_state, []),
+		"illegal boss-anchor transition %d -> %d" % [_boss_anchor_state, to_state])
+	_boss_anchor_state = to_state
+
+
+## Arm the pre-spawned boss for commit (PRE_SPAWN → COMMIT_PENDING). Called when the
+## workout nears completion; the actual commit fires on GSM → BOSS_ENCOUNTER.
+func arm_boss_commit() -> void:
+	if _boss_anchor_state == BossAnchorState.PRE_SPAWN:
+		_transition_boss_anchor(BossAnchorState.COMMIT_PENDING)
+
+
+## Boss entry cascade (AC-33) — 5 steps in EXACT order, all in this synchronous frame
+## (no await / no call_deferred). All Camera/ScreenEffects/Particle calls route through
+## their autoload seams (ADR-0001 chokepoints). COMMIT_PENDING → COMMITTED → ENGAGED.
+func _commit_boss_entry() -> void:
+	_transition_boss_anchor(BossAnchorState.COMMITTED)
+	var params: Dictionary = _boss_cascade_params if not _boss_cascade_params.is_empty() \
+		else _select_boss_cascade_params(0)  # default standard if unset
+	var boss_pos: Vector2 = Vector2.ZERO
+	if _boss_node != null:
+		# Step 1 — reveal.
+		if _boss_node is CanvasItem:
+			(_boss_node as CanvasItem).visible = true
+		# Step 2 — engage the boss AI.
+		if _boss_node.has_method("engage"):
+			_boss_node.engage()
+		if _boss_node is Node2D:
+			boss_pos = (_boss_node as Node2D).global_position
+	# Step 3 — camera focal request.
+	if _camera_source != null:
+		_camera_source.focal_request(_boss_node, params["camera_sec"], BOSS_FOCAL_EASING)
+	# Step 4 — screen shake.
+	if _screen_effects_source != null:
+		_screen_effects_source.shake(params["shake"], BOSS_SHAKE_DURATION)
+	# Step 5 — boss-entry particles (caller_mult = boss spectacle override).
+	if _particle_source != null:
+		_particle_source.play(BOSS_ENTRY_PARTICLE_PRESET, boss_pos, params["particle_mult"])
+	_transition_boss_anchor(BossAnchorState.ENGAGED)
+
+
+## Emit enemy_killed synchronously (AC-19 same-frame). Builds the payload from the pool
+## entry + resolved hit. Story 019 wraps this with the dedupe / idempotency guard.
+func _emit_enemy_killed(instance_id: int, hit_result: CombatResolver.HitResult) -> void:
+	var payload := EnemyKilledPayload.new()
+	payload.enemy_instance_id = instance_id
+	if _enemy_state_pool.has(instance_id):
+		payload.enemy_id = _enemy_state_pool[instance_id].enemy_id
+	payload.killing_ability = hit_result.ability_id
+	payload.transition_id = hit_result.transition_id
+	payload.is_overkill = hit_result.overkill_excess > 0
+	enemy_killed.emit(payload)
 
 
 # =====================================================================
