@@ -1,12 +1,12 @@
 # Story 010: EnemyRegistry.tres Data File
 
 > **Epic**: Enemy Director
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Core
 > **Type**: Config/Data
 > **Estimate**: 2h
 > **Manifest Version**: 2026-05-29
-> **Last Updated**:
+> **Last Updated**: 2026-05-31
 
 ## Context
 
@@ -74,7 +74,22 @@
 
 **Story Type**: Config/Data
 **Required evidence**: Static CI lint validation — `check_enemy_registry_schema.gd` and `check_enemy_template_move_cap.gd` both exit 0
-**Status**: [ ] Not yet created
+**Status**: [x] Created; schema lint PASS + move-cap lint PASS + GUT 8/8 PASS (Godot 4.6.3, 2026-05-31)
+
+---
+
+## Completion Notes
+
+**Completed**: 2026-05-31
+**Criteria**: 2/2 passing (AC-17 schema; baseline values + INV-7)
+**Implementation**: `assets/data/EnemyRegistry.tres` (3 WaveDescriptor archetypes STRIKE/CONTROL/MOBILITY); `src/core/wave_descriptor.gd` (WaveDescriptor Resource); `src/core/enemy_registry.gd` (EnemyRegistry Resource + get_preloaded_pool stub); `tools/ci/check_enemy_registry_schema.gd` (new schema lint).
+**Test Evidence**: schema lint exit 0; move-cap lint exit 0 (now real-target, no longer graceful-skip); `tests/unit/enemy_director/test_enemy_registry_schema.gd` 8/8 (typed-load baseline verification).
+**Deviations**:
+- ADVISORY: separate `EnemyTemplate` resource folded into WaveDescriptor (move-speed field named `_template_move_speed` preserves the move-cap lint contract; per-enemy template resources deferred to Story 012 when real enemy types/scenes exist — avoids dead code).
+- ADVISORY: `EnemyState` (RefCounted runtime) deferred to Story 012 — a global `class_name EnemyState` collides with the existing inner `CombatResolver.EnemyState`; Story 012 (the actual consumer of `_enemy_state_pool`) will decide reuse-vs-define. Not needed for AC-17.
+- Bug found + fixed during impl: schema lint used PackedStringArray (value type) for block bodies → false "missing field" reports; switched to Array[String] (reference type).
+**Unblocks**: Story 004 AC-31 (move-cap lint now enforces on a real target file, exit 0).
+**Code Review**: Config/Data — static lint + load test serve as evidence.
 
 ---
 

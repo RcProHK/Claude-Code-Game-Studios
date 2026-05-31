@@ -1,0 +1,48 @@
+[gd_resource type="Resource" script_class="EnemyRegistry" load_steps=6 format=3 uid="uid://cenemyreg0root1"]
+
+[ext_resource type="Script" path="res://src/core/enemy_registry.gd" id="1_enemyreg"]
+[ext_resource type="Script" path="res://src/core/wave_descriptor.gd" id="2_wavedesc"]
+
+[sub_resource type="Resource" id="WaveDescriptor_strike"]
+script = ExtResource("2_wavedesc")
+enemy_templates = Array[StringName]([&"STRIKE_MOB_T1", &"STRIKE_MOB_T2", &"STRIKE_MOB_T3"])
+spawn_cadence_sec = 2.0
+archetype_cadence_mult = 1.0
+spawn_count_per_set = 3
+primary_outline_color = Color(1, 0, 0, 1)
+faction = 1
+max_hp = Array[int]([80, 220, 540])
+defense = Array[int]([8, 18, 32])
+_template_move_speed = 120.0
+
+[sub_resource type="Resource" id="WaveDescriptor_control"]
+script = ExtResource("2_wavedesc")
+enemy_templates = Array[StringName]([&"CONTROL_MOB_T1", &"CONTROL_MOB_T2", &"CONTROL_MOB_T3"])
+spawn_cadence_sec = 2.5
+archetype_cadence_mult = 1.25
+spawn_count_per_set = 2
+primary_outline_color = Color(0, 0, 1, 1)
+faction = 1
+max_hp = Array[int]([35, 95, 230])
+defense = Array[int]([2, 5, 10])
+_template_move_speed = 90.0
+
+[sub_resource type="Resource" id="WaveDescriptor_mobility"]
+script = ExtResource("2_wavedesc")
+enemy_templates = Array[StringName]([&"MOBILITY_MOB_T1", &"MOBILITY_MOB_T2", &"MOBILITY_MOB_T3"])
+spawn_cadence_sec = 1.5
+archetype_cadence_mult = 0.75
+spawn_count_per_set = 4
+primary_outline_color = Color(0, 1, 0, 1)
+faction = 1
+max_hp = Array[int]([55, 145, 360])
+defense = Array[int]([4, 10, 20])
+_template_move_speed = 280.0
+
+[resource]
+script = ExtResource("1_enemyreg")
+archetypes = {
+&"STRIKE": SubResource("WaveDescriptor_strike"),
+&"CONTROL": SubResource("WaveDescriptor_control"),
+&"MOBILITY": SubResource("WaveDescriptor_mobility")
+}
