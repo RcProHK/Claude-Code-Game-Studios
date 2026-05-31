@@ -1,7 +1,8 @@
 # ADR-0004: CORS / Cross-Origin Auth Topology
 
 ## Status
-Proposed
+**Accepted (structural) 2026-05-31** — ratified via focused partial ratification (co-ratified with ADR-0002 data contract; see `architecture-review-ratification-2026-05-31.md`). The **topology decision** — same-origin nginx reverse proxy; `/mirror-hero/` static + `/api/game/` proxy routing; `/api/game/` FastAPI APIRouter namespace; relative-URL `HTTPRequest`; `<base href="/mirror-hero/">` HTML shell; `X-Session-Token` chosen CORS-safe-by-design — is a sound architecture choice with no measurement gate and is now Accepted. The **VS-tier empirical Validation Criteria** (deployment loads at `/mirror-hero/`; `X-Session-Token` arrives at FastAPI case-insensitively; CORS preflight clean on production origin; trailing-slash redirect; COOP/COEP Q-A4 spike) **remain Provisional** pending real nginx + GymSys deployment. Tag with `(verified YYYY-MM-DD)` when deployment validation lands to mark *fully* Accepted.
+*(Previously: Proposed)*
 
 ## Date
 2026-05-27

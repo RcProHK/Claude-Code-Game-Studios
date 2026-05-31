@@ -4,7 +4,7 @@
 > **GDD**: design/gdd/workout-state-tracker.md
 > **Architecture Module**: WorkoutStateTracker (autoload pos 9, `src/autoload/workout_state_tracker.gd`)
 > **Status**: Ready
-> **Stories**: 12 stories (10 Ready, 2 Blocked ADR-0002/#14)
+> **Stories**: 12 stories (11 Complete, 1 Blocked: 011 ADR-0002-transport/#14)
 
 ## Overview
 
@@ -54,7 +54,7 @@ This epic is complete when:
 | 009 | [CI Lint Scripts + Static Analysis](story-009-ci-lint-scripts.md) | Config/Data | Complete | ADR-0006 (CI pattern) |
 | 010 | [Volume-to-Loot CI-4 Integration](story-010-volume-to-loot-integration.md) | Integration | Complete | ADR-0005 + ADR-0006 |
 | 011 | [BLOCKED: Boss Anchor CI-1/CI-2 + Sub-500ms](story-011-blocked-boss-anchor-integration.md) | Integration | Blocked | ADR-0002 ⚠️ + #14 |
-| 012 | [BLOCKED: Live #2 Signal Subscription + Anti-Fabrication Chain](story-012-blocked-live-signal-wiring.md) | Integration | Blocked | ADR-0002 ⚠️ |
+| 012 | [Live #2 Signal Subscription + Anti-Fabrication Chain](story-012-live-signal-wiring.md) | Integration | Complete (mock-scoped) | ADR-0002 data-contract ✓ |
 
 ## Next Step
 

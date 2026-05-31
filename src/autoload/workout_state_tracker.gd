@@ -225,6 +225,13 @@ signal wst_queue_overflow(dropped_count: int)
 ## null = resolved to StatSystem autoload in _ready(). Tests inject a spy via set(&"_stat_system", spy).
 var _stat_system = null
 
+## Injectable #2 GymSysBackendClient reference (UNTYPED — project DI convention:
+## typed Node rejects RefCounted test doubles via Object.set()).
+## null = GymSysBackendClient not yet implemented as autoload (Story 012 mock-scoped).
+## Production: set _gym_sys_client = GymSysBackendClient in _ready() when #2 epic ships.
+## Tests inject a FakeGymSysClient via WorkoutStateTracker.set(&"_gym_sys_client", mock).
+var _gym_sys_client = null
+
 ## Pending apply_stat_delta calls buffered while #11 is not READY (substate != READY).
 ## Each entry: { "stat_id": StringName, "source": int, "delta": float, "source_key": String }
 var _pending_stat_deltas: Array[Dictionary] = []
@@ -259,7 +266,9 @@ func _ready() -> void:
 	if _persistence_layer == null:
 		_persistence_layer = PersistenceLayer
 	_restore_from_persistence()
-	# TODO Story 012: connect to #2 GymSysBackendClient workout signals here.
+	# Story 012: wire 7 #2 GymSysBackendClient signals (mock-scoped; no-op if null).
+	# Production: assign _gym_sys_client = GymSysBackendClient when #2 autoload ships.
+	_connect_gym_sys_signals()
 	# Story 007: resolve StatSystem reference (untyped DI seam; injected by tests).
 	# ADR-0008: StatSystem (pos 5) boots before WST (pos 8) — by the time _ready() runs,
 	# StatSystem is guaranteed READY, so the queue is never used in normal operation.
@@ -275,6 +284,50 @@ func _ready() -> void:
 			and _stat_system.get_substate() == StatSystem.Substate.READY:
 		_on_stat_system_ready()
 	_substate = Substate.READY
+
+
+# ---------------------------------------------------------------------------
+# Story 012: #2 GymSysBackendClient signal wiring (live subscription)
+# ---------------------------------------------------------------------------
+
+## Wire exactly 7 #2 GymSysBackendClient signals to WST handlers.
+## Signal contract is Locked per ADR-0002 partial ratification 2026-05-31.
+## TR-wst-001: subscribe to exactly these 7 signals — no more, no less.
+## No-op when _gym_sys_client is null (GymSysBackendClient not yet an autoload).
+## Tests inject FakeGymSysClient before calling this method.
+func _connect_gym_sys_signals() -> void:
+	if _gym_sys_client == null:
+		return
+	# 5 core workout event signals (ADR-0002 Decision §Event types table)
+	_gym_sys_client.workout_started.connect(_on_workout_started)
+	_gym_sys_client.set_logged.connect(_on_set_logged)
+	_gym_sys_client.rest_started.connect(_on_rest_started)
+	_gym_sys_client.rest_ended.connect(_on_rest_ended)
+	_gym_sys_client.workout_completed.connect(_on_workout_completed)
+	# 2 connection-health signals (#2 GDD Rule 12)
+	_gym_sys_client.poll_failed.connect(_on_poll_failed)
+	_gym_sys_client.poll_recovered.connect(_on_poll_recovered)
+
+
+## Disconnect all 7 #2 GymSysBackendClient signals (cleanup for tests and suspension).
+## No-op when _gym_sys_client is null.
+func _disconnect_gym_sys_signals() -> void:
+	if _gym_sys_client == null:
+		return
+	if _gym_sys_client.workout_started.is_connected(_on_workout_started):
+		_gym_sys_client.workout_started.disconnect(_on_workout_started)
+	if _gym_sys_client.set_logged.is_connected(_on_set_logged):
+		_gym_sys_client.set_logged.disconnect(_on_set_logged)
+	if _gym_sys_client.rest_started.is_connected(_on_rest_started):
+		_gym_sys_client.rest_started.disconnect(_on_rest_started)
+	if _gym_sys_client.rest_ended.is_connected(_on_rest_ended):
+		_gym_sys_client.rest_ended.disconnect(_on_rest_ended)
+	if _gym_sys_client.workout_completed.is_connected(_on_workout_completed):
+		_gym_sys_client.workout_completed.disconnect(_on_workout_completed)
+	if _gym_sys_client.poll_failed.is_connected(_on_poll_failed):
+		_gym_sys_client.poll_failed.disconnect(_on_poll_failed)
+	if _gym_sys_client.poll_recovered.is_connected(_on_poll_recovered):
+		_gym_sys_client.poll_recovered.disconnect(_on_poll_recovered)
 
 
 # ---------------------------------------------------------------------------
@@ -373,7 +426,10 @@ func _on_set_logged(exercise_id: StringName, reps: int, weight: float) -> void:
 
 
 ## Called by #2 GymSysBackendClient.rest_started.
-func _on_rest_started() -> void:
+## WST does not consume duration_seconds (GymSys owns the rest timer); the param is
+## underscore-prefixed + optional to match the ADR-0002 Locked rest_started(duration_seconds: int)
+## signal signature while keeping the handler body unchanged.
+func _on_rest_started(_duration_seconds: int = 0) -> void:
 	if _substate == Substate.SUSPENDED:
 		_last_drop_reason = &"WST_SUSPENDED_DROP_REST_STARTED"
 		push_warning("[WST_SUSPENDED_DROP] rest_started dropped — substate SUSPENDED (Rule 8)")

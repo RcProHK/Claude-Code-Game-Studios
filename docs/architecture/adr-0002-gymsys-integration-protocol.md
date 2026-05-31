@@ -1,7 +1,8 @@
 # ADR-0002: GymSys Integration Protocol
 
 ## Status
-Proposed
+**Accepted (data contract) 2026-05-31** — partial ratification (see `architecture-review-ratification-2026-05-31.md`). The **signal/event data contract is now Locked**: the 5 workout event types → #2 GDD signal mappings (`workout_started`, `set_logged(exercise_id, reps, weight)`, `rest_started(duration_seconds: int)`, `rest_ended`, `workout_completed(completed_at: int)`) + their payload schemas; the differential event-cursor design (`last_event_id` + `server_epoch_id`); the 5s ±0.5s polling cadence; the `X-Session-Token` session-lock header; and the idempotent LootDrop / state-write UNIQUE-table structure (`transition_id` child-suffix pattern). Downstream consumers (#2 GymSysClient, #9 WorkoutStateTracker) may subscribe against these names/schemas without churn risk. ADR-0004 (CORS topology) is now **Accepted (structural)** so the design-level CORS resolution this ADR depended on is satisfied. The **transport / empirical validation remains Provisional + VS-tier-gated** (see *Verification Required* §): `HTTPRequest` over the real GymSys origin, CORS preflight pass, `X-Session-Token` arrival at FastAPI, `server_epoch_id` mismatch round-trip, and `rest_started.duration_seconds` presence in the live GymSys schema. ADR-0002 reaches *fully* Accepted only after VS-tier validation against a real GymSys backend (honours the `architecture-review-ratification-2026-05-30` honesty gate — no live integration is claimed as validated).
+*(Previously: Proposed)*
 
 ## Date
 2026-05-26
