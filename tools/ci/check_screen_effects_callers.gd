@@ -14,9 +14,14 @@
 ## Exempt gateway (may mutate Camera2D.offset directly):
 ##   res://src/autoload/screen_effects.gd
 ##
-## Forbidden pattern (regex), on non-comment lines outside the exempt file:
-##   Camera2D[^\n]*\.offset\s*=    — Camera2D.offset direct assignment
-##   (Anchored to the `Camera2D` token so unrelated `.offset =` lines never false-positive.)
+## Forbidden patterns (regex), on non-comment lines outside the exempt file (GDD Rule 15 —
+## extended to the full closed-primitive contract in Story 008):
+##   Camera2D[^\n]*\.offset\s*=                                    — shake must use shader uniform
+##   Engine\.time_scale\s*=                                        — hit pause must use get_tree().paused
+##   get_tree\(\)\.paused\s*=                                      — selective freeze owned by ScreenEffects
+##   RenderingServer\.global_shader_parameter_set\(\s*["']u_shake_offset — only ScreenEffects writes the uniform
+##   (Camera2D anchored so unrelated `.offset =` never false-positives; uniform pattern targets
+##    the string literal so the owner's const-based write is not matched even pre-exemption.)
 ##
 ## Usage:
 ##   godot --headless --script tools/ci/check_screen_effects_callers.gd
@@ -40,9 +45,12 @@ const EXEMPT_FILES := [
 	"res://src/autoload/screen_effects.gd",
 ]
 
-## Forbidden Camera2D.offset mutation token (anchored to the Camera2D reference).
+## Forbidden screen-feel mutation tokens (GDD Rule 15 — full closed-primitive contract).
 const FORBIDDEN_PATTERNS: Array[String] = [
 	"Camera2D[^\\n]*\\.offset\\s*=",
+	"Engine\\.time_scale\\s*=",
+	"get_tree\\(\\)\\.paused\\s*=",
+	"RenderingServer\\.global_shader_parameter_set\\s*\\(\\s*[\"']u_shake_offset",
 ]
 
 
