@@ -1,6 +1,6 @@
 # Epics Index
 
-Last Updated: 2026-05-29
+Last Updated: 2026-06-01
 Engine: Godot 4.6 (Web Export, Compatibility Renderer)
 Created by: /create-epics Foundation + Core (16 systems)
 
@@ -23,7 +23,7 @@ Created by: /create-epics Foundation + Core (16 systems)
 | [GymSys Backend Client](gymsys-backend-client/EPIC.md) | Foundation | #2 | gymsys-backend-client.md ✅ | Not yet created | **Blocked** — ADR-0002 + ADR-0004 Proposed |
 | [Particle System Wrapper](particle-system-wrapper/EPIC.md) | Foundation | #5 | particle-system-wrapper.md ✅ | **9 stories** (8 Complete CI-green, 1 Blocked: 009 ADR-0001 CPU ratification) | **Implemented 8/9** — CI-green 1220/1221 (2026-06-01); 009 perf-gated (VS hardware) |
 | [Screen Effects System](screen-effects-system/EPIC.md) | Foundation | #6 | screen-effects-system.md ✅ | **11 stories** (10 Complete CI-green, 1 Blocked: 011 ADR-0001 hw) | **Implemented 10/11** — CI-green 1266/1267 (2026-06-01); 011 perf-gated (VS hardware) |
-| [Camera System](camera-system/EPIC.md) | Foundation | #7 | camera-system.md ✅ | Not yet created | Ready |
+| [Camera System](camera-system/EPIC.md) | Foundation | #7 | camera-system.md ✅ | **12 stories** (10 Complete CI-green, 011 Blocked #22, 012 Blocked ADR-001 hw) | **Implemented 10/12** — CI-green 1312/1313 (2026-06-01); 011 (#22 GDD) + 012 (VS hardware) gated |
 | [Streak System](streak-system/EPIC.md) | Foundation | #8 | streak-system.md ✅ | **8 stories** (all Ready) | Ready — Pre-MVP tier |
 | [Audio Manager](audio-manager/EPIC.md) | Foundation | #4 | NOT STARTED | Not yet created | **Placeholder** — GDD + ADR-0008 required (MVP tier) |
 
@@ -47,8 +47,8 @@ Created by: /create-epics Foundation + Core (16 systems)
 | Metric | Count |
 |--------|-------|
 | Total epics | 16 |
-| Ready (GDD Approved + ADR-0006 Accepted) | 13 |
-| Blocked (ADR Proposed — stories auto-blocked) | 2 (#2 GymSys; #7 Camera EPIC still cites ADR-0001 Proposed — stale, reconcile when epic started) |
+| Ready (GDD Approved + ADR-0006 Accepted) | 14 |
+| Blocked (ADR Proposed — stories auto-blocked) | 1 (#2 GymSys — ADR-0002/0004 transport VS-gated) |
 | Placeholder (no GDD) | 3 (#4 Audio, #10 ExerciseMapping, #33 AttentionBudget) |
 | Pending GDD approval | 1 (#15 LootDrop — Pass 3 required) |
 
