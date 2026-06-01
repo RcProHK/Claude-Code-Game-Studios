@@ -44,6 +44,21 @@ func get_planned_reps() -> int:
 	return planned_reps
 
 
+## Active workout id for LootDropSystem queries (Story 014).
+## Returns configurable workout_id (or empty = no active workout).
+var active_workout_id: String = ""
+func get_active_workout_id():
+	if active_workout_id.is_empty():
+		return null
+	return active_workout_id
+
+
+## Workout score proxy for LootDropSystem._compute_workout_score_from_tracker (Story 014).
+var workout_score: float = 0.5
+func get_workout_score() -> float:
+	return workout_score
+
+
 ## Self-check (Story 020 QA).
 static func _static_check() -> bool:
 	var m = (load("res://tests/helpers/mock_workout_state_tracker.gd") as GDScript).new()

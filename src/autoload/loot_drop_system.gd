@@ -159,8 +159,20 @@ func _ready() -> void:
 	if _gymsys_client != null:
 		await _gymsys_client.backend_ready
 
-	# ── Step 5: Subscribe upstream signals (stubs — wired fully in Story 011) ─
-	# Boss/enemy/workout signal connections added by Story 011.
+	# ── Step 5: Subscribe upstream signals (Story 014 — #9/#14 now Complete) ──
+	# Resolve DI seams to production autoloads if not injected by tests.
+	if _enemy_director == null:
+		_enemy_director = EnemyDirector
+	if _workout_tracker == null:
+		_workout_tracker = WorkoutStateTracker
+	# EnemyDirector.enemy_killed is an event broadcast (not initial-state sentinel).
+	# LootDrop boots at pos 9 BEFORE EnemyDirector (pos 10); by this await point all
+	# autoloads are constructed. Use raw .connect() — NOT connect_for_initial_state.
+	if _enemy_director != null and _enemy_director.has_signal("enemy_killed"):
+		_enemy_director.enemy_killed.connect(_on_enemy_killed_payload)
+	# WorkoutStateTracker boots at pos 8 BEFORE LootDrop (pos 9) — safe to connect here.
+	if _workout_tracker != null and _workout_tracker.has_signal("workout_completed_forwarded"):
+		_workout_tracker.workout_completed_forwarded.connect(_on_workout_completed_forwarded)
 
 	# ── Step 6: TTL check on restored pending drops ────────────────────────────
 	_check_pending_ttl()
@@ -543,6 +555,31 @@ func _handle_enemy_killed(transition_id: String, faction: String, tier: String) 
 	var ceremony: int = _ceremony_cap_check(LootEnums.SourceEventKind.MINI_BOSS, workout_id_or_null)
 	var ws: float = _compute_workout_score_from_tracker()
 	_process_loot_trigger(transition_id, LootEnums.SourceEventKind.MINI_BOSS, ws, ceremony)
+
+
+## Signal adapter — Story 014 (AC-44).
+## Bridges EnemyDirector.enemy_killed(EnemyKilledPayload) → _handle_enemy_killed(String,String,String).
+## EnemyDirector surface is locked to enemy_killed (no boss_killed signal);
+## boss kills arrive here with enemy_id matching the boss template id.
+## Tier is derived from enemy_id: if it contains "mini" the EnemyTemplate is a
+## mini-boss flavour; otherwise it is treated as a regular enemy (silent skip in handler).
+## Boss final-boss path deferred to #16 Boss System integration (Story scope boundary).
+func _on_enemy_killed_payload(payload: EnemyKilledPayload) -> void:
+	var id_lower: String = payload.enemy_id.to_lower()
+	var tier: String = "mini_boss" if id_lower.contains("mini") else "enemy"
+	_handle_enemy_killed(payload.transition_id, "enemy", tier)
+
+
+## Signal adapter — Story 014 (AC-32 / AC-42).
+## Bridges WorkoutStateTracker.workout_completed_forwarded(completed_at, transition_id)
+## → _handle_workout_completed(workout_id, completed_exercises).
+## WST emits transition_id as the workout key; the handler validates it as workout_id.
+## completed_exercises is 0 here — the handler derives exercise data internally via
+## _compute_workout_score_from_tracker() (reads WST directly, not from the signal payload).
+func _on_workout_completed_forwarded(completed_at: int, transition_id: String) -> void:
+	# completed_at not used by the handler (workout timing is WST's concern).
+	var _discard_at: int = completed_at
+	_handle_workout_completed(transition_id, 0)
 
 
 ## Handle boss_killed — final-boss drop with UNCOMMON floor (Rule 5).

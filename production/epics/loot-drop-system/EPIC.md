@@ -4,7 +4,7 @@
 > **GDD**: design/gdd/loot-drop-system.md — **Pass 2 Revised (2026-05-28), awaiting Pass 3 re-review**
 > **Architecture Module**: LootDropSystem (`src/autoload/loot_drop_system.gd`)
 > **Status**: Ready (with GDD caveat — see below)
-> **Stories**: **15 stories created** (12 Ready, 3 Blocked)
+> **Stories**: **15 stories** (12 Complete ✅ merged PR #8; 1 Ready [014 unblocked 2026-06-01]; 2 Blocked [013/015 on #2 GymSys live transport])
 
 ## Overview
 
@@ -19,11 +19,11 @@ LootDrop 係 Mirror Hero Pillar 3（Drop Euphoria）的最終 delivery system，
 | ADR-0006 (**Accepted**) | State Machine Contract — `transition_id` atomicity + `connect_for_initial_state` | LOW |
 | ADR-0007 (**Accepted** 2026-05-29) | Enum Convention — `ClassTag.NEUTRAL` ≠ `AbilityClass.UNKNOWN` clarified | LOW |
 | ADR-0009 (**Accepted** 2026-05-29) | Signal Payload Schema — workout_id late-bound (INV-12) | LOW |
-| ADR-0002 (**Proposed** ⚠️) | GymSys Integration — backend endpoints; blocks Stories 013/014/015 | LOW |
+| ADR-0002 (**Accepted-data-contract 2026-05-31** ⚠️ transport Provisional) | GymSys Integration — signal/event contract Locked (unblocks 014 wiring); live HTTP transport still blocks Stories 013/015 | LOW |
 
 > ✅ ADR-0005 Accepted 2026-05-30 — formula stories unblocked.
 > ✅ ADR-0003/0006 Accepted — AC-23/24/35/37 (previously ADR-RATIFICATION-GATED) now BLOCKING.
-> ⚠️ ADR-0002 Proposed — Stories 013/014/015 remain BLOCKED until #2 GymSys implemented.
+> ⚠️ ADR-0002 transport still Provisional/VS-gated — Stories 013/015 remain BLOCKED until #2 GymSys live HTTP. Story 014 UNBLOCKED 2026-06-01 (signal/event contract Locked + #9/#14 done; boot-order/wiring testable via GymSys stub).
 > ⚠️ GDD Pass 2 Revised — pass 3 formal review pending but stories created per handoff state (ADR-0005 Accepted unblocks all formula stories).
 
 ## GDD Requirements
@@ -51,21 +51,21 @@ This epic is complete when:
 
 | # | Story | Type | Status | ADR |
 |---|-------|------|--------|-----|
-| 001 | CI Lints — Closed API + Namespace + Config Integrity | Logic | Ready | ADR-0005 |
-| 002 | LootRarityConfig Resource + Data Record + Enum Declarations | Logic | Ready | ADR-0005, ADR-0007 |
-| 003 | Formula 1 apply_tier_ceiling_floor + Pillar 1 Anti-Fabrication Proofs | Logic | Ready | ADR-0005 |
-| 004 | Formula 2 ceremony_cap_check — Dual Pool + micro_ack | Integration | Ready | ADR-0005, ADR-0009 |
-| 005 | Formula 3 (Pending TTL Expiry) + Formula 4 (bfcache Resume Action) | Logic | Ready | ADR-0003, ADR-0006 |
-| 006 | Formula 5 (Local vs Backend Reconcile) + Formula 6 (Catch-up Compression) | Integration | Ready | ADR-0003 |
-| 007 | Formula E1 (Item Type) + E2 (Class Affinity) + E4 (Inventory Overflow) | Logic | Ready | ADR-0005, ADR-0007 |
-| 008 | Formula E3 — Anti-Pillar Weekly Distribution (Monte Carlo) | Logic | Ready | ADR-0005 |
-| 009 | LootDropSystem Autoload — Boot Sequence + State Machine + Private Mode Gate | Integration | Ready | ADR-0005, ADR-0003, ADR-0006, ADR-0009 |
-| 010 | Idempotency + Malformed ID Guard + Release Guard + Unknown Tier Fallback | Logic | Ready | ADR-0005, ADR-0006 |
-| 011 | Daily Token Gate + Trigger Routing + Source-Event Classification | Logic | Ready | ADR-0005, ADR-0009 |
-| 012 | 5-Step Optimistic Persistence + Rollback + Schema Migration + transition_id Format | Integration | Ready | ADR-0003, ADR-0006 |
+| 001 | CI Lints — Closed API + Namespace + Config Integrity | Logic | Complete ✅ | ADR-0005 |
+| 002 | LootRarityConfig Resource + Data Record + Enum Declarations | Logic | Complete ✅ | ADR-0005, ADR-0007 |
+| 003 | Formula 1 apply_tier_ceiling_floor + Pillar 1 Anti-Fabrication Proofs | Logic | Complete ✅ | ADR-0005 |
+| 004 | Formula 2 ceremony_cap_check — Dual Pool + micro_ack | Integration | Complete ✅ | ADR-0005, ADR-0009 |
+| 005 | Formula 3 (Pending TTL Expiry) + Formula 4 (bfcache Resume Action) | Logic | Complete ✅ | ADR-0003, ADR-0006 |
+| 006 | Formula 5 (Local vs Backend Reconcile) + Formula 6 (Catch-up Compression) | Integration | Complete ✅ | ADR-0003 |
+| 007 | Formula E1 (Item Type) + E2 (Class Affinity) + E4 (Inventory Overflow) | Logic | Complete ✅ | ADR-0005, ADR-0007 |
+| 008 | Formula E3 — Anti-Pillar Weekly Distribution (Monte Carlo) | Logic | Complete ✅ | ADR-0005 |
+| 009 | LootDropSystem Autoload — Boot Sequence + State Machine + Private Mode Gate | Integration | Complete ✅ | ADR-0005, ADR-0003, ADR-0006, ADR-0009 |
+| 010 | Idempotency + Malformed ID Guard + Release Guard + Unknown Tier Fallback | Logic | Complete ✅ | ADR-0005, ADR-0006 |
+| 011 | Daily Token Gate + Trigger Routing + Source-Event Classification | Logic | Complete ✅ | ADR-0005, ADR-0009 |
+| 012 | 5-Step Optimistic Persistence + Rollback + Schema Migration + transition_id Format | Integration | Complete ✅ | ADR-0003, ADR-0006 |
 | 013 | Backend Authority — Server Tier Correction + ACK Commit + Mismatch Alert | Integration | **Blocked** (#2 GymSys) | ADR-0002 |
-| 014 | Signal Pipeline Integration — Autoload Position 7 + Class Affinity from #9 | Integration | **Blocked** (#9/#14) | ADR-0005 |
-| 015 | bfcache Reconcile End-to-End (Composite) | Integration | **Blocked** (#2/#9/#14) | ADR-0002, ADR-0003 |
+| 014 | [Signal Pipeline Integration — Boot Order + Class Affinity from #9](story-014-signal-pipeline.md) | Integration | Complete ✅ | ADR-0005 |
+| 015 | bfcache Reconcile End-to-End (Composite) | Integration | **Blocked** (#2 GymSys only — #9/#14 now done) | ADR-0002, ADR-0003 |
 
 ## Next Step
 
