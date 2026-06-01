@@ -440,3 +440,23 @@ Prior verdict resolved: Pass 4 TIER A (signature contract / spawn ordering / sna
 - No 6-specialist re-review needed for Pass 6 (findings already cross-domain consensus); optional 3-specialist (systems + gameplay + qa) targeted re-validate after.
 
 Status: Pass 5 MAJOR REVISION NEEDED — pending fresh-session Pass 6. **Epic creation BLOCKED until Approved.**
+
+---
+
+## Pass 6 — 2026-06-01 — Design Decisions LOCKED (spec fix-pass handed to fresh session)
+
+User pre-authorized「全部跟推薦去做」for this GDD. The two Pass-5 design decisions are resolved with the game-designer + creative-director recommended options:
+
+- **DD #1 — bfcache state**: ✅ **Persist `current_hp` (one int) for perfect continuity** (game-designer + CD recommended). Replaces the Rule 12 30%-threshold skip-to-kill hybrid. Eliminates P5-1 (boss death firing from browser resume not player hit), P5-6, P5-7/8 (skip-to-kill vs EC-16 double-loot race) in one move — boss death now ALWAYS originates from a player hit, preserving the core fantasy「我嗰 rep 殺 boss」(line 49). **Ripple**: ADR-003 save scope gains ONE ephemeral mid-fight field (`boss.current_hp`); needs save-strategy + #15 confirm — logged as new Followup #21 (NOT a GDD blocker; design-level decision is made).
+- **DD #2 — boss-tier gate**: ✅ **Reuse ADR-005 effort signal (volume×PR×streak) for the mini-vs-final tier gate** (recommended), replacing the raw set-count ≤2 proxy. Fixes P5-4 (3×3/5×5 strength programs = low set count but high effort → wrongly classified mini-boss = inverted Pillar 1 reward). No GymSys backend extension needed (effort signal already computed for ADR-005). LIGHT_WORKOUT_THRESHOLD_SETS knob → replaced by an effort-score threshold (Rule 2/3 + Tuning Knobs to update in spec pass).
+
+### Remaining Pass 6 spec fix-pass (handed to FRESH session — per Pass 5 reviewer's explicit "fresh session at high context" recommendation; this session is deep into Foundation+streak+audio work, and this GDD has a Pass 2→3 net-regression precedent that punishes rushed multi-item passes in exhausted context)
+
+**Tier 0 — compilability (5):** GP-F4 add full `BossSystem` autoload class contract section (class_name/extends Node/field section incl. `_spawned_transition_ids`); GP-F2 un-nest `BossVisualResource` (currently 2nd file-level `class_name` in BossTemplate fence = parse error → separate file or inner `class`); GP-F3 define `_instantiate_boss` + scene-load convention (BossTemplate has no PackedScene field); GP-F5 telemetry helper naming + local graceful-noop wrapper (#28 Not Started); GP-F8 declare `hp_changed` signal on BossInstance (HUD bar).
+**Tier 1 — death/cleanup wiring (3):** connect `_on_enemy_killed_self_listen` callsite + `enemy_id == self.boss_id` self-filter; reconcile dual death path (Rule 12 `_enter_state(DYING)` undefined vs Rule 8 enemy_killed) → canonical death entry + double-cleanup guard; AC-11 add enemy_killed→DYING coverage.
+**Tier 2 — apply the 2 DDs in spec + novelty (3):** rewrite Rule 12 to persist `current_hp` (drop skip-to-kill); rewrite Rule 2/3 tier gate to effort-signal; escalate AC-39 novelty test (≥3.5 Likert / n≥10 / ≥8 sessions, MVP-gate BLOCKING).
+**Tier 3 — formula/AC regression (5+):** F1 propagate Pass 4 A3.3 bootstrap to AC-18 + AC-41 (current regression); F2 reconcile bootstrap floor vs MIN_BOSS_HP=50 unreachable (first-session 21-29 hits tougher than mid-game); F3 endgame saturation MVP mitigation or disclose+AC; F4 spec avatar death/retry (player_max_hp=1 one-shot → no death spec); F6 fix INV-8 operator (`RARE > RARE`=false) + re-tier or provide ADR-005 distribution evidence; Rule 9 `final_tier = max(adr005_floored, loot_guarantee_min_tier)` combine pseudocode; AC-07 wall-clock ≤200ms split.
+
+Then: `/design-review` (fresh) → expect Approved → `/create-epics #16`. New Followup #21 (ADR-003 persist boss.current_hp scope).
+
+Status: **Pass 6 design decisions LOCKED (DD#1 persist current_hp + DD#2 effort-signal tier gate). Spec fix-pass (Tier 0/1/2/3, ~15 edits) pending FRESH focused session. Epic still BLOCKED until spec pass complete + /design-review Approved.**

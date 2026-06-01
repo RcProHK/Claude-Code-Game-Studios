@@ -1,8 +1,8 @@
 # Boss System
 
-> **Status**: Revised 2026-05-28 (Pass 4 — addressing Pass 3 fresh-session /design-review TIER A 12 BLOCKING items; TIER B/C deferred to sprint-kickoff polish per CD adjudication)
-> **Author**: user + claude (Pass 4 = TIER A spec authoring: contract definitions + Web Export knowledge gaps + Pillar-breaking design + cross-doc contract drift)
-> **Last Updated**: 2026-05-28
+> **Status**: MAJOR REVISION NEEDED (Pass 5 fresh-session /design-review 2026-06-01) — **Pass 6 design decisions LOCKED 2026-06-01** (DD#1 persist `current_hp`; DD#2 effort-signal tier gate); spec fix-pass (Tier 0/1/2/3, ~15 edits) PENDING fresh focused session. **Epic creation BLOCKED until spec pass + /design-review Approved.** See review log Pass 6 entry.
+> **Author**: user + claude (Pass 4 = TIER A spec authoring; Pass 6 = 2 design decisions locked, spec fix-pass deferred to fresh session)
+> **Last Updated**: 2026-06-01
 > **Implements Pillar**: Pillar 3 (Drop Euphoria) PRIMARY climax — boss kill = signature loot ritual trigger; Pillar 5 (Mirror Moment) secondary — boss reveal ritual = climactic mirror moment instance; Pillar 2 (Frictionless Companion) supporting (inherits #14 boss anchor sub-500ms); Pillar 1 (Real Body, Real Power) supporting (boss difficulty scales with player real PR progression)
 > **NOT serving Pillar 4 (Muscle = Class) in MVP** — Pillar 4 mechanical expression requires multi-archetype boss roster (≥3 final bosses) which is honestly deferred to post-MVP. MVP class differentiation is presentation-layer only (silhouette + audio signature + palette family). See [Pillar 4 Scope Honesty Note](#pillar-4-scope-honesty-note) below.
 > **Key ADRs**: ADR-005 Loot Rarity Formula (boss kill → loot_rarity_score chain via transition_id); ADR-001 Web Export Budget Caps (boss reveal particle storm budget); ADR-006 State Machine Contract (transition_id propagation)
