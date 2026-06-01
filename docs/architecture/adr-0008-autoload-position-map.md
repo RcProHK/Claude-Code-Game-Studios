@@ -1,7 +1,8 @@
 # ADR-0008: Autoload Position Map
 
 ## Status
-Proposed
+**Accepted 2026-06-01** — ratified focused. The canonical map matches `project.godot` ground truth (F-SETUP-4); dependencies are met — ADR-0006 (Accepted, Contract 4 locks positions 1–2) + ADR-0001 (Accepted-structural, PlatformDetect ordering). Foundation boot verified green (combined GUT gate 1321/1322, 0 fail post-PR #10). The partial-order constraints (§Binding ordering) hold against the current tree. Closes architecture-review GAP-002. Unblocks deterministic autoload placement for the 3 unwritten autoloads — **#4 AudioManager (top of Presentation block, ~pos 11 around AvatarRenderer)**, #28 Telemetry (last), #33 AttentionBudget (after WorkoutStateTracker). No measurement/hardware gate (boot ordering is structural, already test-verified).
+*(Previously: Proposed)*
 
 ## Date
 2026-05-29

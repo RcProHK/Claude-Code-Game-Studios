@@ -1,10 +1,10 @@
 # Epic: Audio Manager
 
 > **Layer**: Foundation
-> **GDD**: — (Not Started — Tier: MVP)
+> **GDD**: [design/gdd/audio-manager.md](../../../design/gdd/audio-manager.md) — Designed (pending review) 2026-06-01, lean pass
 > **Architecture Module**: AudioManager (autoload pos 11+, `src/autoload/audio_manager.gd`)
-> **Status**: Placeholder — GDD required
-> **Stories**: Cannot be created until GDD is authored and approved
+> **Status**: GDD authored (pending `/design-review`) — stories still BLOCKED on ADR-0008 Accept (autoload position)
+> **Stories**: Cannot be created until GDD reviewed/approved AND ADR-0008 Accepted (Open Question Q5)
 
 ## Overview
 
@@ -14,12 +14,12 @@ AudioManager 負責 Mirror Hero 嘅所有音頻 routing、SFX/BGM 播放同音�
 
 | ADR | Decision Summary | Engine Risk |
 |-----|-----------------|-------------|
-| ADR-0008 (Queued ❌) | Autoload Full Position Registry — AudioManager 確切 autoload position 未定 | LOW |
-| ADR-0006 Contract 4 (Accepted ✅) | Boot order constraint — AudioManager 必須喺 pos 11+ boot | LOW |
+| ADR-0008 (Accepted ✅ 2026-06-01) | Autoload Position Map — AudioManager 置於 Presentation block 頂（~pos 11，around AvatarRenderer）；order-resilient via `connect_for_initial_state` | LOW |
+| ADR-0006 Contract 4 (Accepted ✅) | Boot order constraint — AudioManager 必須喺 GSM 之後 boot | LOW |
 
-> ⚠️ 無 GDD — 此 epic 係 **placeholder**，所有 stories blocked 直至：
-> 1. GDD 寫好並 Approved（run `/design-system 4`）
-> 2. ADR-0008 Autoload Full Position Registry 寫好（指定確切 position）
+> ✅ ADR-0008 Accepted（2026-06-01）— autoload placement 已定。GDD 已 authored（Designed，pending review）。**Stories 仲 blocked 直至**：
+> 1. `/design-review design/gdd/audio-manager.md`（fresh session）→ Approved
+> 2. 確認 Open Question Q3（Web AudioContext unlock 機制）— 影響 unlock story 實作
 
 ## GDD Requirements
 
