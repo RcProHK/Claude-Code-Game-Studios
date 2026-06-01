@@ -21,7 +21,7 @@ Created by: /create-epics Foundation + Core (16 systems)
 | [PersistenceLayer](persistence-layer/EPIC.md) | Foundation | #3 | persistence-layer.md ✅ | **16 stories** (15 Ready, 1 Blocked ADR-0003) | Ready — **START HERE** (pos 1, all others depend on it) |
 | [Game State Machine](game-state-machine/EPIC.md) | Foundation | #1 | game-state-machine.md ✅ | **17 stories** (16 Ready, 1 Complete) | Ready — Story 010 already done (Foundation chain) |
 | [GymSys Backend Client](gymsys-backend-client/EPIC.md) | Foundation | #2 | gymsys-backend-client.md ✅ | Not yet created | **Blocked** — ADR-0002 + ADR-0004 Proposed |
-| [Particle System Wrapper](particle-system-wrapper/EPIC.md) | Foundation | #5 | particle-system-wrapper.md ✅ | Not yet created | Ready (ADR-0001 spike story first) |
+| [Particle System Wrapper](particle-system-wrapper/EPIC.md) | Foundation | #5 | particle-system-wrapper.md ✅ | **9 stories** (8 Complete CI-green, 1 Blocked: 009 ADR-0001 CPU ratification) | **Implemented 8/9** — CI-green 1220/1221 (2026-06-01); 009 perf-gated (VS hardware) |
 | [Screen Effects System](screen-effects-system/EPIC.md) | Foundation | #6 | screen-effects-system.md ✅ | Not yet created | Ready |
 | [Camera System](camera-system/EPIC.md) | Foundation | #7 | camera-system.md ✅ | Not yet created | Ready |
 | [Streak System](streak-system/EPIC.md) | Foundation | #8 | streak-system.md ✅ | **8 stories** (all Ready) | Ready — Pre-MVP tier |
@@ -47,8 +47,8 @@ Created by: /create-epics Foundation + Core (16 systems)
 | Metric | Count |
 |--------|-------|
 | Total epics | 16 |
-| Ready (GDD Approved + ADR-0006 Accepted) | 11 |
-| Blocked (ADR Proposed — stories auto-blocked) | 4 (#2 GymSys, #5 Particle, #6 Screen, #7 Camera) |
+| Ready (GDD Approved + ADR-0006 Accepted) | 12 |
+| Blocked (ADR Proposed — stories auto-blocked) | 3 (#2 GymSys, #6 Screen, #7 Camera) |
 | Placeholder (no GDD) | 3 (#4 Audio, #10 ExerciseMapping, #33 AttentionBudget) |
 | Pending GDD approval | 1 (#15 LootDrop — Pass 3 required) |
 
