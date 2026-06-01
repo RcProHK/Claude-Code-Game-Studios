@@ -1,10 +1,10 @@
 # Epic: Exercise → Class Mapping
 
 > **Layer**: Core
-> **GDD**: — (Not Started — Tier: Pre-MVP)
-> **Architecture Module**: ExerciseClassMapping (`src/autoload/exercise_class_mapping.gd` — position TBD per ADR-0008)
-> **Status**: Placeholder — GDD + ADR-0007 + ADR-0008 required
-> **Stories**: Cannot be created until GDD is authored and approved
+> **GDD**: [design/gdd/exercise-class-mapping.md](../../../design/gdd/exercise-class-mapping.md) — Designed (pending review) 2026-06-01, lean pass
+> **Architecture Module**: ExerciseClassMapping (`src/autoload/exercise_class_mapping.gd` OR static lookup — Open Question Q1; position per ADR-0008 insertion before Stat/Ability/WST)
+> **Status**: GDD authored (pending `/design-review`) — all 3 prereq ADRs now Accepted (0007/0008/0003); stories gated on design-review Approved + Q1 autoload-vs-static decision
+> **Stories**: Cannot be created until GDD reviewed/approved + Q1 resolved
 
 ## Overview
 
@@ -14,14 +14,13 @@ ExerciseClassMapping 係 Pillar 4（Muscle = Class）嘅資料層，將 gym exer
 
 | ADR | Decision Summary | Engine Risk |
 |-----|-----------------|-------------|
-| ADR-0007 (Queued ❌) | Class Enum Naming Convention — STRIKE/CONTROL/MOBILITY naming standard + narrative display name localization separation | LOW |
-| ADR-0008 (Queued ❌) | Autoload Full Position Registry — ExerciseClassMapping position undefined | LOW |
-| ADR-0003 (Proposed ⚠️) | Save State Strategy — class mapping persisted via `exercise.*` namespace (pending GDD) | LOW |
+| ADR-0007 (Accepted ✅ 2026-05-29) | Class Enum Convention — AbilityClass {STRIKE,CONTROL,MOBILITY,UNKNOWN} locked | LOW |
+| ADR-0008 (Accepted ✅ 2026-06-01) | Autoload Position Map — #10 insertion before Stat/Ability/WST (OR static lookup, Q1) | LOW |
+| ADR-0003 (Accepted ✅ 2026-05-30) | Save State Strategy — N/A: #10 is static config, NO per-player persistence (Detailed Design) | LOW |
 
-> ⚠️ 無 GDD — 此 epic 係 **placeholder**。**所有 stories blocked** 直至：
-> 1. ADR-0007 Class Enum Naming Convention written + Accepted
-> 2. GDD authored + Approved (`/design-system 10`)
-> 3. ADR-0008 autoload position specified
+> ✅ 全部 3 prereq ADR Accepted + GDD authored（Designed，pending review）。**Stories blocked** 直至：
+> 1. `/design-review design/gdd/exercise-class-mapping.md`（fresh session）→ Approved
+> 2. Open Question Q1 resolved（autoload-vs-static + ADR-0008 insertion position）
 
 ## GDD Requirements
 
