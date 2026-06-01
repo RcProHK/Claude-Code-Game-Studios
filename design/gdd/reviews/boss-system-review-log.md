@@ -388,3 +388,55 @@ User authorization: pre-authorized「之後所有用推薦去完成」— Pass 5
 - (d) Sprint-kickoff polish window before `/create-stories` — process 3 P0 TIER B items + 2 sequencing items (Followup #08 promote + #19 sequence)
 
 Status: **Pass 5 APPROVED — #16 Boss System TIER A complete, spec-authoring quality verified across systems-designer + gameplay-programmer + qa-lead domains. Sprint-ready pending TIER B P0 (3 items) + MVP-gate-prerequisite sequencing (2 items). Ready for next-phase progression per user judgment.**
+
+---
+
+## Review — 2026-06-01 — Verdict: MAJOR REVISION NEEDED (Pass 5 fresh-session /design-review)
+
+Scope signal: M (design-level fixes; may touch ADR-003 save scope + ADR-005 effort signal reuse; no brand-new ADR)
+Specialists: game-designer, systems-designer, qa-lead, gameplay-programmer + creative-director (synthesis)
+Blocking items: 12+ across 4 domains | Specialist disagreement: 1 (persist current_hp vs transient-by-design — design fork, NOT bug)
+
+Summary: Pass 5 fresh-session full-mode re-review (4 adversarial specialists + CD synthesis) found Pass 4's "12 TIER A resolved" claim **does not hold**. Two independent proofs: (1) AC-18 still asserts the pre-Pass-4 `ATTACK_POWER=0 → boss_max_hp=50` path that Pass 4 A3.3 bootstrap abolished (regression test will fail) → Pass 4 changed the formula but did not propagate to ACs; (2) the BossSystem autoload class is **never defined** (no class_name / no field section / no extends Node) yet `_spawned_transition_ids` lives on it → Pass 4 spec is incomplete. Four domains converged on the death/cleanup/wiring path being systematically underspecified. **Cannot /create-epics until Approved.**
+
+Prior verdict resolved: Pass 4 TIER A (signature contract / spawn ordering / snapshot caching / Web Export hooks) confirmed solid — but Pass 4 introduced/left BLOCKING gaps.
+
+### Convergent BLOCKING findings (Pass 6 must fix)
+
+**Tier 0 — Not compilable (gameplay-programmer)**
+- GP-F4: `BossSystem` autoload class never defined — no `class_name BossSystem` / no `extends Node` / no field section (contrast BossInstance which has full spec at line 139). `_spawned_transition_ids` Dictionary undeclared. **Add a full "BossSystem autoload class contract" section mirroring BossInstance completeness.**
+- GP-F2: `class_name BossVisualResource` nested inside BossTemplate fenced block (line 113/125) = GDScript parse error (one file-level class_name per script). Resolve to separate file OR inner `class` (no class_name).
+- GP-F3: `_instantiate_boss(template)` (line 365/451) undefined + self-contradictory ("BossInstance.new() via scene preload" — BossTemplate has no PackedScene field). Spec the scene-load convention.
+- GP-F5: telemetry helper naming inconsistent (`_emit_telemetry` vs `emit_telemetry`) + undefined (#28 Not Started → must be local graceful-noop wrapper).
+- GP-F8: `boss.hp_changed` signal referenced (line 380) but never declared on BossInstance (HUD bar needs it).
+
+**Tier 1 — Death/cleanup wiring (qa-lead B2.1 + gameplay-programmer GP-F1/GP-F7 CONVERGENT)**
+- `_on_enemy_killed_self_listen` (line 575) has NO `.connect(...)` anywhere + no `enemy_id == self.boss_id` filter → any enemy kill triggers boss cleanup. Spec the connection callsite + self-filter.
+- Dual death path: Rule 12 calls `boss._enter_state(EnemyAIState.DYING)` (line 674, `_enter_state` undefined) vs Rule 8 via enemy_killed handler. Reconcile canonical death entry; guard against double cleanup/queue_free.
+- AC-11 assumes boss already in DYING — skips "how enemy_killed → DYING" entirely (no test coverage). Add coverage.
+
+**Tier 2 — Pillar-breaking design (game-designer) — needs DESIGN DECISIONS (see below)**
+- P5-1/P5-6: Rule 12 bfcache skip-to-kill (HP<30%, line 669) makes boss death fire from browser resume event, not player hit → silently betrays core fantasy「我嗰 rep 殺 boss」(line 49). game-designer + CD recommend: **persist `current_hp` (one int) for perfect continuity** instead of the 30% threshold hybrid (eliminates P5-1 + P5-6 + P5-7). DESIGN DECISION #1 (touches ADR-003 save scope).
+- P5-4: set-count ≤2 proxy mis-classifies strength programs (3×3/5×5 = low sets, high effort → mini-boss) = inverted reward violating Pillar 1. game-designer + CD recommend: **reuse ADR-005 effort signal (volume×PR×streak) for tier gate** instead of raw set count (no GymSys backend extension needed). DESIGN DECISION #2.
+- P5-3: single-boss-asset + auto-play + frozen-outcome → novelty collapse is a CERTAINTY not a risk. AC-39 (≥3.0 Likert, n=5, 5 sessions, ADVISORY) too weak; real retention test AC-29d is post-MVP ADVISORY → no MVP gate stops collapse. Recommend ≥3.5 / n≥10 / ≥8 sessions + MVP-gate BLOCKING escalation.
+- P5-7/8: Rule 12 skip-to-kill vs EC-16 (DYING-freeze already-killed) un-reconciled overlap → potential double-loot; AC-42 doesn't cover the enemy_killed-already-emitted + resume race.
+
+**Tier 3 — Formula regression + degenerate boundaries (systems-designer)**
+- F1 [CRITICAL]: AC-18 (line 1394) contradicts Pass 4 A3.3 bootstrap → regression. Propagate Pass 4 formula change to AC-18 + AC-41.
+- F2: bootstrap floor makes MIN_BOSS_HP=50 unreachable (min raw 209-290); first-session boss is 21-29 hits (TOUGHER than mid-game) — violates INV-9 spirit. Reconcile.
+- F3: endgame atk≥1056 (23% of ceiling) → 9-hit contract collapses (2-3 hit kill); MAX_BOSS_HP=10000 MVP-inadequate with no MVP mitigation. Add MVP mitigation or disclose+AC the saturation hit-count behaviour.
+- F4: EC-06 player_max_hp=1 → one-shot death, but GDD has NO avatar death/retry spec → what happens after avatar dies? (boss continues? enemy_killed never fires? Pillar 3 silent fail). Spec it.
+- F6: INV-8 literal `RARE > RARE` = false (operator bug); mini ceiling = final floor = RARE → static gradient is zero; "ADR-005 modifiers separate them" is hand-waving (no distribution data). Fix operator + provide ADR-005 distribution evidence OR re-tier.
+
+**AC quality (qa-lead)**: B1.1 AC-07 missing wall-clock ≤200ms branch (throttled-tab not mobile-safe-provable); B3.1 Rule 9 missing `final_tier = max(adr005_floored, loot_guarantee_min_tier)` combine pseudocode (BLOCKING if #15 stories cite it); B1.4 NEVER #9 (player-input mutation) has zero effective verification; AC-35 non-testable ("ideally"); AC-22 over-prescriptive (mandates BossSpawnContext); AC-30a self-invalidating evidence.
+
+### Two DESIGN DECISIONS to collect at Pass 6 start (before spec authoring)
+1. **bfcache state**: persist `current_hp` (int) for perfect continuity [game-designer + CD recommended] vs keep Rule 12 30%-threshold hybrid (transient-by-design). Persist touches ADR-003 save scope (one ephemeral mid-fight field) — needs save-strategy + #15 confirm.
+2. **boss-tier gate**: reuse ADR-005 effort signal (volume×PR×streak) [game-designer + CD recommended] vs keep set-count ≤2 proxy. Reuse avoids session_intent backend extension.
+
+### Pass 6 Process
+- Fresh session (this session at high context). Collect the 2 design decisions first, then focused fix-pass: BossSystem autoload class spec + un-nest BossVisualResource + define _instantiate_boss + wire _on_enemy_killed_self_listen + boss_id filter + reconcile dual death path + propagate AC-18/41 + fix INV-8 operator + avatar death/retry spec + Rule 9 combine pseudocode + AC-07 wall-clock split.
+- Then `/design-review` fresh session → expect Approved → THEN `/create-epics #16`.
+- No 6-specialist re-review needed for Pass 6 (findings already cross-domain consensus); optional 3-specialist (systems + gameplay + qa) targeted re-validate after.
+
+Status: Pass 5 MAJOR REVISION NEEDED — pending fresh-session Pass 6. **Epic creation BLOCKED until Approved.**
