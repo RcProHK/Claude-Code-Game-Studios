@@ -1190,7 +1190,7 @@ func _build_combat_context(ability_id: StringName, caster: Node2D,
 func _map_target_state(target_id: int) -> CombatResolver.EnemyState:
 	var ts := CombatResolver.EnemyState.new()
 	if _enemy_state_pool.has(target_id):
-		var es = _enemy_state_pool[target_id]
+		var es: EnemyState = _enemy_state_pool[target_id]
 		ts.instance_id = target_id
 		ts.hp = int(es.hp)
 		ts.max_hp = maxi(1, int(es.max_hp))
