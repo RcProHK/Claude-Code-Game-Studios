@@ -2,9 +2,26 @@
 
 > **Layer**: Foundation
 > **GDD**: design/gdd/camera-system.md
-> **Architecture Module**: CameraSystem (autoload pos 7, `src/autoload/camera_system.gd`)
-> **Status**: Ready
-> **Stories**: Not yet created — run `/create-stories camera-system`
+> **Architecture Module**: CameraController (autoload pos 13, `src/autoload/camera_controller.gd`)
+> **Status**: Implemented (10/12 CI-green 2026-06-01)
+> **Stories**: 12 stories（001-010 Complete CI-green, 011 BLOCKED #22, 012 BLOCKED ADR-001 hw）
+
+## Stories
+
+| # | Story | Type | Status | ADR |
+|---|-------|------|--------|-----|
+| 001 | Camera Registration + API Surface | Logic | Complete | ADR-0001 |
+| 002 | Input Validation + Parameter Guards | Logic | Complete | ADR-0001 |
+| 003 | Follow Math + Dead-zone + Pillar 2 Lock-on | Logic | Complete | ADR-0001 |
+| 004 | Focal Entry Tween + Quart Ease + Defaults | Logic | Complete | ADR-0001 |
+| 005 | Focal Exit Tween + Cubic Ease + PAUSABLE | Integration | Complete | ADR-0001 |
+| 006 | Focal Gating + Re-entry Guard + Force-clear | Integration | Complete | ADR-0001 |
+| 007 | Suspended Cancel + bfcache Resume | Integration | Complete | ADR-0001 |
+| 008 | Lifecycle — target-lost + Viewport + Focal-clamp | Integration | Complete | ADR-0001 |
+| 009 | Boot + GSM + CI Lint + Persistence + Decoupling | Integration | Complete | ADR-0006 |
+| 010 | Focal Invitation Perceptual Playtest | Visual/Feel | Complete | ADR-0001 |
+| 011 | [BLOCKED #22] Motion Reduction Accessibility API | Integration | Blocked | ADR-0006 |
+| 012 | [BLOCKED] ADR-001 Hardware Ratification FR-1/2/3 | Performance | Blocked | ADR-0001 |
 
 ## Overview
 
@@ -14,10 +31,10 @@ CameraSystem 係 Mirror Hero 嘅「Silent Showrunner」— 玩家唔會直接感
 
 | ADR | Decision Summary | Engine Risk |
 |-----|-----------------|-------------|
-| ADR-0001 (Proposed ⚠️) | Web Export Budget Caps — Camera2D.position_smoothing Compatibility renderer compat, FR-1/2/3 ratification-gated | HIGH |
-| ADR-0006 Contracts 4+6 (Accepted ✅) | Boot order pos 7, `connect_for_initial_state` for GSM subscription, decoupled from ScreenEffects via CI Rule 13 | MEDIUM |
+| ADR-0001 (Accepted-structural ✅ 2026-05-30) | Web Export Budget Caps — Camera2D.position_smoothing Compatibility renderer compat. Structural decisions Accepted; CPU/perf/smoothness *numbers* remain Provisional pending VS-tier profiling | HIGH |
+| ADR-0006 Contracts 4+6 (Accepted ✅) | Boot order pos 13 (after ScreenEffects pos 14? No — after ParticleWrapper pos 12 + before ScreenEffects pos 14), `connect_for_initial_state` for GSM subscription, decoupled from ScreenEffects via CI Rule 13 | MEDIUM |
 
-> ⚠️ ADR-0001 Proposed — Camera2D.position_smoothing iOS Safari WebGL2 stability unverified (QQ-01). 3 個 ACs（FR-1/2/3）blocked。
+> ✅ ADR-0001 結構決策 Accepted（2026-05-30）— Stories 001-010 可即刻實作（structural + behavioral ACs 全 headless-testable）。3 個 perf/hardware ACs（AC-33 FR-1 CPU、AC-34 FR-2 smoothness、AC-35 FR-3 CI-caller-gating）係 ADR-RATIFICATION-GATED，收喺 Story 012 (BLOCKED) 直至 VS hardware spike 完成。AC-06b + AC-27（post-#22 GDD gated）收喺 Story 011 (BLOCKED)。
 
 ## GDD Requirements
 

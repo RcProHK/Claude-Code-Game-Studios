@@ -52,7 +52,8 @@ const EXEMPT_FILES := [
 const FORBIDDEN_PATTERNS: Array[String] = [
 	"Camera2D[^\\n]*\\.position\\s*=",
 	"Camera2D[^\\n]*\\.zoom\\s*=",
-	"Camera2D[^\\n]*\\.make_current\\s*\\(",
+	"\\.make_current\\s*\\(",
+	"get_viewport\\(\\)\\.get_camera_2d\\(\\)",
 ]
 
 

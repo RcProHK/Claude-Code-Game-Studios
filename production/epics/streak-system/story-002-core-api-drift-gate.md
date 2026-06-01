@@ -1,12 +1,23 @@
 # Story 002: Core API — `_on_workout_completed` + Drift Gate
 
 > **Epic**: StreakSystem
-> **Status**: Complete
+> **Status**: Complete (revised 2026-06-01)
 > **Layer**: Foundation
 > **Type**: Logic
 > **Estimate**: M (2-3 hours)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: 2026-05-29
+> **Last Updated**: 2026-06-01
+
+> **Revision 2026-06-01 (Story 010 / `/propagate-design-change`)**: The drift gate
+> shipped here was **symmetric** (`abs(now - completed_at) <= 300`), rejecting stale PAST
+> timestamps. That contradicted **GDD Rule 4** (directional — future-skew only) and broke
+> **AC-37 Phone-Lost retro-credit** (FR-1 / Falsifiable Test #3, a Pillar 1 hard requirement):
+> a real workout delivered late by GymSys after the phone was offline was wrongly rejected as
+> "drift". `_passes_drift_gate` is now directional (rejects future-skew > 300 + non-monotonic
+> replay; PAST always passes) and a `_last_accepted_completed_at_utc` monotonicity anchor was
+> added. The `test_drift_gate_boundary_and_past_direction` assertion `past 600 must REJECT` was
+> flipped to `must PASS`, and `test_drift_gate_rejects_non_monotonic_replay` was added. AC-02/03
+> (non-finite / future reject) unchanged. See Story 010.
 
 ## Context
 

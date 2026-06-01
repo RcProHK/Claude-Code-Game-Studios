@@ -102,7 +102,11 @@ func test_drift_gate_rejects_future_timestamp() -> void:
 
 
 # ---------------------------------------------------------------------------
-# AC-ss-api-1/2 boundary: <= semantics + abs() both directions (off-by-one guard)
+# AC-ss-api-1/2 boundary: DIRECTIONAL gate (GDD Rule 4) — future-skew only.
+# REVISED Story 010 (2026-06-01): the gate was symmetric (abs ≤ tolerance), which
+# rejected stale PAST timestamps and broke Phone-Lost retro-credit (AC-37 / FR-1 /
+# Falsifiable Test #3). Per GDD Rule 4 it now rejects only FUTURE skew > tolerance;
+# PAST timestamps in monotonic order always pass (see test_*_monotonicity below).
 # ---------------------------------------------------------------------------
 
 func test_drift_gate_boundary_and_past_direction() -> void:
@@ -110,23 +114,51 @@ func test_drift_gate_boundary_and_past_direction() -> void:
 	var streak := _make_streak()
 	add_child_autofree(streak)  # _ready() → BOOTING→READY
 
-	# delta == tolerance (300) MUST pass (<= semantics; GDD AC-03: 600 passes, 601 rejects)
-	assert_true(
-		streak._passes_drift_gate(FIXED_NOW - 300),
-		"past delta == 300 (== tolerance) must PASS"
-	)
+	# Future skew == tolerance (300) MUST pass (<= semantics).
 	assert_true(
 		streak._passes_drift_gate(FIXED_NOW + 300),
-		"future delta == 300 (== tolerance) must PASS"
+		"future skew == 300 (== tolerance) must PASS"
 	)
-	# delta == 301 MUST reject (just over boundary) — both directions (abs is symmetric)
+	# Future skew == 301 MUST reject (just over the forward boundary).
 	assert_false(
 		streak._passes_drift_gate(FIXED_NOW + 301),
-		"future delta == 301 must REJECT (just over boundary)"
+		"future skew == 301 must REJECT (just over boundary)"
 	)
-	assert_false(
+	# PAST timestamps ALWAYS pass (no backward bound) — Phone-Lost retro-credit (GDD Rule 4).
+	assert_true(
+		streak._passes_drift_gate(FIXED_NOW - 300),
+		"past delta == 300 must PASS (no backward bound — directional gate)"
+	)
+	assert_true(
 		streak._passes_drift_gate(FIXED_NOW - 600),
-		"past delta == 600 must REJECT (abs() rejects stale timestamps too)"
+		"past delta == 600 must PASS (was the symmetric-gate bug — retro events are real workouts)"
+	)
+	assert_true(
+		streak._passes_drift_gate(FIXED_NOW - 5 * 86400),
+		"past delta == 5 days must PASS (Phone-Lost: GymSys delivers a real offline workout late)"
+	)
+
+
+func test_drift_gate_rejects_non_monotonic_replay() -> void:
+	# GDD Rule 4 monotonicity / replay defense: once an event is accepted, a strictly
+	# OLDER event is rejected. The anchor advances only after a passing _on_workout_completed.
+	var streak := _make_streak()
+	add_child_autofree(streak)  # boots to READY
+
+	# Accept a recent event → anchor advances to FIXED_NOW - 100.
+	streak._on_workout_completed(FIXED_NOW - 100)
+	assert_eq(streak._last_accepted_completed_at_utc, FIXED_NOW - 100,
+		"monotonicity anchor advances after a passing gate")
+
+	# An older event (predates the anchor) is now rejected by the replay guard.
+	assert_false(
+		streak._passes_drift_gate(FIXED_NOW - 200),
+		"event older than the last accepted must REJECT (replay defense)"
+	)
+	# An equal-or-newer past event still passes (monotonic non-decreasing).
+	assert_true(
+		streak._passes_drift_gate(FIXED_NOW - 50),
+		"event newer than the anchor (still in the past) must PASS"
 	)
 
 

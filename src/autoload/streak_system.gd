@@ -95,6 +95,12 @@ var _persistence = null
 ## Sticky single-emit guard: streak_persistence_failed emits at most once total. (Story 006)
 var _persistence_failed_emitted: bool = false
 
+## Last accepted workout timestamp (Unix UTC). Monotonicity anchor for the drift/replay
+## gate (GDD Rule 4 directional semantics). A later event must not predate it; 0 = none
+## accepted yet. Advanced in _on_workout_completed after a passing gate (NOT inside the
+## pure predicate). Enables Phone-Lost retro-credit (Story 010 / FR-1 / Falsifiable #3).
+var _last_accepted_completed_at_utc: int = 0
+
 
 func _ready() -> void:
 	# Default to singletons if not injected by test
@@ -175,14 +181,32 @@ func _on_workout_completed(completed_at_utc: int) -> void:
 	if not _passes_drift_gate(completed_at_utc):
 		streak_persistence_failed.emit("DRIFT_GATE_REJECTED", "")
 		return
+	# Advance the monotonicity anchor only after a passing gate (Story 010). Done here,
+	# not inside the pure predicate, so direct _passes_drift_gate() test calls never mutate.
+	_last_accepted_completed_at_utc = completed_at_utc
 	record_today_workout(completed_at_utc)
 
 
-## Returns true when completed_at_utc is within WALL_CLOCK_DRIFT_TOLERANCE_SECONDS
-## of the current time (ADR-0006 Contract 9). Uses _get_now_utc() so tests can pin time.
+## Directional drift / replay gate (ADR-0006 Contract 9 + GDD Rule 4). Pure predicate
+## (no mutation — safe to call directly in tests). Rejects:
+##   * non-positive timestamps (invalid input),
+##   * timestamps drifting MORE than WALL_CLOCK_DRIFT_TOLERANCE_SECONDS into the FUTURE
+##     (device clock tampered backward, or backend returned a future timestamp),
+##   * timestamps OLDER than the last accepted one (monotonicity / replay defense).
+## PAST timestamps in monotonic order ALWAYS pass — this is the Phone-Lost retro-credit
+## path (GDD Falsifiable Test #3 / FR-1): GymSys may deliver a real workout event hours or
+## days after it occurred when the phone was offline; rejecting it would violate Pillar 1
+## (real body, real power). The monotonicity anchor (_last_accepted_completed_at_utc) is
+## advanced by _on_workout_completed after this gate passes.
 func _passes_drift_gate(completed_at_utc: int) -> bool:
-	var delta: int = abs(_get_now_utc() - completed_at_utc)
-	return delta <= WALL_CLOCK_DRIFT_TOLERANCE_SECONDS
+	if completed_at_utc <= 0:
+		return false
+	var future_skew: int = completed_at_utc - _get_now_utc()
+	if future_skew > WALL_CLOCK_DRIFT_TOLERANCE_SECONDS:
+		return false
+	if _last_accepted_completed_at_utc > 0 and completed_at_utc < _last_accepted_completed_at_utc:
+		return false
+	return true
 
 
 ## Returns current Unix UTC seconds, honouring the _now_utc_override test seam.
