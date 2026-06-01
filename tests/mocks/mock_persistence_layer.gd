@@ -81,6 +81,14 @@ func migrate(_from_version: int, _to_version: int) -> bool:
 	return true
 
 
+## Private-Mode query (ADR-0003) — default false (normal storage available). Consumers
+## like LootDropSystem call this on boot; the base mock answers so that any test injecting
+## it into a Private-Mode-aware consumer does not crash under full-suite ordering.
+## MockPersistenceLoot overrides this for the Private-Mode-ON loot tests.
+func is_private_mode() -> bool:
+	return false
+
+
 # ============================================================================
 # Spy attachment (ADR-0006 Contract 14 interface)
 # ============================================================================
