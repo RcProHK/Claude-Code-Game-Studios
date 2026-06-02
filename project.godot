@@ -33,6 +33,11 @@ PlatformDetect="*res://src/autoload/platform_detect.gd"
 ; Backend / external data sources (after Persistence + GSM + PlatformDetect)
 GymSysBackendClient="*res://src/autoload/gym_sys_backend_client.gd"
 
+; Exercise→class data layer (pos 5 — after GymSys, BEFORE StatSystem; ADR-0008 #10 insertion
+; rule + binding constraint 7: ExerciseClassMapping ≺ StatSystem so per-set class lookup is
+; READY before any stat/ability/WST consumer boots)
+ExerciseClassMapping="*res://src/autoload/exercise_class_mapping.gd"
+
 ; Core gameplay state (depends on Persistence + GSM + GymSys)
 StatSystem="*res://src/autoload/stat_system.gd"
 AbilitySystem="*res://src/autoload/ability_system.gd"

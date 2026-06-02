@@ -1,12 +1,12 @@
 # Story 005: Autoload pos 5 registration + CI mutator-ban lint
 
 > **Epic**: Exercise → Class Mapping
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Core
 > **Type**: Integration
 > **Estimate**: M (~3h)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-02
 
 ## Context
 
@@ -84,8 +84,10 @@
 ## Test Evidence
 
 **Story Type**: Integration
-**Required evidence**: `tests/integration/exercise_class_mapping/autoload_boot_test.gd` + CI lint green (combined GUT gate)
+**Required evidence**: `tests/integration/exercise_class_mapping/test_autoload_boot.gd` + CI lint green (combined GUT gate)
 **Status**: [ ] Not yet created
+
+> ⚠️ GUT `test_` PREFIX (not `*_test.gd` suffix). See [[reference-gut-filename-convention]].
 
 ---
 
@@ -93,3 +95,14 @@
 
 - Depends on: Story 001-004 (full API surface must exist before autoload registration + read-only lint are meaningful)
 - Unlocks: epic close (subject to 2 cross-system gates: Q5 #9 WST patch + entities.yaml 7-member registration)
+
+---
+
+## Completion Notes
+**Completed**: 2026-06-02
+**Criteria**: 4/4 passing (autoload pos 5 registered, boot smoke green, position audit updated, CI mutator-ban lint present + 0 violations).
+**Deviations**: None.
+- Structural: `ExerciseClassMapping` inserted at `project.godot` autoload pos 5 (after GymSysBackendClient, before StatSystem — ADR-0008 #10 insertion rule + binding constraint 7). Downstream shifted: ParticleSystemWrapper 12→13, CameraController 13→14, ScreenEffects 14→15 — the 3 hardcoded position tests updated to match. Boot is safe (no .tres yet → FAILED state, lookups return UNKNOWN, one boot push_error — expected until the registry .tres content gate).
+**Test Evidence**: Integration — `tests/integration/exercise_class_mapping/test_autoload_boot.gd` (4 tests incl. runtime `/root` singleton boot proof). CI lint: `tools/ci/check_exercise_mapping_callers.gd` (exit 0, 41 files, 0 violations) + `tests/unit/ci/test_exercise_mapping_caller_ban.gd` (5 tests) + fixtures. Full gate (unit+integration+static): 232 scripts / 1400 tests / 1399 pass / 1 pre-existing pending (AC-37) / 0 fail.
+**Code Review**: Complete — QL-STORY-READY + QL-TEST-COVERAGE ADEQUATE + LP-CODE-REVIEW APPROVED (full review mode, 2026-06-02).
+**LP advisory (non-blocking, not applied)**: minor comment label in boot test; pre-existing stale Ability/Stat note in project.godot header (unrelated to #10).

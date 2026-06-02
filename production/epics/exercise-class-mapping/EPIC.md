@@ -3,8 +3,8 @@
 > **Layer**: Core
 > **GDD**: [design/gdd/exercise-class-mapping.md](../../../design/gdd/exercise-class-mapping.md) — **Approved 2026-06-02 (Pass 2)**
 > **Architecture Module**: #10 ExerciseClassMapping (`src/autoload/exercise_class_mapping.gd`, Core layer, autoload pos 5)
-> **Status**: Ready
-> **Stories**: 5 created 2026-06-02 (QL-STORY-READY all ADEQUATE, 26 QA test cases embedded)
+> **Status**: ✅ All 5 stories Complete (CI-green 2026-06-02) — internal work done; epic close gated on 2 cross-system items (see below)
+> **Stories**: 5 created 2026-06-02 (QL-STORY-READY all ADEQUATE, 26 QA test cases embedded); all implemented + full-review-passed 2026-06-02
 
 ## Stories
 
@@ -14,7 +14,7 @@
 | 002 | Movement-pattern lookup + MovementPattern enum | Logic | ✅ Complete (CI-green 2026-06-02) | ADR-0007 |
 | 003 | Boot validation loop | Logic | ✅ Complete (CI-green 2026-06-02) | ADR-0007 |
 | 004 | Alias resolution + collision + is_known + edge/FAILED | Logic | ✅ Complete (CI-green 2026-06-02) | ADR-0007 |
-| 005 | Autoload pos 5 registration + CI mutator-ban lint | Integration | Ready | ADR-0008 |
+| 005 | Autoload pos 5 registration + CI mutator-ban lint | Integration | ✅ Complete (CI-green 2026-06-02) | ADR-0008 |
 
 Implementation order: 001 → 002 → 003 → 004 → 005 (each story's `Depends on:` lists prerequisites). Start: `/story-readiness production/epics/exercise-class-mapping/story-001-registry-lookup.md`.
 
