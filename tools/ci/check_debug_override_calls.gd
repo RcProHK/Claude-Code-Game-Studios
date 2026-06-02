@@ -16,6 +16,16 @@
 ##   - Any of the 3 lines immediately above the offending line contains
 ##     OS.has_feature("editor") (block-level `if OS.has_feature("editor"):` guard).
 ##
+## Owner-file exemption (EXEMPT_FILES): stat_system.gd is the SOLE owner that DEFINES the
+##   StatSource.DEBUG_OVERRIDE enum value, its modifier-config rows, AND the release guard that
+##   rejects it (`if source == StatSource.DEBUG_OVERRIDE and not _get_is_debug(): reject`, Rule 10).
+##   That guard — not an OS.has_feature("editor") wrapper — is the protection: DEBUG_OVERRIDE
+##   cannot reach production behaviour because the owner short-circuits it in release builds.
+##   Banning the owner's own definition+guard is self-defeating (the lint would forbid the very
+##   code that enforces FR-3). So the owner is exempt — exactly like the gateway-owner exemptions in
+##   check_audio_callers.gd / check_camera_callers.gd / check_particle_callers.gd — and the lint
+##   still flags any EXTERNAL file that uses StatSource.DEBUG_OVERRIDE (the real Pillar-1 leak risk).
+##
 ## Usage:
 ##   godot --headless --script tools/ci/check_debug_override_calls.gd
 ##
@@ -32,6 +42,12 @@ const SCAN_ROOT: String = "res://src/"
 const FILE_EXTENSION: String = "gd"
 const FORBIDDEN_PATTERN: String = "StatSource\\.DEBUG_OVERRIDE"
 const EDITOR_GUARD_PATTERN: String = "OS\\.has_feature\\(\"editor\"\\)"
+
+## Owner file that defines + release-guards the DEBUG_OVERRIDE seam (exempt — see header). Full
+## res:// path, matching the gateway-owner exemption pattern used by the other caller lints.
+const EXEMPT_FILES: Array[String] = [
+	"res://src/autoload/stat_system.gd",
+]
 
 
 func _init() -> void:
@@ -72,6 +88,8 @@ func _init() -> void:
 
 	var violations: Array[Dictionary] = []
 	for file_path: String in scan_files:
+		if EXEMPT_FILES.has(file_path):
+			continue  # owner defines + release-guards the seam (see header)
 		violations.append_array(_scan_file(file_path, forbidden_re, editor_re))
 
 	if violations.is_empty():
