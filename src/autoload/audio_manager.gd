@@ -60,11 +60,31 @@ var _active_crossfade_count: int = 0
 var _crossfade_progress: float = -1.0   ## sentinel < 0 ⇒ no crossfade in-flight
 
 
-# ── SFX pool logical occupancy (slots themselves built in Story 003) ───────────
+# ── SFX pool + priority-aware voice stealing (Story 003) ───────────────────────
+
+## SFX priority for ducking + voice-steal protection (GDD Rule 3 / catalog `priority` field).
+## Declaration order is load-bearing: a higher ordinal is harder to steal (LOW stolen first).
+enum SfxPriority { LOW = 0, MID = 1, HIGH = 2 }
+
+## Data-driven catalog resource path (GDD Rule 3). Real streams land via /asset-spec (Q8);
+## until then production runs in safe no-op mode (missing → push_error once, AC-16).
+const SFX_CATALOG_PATH: String = "res://assets/data/sfx_catalog.tres"
+
+## Fixed pool of non-positional AudioStreamPlayer (built at boot on the SFX bus).
+var _sfx_pool: Array[AudioStreamPlayer] = []
 ## Per-slot logical "busy" flag — AudioManager-owned, INDEPENDENT of engine `.playing`.
 ## The headless Dummy audio driver does not guarantee `.playing`; internal logic
 ## (steal victim selection, voice-count, pool occupancy) NEVER reads `.playing`.
 var _voice_busy: Array[bool] = []
+## Per-slot priority of the currently-assigned voice (steal protection).
+var _voice_priority: Array[int] = []
+## Per-slot monotonic assignment sequence — lowest = oldest = stolen first among equal priority.
+var _voice_seq: Array[int] = []
+var _next_seq: int = 0
+## event_id → {priority:int, channels:String, stream:AudioStream}. null until loaded/injected.
+var _sfx_catalog = null
+## True when the catalog resource is missing/invalid → all play_sfx become no-ops (AC-16).
+var _sfx_safe_mode: bool = false
 var _unknown_event_count: int = 0
 
 
@@ -93,10 +113,6 @@ func _ready() -> void:
 	if _persistence == null:
 		_persistence = PersistenceLayer
 
-	# Allocate logical voice-occupancy flags (the AudioStreamPlayer slots are built Story 003).
-	_voice_busy.resize(SFX_VOICE_COUNT)
-	_voice_busy.fill(false)
-
 	# Unlock gate (GDD Rule 5): desktop/native unlocked at boot; web waits for a gesture (Story 007).
 	_audio_unlocked = not _is_web()
 
@@ -105,19 +121,46 @@ func _ready() -> void:
 	if _gsm != null and _gsm.has_method("connect_for_initial_state"):
 		_gsm.connect_for_initial_state(_on_gsm_state_changed)
 
-	# Bus topology (GDD Rule 2) + persisted volume/mute load (Story 002). No sound on boot.
+	# Bus topology (Rule 2) → SFX pool (Story 003; routes to SFX bus) → SFX catalog → persisted
+	# volume/mute (Story 002). No sound on boot.
 	_ensure_buses()
+	_build_sfx_pool()
+	_load_sfx_catalog()
 	_load_persisted_volumes()
-	# SfxCatalog / BgmCatalog load wires here in Story 003.
+	# BgmCatalog load wires here in Story 005/009.
 
 	_lifecycle_state = LifecycleState.READY
 
 
 # ── Public API (closed gateway — bodies filled by Stories 002-009) ─────────────
 
-## Play a one-shot pooled SFX by catalog event_id. Unknown id → no-op + warn (Story 003/008).
-func play_sfx(_event_id: StringName) -> void:
-	pass  # Story 003: pool acquire + priority-aware voice steal.
+## Play a one-shot pooled SFX by catalog event_id. Acquires a free voice or, when the pool is
+## full, priority-aware steals the lowest-priority (then oldest) voice — a high-priority voice
+## (loot fanfare / boss stinger) is never stolen while any lower-priority voice exists (Pillar 3).
+## Unknown event_id → push_warning + no-op (Foundation no-throw, Rule 8). Catalog missing → no-op.
+func play_sfx(event_id: StringName) -> void:
+	if _sfx_safe_mode:
+		return  # catalog missing — already push_error'd once at boot (AC-16)
+	if not _audio_unlocked:
+		push_warning("[AudioManager] play_sfx(%s) dropped — audio locked (pre-gesture)" % event_id)
+		return  # GDD Rule 5: one-shot SFX dropped while LOCKED (Story 007 owns the unlock flow)
+	var entry: Dictionary = _lookup_sfx(event_id)
+	if entry.is_empty():
+		push_warning("[AudioManager] play_sfx unknown event_id: %s" % event_id)
+		_unknown_event_count += 1
+		return  # Rule 8 no-throw (AC-10)
+	var slot: int = _acquire_slot()
+	_voice_busy[slot] = true
+	_voice_priority[slot] = int(entry.get("priority", SfxPriority.LOW))
+	_voice_seq[slot] = _next_seq
+	_next_seq += 1
+	var stream: AudioStream = entry.get("stream", null)
+	if stream != null:
+		var player: AudioStreamPlayer = _sfx_pool[slot]
+		player.stream = stream
+		player.play()
+	# NOTE: stream is null until /asset-spec produces the catalog audio (Q8). Logical voice
+	# occupancy (_voice_busy) is the source of truth for steal/count — never engine .playing.
 
 ## Crossfade BGM to track_id over fade_in_sec. Same track already playing → no-op (Story 005).
 func play_bgm(_track_id: StringName, _fade_in_sec: float = 1.0) -> void:
@@ -302,3 +345,86 @@ func _persist_read(key: String) -> Variant:
 func _persist_write(key: String, value: Variant) -> void:
 	if _persistence != null and _persistence.has_method("write"):
 		_persistence.write(key, value)
+
+
+# ── SFX voice pool + priority-aware stealing (Story 003) ───────────────────────
+
+## Build the fixed AudioStreamPlayer pool on the SFX bus + the parallel occupancy arrays.
+## Idempotent (guards against a double _ready). The SFX bus must already exist (_ensure_buses).
+func _build_sfx_pool() -> void:
+	if not _sfx_pool.is_empty():
+		return
+	_voice_busy.resize(SFX_VOICE_COUNT)
+	_voice_busy.fill(false)
+	_voice_priority.resize(SFX_VOICE_COUNT)
+	_voice_priority.fill(SfxPriority.LOW)
+	_voice_seq.resize(SFX_VOICE_COUNT)
+	_voice_seq.fill(0)
+	for i: int in SFX_VOICE_COUNT:
+		var player := AudioStreamPlayer.new()
+		player.bus = &"SFX"
+		add_child(player)
+		_sfx_pool.append(player)
+		# Natural playback end frees the slot. Steal (Rule 3) does NOT emit `finished`
+		# (Godot 4.6 stop()/replay is silent), so the steal path clears occupancy directly.
+		player.finished.connect(_on_voice_finished.bind(i))
+
+## A voice finished playing naturally → free its slot (Story 004 also releases any held duck here).
+func _on_voice_finished(slot: int) -> void:
+	if slot >= 0 and slot < _voice_busy.size():
+		_voice_busy[slot] = false
+
+## Return a slot index for a new voice: a free slot if any, else the steal victim =
+## lowest-priority voice (oldest sequence among ties). High priority is protected while any
+## lower-priority voice exists; only the all-high degenerate case steals the oldest high (Rule 3).
+func _acquire_slot() -> int:
+	for i: int in SFX_VOICE_COUNT:
+		if not _voice_busy[i]:
+			return i
+	var victim: int = 0
+	for i: int in range(1, SFX_VOICE_COUNT):
+		var lower_priority: bool = _voice_priority[i] < _voice_priority[victim]
+		var same_priority_older: bool = (
+			_voice_priority[i] == _voice_priority[victim] and _voice_seq[i] < _voice_seq[victim]
+		)
+		if lower_priority or same_priority_older:
+			victim = i
+	return victim
+
+## Look up a catalog entry by event_id. Empty dict = unknown event OR no catalog loaded.
+func _lookup_sfx(event_id: StringName) -> Dictionary:
+	if _sfx_catalog == null:
+		return {}
+	return _sfx_catalog.get(event_id, {})
+
+## Boot: resolve the SFX catalog. An injected `_sfx_catalog` (tests) is used as-is. Otherwise
+## attempt to load the .tres; if absent → safe no-op mode + a single push_error (AC-16). The
+## real catalog schema + audio streams are produced by /asset-spec (Q8) — until then production
+## runs in safe mode (priority/steal logic is fully implemented + unit-tested via injection).
+func _load_sfx_catalog() -> void:
+	if _sfx_catalog != null:
+		_sfx_safe_mode = false
+		return
+	if ResourceLoader.exists(SFX_CATALOG_PATH):
+		var res: Resource = load(SFX_CATALOG_PATH)
+		_sfx_catalog = _build_catalog_dict(res)
+		_sfx_safe_mode = _sfx_catalog.is_empty()
+		if _sfx_safe_mode:
+			push_error("[AudioManager] SfxCatalog at %s loaded but empty/invalid — SFX in safe no-op mode" % SFX_CATALOG_PATH)
+	else:
+		_sfx_catalog = {}
+		_sfx_safe_mode = true
+		push_error("[AudioManager] SfxCatalog missing at %s — SFX disabled (safe no-op mode)" % SFX_CATALOG_PATH)
+
+## Build the event_id→entry dict from a loaded catalog resource. Defensive: expects an `entries`
+## Array[Dictionary] of {event_id, priority, channels, stream}. (Schema finalised by /asset-spec.)
+func _build_catalog_dict(res: Resource) -> Dictionary:
+	var out: Dictionary = {}
+	if res == null or not (&"entries" in res):
+		return out
+	var entries: Variant = res.get(&"entries")
+	if entries is Array:
+		for e: Variant in entries:
+			if e is Dictionary and e.has("event_id"):
+				out[StringName(e["event_id"])] = e
+	return out

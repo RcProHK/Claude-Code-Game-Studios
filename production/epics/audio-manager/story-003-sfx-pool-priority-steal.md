@@ -1,12 +1,12 @@
 # Story 003: SFX pool + priority-aware voice stealing
 
 > **Epic**: Audio Manager
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Foundation
 > **Type**: Logic
 > **Estimate**: M (3-4h)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-02
 
 ## Context
 
@@ -76,5 +76,14 @@
 
 ## Dependencies
 
-- Depends on: 001 (pool seam scaffold)
+- Depends on: 001 (pool seam scaffold) ✅ Complete
 - Unlocks: 004 (duck release on steal/finished)
+
+## Completion Notes
+**Completed**: 2026-06-02
+**Criteria**: 5/5 covered + local-verified (AC-03/03b/10/16/17)
+**Files**: `src/autoload/audio_manager.gd`（`_build_sfx_pool` 8× AudioStreamPlayer on SFX bus + `_voice_priority`/`_voice_seq` arrays；`play_sfx` real impl；`_acquire_slot` priority-aware steal [lowest-priority, oldest seq; high protected unless all-high degenerate]；`_on_voice_finished` frees slot;`_lookup_sfx`/`_load_sfx_catalog` [injectable `_sfx_catalog` seam, missing .tres → `_sfx_safe_mode` + push_error once]；`SfxPriority` enum；`SFX_CATALOG_PATH`）· `tests/unit/audio/test_sfx_pool_voice_steal.gd`（5 tests）
+**Test Evidence**: Logic — `test_sfx_pool_voice_steal.gd` ✅ **LOCAL GUT VERIFIED 5/5**（audio 26/26 total）。**Full gate 235 scripts / 1426 tests / 1425 pass / 1 pending(AC-37) / 0 fail** — no regression (autoload boot now builds pool + push_error on missing catalog, like #10 registry pattern).
+**Deviations**: ADVISORY — `play_sfx` includes the LOCKED-drop guard (`if not _audio_unlocked`), which is Story 007's AC-06 behaviour implemented early (forward-compatible; Story 007 owns the full unlock flow + deferred BGM). No out-of-scope files touched.
+**Code Review**: Complete (/code-review APPROVED WITH SUGGESTIONS — Story 004 must wire duck-release on steal/finished per Rule 7b [`_on_voice_finished` hook left]; `_build_catalog_dict` is a defensive stub pending /asset-spec catalog schema).
+**Real audio note**: catalog streams are null until /asset-spec (Q8) — production runs safe-mode; priority/steal logic fully implemented + unit-tested via injection.
