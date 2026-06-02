@@ -3,8 +3,8 @@
 > **Layer**: Foundation
 > **GDD**: design/gdd/audio-manager.md ✅ (Approved 2026-06-02, Pass 6 lean — 6 passes total)
 > **Architecture Module**: AudioManager (autoload, `src/autoload/audio_manager.gd`; position per ADR-0008 pos 11+ block)
-> **Status**: In Progress — 7/9 Complete
-> **Stories**: 9 stories created 2026-06-02 — Story 001-007 Complete (local-verified); 008-009 Ready
+> **Status**: In Progress — 8/9 Complete
+> **Stories**: 9 stories created 2026-06-02 — Story 001-008 Complete (local-verified); 009 Ready
 
 ## Overview
 
@@ -71,7 +71,7 @@ This epic is complete when:
 | 005 | [bgm-equalpower-crossfade-formula1](story-005-bgm-equalpower-crossfade-formula1.md) | Logic | **Complete** ✅ (local-verified) | ADR-0001 | AC-04/12/18/21 |
 | 006 | [gsm-music-transition](story-006-gsm-music-transition.md) | Integration | **Complete** ✅ (local-verified) | ADR-0006 C6 | AC-07/08/32 (情境A ⚠️EG-3) |
 | 007 | [safari-unlock-gate](story-007-safari-unlock-gate.md) | Integration | **Complete** ✅ (local-verified) | ADR-0001 | AC-05/06/06b/19a/19b/26/31/32b (⚠️EG-1/EG-2 external) |
-| 008 | [suspended-multisource-resume](story-008-suspended-multisource-resume.md) | Integration | Ready | ADR-0006 C4 | AC-14/14b/14c/24a/24b/30/33/34 |
+| 008 | [suspended-multisource-resume](story-008-suspended-multisource-resume.md) | Integration | **Complete** ✅ (local-verified) | ADR-0006 C4 | AC-14/14b/14c/24a/24b/30/33/34 |
 | 009 | [bgm-rotation-min-loop](story-009-bgm-rotation-min-loop.md) | Logic | Ready | N/A (GDD) | AC-27/29 |
 
 **9 stories: 6 Logic + 3 Integration.** All 34 GDD ACs covered。

@@ -44,9 +44,24 @@ const LOOT_BGM_TRANSITION_SEC: float = 0.25 ## LOOT_DROP-from-BOSS quick fade bo
 const BGM_CATALOG_PATH: String = "res://assets/data/bgm_catalog.tres"
 
 
-# ── Lifecycle (minimal — Story 008 owns full SUSPENDED multi-source bitmask) ───
+# ── Lifecycle + SUSPENDED multi-source bitmask (Story 008) ─────────────────────
 enum LifecycleState { BOOTING = 0, READY = 1, SUSPENDED = 2 }
 var _lifecycle_state: LifecycleState = LifecycleState.BOOTING
+
+## Suspend source bits (ADR-0006 C4 service axis). First-entry latch (0→non-zero pauses), last-exit
+## resume (→0 resumes) — so three independent sources never double-pause / prematurely resume.
+const _SUSPEND_GSM: int = 1     ## GSM → SUSPENDED state
+const _SUSPEND_OS: int = 2      ## NOTIFICATION_APPLICATION_PAUSED (mobile background)
+const _SUSPEND_FOCUS: int = 4   ## NOTIFICATION_WM_WINDOW_FOCUS_OUT (web tab blur)
+var _suspend_sources: int = 0
+## BGM state recorded at pause for resume-from-position. {variant_id: StringName, position_sec: float}.
+var _suspended_bgm_state: Dictionary = {}
+## focus_low's variant+position recorded when boss_theme replaces it (Rule 4 boss-exit resume).
+## INDEPENDENT of _suspended_bgm_state — the two record different things and never overwrite (AC-34).
+var _paused_focus_low: Dictionary = {}
+## Test seams: pause/resume fired exactly once per latch cycle (AC-30 dedup).
+var _pause_fire_count: int = 0
+var _resume_fire_count: int = 0
 
 
 # ── Orthogonal unlock flag (GDD Rule 5 — a derived gate, NOT a GSM state) ──────
@@ -385,6 +400,18 @@ func _on_gsm_state_changed(from: Variant, to: Variant, payload: Variant = null) 
 	if payload != null and payload.get(&"source_event") == "initial_state":
 		return
 	var to_state: int = int(to)
+	# Suspend axis (ADR-0006 C4) — GSM SUSPENDED is bit 0. Entering pauses; leaving resumes
+	# (restores the recorded BGM). No music-map dispatch while the suspend bit toggles.
+	if to_state == GameStateMachine.GameState.SUSPENDED:
+		_set_suspend_source(_SUSPEND_GSM, true)
+		return
+	if _suspend_sources & _SUSPEND_GSM:
+		_set_suspend_source(_SUSPEND_GSM, false)
+		return
+	# Rule 4 boss-exit: entering BOSS_ENCOUNTER while focus_low plays records focus_low's
+	# variant+position so WORKOUT_ACTIVE re-entry can resume it (independent of _suspended_bgm_state).
+	if to_state == GameStateMachine.GameState.BOSS_ENCOUNTER and _current_bgm_track == &"focus_low_pool":
+		_paused_focus_low = {"variant_id": _current_bgm_track, "position_sec": _bgm_position()}
 	# LOOT_DROP is conditional (情境A/B), not in the static map.
 	if to_state == GameStateMachine.GameState.LOOT_DROP:
 		# 情境A — from BOSS_ENCOUNTER: quick fade boss_theme → rest_calm so the loot peak lands on a
@@ -726,3 +753,79 @@ func _build_gsm_track_map() -> void:
 		GameStateMachine.GameState.BOSS_ENCOUNTER: {"track": &"boss_theme", "fade": BOSS_THEME_FADE_SEC},
 		GameStateMachine.GameState.REST_PERIOD: {"track": &"rest_calm", "fade": BGM_DEFAULT_FADE_SEC},
 	}
+
+
+# ── SUSPENDED multi-source pause/resume (Story 008 — ADR-0006 C4) ──────────────
+
+## Set/clear a suspend source bit. First-entry latch (0 → non-zero pauses once); last-exit (→ 0
+## resumes once). Three independent sources (GSM / OS / window-focus) never double-pause (AC-30).
+func _set_suspend_source(bit: int, active: bool) -> void:
+	var prev: int = _suspend_sources
+	if active:
+		_suspend_sources |= bit
+	else:
+		_suspend_sources &= ~bit
+	if prev == 0 and _suspend_sources != 0:
+		_pause_audio()
+	elif prev != 0 and _suspend_sources == 0:
+		_resume_audio()
+
+## Pause all audio (first suspend source). Kills the retained duck + crossfade Tweens, hard-sets the
+## Music bus to base (AC-33 — `_active_ducks` is RETAINED for resume), finalises any in-flight
+## crossfade to its target, records the BGM state, and pauses the active BGM player. Does NOT touch
+## `_audio_unlocked` (the unlock flag is orthogonal — LOCKED and SUSPENDED coexist, AC-14c).
+func _pause_audio() -> void:
+	_pause_fire_count += 1
+	_lifecycle_state = LifecycleState.SUSPENDED
+	if _duck_tween != null and _duck_tween.is_valid():
+		_duck_tween.kill()
+	if _crossfade_tween != null and _crossfade_tween.is_valid():
+		_crossfade_tween.kill()
+	var music_idx: int = _bus_index(Bus.MUSIC)
+	if music_idx != -1:
+		AudioServer.set_bus_volume_db(music_idx, _base_music_db)  # hard-set base; ducks NOT cleared
+	# Finalise any interrupted crossfade to its target so resume is not stuck mid-mix (AC-14b).
+	if _bgm_active_idx >= 0 and _bgm_active_idx < _bgm_players.size():
+		for i: int in _bgm_players.size():
+			if i != _bgm_active_idx:
+				_bgm_players[i].stop()
+		_bgm_players[_bgm_active_idx].volume_db = 0.0
+	_crossfade_progress = -1.0
+	_active_crossfade_count = 0
+	# Record resume-from-position state + pause the active player.
+	_suspended_bgm_state = {"variant_id": _current_bgm_track, "position_sec": _bgm_position()}
+	if _bgm_active_idx >= 0 and _bgm_active_idx < _bgm_players.size():
+		_bgm_players[_bgm_active_idx].stream_paused = true
+
+## Resume audio (last suspend source cleared). Unpauses the BGM player and re-applies ducking from
+## the retained `_active_ducks` (recomputes the target; base if empty). `_audio_unlocked` untouched.
+func _resume_audio() -> void:
+	_resume_fire_count += 1
+	_lifecycle_state = LifecycleState.READY
+	if _bgm_active_idx >= 0 and _bgm_active_idx < _bgm_players.size():
+		_bgm_players[_bgm_active_idx].stream_paused = false
+	_apply_duck()
+
+## Window-focus pause/resume (NOTIFICATION_WM_WINDOW_FOCUS_OUT/IN) → suspend source bit 2.
+## Pure (testable headless); the OS notification wiring is in _notification (AC-24b ADVISORY).
+func _handle_focus_change(paused: bool) -> void:
+	_set_suspend_source(_SUSPEND_FOCUS, paused)
+
+## OS / window lifecycle wiring (ADVISORY — headless does not fire these; the bitmask logic they
+## drive is unit-tested via _set_suspend_source / _handle_focus_change directly).
+func _notification(what: int) -> void:
+	match what:
+		NOTIFICATION_APPLICATION_PAUSED:
+			_set_suspend_source(_SUSPEND_OS, true)
+		NOTIFICATION_APPLICATION_RESUMED:
+			_set_suspend_source(_SUSPEND_OS, false)
+		NOTIFICATION_WM_WINDOW_FOCUS_OUT:
+			_handle_focus_change(true)
+		NOTIFICATION_WM_WINDOW_FOCUS_IN:
+			_handle_focus_change(false)
+
+## Active BGM player playback position (0 if nothing playing). Used for resume-from-position.
+func _bgm_position() -> float:
+	if _bgm_active_idx >= 0 and _bgm_active_idx < _bgm_players.size():
+		return _bgm_players[_bgm_active_idx].get_playback_position()
+	return 0.0

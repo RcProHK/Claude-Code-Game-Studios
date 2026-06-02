@@ -1,12 +1,12 @@
 # Story 008: SUSPENDED multi-source + BGM resume-from-position
 
 > **Epic**: Audio Manager
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Foundation
 > **Type**: Integration
 > **Estimate**: L (4h)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-02
 
 ## Context
 
@@ -85,5 +85,13 @@
 
 ## Dependencies
 
-- Depends on: 004 (duck tween), 005 (crossfade), 006 (GSM handling), 007 (`_audio_unlocked` flag)
+- Depends on: 004 (duck tween) ✅, 005 (crossfade) ✅, 006 (GSM handling) ✅, 007 (`_audio_unlocked` flag) ✅
 - Unlocks: None（suspend integration 收口）
+
+## Completion Notes
+**Completed**: 2026-06-02
+**Criteria**: AC-14/14b/14c/24a/24b/30/33/34 covered + local-verified
+**Files**: `src/autoload/audio_manager.gd`（`_suspend_sources` bitmask + `_SUSPEND_GSM/OS/FOCUS` consts；`_set_suspend_source` first-entry-latch/last-exit；`_pause_audio` [kill duck+crossfade tween + Music hard-set base + finalize crossfade-to-target + record `_suspended_bgm_state` + stream_paused; `_active_ducks` RETAINED; `_audio_unlocked` UNTOUCHED]；`_resume_audio` [unpause + `_apply_duck` recompute]；`_handle_focus_change`；`_notification` OS/window wiring；`_bgm_position`；`_on_gsm_state_changed` SUSPENDED branch + `_paused_focus_low` recording；`_suspended_bgm_state`/`_paused_focus_low`/`_pause_fire_count`/`_resume_fire_count` members）· `tests/integration/audio/test_suspend_resume_multisource.gd`（8 tests）
+**Test Evidence**: Integration — `test_suspend_resume_multisource.gd` ✅ **LOCAL GUT 8/8**（audio 60/60）。**Full gate 240 scripts / 1460 tests / 1459 pass / 1 pending(AC-37) / 0 fail** — no regression.
+**Deviations / notes**: `_notification` real OS dispatch + Q7 real-device = ADVISORY (headless); logic verified via `_handle_focus_change`/`_notification` direct calls. `_audio_unlocked` orthogonal to SUSPENDED (LOCKED×SUSPENDED coexist — no permanent mute). `_active_ducks` retained on suspend, recomputed on resume. No out-of-scope files.
+**Code Review**: Complete (/code-review APPROVED WITH SUGGESTIONS).
