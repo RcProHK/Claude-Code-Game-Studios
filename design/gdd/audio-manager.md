@@ -1,6 +1,6 @@
 # Audio Manager
 
-> **Status**: In Review (Pass 4 re-review revised — 8 BLOCKING + 12 RECOMMENDED resolved inline; pending fresh re-review)
+> **Status**: **Approved 2026-06-02 (Pass 6 lean re-review)** — internal consistency 全清。6 passes 累計：Pass 1-5 fix 全部 trace-confirmed held；Pass 6 只剩 2 個 fix-induced 機械 BLOCKING（B1 Rule 6 map key `REST_BETWEEN_SETS`→`REST_PERIOD` 對齊 GSM `GameState` enum；B2 `_suspended_bgm_track`/`_suspended_bgm_state` 同名收口 + AC-14/14b dict 斷言修正），**兩項已 inline 修正**。無新設計改變、無核心 regression。**3 個 external gate（EG-1 #9 WST patch / EG-2 #20 HUD GDD / EG-3 #15 from-state）tracked，唔阻 approval**（#10/ExerciseClassMapping 先例：external cross-system gate ≠ GDD defect）。User 裁定 mark Approved 2026-06-02。 — PRIOR: **Pass 5 revisions APPLIED (2026-06-02)**: 9 internal BLOCKING (IB-1..IB-9) + EG-4 全部 inline 修正完成（IB-1 兩情境分拆 / IB-2 near-gap-free / IB-3 `_register_duck` 正數 guard / IB-4 `_platform_detect` mock seam / IB-5 stagger→#9 / IB-6 `_paused_focus_low`×`_suspended_bgm_state` 獨立 EC / IB-7 `bgm_changed` emit-at-crossfade-start / IB-8 SUSPENDED duck-kill EC / IB-9 `_voice_busy` vs `.playing` normative）。順手 recommendation：boss_death catalog row、Formula 2 `is_inf` guard、`_crossfade_progress` sentinel `<0`、`LOOT_BGM_TRANSITION_SEC` knob。新增 AC-07 修正 + AC-09d/32b/33/34。EG-1/2/3 tracked external（do not block #4 GDD approval，同 #10 先例一致）。NEXT: 重跑 `/design-review design/gdd/audio-manager.md`（Pass 6）。
 > **Author**: Frank + (lean author pass; Pass 1 full 6-specialist adversarial review 2026-06-01 — 6 BLOCKING + 9 RECOMMENDED resolved; Pass 2 fresh-session re-review 2026-06-01 — 8 BLOCKING + 8 RECOMMENDED resolved; Pass 3 fresh-session re-review 2026-06-01 — 10 BLOCKING + 14 RECOMMENDED resolved; Pass 4 fresh-session re-review 2026-06-02 — 8 BLOCKING + 12 RECOMMENDED resolved)
 > **Last Updated**: 2026-06-01
 > **Implements Pillar**: Indirect Foundation — serves Pillar 3 (Drop Euphoria) + Pillar 1/2 supporting via audio feedback channel
@@ -46,7 +46,7 @@ func set_bus_muted(bus: Bus, muted: bool) -> void
 func is_audio_unlocked() -> bool
 
 signal audio_unlocked()                  # 首次 gesture unlock 後 emit 一次
-signal bgm_changed(track_id: StringName) # crossfade 完成
+signal bgm_changed(track_id: StringName) # crossfade **開始**時 emit（IB-7：headless Tween 唔 advance；emit 喺 crossfade complete 會令 AC-07 phantom-pass。emit 點 = `play_bgm` 起 crossfade tween 之後、return 之前）
 ```
 無 public mutator 掂 AudioServer/AudioStreamPlayer；CI lint `check_audio_callers.gd` ban gateway 外嘅 `AudioServer.` / `new AudioStreamPlayer` / `.bus =` 設定。
 
@@ -54,6 +54,9 @@ signal bgm_changed(track_id: StringName) # crossfade 完成
 ```gdscript
 # Duck refcount pure functions (GUT: call directly instead of mock-emit finished)
 func _register_duck(offset: float) -> int          # register active duck; return voice_handle (monotonic int)
+                                                    #   IB-3 guard: offset 必須 ≤ 0（duck 衰減量）。入口 assert(offset <= 0.0,
+                                                    #   "duck offset must be ≤ 0") + 防呆 stored = clamp(offset, MUTE_FLOOR_DB, 0.0)。
+                                                    #   傳正數 → music 反向「升」（破 Pillar 3 + clip 風險），故 clamp 到 0（無效 duck）+ push_warning。
 func _release_duck(handle: int) -> void            # idempotent: erase handle from _active_ducks dict; no-op if absent
 func _compute_duck_target(ducks_dict: Dictionary) -> float  # pure: dict{handle→offset} → duck target dB; empty → base_music_db
 
@@ -63,6 +66,7 @@ func _test_get_active_crossfade_count() -> int     # return _active_crossfade_co
 ```
 **`_active_ducks: Dictionary` (handle → offset)** = duck 嘅唯一 source-of-truth（multiset 語意，唔去重）。refcount = `_active_ducks.size()`，唔係獨立 int counter。duck target 唔用全域 `active_offsets`，只用 `_compute_duck_target(_active_ducks)`。
 **`_voice_busy: bool`** per-slot = 邏輯佔用狀態（assign 時 set，`finished`/steal release 時 clear）。voice-count ACs 斷言 `_voice_busy`，**唔斷言 `AudioStreamPlayer.playing`**（headless Dummy driver 嘅 `.playing` 行為 post-Godot-4.6-cutoff 未驗，可能 vacuous）。
+**`_voice_busy` vs `.playing` — normative rationale（IB-9 [godot-specialist]）**：`_voice_busy` 係 AudioManager **顯式管理**嘅邏輯佔用 state（pool 嘅「忙/閒」由佢定義，唔由 engine 定義）。佢**獨立於** engine `AudioStreamPlayer.playing`：headless Dummy audio driver 唔 guarantee `.playing` 反映真實 playback（可能恆 false / 即時 false），故 `.playing` 喺 headless 不可靠。**AudioManager 內部邏輯（steal 揀 victim、voice-count、pool 佔用判斷）永不讀 `.playing`，一律以 `_voice_busy` 為準**，即使 engine reference sample / 教學示範用 `.playing` 做判斷亦不跟（呢個係 headless-determinism 硬性要求，非風格偏好）。`.playing` 僅可用作 runtime 真機 debug 觀察，永不入邏輯分支。
 **`_active_crossfade_count: int`** = crossfade 活躍數（start crossfade ++，kill/complete --）。AC-18 斷言此值 == 1，唔靠 Tween 枚舉 API（Godot 冇 per-node Tween registry）。
 
 **CI lint 實作合約（[godot-specialist] Pass 2 BLOCKING — 修正先前 wording）**：
@@ -113,10 +117,11 @@ Desktop/native 無 restriction → boot 即 `_audio_unlocked=true`。
 **Rule 6 — GSM state → music transition**：`connect_for_initial_state(_on_gsm_state_changed)`（ADR-0006 C6）。data-driven `state → track` map，每 entry 帶 `{track_id, fade_sec}`（per-state fade override，default `BGM_DEFAULT_FADE_SEC`）。已確認 entries：
 - `WORKOUT_ACTIVE→{focus_low_pool, 1.0}`（multi-variant rotation pool，詳見 Visual/Audio Requirements）
 - `BOSS_ENCOUNTER→{boss_theme, 0.25}`（**短 fade 強化 stakes signal**）
-- `REST_BETWEEN_SETS→{rest_calm, 1.0}`（**組間休息 calm ambient — [audio-director] Pass 4 RECOMMENDED**：Player Fantasy「我落到 bench 抖氣」moment 需要 calm bed，否則 focus_low 緊張感延續 → loot peak landing bed 唔夠 calm；placeholder entry，track asset 待 audio-director + game-designer 落實）
-- `LOOT_DROP→`（stinger only，**但 from-state conditional**）：
-  - **從 `BOSS_ENCOUNTER` 進入**（boss 死後 loot drop）：觸發 **boss_theme → rest_calm early fade-back**（fade_sec = `BGM_DEFAULT_FADE_SEC`），令 loot fanfare 落喺 calm/ambient bed 上而非緊張 boss_theme。**Pillar 3 直接要求**：loot dopamine peak 需要 calm sonic space，boss_theme 作為底床大幅削弱 reward 嘅 emotional clarity（frequency masking + 持續「危險」信號）。from-state 判斷：AudioManager `_on_gsm_state_changed(from, to, payload)` 中，to == LOOT_DROP && from == BOSS_ENCOUNTER → 觸發 early fade。**Forward contract：需 #1 GSM `state_changed` payload 包含 from-state，已存在（ADR-0006 signal signature `(from, to, payload)`）✓**；需 #15 LootDrop GDD 確認「boss kill → LOOT_DROP」嘅 GSM transition 確實由 BOSS_ENCOUNTER 進入（co-design marker）。
+- `REST_PERIOD→{rest_calm, 1.0}`（**組間休息 calm ambient — [audio-director] Pass 4 RECOMMENDED**：Player Fantasy「我落到 bench 抖氣」moment 需要 calm bed，否則 focus_low 緊張感延續 → loot peak landing bed 唔夠 calm；placeholder entry，track asset 待 audio-director + game-designer 落實）。**⚠️ Pass 6 [cross-system consistency] BLOCKING fix**：state key 必須係 `REST_PERIOD`（GSM `GameState` enum 權威值，game-state-machine.md「renamed from EXERCISE_SWITCHING per Decision #3」）；先前 wording `REST_BETWEEN_SETS` **唔係** GSM 有效 state → map entry 永不 fire，rest_calm beat 靜默死亡。
+- `LOOT_DROP→`（stinger only，**但 from-state conditional** — 對應 Visual/Audio「情境 A」）：
+  - **從 `BOSS_ENCOUNTER` 進入**（boss 死後 loot drop）：**先 BGM transition 後 duck**（IB-1 CD 裁決）—— (1) 觸發 **boss_theme → rest_calm quick fade-back**（fade_sec = **`LOOT_BGM_TRANSITION_SEC` default 0.25s**，比 1.0s default 快，令 reward 快啲落 calm bed）→ (2) loot fanfare 喺 rest_calm 上播 + duck **rest_calm**（**唔係** duck boss_theme — boss_theme 已 fade 走）。**Pillar 3 直接要求**：loot dopamine peak 需要 calm sonic space，boss_theme 作為底床大幅削弱 reward 嘅 emotional clarity（frequency masking + 持續「危險」信號）。from-state 判斷：AudioManager `_on_gsm_state_changed(from, to, payload)` 中，to == LOOT_DROP && from == BOSS_ENCOUNTER → 觸發 quick fade。**Forward contract：需 #1 GSM `state_changed` payload 包含 from-state，已存在（ADR-0006 signal signature `(from, to, payload)`）✓**；需 #15 LootDrop GDD 確認「boss kill → LOOT_DROP」嘅 GSM transition 確實由 BOSS_ENCOUNTER 進入（co-design marker）。
   - **從非 BOSS_ENCOUNTER 進入**（workout 期間普通 loot drop，底下已係 focus_low）：維持當前 BGM（現有行為）——focus_low 係 calm 嘅，stinger duck 已足夠。
+  - **注**：戰鬥中途掉落（仍 BOSS_ENCOUNTER，**無** state transition）= Visual/Audio「情境 B」，fanfare duck boss_theme（刻意設計），由本 Rule 處理唔到（無 transition）→ 純 Rule 7 ducking 行為。
 
 Map 無 entry 嘅 state → 維持當前 BGM。Initial-state sentinel → noop。Q2（完整 state→track map）owner = game-designer + audio-director。
 
@@ -171,7 +176,7 @@ Map 無 entry 嘅 state → 維持當前 BGM。Initial-state sentinel → noop�
 > 📌 **Tween API note（[godot-specialist] Pass 3 BLOCKING 修正）**：
 > - **bus-level ducking**（AudioServer 無 property setter）：用 **lambda closure**：`tween_method(func(db: float) -> void: AudioServer.set_bus_volume_db(bus_idx, db), from_db, to_db, sec)`。**禁止** `.bind(bus_idx)` — Godot `bind()` append args，參數反轉（見 Rule 7c）。
 > - **player-level BGM crossfade（Formula 1 equal-power）**：用 `tween_method` 喺 normalized `p`（0→1）空間，callback 內計算：`player_out.volume_db = linear_to_db(cos(p * PI/2))`；`player_in.volume_db = linear_to_db(sin(p * PI/2))`。**禁止** `tween_property(player, "volume_db", from_db, to_db, sec)` — 呢個係 linear dB ramp，中點 ≈ −40dB（幅度 ~0.01），違反 Formula 1 equal-power（中點應 −3dB 無 dip）。
-> - mid-crossfade **source-of-truth + writer contract（[godot-specialist] Pass 4 BLOCKING）**：維護 `_crossfade_progress: float` 成員；**tween_method callback 必須每 step 同時 update**：`player_out.volume_db = linear_to_db(cos(p * PI/2)); player_in.volume_db = linear_to_db(sin(p * PI/2)); _crossfade_progress = p`（三件事原子 inline）。**終點處理（endpoint sentinel）**：crossfade `finished` callback 顯式 hard-set 終態：`player_out.stop()`（唔靠 `cos(π/2) ≈ 6.12e-17 → −324dB` 殘值）+ `player_in.volume_db = base_music_db` + `_crossfade_progress = -1.0`（sentinel：−1 表示「目前無 crossfade in-flight」）。kill+respawn 路徑讀 `_crossfade_progress`：若 == -1.0 → 從 full-gain 起（單一 active player）；若 ∈ (0,1) → 從 `cos(_crossfade_progress·π/2)` / `sin(_crossfade_progress·π/2)` 起（partial mix）。**kill 後唔係**直接讀 `player.volume_db`（dB 空間反算 p 有精度損失）。**2-player mid-crossfade interrupt rule**：若 A→B crossfade 中途 `play_bgm(C)` 到達，AudioManager 只有 2 個 BGM player，無法同時保留 A+B+C 三條。處理：kill 嗰刻 drop 較小 gain（`sin(_crossfade_progress·π/2)` in-player）立即 stop，保留較大 gain（out-player 或 in-player 視 progress）做唯一 out-source，由此 out-source → C 起新 crossfade。
+> - mid-crossfade **source-of-truth + writer contract（[godot-specialist] Pass 4 BLOCKING）**：維護 `_crossfade_progress: float` 成員；**tween_method callback 必須每 step 同時 update**：`player_out.volume_db = linear_to_db(cos(p * PI/2)); player_in.volume_db = linear_to_db(sin(p * PI/2)); _crossfade_progress = p`（三件事原子 inline）。**終點處理（endpoint sentinel）**：crossfade `finished` callback 顯式 hard-set 終態：`player_out.stop()`（唔靠 `cos(π/2) ≈ 6.12e-17 → −324dB` 殘值）+ `player_in.volume_db = base_music_db` + `_crossfade_progress = -1.0`（sentinel：負值表示「目前無 crossfade in-flight」）。kill+respawn 路徑讀 `_crossfade_progress`：**若 `< 0.0`**（sentinel 判斷用 `< 0`，**唔用 `== -1.0`** 浮點等號比較，Pass 5 recommendation）→ 從 full-gain 起（單一 active player）；若 ∈ (0,1) → 從 `cos(_crossfade_progress·π/2)` / `sin(_crossfade_progress·π/2)` 起（partial mix）。**kill 後唔係**直接讀 `player.volume_db`（dB 空間反算 p 有精度損失）。**2-player mid-crossfade interrupt rule**：若 A→B crossfade 中途 `play_bgm(C)` 到達，AudioManager 只有 2 個 BGM player，無法同時保留 A+B+C 三條。處理：kill 嗰刻 drop 較小 gain（`sin(_crossfade_progress·π/2)` in-player）立即 stop，保留較大 gain（out-player 或 in-player 視 progress）做唯一 out-source，由此 out-source → C 起新 crossfade。
 
 ### Formula 1 — Equal-power BGM crossfade gain
 
@@ -191,7 +196,7 @@ Map 無 entry 嘅 state → 維持當前 BGM。Initial-state sentinel → noop�
 
 ### Formula 2 — Volume slider (0–1) → dB
 
-`s_safe = is_nan(s) ? 0.0 : clamp(s, 0.0, 1.0)`
+`s_safe = (is_nan(s) or is_inf(s)) ? 0.0 : clamp(s, 0.0, 1.0)`
 `volume_db(s) = (s_safe ≤ 0) ? MUTE_FLOOR_DB : clamp(linear_to_db(maxf(s_safe, 0.0001)), MUTE_FLOOR_DB, MAX_BUS_DB)`
 
 | Var | Type | Range | Description |
@@ -203,7 +208,7 @@ Map 無 entry 嘅 state → 維持當前 BGM。Initial-state sentinel → noop�
 
 **Output**：s=1 → 0 dB，s→0 → −80 dB。**Example**：s=0.5 → `linear_to_db(0.5)` ≈ −6.02 dB（用 Godot 內建 `linear_to_db`，perceptual-ish）。
 
-**Boundary protection（[systems-designer] + [godot-specialist] RECOMMENDED）**：(a) `is_nan(s)` guard 入口（NaN 會穿透 `clamp` → bus 設 NaN dB）；(b) `maxf(s_safe, 0.0001)` 防 `linear_to_db(0) = −inf` 污染插值（−inf 餵 tween 會爆）；(c) upper-clamp 引用常數 `MAX_BUS_DB`（**唔 hardcode 0.0**）。
+**Boundary protection（[systems-designer] + [godot-specialist] RECOMMENDED）**：(a) `is_nan(s)` **同 `is_inf(s)`** guard 入口（NaN/±inf 皆會穿透 `clamp` → bus 設 NaN/inf dB；Pass 5 recommendation：`is_inf` 唔好漏，corrupt persisted value 可能係 inf）；(b) `maxf(s_safe, 0.0001)` 防 `linear_to_db(0) = −inf` 污染插值（−inf 餵 tween 會爆）；(c) upper-clamp 引用常數 `MAX_BUS_DB`（**唔 hardcode 0.0**）。
 
 > ⚠️ **`MAX_BUS_DB=+6` boost 唔可達(透過此 formula)（[systems-designer] Pass 2 RECOMMENDED — dead range 修正）**：`linear_to_db(s)` 喺 `s≤1` 永遠 `≤0dB`,而 slider `s` 已 clamp 到 `[0,1]` → 即使 `MAX_BUS_DB` 改 +6,**此 formula 最大輸出仍 0dB**(upper-clamp 變 dead range)。要真正開 boost,需**獨立 gain mapping**(slider 重映射到 `>1` linear,或 `set_bus_volume_db` 直接收 boost dB)。**現行 MVP default `MAX_BUS_DB=0`(禁 boost)係正確且安全**;Tuning Knobs 表嘅「+6 開 boost」係 *future capability flag*,需配 separate mapping,非單改常數即生效。
 
@@ -231,6 +236,7 @@ Attack 用 `ATTACK_SEC` lerp 落，release（high-priority SFX `finished` 或 st
 **Output**：base −6 + duck −8 = duck 期間 −14 dB。**Example**：loot fanfare → attack 0.05s 內 duck 到 −14 dB，**fanfare `finished` signal 觸發後**（非固定時長）0.4s lerp 返 −6 dB。
 
 **Boundary protection**：`duck_target` 用 `max(..., MUTE_FLOOR_DB)` 防穿地板（base −80 + offset −12 = −92 dB < −80；duck target 係內部 computed 繞過 `set_bus_volume_db` 入口 clamp）。`ATTACK_SEC` / `RELEASE_SEC` setter clamp 落各自 safe range 下限。**`_release_duck(handle)` idempotent**：`Dictionary.erase(absent_key)` 係 no-op，steal + `finished` 雙路徑安全。
+**`_register_duck(offset)` 正數 guard（IB-3 [systems-designer] BLOCKING）**：duck offset 語意係**衰減量**，必須 `≤ 0`。若 caller 誤傳正數（如 `+8`），`base + (+8)` 會令 Music bus 反向**升** 8dB（破壞 Pillar 3 reward peak 對比 + 可能 clip）。`_register_duck` 入口 `assert(offset <= 0.0)`（debug build 即捕捉 caller bug）+ production 防呆 `stored_offset = clamp(offset, MUTE_FLOOR_DB, 0.0)`（正數 clamp 到 0 = 無效 duck，唔升 music）+ push_warning 一次。`_compute_duck_target` 只見 clamped 值，故公式輸出永不超過 `base_music_db`。對應 **AC-09d**。
 
 ## Edge Cases
 
@@ -241,8 +247,12 @@ Attack 用 `ATTACK_SEC` lerp 落，release（high-priority SFX `finished` 或 st
 - **If SFX pool 全忙**：**priority-aware** steal — 先揀最低 priority 嘅 active voice,同 priority 揀最舊(Rule 3)。**high-priority(loot fanfare / boss stinger)唔可俾 lower steal**(保 Pillar 3 peak)。被 steal 嘅 voice 若曾 increment duck refcount → steal 路徑顯式減 refcount(防 permanent duck)。
 - **If 連續 `play_bgm(A)` 再 `play_bgm(B)`（A crossfade 未完）**：先 `kill()` retained crossfade Tween(防 autoload Tween 競寫),再由「當前實際 audible 混合態」crossfade 去 B（latest wins，唔 stack，只一條 active Tween）。
 - **If GSM → SUSPENDED 喺 crossfade 中途**：kill crossfade tween + pause 全部 + 記住目標 variant + position（`_suspended_bgm_state`）；resume 時由目標 variant + position 還原（唔會卡喺半 crossfade 態）。
+- **If SUSPENDED / `_handle_focus_change(false)` 喺 duck 進行中（IB-8 [godot-specialist BLK-P5-1]）**：suspend 嗰刻 **kill duck Tween**（同 crossfade tween 一齊 kill）+ Music bus dB **hard-set 到 `base_music_db`**（唔留喺半 duck 態 −14dB，否則 resume 時 bus 卡喺壓低值而 `_active_ducks` 可能已被處理）。⚠️ **`_active_ducks` dict 本身唔清**（仍記住 suspend 前 active 嘅 voice handles）。resume 時：若 `_active_ducks` 非空（suspend 期間 voice 理論上仍「邏輯 active」），由 `_compute_duck_target(_active_ducks)` **重算** target + 重新 spawn duck tween lerp 落去；若 suspend 期間該 voice 嘅 `finished`/steal 已 release（dict 空）→ resume 後 `_compute_duck_target({}) == base_music_db`，bus 已喺 base，無 op。對應 **AC-33**。
+- **If BOSS_ENCOUNTER 期間 SUSPENDED（`_paused_focus_low` × `_suspended_bgm_state` 獨立性 — IB-6 [audio-director BLK-5-4]）**：BOSS_ENCOUNTER 時 boss_theme 正播、focus_low 已 paused（`_paused_focus_low = {variant_id, position_sec}` 記住）。此刻若 SUSPENDED → `_suspended_bgm_state` 記低**當前正播嘅 boss_theme**（variant + position）；`_paused_focus_low` **保留原值唔變**（仍記 focus_low 嘅 variant + position）。**兩個 field 各記各，唔互相覆蓋**：`_suspended_bgm_state` = suspend 嗰刻 audible track（boss_theme）；`_paused_focus_low` = boss-exit re-entry 用嘅 focus_low resume point。resume → 還原 boss_theme（`_suspended_bgm_state`）；之後若 boss 死轉 WORKOUT_ACTIVE → 用 `_paused_focus_low` resume-from-position（Rule 4 boss-exit policy）。對應 **AC-34**。
+- **If `workout_complete` 同 `loot_fanfare_*` 時序重疊（EG-4 — workout 完同時 roll 到 loot）**：兩者皆 high priority + STEREO（fanfare）/ mono（workout_complete）。`workout_complete` 定位「莊重 resolved」，`loot_fanfare` 定位「dopamine peak」——情緒維度不同（見 catalog rationale），**唔互相 steal**（priority-aware steal 同 priority 揀最舊；但兩者通常唔同 frame，且 8 voice pool 容得落）。Duck：兩者各 `_register_duck`（multiset，唔去重）→ `min(values())` 取最深 → Music 壓到最深嗰個（通常 loot −8 深過 workout_complete 若亦 −8 則相同）。時序裁決：**workout_complete 先響（workout 結束係 trigger），loot fanfare 隨後（backend roll loot 有 latency）**——天然錯開，無需強制 stagger。若極端同 frame，兩 STEREO/mono high SFX 疊加 = 雙 reward 體驗（接受，唔係 bug，同情境 B「興奮疊加」一致）。**唔 duck 對方**（兩者皆 SFX bus，duck 只壓 Music bus，Rule 7a）。Craft：sound-designer 確保兩者 frequency 唔完全 mask（Q8）。
 - **If BOSS_ENCOUNTER → WORKOUT_ACTIVE re-entry（focus_low boss-exit）**：focus_low 唔係「正播」（已 crossfade-out 去 boss_theme），Rule 4 idempotent 唔 trigger。AudioManager 檢查 `_paused_focus_low` — 若有記錄：seek same variant to position_sec + crossfade 進去（resume-from-position，seamless continuity，守「BGM 一直低沉」promise）；若無（首次 WORKOUT_ACTIVE）：fresh start + rotate。[game-designer + audio-director] BLK-7。
-- **If GSM → LOOT_DROP from BOSS_ENCOUNTER**：`_on_gsm_state_changed(from=BOSS_ENCOUNTER, to=LOOT_DROP)` → 觸發 boss_theme → rest_calm fade-back（`BGM_DEFAULT_FADE_SEC`）+ 播 stinger。確保 loot fanfare 喺 calm bed 上，唔係緊張 boss bed。[audio-director + game-designer] BLK-8。
+- **If GSM → LOOT_DROP from BOSS_ENCOUNTER（情境 A，先 fade 後 duck — IB-1）**：`_on_gsm_state_changed(from=BOSS_ENCOUNTER, to=LOOT_DROP)` → **先** boss_theme → rest_calm quick fade-back（**`LOOT_BGM_TRANSITION_SEC` = 0.25s**，非 1.0s default）→ **後** 播 stinger + duck **rest_calm**（boss_theme 已 fade 走，唔 duck boss_theme）。確保 loot fanfare 喺 calm bed 上，唔係緊張 boss bed。[audio-director + game-designer] BLK-8 + IB-1 CD 裁決。
+- **If loot drop 喺 BOSS_ENCOUNTER 期間但無 state transition（情境 B，mid-fight loot）**：GSM 仍喺 BOSS_ENCOUNTER（boss 未死），boss_theme 仍播 → loot fanfare duck **boss_theme**（純 Rule 7 ducking，無 BGM transition）。呢個係**刻意設計**（Pillar 3 > boss tension，loot peak 永遠贏）。同情境 A 由「有冇 GSM transition」區分。[IB-1]
 - **If `set_bus_volume_db` 超範圍**：clamp 到 `[MUTE_FLOOR_DB(−80), MAX_DB(0)]`（唔容許 boost 過 0 dB 防 clipping）+ push_warning。
 - **If 兩個 ducking SFX 重疊（de-escalation = recompute-on-release）**：`_active_ducks = {handle_L:−8, handle_S:−5}`（multiset，**唔去重** — 兩件同 −8dB stinger 各佔一個 handle entry）→ `min(values())=−8` → target `max(−6+(−8),−80)=−14dB`；loot 先完（erase handle_L，strict order: erase → recompute → lerp；dict 剩 {handle_S:−5}）→ 重算 `min(−5)=−5` → target `max(−6+(−5),−80)=**−11dB**`（music 分級 **step** 由 −14 回 −11）；streak 亦完（erase handle_S，dict 空）→ `_compute_duck_target({}) = base_music_db = −6dB`（全還原）。**`_active_ducks.size()==0` = refcount 0，先 release 還原 base**。
 - **If GSM state 喺 track-map 無 entry**：維持當前 BGM（無變、無 warning）。
@@ -275,6 +285,7 @@ Attack 用 `ATTACK_SEC` lerp 落，release（high-priority SFX `finished` 或 st
 - Subscribe `AudioManager.audio_unlocked`（或 poll `is_audio_unlocked()` on each SFX trigger point）
 - LOCKED 期間 hold pending SFX call（queue 或 defer）；`audio_unlocked` emit → flush pending calls
 - `low` priority SFX（`set_complete` 唔 buffer？）vs `high/mid`（`workout_complete` / `streak_chime` buffer）— 建議只 buffer `mid/high`，`low` SFX 仍 drop（唔影響 P1/P2）
+- **`set_complete` × `streak_chime` 同-frame stagger（IB-5）**：#9 forwarding layer 負責 — 若同 frame fire 兩者，自行 delay 其中一個 `play_sfx` call 80-120ms（AudioManager 唔做 delay，stateless gateway）。
 - **此 contract 標記為 #9 WST GDD authoring prerequisite（#9 已 Approved，需 patch）**
 
 **Indirect**：#2 GymSys workout events 唔直接入 AudioManager，而係經 #8/#15 等中介 trigger SFX。
@@ -298,6 +309,7 @@ Attack 用 `ATTACK_SEC` lerp 落，release（high-priority SFX `finished` 或 st
 | `FOCUS_LOW_VARIANT_COUNT` | 3 | 1–4 | 低 rotation 單調(2 條 90min 聽 30× 仍疲勞);高 食 bundle（每 variant ~1.5-2.5MB,=4 撞 `MAX_BGM_BUNDLE_MB`） |
 | `STREAK_CHIME_DUCK_OFFSET_DB` | −5 | −6 – −3 | 淺 duck 令 streak chime 聽到唔被 BGM 淹(default −3 係 JND 太淺,gym 噪音下聽唔到,Pass 2 深化 −5;比 loot −8 淺) |
 | `BOSS_THEME_FADE_SEC` | 0.25 | 0.1–0.5 | per-state override；高 stakes signal 唔夠緊迫 |
+| `LOOT_BGM_TRANSITION_SEC` | 0.25 | 0.1–0.5 | **IB-1**：LOOT_DROP from BOSS 嘅 boss_theme→rest_calm quick fade-back（情境 A）。獨立於 `BGM_DEFAULT_FADE_SEC`（1.0s 太慢，reward peak 等太耐先落 calm bed）；高 boss_theme 殘留太耐削弱 loot emotional clarity；低 過急轉 calm 顯突兀 |
 | `MAX_BGM_BUNDLE_MB` | 10 | 6–16 | audio BGM bundle 軟上限（WASM 50MB 把關） |
 | `state→track map` | data `.tres` | — | 錯 map → 錯 context music |
 
@@ -312,7 +324,14 @@ Attack 用 `ATTACK_SEC` lerp 落，release（high-priority SFX `finished` 或 st
 
 **BGM channel policy（[performance-analyst] Pass 4 RECOMMENDED — normative，令 bundle CI gate 可校準）**：BGM tracks = **STEREO**（ambient loop 嘅空間感 + seamless loop 需要 stereo width；亦係 cross-knob 互鎖估算 `~1.44MB/track·min@128kbps` 已假設嘅格式）。Bundle 估算：`FOCUS_LOW_VARIANT_COUNT(3) + boss_theme + rest_calm + 其他 state ≈ 5-8 tracks × 90s × 1.44MB/min ≈ 6-12MB`；CI gate 基準 = STEREO。SFX channel policy 見下 catalog 表。
 
-**Loot fanfare duck boss_theme — Pillar 3 明文裁決（[game-designer + audio-director] Pass 4 RECOMMENDED）**：BOSS_ENCOUNTER 期間若 loot drop，`loot_fanfare_*`（SFX bus）duck Music bus（Rule 7）會壓低 boss_theme（BGM / Music bus）。呢個係**刻意設計**：Pillar 3（Drop Euphoria）> boss tension continuity — loot peak 永遠贏。Boss 戰中嘅 loot 本身就係 high-stakes moment，兩個 high-energy signal 疊加玩家通常感知做「興奮疊加」而非「衝突」。**明文 acknowledge，唔係 bug**。
+**Loot fanfare × boss_theme — 兩個分開情境（IB-1 [audio-director BLK-5-3] 自相矛盾收口，CD 裁決）**：
+
+⚠️ 先前 wording「loot fanfare duck boss_theme = 刻意設計」同 Rule 6「LOOT_DROP from BOSS → boss_theme fade to rest_calm」直接衝突（一個話壓住 boss_theme 仲播、一個話 fade 走 boss_theme）。CD 裁決 = **先 BGM transition，後 duck**，兩情境**唔同 trigger，分開 spec**：
+
+- **情境 A — LOOT_DROP *state entry*（boss 死後正式進入 loot drop state）**：由 GSM `BOSS_ENCOUNTER → LOOT_DROP` transition 觸發（Rule 6）。執行順序 = **(1) 先** boss_theme → rest_calm quick-fade（`LOOT_BGM_TRANSITION_SEC` default 0.25s）→ **(2) 後** loot fanfare 喺已轉成 rest_calm 嘅 calm bed 上播 + duck **rest_calm**（唔再係 boss_theme）。Pillar 3 reward peak 落喺 calm space，emotional clarity 最高。**boss_theme 喺 fanfare 響起前已經 fade 走，唔存在「duck boss_theme」**。
+- **情境 B — mid-fight loot drop（仍處 BOSS_ENCOUNTER state，boss 未死，boss_theme 仍播）**：戰鬥中途掉落（GSM 停喺 BOSS_ENCOUNTER，**無** state transition），loot fanfare（SFX bus）duck **boss_theme**（Music bus，Rule 7）。呢個情境先係**刻意設計**：Pillar 3 > boss tension continuity，loot peak 永遠贏；兩個 high-energy signal 疊加玩家感知做「興奮疊加」而非「衝突」。**明文 acknowledge，唔係 bug**。
+
+**判別準則**：有 `BOSS_ENCOUNTER → LOOT_DROP` GSM transition = 情境 A（先 fade 後 duck rest_calm）；無 state transition（仍 BOSS_ENCOUNTER）= 情境 B（duck boss_theme）。兩者由 `_on_gsm_state_changed` 嘅 from/to 判斷區分（見 Rule 6 + EC）。
 
 **BGM variation 策略（[audio-director] + [game-designer] BLOCKING — 30-90 分鐘抗疲勞）**：
 - per-state low-intensity loop（idle ambient / workout `focus_low` / `boss_theme` 緊張 / `rest_calm` 組間休息），STEREO，seamlessly loopable。
@@ -321,10 +340,11 @@ Attack 用 `ATTACK_SEC` lerp 落，release（high-priority SFX `finished` 或 st
 
 > ⚠️ **BGM loop rotation 機制（[godot-specialist+audio-director] Pass 4 BLOCKING — 修正）**：`AudioStreamOggVorbis.loop=true` 永遠**唔** emit `finished`（Godot 4.6 confirmed）。「每 loop 結束 rotate」需要 loop-boundary signal hook，looped OGG 冇呢個 hook。**正確實現**：
 > - BGM variant 以 **non-looping OGG**（`loop=false`）authoring + import
-> - `AudioStreamPlayer.finished` signal（自然播完後 fire）→ AudioManager rotate 到下一個 variant（non-immediate-repeat）+ 用**第二個 BGM player**（已有，crossfade 架構）做 equal-power crossfade（gap-free 銜接，無 stop+play gap）
+> - `AudioStreamPlayer.finished` signal（自然播完後 fire）→ AudioManager rotate 到下一個 variant（non-immediate-repeat）+ 用**第二個 BGM player**（已有，crossfade 架構）做 equal-power crossfade
+> - ⚠️ **「gap-free」claim 收口（IB-2 [godot-specialist BLK-P5-2]）**：`finished` 係 Godot **deferred** signal（idle frame 先派發），純靠 `finished` 觸發 rotate 必然有 **~1 frame（~16ms @60fps）gap**，唔係真 gap-free。正確 wording = **「near-gap-free（≤1 frame）」**。若要真正無縫 loop boundary，須**提前** `fade_sec`（如 variant 結束前 `BGM_DEFAULT_FADE_SEC` 預先 schedule crossfade 起 second player），唔等 `finished`。MVP 接受 near-gap-free（≤1 frame，gym BGM ambient bed 聽唔出）；真無縫 = post-MVP 升級（須 stream length 預知 + 提前排程）。AC-29 只驗 rotation **順序**（non-immediate-repeat），唔斷言 zero-gap（headless 無法量 frame-level gap）。
 > - 呢個重用現有 `_crossfade_tween` 架構：把「loop-boundary crossfade」同「state-transition crossfade」統一為同一機制
 > - non-looping OGG authoring 要求：loop 點要 seamless（頭尾對齊），audio-director 負責 authoring spec
-> - `_suspended_bgm_track` 從「track_id: StringName」升級為 **`{variant_id: StringName, position_sec: float}`**，SUSPENDED/resume 恢復到正確 variant + 播放位置（BLK-7 resume-from-position 亦依賴此）
+> - `_suspended_bgm_state`（**canonical member 名，Pass 6 統一** — 先前 AC-14/14b/30 誤寫 `_suspended_bgm_track`，已收口為單一名）從「track_id: StringName」升級為 **`{variant_id: StringName, position_sec: float}`**，SUSPENDED/resume 恢復到正確 variant + 播放位置（BLK-7 resume-from-position 亦依賴此）
 
 > **non-immediate-repeat 算法**：每次 rotation 從 variant pool 中排除剛播完嘅 variant，再 random/sequential pick；確保冇相鄰兩次播同一條（AC-29 驗）。
 
@@ -343,12 +363,13 @@ Attack 用 `ATTACK_SEC` lerp 落，release（high-priority SFX `finished` 或 st
 | `enemy_death` | #14 | low | mono | enemy 死 |
 | `ability_cast_{strike,control,mobility}` | #12 | low | mono | ability 釋放,**3 sub-id freeze**(Pillar 4 audio identity,[audio-director] Pass 2) |
 | `damage_taken` | #13/#25 | low | mono | avatar 受擊 |
-| `set_complete` | #9 WST | low | mono | 一組完。**MVP 最低 stagger rule**：若 `set_complete` 同 `streak_chime` 同 frame fire，`set_complete` 延遲 80-120ms 後播（`await get_tree().create_timer(0.1).timeout`），防 transient 重疊 / 可能 SFX bus clip + 語意 muddy（「組完確認」同「streak +1」混為一聲）。Craft 細節（音色、長度）留 Q8 / `/asset-spec`。[audio-director + game-designer] Pass 4 |
+| `set_complete` | #9 WST | low | mono | 一組完。**Stagger 責任歸 #9 WST（IB-5 [audio-director BLK-5-1] — 唔係 #4 code）**：若 `set_complete` 同 `streak_chime` 同 frame fire，需錯開 80-120ms 避免 transient 重疊 / SFX bus clip + 語意 muddy（「組完確認」同「streak +1」混為一聲）。**呢個 stagger 由 #9 WST forwarding layer 負責**——只有 #9 知道兩個 event 係咪同 frame（佢係 source）。AudioManager 係 stateless gateway，`play_sfx` 收到就即播，**唔做** time-windowed delay（呢個會違反 gateway 無狀態原則 + Rule 5 architecture）。先前 catalog 備註入面嘅 `create_timer` snippet 屬 #9 實作細節，已移除。Contract：#9 喺兩 event 同 frame 時，自行 delay 其中一個 `play_sfx` call 80-120ms（見 Dependencies forward contract）。Craft 細節（音色、長度）留 Q8 / `/asset-spec`。[audio-director + game-designer] Pass 4/5 |
 | `workout_complete` | #9 WST | **high (duck)** | mono | 整個 workout 完，ritual moment。**Mono rationale（明確）**：`workout_complete` 定位係「莊重確認（dignified resolved）」而非「爆炸性 dopamine spike」，同 `loot_fanfare_*` 嘅 excitement 係不同情緒維度，而非同一 intensity 軸上嘅「大 vs 小」。Pillar 3 明文「loot fanfare = 唯一許可嘅 peak」，`workout_complete` 刻意唔搶呢個 crown — 改以 warm + long tail mono 傳遞莊嚴感（non-STEREO）。若 sound-designer 認為 STEREO 更符合 fantasy，需升級呢個 rationale 先可改。[audio-director + game-designer] Pass 4 |
 | `streak_chime` | #8 | **mid (淺 duck)** | mono | low-key 暖 bell（淺 duck `STREAK_CHIME_DUCK_OFFSET_DB` default 深化 −5,確保 gym 噪音下聽到,[game-designer] Pass 2） |
 | `loot_fanfare_{common,uncommon,rare,epic,legendary}` | #15 | **high (duck)** | **STEREO** | rarity-tiered ascending grandeur（見下）;短 tier 用 `SHALLOW_RELEASE_SEC` |
 | `boss_stinger` | #16 | **high (duck)** | **STEREO** | boss 出場 stakes signal |
 | `boss_phase` | #16 | **high (duck)** | **STEREO** | boss 階段轉換 |
+| `boss_death` | #16 | **high (duck)** | **STEREO** | **boss 死亡 — Pillar 3 最高峰**（Pass 5 catalog gap：原本漏咗呢個 event → boss 死嗰一刻靜音，緊接 loot drop 前最大 stakes payoff 無聲）。STEREO + 大 reverb tail，緊接情境 A 嘅 boss_theme→rest_calm fade（boss_death stinger 蓋過 transition）。craft 待 Q8 |
 
 > 清單為 v0 freeze；新增 event 須同 consumer GDD co-design 並更新此表 + `SfxCatalog.tres`。**確認 consumer GDD 反向列「depends on #4」**。
 
@@ -379,17 +400,18 @@ Attack 用 `ATTACK_SEC` lerp 落，release（high-priority SFX `finished` 或 st
 - **AC-05 [Rule 5]** GIVEN **web** + LOCKED，WHEN `play_bgm(A)` 然後首個 gesture，THEN unlock 時 A 起播 + `audio_unlocked` emit 一次。
 - **AC-06 [Rule 5]** GIVEN LOCKED，WHEN `play_sfx`，THEN dropped + push_warning，無 crash。
 - **AC-06b [Rule 5 / UI contract]** GIVEN web + LOCKED，WHEN `is_audio_unlocked()` query，THEN 回 `false`；WHEN 首 InputEvent，THEN `audio_unlocked` emit 一次後 `is_audio_unlocked()` 回 `true`（#20 banner 訂閱此 signal 收起 prompt）。
-- **AC-07 [Rule 6]** GIVEN READY，WHEN GSM→BOSS_ENCOUNTER，THEN crossfade 去 boss_theme + `bgm_changed(boss_theme)` emit。
+- **AC-07 [Rule 6 / IB-7 emit timing]** GIVEN READY，WHEN GSM→BOSS_ENCOUNTER，THEN 起 crossfade 去 boss_theme + `bgm_changed(boss_theme)` emit **一次**。**[IB-7] emit 喺 crossfade 起 tween 之後即 emit（唔等 crossfade 完成）** — headless Dummy driver Tween 唔自然 advance，若 emit 綁喺 crossfade-complete callback，GUT 收唔到 signal → AC phantom-pass。斷言：`watch_signals(audio_manager)` 後 emit `state_changed(_, BOSS_ENCOUNTER, _)` → `assert_signal_emitted_with_parameters(audio_manager, "bgm_changed", [&"boss_theme"])`，**唔需 advance Tween / wait fade_sec**。
 - **AC-08 [Rule 6]** GIVEN boot，WHEN initial-state sentinel 派發，THEN 無 music change（noop）。
 - **AC-09 [Rule 7 / Formula 3]** GIVEN `base_music_db` set，WHEN high-priority SFX 播（call `_register_duck(DUCK_OFFSET_DB)→handle`），THEN `_compute_duck_target(_active_ducks)` == `max(base_music_db + DUCK_OFFSET_DB, MUTE_FLOOR_DB)`（default −6 + −8 = **−14 dB**，斷言用常數表達非 hardcode 值）。**[qa-lead] Pass 4 BLOCKING 修正 — pure function 驗法**：直接呼叫 `_register_duck(DUCK_OFFSET_DB)→handle` → assert `_compute_duck_target(_active_ducks) == −14dB` → call `_release_duck(handle)` → assert `_compute_duck_target({}) == base_music_db`。**唔需要 mock-emit AudioStreamPlayer `finished` signal**（closed gateway 無入口取得 pool instance；`_register_duck`/`_release_duck` 係 pure seam）。**禁止** wall-clock wait RELEASE_SEC — 違反「no time-dependent assertions」coding standard。
 - **AC-09b [Rule 7a / bus 隔離]** GIVEN 任一 stinger(`loot_fanfare_*`/`boss_*`) player，THEN `player.bus == &"SFX"`(readable property 斷言)；且**除咗 2 個 BGM crossfade player 外,無任何 AudioStreamPlayer 嘅 bus == Music**(duck 只壓 Music bus,防自我抵消)。
 - **AC-09c [Rule 3/7 / steal-duck 安全]** GIVEN `_register_duck(DUCK_OFFSET_DB)→handle`（模擬 high stinger 正 duck），WHEN 顯式呼叫 `_release_duck(handle)`（模擬 steal 路徑 explicit release，**唔靠 `finished` signal**）THEN `_active_ducks.has(handle) == false`（handle 已 erase）+ `_compute_duck_target({}) == base_music_db`（refcount→0，永不 permanent duck）。**[qa-lead] Pass 4 — pure function seam：steal path 呼叫 `_release_duck(handle)` 同 `finished` path 完全相同，冇獨立 code branch 需要 mock-emit。**
+- **AC-09d [Rule 1 / Formula 3 / IB-3 正數 guard — Logic BLOCKING]** GIVEN AudioManager READY，WHEN `_register_duck(+8.0)`（誤傳正 offset，模擬 caller bug），THEN stored offset clamp 到 `0.0`（`clamp(+8, MUTE_FLOOR_DB, 0.0)`）+ push_warning 一次 + `_compute_duck_target(_active_ducks) <= base_music_db`（**music 永不被「升」**）。子斷言：`_register_duck(0.0)` → target == base_music_db（無效 duck，無害）。**[systems-designer] IB-3：debug build 另有 `assert(offset <= 0.0)` 即時捕捉，但 release build 靠 clamp 防呆（assert 喺 release 被 strip）。**
 - **AC-10 [Rule 8]** GIVEN 未知 event_id，WHEN `play_sfx`，THEN 無 crash + warn + `_unknown_event_count++`。
 - **AC-11 [Rule 9]** GIVEN `set_bus_volume_db(MUSIC,−10)`，WHEN reboot，THEN `audio.music_db` load 返 −10。
 - **AC-12 [Formula 1]** GIVEN crossfade p=0.5，THEN `abs(out_gain − 0.707) < 0.001` 且 `abs(in_gain − 0.707) < 0.001` 且 `abs(out_gain² + in_gain² − 1.0) < 0.001`(equal-power,明確 epsilon)。
 - **AC-13 [Formula 2]** GIVEN slider 0.5，THEN `volume_db` ≈ −6.02；slider 0 → −80。
-- **AC-14 [State]** GIVEN **READY（`_audio_unlocked==true`）** + GSM→SUSPENDED，THEN 全部 audio paused 且 `_suspended_bgm_track == <當前 track>`；resume（GSM 轉非-SUSPENDED，bitmask 降 0）→ active BGM player.stream == 該 track（同一 track 還原）。**見 AC-14c** 覆蓋 LOCKED(`_audio_unlocked==false`) 期間嘅 suspend/resume 行為。
-- **AC-14b [State / EC SUSPENDED mid-crossfade]** GIVEN A→B crossfade 中途 GSM→SUSPENDED，THEN crossfade Tween `is_valid()==false`(killed) + pause all + `_suspended_bgm_track == B`(目標)；resume → active player.stream == B(唔卡半 crossfade 態)。
+- **AC-14 [State]** GIVEN **READY（`_audio_unlocked==true`）** + GSM→SUSPENDED，THEN 全部 audio paused 且 `_suspended_bgm_state.variant_id == <當前 track 的 variant_id>`（**Pass 6 修正**：`_suspended_bgm_state` 係 `{variant_id, position_sec}` dict，斷言用 `.variant_id`，**唔可**直接 `== <track_id>` — type mismatch）；resume（GSM 轉非-SUSPENDED，bitmask 降 0）→ active BGM player.stream == 該 track（同一 track 還原）。**見 AC-14c** 覆蓋 LOCKED(`_audio_unlocked==false`) 期間嘅 suspend/resume 行為。
+- **AC-14b [State / EC SUSPENDED mid-crossfade]** GIVEN A→B crossfade 中途 GSM→SUSPENDED，THEN crossfade Tween `is_valid()==false`(killed) + pause all + `_suspended_bgm_state.variant_id == B`(目標 variant)；resume → active player.stream == B(唔卡半 crossfade 態)。
 - **AC-14c [LOCKED × SUSPENDED 共存]** GIVEN web + `_audio_unlocked==false` + `play_bgm(A)` deferred，WHEN GSM→SUSPENDED→resume(仍未 gesture)，THEN `_audio_unlocked` 仍 false + deferred slot 仍 == A；WHEN 首 gesture，THEN unlock 起 GSM-current track + `audio_unlocked` emit 一次(無永久靜音)。
 - **AC-15 [EC duck overlap / de-escalation recompute — pure function]** GIVEN `_register_duck(DUCK_OFFSET_DB)→handle_L`（loot, −8）+ `_register_duck(STREAK_CHIME_DUCK_OFFSET_DB)→handle_S`（streak, −5），THEN `_compute_duck_target(_active_ducks)` == `max(base+min(−8,−5), MUTE_FLOOR_DB)` == `max(base+(−8), MUTE_FLOOR_DB)` = −14dB（multiset 兩個 entry，唔去重）；WHEN `_release_duck(handle_L)`（erase handle_L，strict order: erase→recompute），THEN `_compute_duck_target(_active_ducks)` == `max(base+STREAK_CHIME_DUCK_OFFSET_DB, MUTE_FLOOR_DB)` = **−11dB**（分級 step，唔係一次回 base）；WHEN `_release_duck(handle_S)`（dict 空），THEN `_compute_duck_target({})` == `base_music_db`（全還原）。**pure function 斷言：無需 wall-clock，無需 AudioStreamPlayer instance。[qa-lead] Pass 4。**
 - **AC-16 [EC catalog missing]** GIVEN catalog 缺失，WHEN boot，THEN push_error 一次 + no-op 模式，無 crash。
@@ -411,13 +433,17 @@ Attack 用 `ATTACK_SEC` lerp 落，release（high-priority SFX `finished` 或 st
 
 - **AC-29 [Visual/Audio / BGM rotation non-immediate-repeat — Logic]** GIVEN `focus_low_pool` variant count == `FOCUS_LOW_VARIANT_COUNT`（N=3），WHEN state 進入 WORKOUT_ACTIVE 並連續 rotate（trigger on-state-entry 或 loop-end）N×3 次（=9 次 rotation），THEN 冇任何兩個 **相鄰** rotation 播同一條 variant（non-immediate-repeat 約束）。驗法：rotation 演算法用「排除 current 嘅 seeded pick」，GUT 可 deterministic 斷言順序。[qa-lead] Pass 4 RECOMMENDED。
 
-- **AC-30 [State / `_suspend_sources` multi-source dedup — Logic]** GIVEN READY，WHEN GSM→SUSPENDED（bit 0 set，bitmask 0→1）THEN pause once + 記 track（副作用各一次）；WHEN `_handle_focus_change(false)`（bit 2 set，bitmask 1→5）THEN **唔再** pause（first-entry latch 已過）；WHEN GSM clears（bitmask 5→4）THEN **唔** resume（仍有 source）；WHEN `_handle_focus_change(true)`（bit 2 clear，bitmask 4→0）THEN resume once。斷言：pause callback 觸發剛好一次 + resume callback 觸發剛好一次（用 spy count 或 `_suspended_bgm_track` set 次數）。**[godot-specialist + qa-lead] Pass 4 BLOCKING — 新增 AC**。
+- **AC-30 [State / `_suspend_sources` multi-source dedup — Logic]** GIVEN READY，WHEN GSM→SUSPENDED（bit 0 set，bitmask 0→1）THEN pause once + 記 track（副作用各一次）；WHEN `_handle_focus_change(false)`（bit 2 set，bitmask 1→5）THEN **唔再** pause（first-entry latch 已過）；WHEN GSM clears（bitmask 5→4）THEN **唔** resume（仍有 source）；WHEN `_handle_focus_change(true)`（bit 2 clear，bitmask 4→0）THEN resume once。斷言：pause callback 觸發剛好一次 + resume callback 觸發剛好一次（用 spy count 或 `_suspended_bgm_state` set 次數）。**[godot-specialist + qa-lead] Pass 4 BLOCKING — 新增 AC**。
 
 - **AC-31 [Rule 5 / desktop no-unlock-confirm — Logic]** GIVEN **desktop**（`_audio_unlocked==true` at boot，non-web）+ READY，WHEN 任何 InputEvent 到達，THEN `audio_unlock_confirm` **唔播**（playcall == 0）+ `audio_unlocked` signal **唔 emit**（已 unlocked，唔 re-fire）。斷言 PlatformDetect 分支正確，desktop 唔觸發 web-only unlock flow。[qa-lead] Pass 4 RECOMMENDED。
 
-- **AC-32 [Integration / mock-GSM injection seam — Integration contract]** GSM reference 必須經 **untyped injection seam**（`var _gsm`，非 `var _gsm: GameStateMachine`）接受 mock double，符合 ADR-0006 C4 + GDScript DI seam rule（typed Node 喺 compile-time member check 失敗）。Integration ACs（AC-07/14/14b/14c/19a/19b）嘅 test setup：注入 mock `_gsm` double → emit `state_changed` signal → assert AudioManager response。[qa-lead] Pass 4 RECOMMENDED。
+- **AC-32 [Integration / mock injection seams — Integration contract]** GSM **同** PlatformDetect reference 皆必須經 **untyped injection seam**（`var _gsm` / `var _platform_detect`，非 typed `var _gsm: GameStateMachine` / `var _platform_detect: PlatformDetect`）接受 mock double，符合 ADR-0006 C4 + GDScript DI seam rule（typed Node 喺 compile-time member check 失敗）。Integration ACs（AC-07/14/14b/14c/19a/19b）嘅 test setup：注入 mock `_gsm` double → emit `state_changed` signal → assert AudioManager response。[qa-lead] Pass 4 RECOMMENDED。
+- **AC-32b [Integration / PlatformDetect mock seam — IB-4 [qa-lead B1] BLOCKING]** PlatformDetect reference 經 **`var _platform_detect`（untyped）injection seam**。**呢個係 AC-05/06b/14c/19a/19b/26/31 共 7 條 Logic BLOCKING AC 嘅前置**：headless 無真 PlatformDetect autoload，若無 inject seam，web/desktop 分支（`is_web()` / unlock 策略）headless 會走 default 分支 → **phantom-pass**（測 web LOCKED 行為實際走 desktop 即-unlock，AC vacuously passes）。Contract：test setup 注入 mock `_platform_detect` double（stub `is_web()→true/false`），AudioManager 所有平台分支判斷一律經 `_platform_detect`（**唔直接 call** PlatformDetect singleton / `OS.has_feature("web")`）。GIVEN inject `_platform_detect.is_web()==true` → AC-05/06b unlock-gate 行為可 headless verify；inject `==false` → AC-31 desktop no-confirm 可 verify。
 
-> *Reviewed by `qa-lead` (design-review 2026-06-01 Pass 1/2/3, 2026-06-02 Pass 4). Pass 4 修正：AC-03 改 `_voice_busy` logical occupancy（唔依賴 `.playing`）；AC-09/09c/15 改 pure-function `_register_duck/_release_duck/_compute_duck_target` 驗法（唔需 mock-emit AudioStreamPlayer）；AC-14 加 GIVEN READY 前置；AC-17 改 `_test_get_active_voice_count()`（logical occupancy）；AC-18 改 `_test_get_active_crossfade_count()` proxy；新增 AC-28（mute persistence）、AC-29（rotation non-repeat）、AC-30（bitmask multi-source，BLOCKING）、AC-31（desktop no-confirm negative）、AC-32（mock-GSM injection seam）。Story-type: AC-01 = CI lint；**AC-03/03b/04/05/08/09/09c/10/12/13/14c/15/16/17/18/19a/19b/20/21/22/23/24a/25/26/27/28/29/30/31 = Logic**（GUT unit, `tests/unit/audio/`, BLOCKING）；AC-06b/07/09b/11/14/14b = Integration；AC-24b/32 = ADVISORY/contract（OS notification wiring + seam doc 不可 headless 或純文檔）；AC-02 = smoke/perf。*
+- **AC-33 [EC / SUSPENDED duck-kill — IB-8 [godot-specialist BLK-P5-1] Logic BLOCKING]** GIVEN READY + `_register_duck(DUCK_OFFSET_DB)→handle`（duck active，Music bus 邏輯目標 −14dB），WHEN `_handle_focus_change(false)`（或 GSM→SUSPENDED），THEN duck Tween killed（`_duck_tween.is_valid()==false`）+ Music bus dB **hard-set == `base_music_db`**（唔卡半 duck 態）+ `_active_ducks` dict **保留 handle**（唔清）。WHEN resume（`_handle_focus_change(true)`，`_active_ducks` 仍含 handle），THEN 重 spawn duck tween，target == `_compute_duck_target(_active_ducks)` == −14dB（重算還原 duck）。子斷言：若 resume 前 `_release_duck(handle)`（dict 空），resume 後 target == base_music_db（無 re-duck）。pure-function + readable bus dB 斷言，無需 wall-clock。
+- **AC-34 [State / `_paused_focus_low` × `_suspended_bgm_state` 獨立性 — IB-6 [audio-director BLK-5-4] Logic BLOCKING]** GIVEN BOSS_ENCOUNTER（boss_theme 正播 + `_paused_focus_low == {variant_id: "focus_low_v1", position_sec: 12.3}` 已記），WHEN GSM→SUSPENDED，THEN `_suspended_bgm_state.variant_id == "boss_theme"`（記當前 audible track）**且** `_paused_focus_low` **不變**（仍 == `{focus_low_v1, 12.3}`，唔被 boss_theme 覆蓋）。WHEN resume，THEN 還原 boss_theme（`_suspended_bgm_state`）；子斷言：之後 mock GSM→WORKOUT_ACTIVE → 用 `_paused_focus_low` resume-from-position（active player.stream == focus_low_v1）。**兩 field 各記各，互不覆蓋。**
+
+> *Reviewed by `qa-lead` (design-review 2026-06-01 Pass 1/2/3, 2026-06-02 Pass 4/5). Pass 4 修正：AC-03 改 `_voice_busy` logical occupancy（唔依賴 `.playing`）；AC-09/09c/15 改 pure-function `_register_duck/_release_duck/_compute_duck_target` 驗法（唔需 mock-emit AudioStreamPlayer）；AC-14 加 GIVEN READY 前置；AC-17 改 `_test_get_active_voice_count()`（logical occupancy）；AC-18 改 `_test_get_active_crossfade_count()` proxy；新增 AC-28（mute persistence）、AC-29（rotation non-repeat）、AC-30（bitmask multi-source，BLOCKING）、AC-31（desktop no-confirm negative）、AC-32（mock-GSM injection seam）。**Pass 6 (IB fixes) 新增/修正：AC-07（IB-7 emit-at-crossfade-start，唔等 Tween advance）；AC-09d（IB-3 正數 guard，BLOCKING）；AC-32b（IB-4 PlatformDetect mock seam，BLOCKING — 7 條 platform-branch AC 前置）；AC-33（IB-8 SUSPENDED duck-kill，BLOCKING）；AC-34（IB-6 `_paused_focus_low`×`_suspended_bgm_state` 獨立性，BLOCKING）。** Story-type: AC-01 = CI lint；**AC-03/03b/04/05/08/09/09c/09d/10/12/13/14c/15/16/17/18/19a/19b/20/21/22/23/24a/25/26/27/28/29/30/31/33/34 = Logic**（GUT unit, `tests/unit/audio/`, BLOCKING）；AC-06b/07/09b/11/14/14b/32b = Integration；AC-24b/32 = ADVISORY/contract（OS notification wiring + seam doc 不可 headless 或純文檔）；AC-02 = smoke/perf。*
 
 ## Open Questions
 
