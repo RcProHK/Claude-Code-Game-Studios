@@ -2,7 +2,7 @@
 
 Last Updated: 2026-06-02
 Engine: Godot 4.6 (Web Export, Compatibility Renderer)
-Created by: /create-epics Foundation + Core (16 systems); #10 Exercise→Class Mapping promoted Placeholder→Ready 2026-06-02
+Created by: /create-epics Foundation + Core (16 systems); #10 Exercise→Class Mapping promoted Placeholder→Ready 2026-06-02; #4 Audio Manager promoted Placeholder→Ready 2026-06-02 (GDD Approved Pass 6 + ADR-0008 Accepted)
 
 > **Implementation order**: Foundation layer first (pos 1→10 boot order), then Core layer.
 > **Critical pre-requisites before any stories start**:
@@ -25,7 +25,7 @@ Created by: /create-epics Foundation + Core (16 systems); #10 Exercise→Class M
 | [Screen Effects System](screen-effects-system/EPIC.md) | Foundation | #6 | screen-effects-system.md ✅ | **11 stories** (10 Complete CI-green, 1 Blocked: 011 ADR-0001 hw) | **Implemented 10/11** — CI-green 1266/1267 (2026-06-01); 011 perf-gated (VS hardware) |
 | [Camera System](camera-system/EPIC.md) | Foundation | #7 | camera-system.md ✅ | **12 stories** (10 Complete CI-green, 011 Blocked #22, 012 Blocked ADR-001 hw) | **Implemented 10/12** — CI-green 1312/1313 (2026-06-01); 011 (#22 GDD) + 012 (VS hardware) gated |
 | [Streak System](streak-system/EPIC.md) | Foundation | #8 | streak-system.md ✅ | **10 stories** (all Complete CI-green) | **Complete 10/10** — CI-green 1321/1322; 009 (AC-39 CI) + 010 (AC-37 retro + Story 002 drift-gate directional fix) closed 2026-06-01; AC-38 deferred (VS-tier) |
-| [Audio Manager](audio-manager/EPIC.md) | Foundation | #4 | NOT STARTED | Not yet created | **Placeholder** — GDD + ADR-0008 required (MVP tier) |
+| [Audio Manager](audio-manager/EPIC.md) | Foundation | #4 | audio-manager.md ✅ Approved 2026-06-02 (Pass 6) | **9/9 Complete** ✅ (local-verified — 6 Logic, 3 Integration) | **✅ INTERNAL COMPLETE 9/9** — 001-009 done 2026-06-02 (gateway/bus/sfx/ducking/BGM crossfade/GSM/unlock/SUSPENDED/rotation; local GUT audio 66/66, full gate 241scr/1466t/0fail). Branch feat/audio-manager-story-001 (9 commits) pushed; awaiting PR + CI merge. 3 external gates (EG-1 #9 / EG-2 #20 / EG-3 #15) story-level, don't block epic close |
 
 ## Core Layer
 
@@ -47,9 +47,9 @@ Created by: /create-epics Foundation + Core (16 systems); #10 Exercise→Class M
 | Metric | Count |
 |--------|-------|
 | Total epics | 16 |
-| Ready (GDD Approved + ADR-0006 Accepted) | 15 |
+| Ready (GDD Approved + ADR-0006 Accepted) | 16 |
 | Blocked (ADR Proposed — stories auto-blocked) | 1 (#2 GymSys — ADR-0002/0004 transport VS-gated) |
-| Placeholder (no GDD) | 2 (#4 Audio, #33 AttentionBudget) |
+| Placeholder (no GDD) | 1 (#33 AttentionBudget) |
 | Pending GDD approval | 1 (#15 LootDrop — Pass 3 required) |
 
 ---

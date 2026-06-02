@@ -137,3 +137,100 @@ All 8 BLOCKING resolved. Awaiting Pass 5 fresh-session full re-review. Prerequis
 - #9 WST GDD patch（add `audio_unlocked` subscribe + SFX buffer/flush contract）
 - #15 LootDrop Pass 3 re-review（confirm BOSS_ENCOUNTER → LOOT_DROP from-state for BLK-8 conditional）
 - BGM asset authoring brief（non-looping OGG spec）→ /asset-spec system:audio-manager after art bible
+
+---
+
+## Review — 2026-06-02 (Pass 5, fresh-session full re-review) — Verdict: NEEDS REVISION
+Scope signal: L
+Specialists: audio-director, godot-specialist, qa-lead, game-designer, systems-designer, creative-director (synthesis)
+Blocking items: 9 internal + 4 external gates | Recommended: ~12 (deferred)
+Prior verdict resolved: Pass 4 (8 BLOCKING) — confirmed held, no regression
+
+### Summary (creative-director synthesis)
+架構仍 sound，Pass 1-4 fix 全部守住無 regression。CD **駁回** game-designer 嘅「APPROVED WITH GATES」立場 — 除咗 cross-system gates，仲有多個 GDD **internal** 矛盾/空白，implementer 即刻撞到（最嚴重 = BLK-5-3 自相矛盾）。第 5 passes 仍搵到新一批，churn pattern 同既往一致。Verdict: NEEDS REVISION（非 MAJOR — 全部係 localized inline fix，無核心設計方向改變）。
+
+### Internal BLOCKING — GDD 自己改得掂（fresh-session Pass 6 action list，CD 已俾具體 fix）
+- **IB-1 [audio-director BLK-5-3] 自相矛盾（最高優先）**: 「loot fanfare duck boss_theme = 刻意設計」(Visual/Audio) vs 「LOOT_DROP from BOSS → boss_theme fade to rest_calm」(Rule 6/BLK-8) 衝突。CD 裁決：採「先 BGM transition（LOOT_DROP entry quick-fade boss_theme→rest_calm 0.25s），後 duck（stinger duck rest_calm）」。Visual/Audio「duck boss_theme」段更新為「只適用 BOSS_ENCOUNTER 期間 mid-fight loot drop（boss theme 仍播）」，**唔適用** LOOT_DROP state entry。兩情境分開 spec。
+- **IB-2 [godot BLK-P5-2]**: non-looping OGG rotation「gap-free」claim 唔成立（finished 係 deferred signal，~16ms gap）。改 wording 為「near-gap-free ≤1 frame」或改用提前 fade_sec crossfade（AC-29 相應更新）。
+- **IB-3 [systems BLK-P5-01]**: `_register_duck(offset: float)` 無正數 guard → caller 傳正數 → duck 反向升 music。Rule 1 test seam + Formula 3 加 `offset ≤ 0` assert + `clamp(offset, MUTE_FLOOR_DB, 0)`，加對應 EC。
+- **IB-4 [qa-lead B1]**: PlatformDetect mock seam 缺失 → AC-05/06b/14c/19a/19b/26/31（7 條 Logic BLOCKING）web/desktop 分支 headless phantom-pass。AC-32 擴展加 `var _platform_detect`（untyped）injection seam contract。
+- **IB-5 [audio-director BLK-5-1]**: `set_complete` 80-120ms stagger 責任歸屬 → 明確由 #9 WST 做（知道兩 event 同 frame），刪 catalog 備註入面 `create_timer` snippet（唔係 #4 code），改寫為 #9 responsibility。
+- **IB-6 [audio-director BLK-5-4]**: `_paused_focus_low` × `_suspended_bgm_state` interaction 加 EC：BOSS_ENCOUNTER 中 SUSPENDED → `_suspended_bgm_state` 記 boss_theme，`_paused_focus_low` 保留原 focus_low 值；兩 field 獨立唔互相覆蓋。
+- **IB-7 [qa-lead B2]**: `bgm_changed` emit timing「crossfade 完成」→ headless Tween 唔 advance → AC-07/21 phantom。改「crossfade **開始**時 emit」+ 更新 AC-07 斷言（唔需 Tween advance），或加 mock crossfade-complete test seam。
+- **IB-8 [godot BLK-P5-1]**: SUSPENDED 期間 duck Tween 行為未 spec。加 EC：SUSPENDED / `_handle_focus_change(false)` 時 duck Tween **kill** + Music bus dB hard-set 到 base_music_db；resume 由 `_active_ducks` 重算。
+- **IB-9 [godot BLK-P5-3]**: `_voice_busy` vs `.playing` rationale 未寫。Rule 1/Detailed Design 加 normative 說明：`_voice_busy` 係 AudioManager 顯式管理嘅邏輯佔用 state，獨立於 engine `.playing`（headless dummy driver 唔 guarantee `.playing`）；永不用 `.playing` 做邏輯判斷，即使 engine reference sample 用 `.playing`。
+
+### External cross-system gates（唔係 #4 internal，要其他 GDD 協調）
+- **EG-1**: #9 WST GDD patch — `audio_unlocked` subscribe + mid/high SFX buffer/flush。Owner: game-designer + #9。**同 #10 epic-close gate 重疊。**
+- **EG-2**: #20 Gym-Mode HUD GDD authoring — banner soft-gate（#4 contract 已定，#20 GDD 待 author）。
+- **EG-3**: #15 LootDrop Pass 3 re-review — confirm boss kill → LOOT_DROP from-state == BOSS_ENCOUNTER（BLK-8 conditional 依賴）。
+- **EG-4**: workout_complete × loot fanfare 時序（inline fixable，可併入 Pass 6）。
+
+### Recommendations（非 blocking，建議 Pass 6 順手）
+- boss_death SFX（catalog freeze 漏，Pillar 3 最高峰靜音）— 加 high/STEREO；- LOOT→rest_calm 獨立 fade knob `LOOT_BGM_TRANSITION_SEC`；- Formula 2 `is_inf` guard（不只 is_nan）；- `_crossfade_progress` sentinel 用 `< 0` 唔好 `== -1.0`；- p=0.5 mid-crossfade tiebreaker；- `min()` 用 `.values().min()` Array method 表記；- DUCK perceptibility 下限 + `STREAK_CHIME_DUCK_OFFSET_DB > DUCK_OFFSET_DB` invariant；- Q3 Safari auto-resume 降 RESOLVED-provisional。
+
+### Next
+Awaiting fresh-session Pass 6 re-review. Action: /clear → revise IB-1..IB-9 inline (CD fixes above) + EG-4 → re-run /design-review. EG-1/2/3 係 external gates，#4 GDD 自身 fix 完 internal 9 項後即可 APPROVE（external gates tracked，唔阻 #4 GDD approval，同 #10/ExerciseClassMapping 先例一致）。Session used heavy context (5 stories + phantom-sweep + push + 6-agent review) — fresh session strongly recommended.
+
+---
+
+## Pass 5 revisions APPLIED — 2026-06-02 (inline, autonomous mode) — awaiting Pass 6 re-review
+
+全部 9 internal BLOCKING + EG-4 已 inline 修正，CD-supplied fixes 落實：
+
+| Item | Fix applied | GDD location |
+|------|-------------|--------------|
+| **IB-1** 自相矛盾 loot-duck-boss_theme | 拆兩情境：A=LOOT_DROP state entry（先 `LOOT_BGM_TRANSITION_SEC`=0.25s fade boss_theme→rest_calm，後 duck rest_calm）；B=mid-fight loot（仍 BOSS_ENCOUNTER，duck boss_theme，刻意）。判別 = 有冇 GSM transition | Visual/Audio「Loot fanfare × boss_theme 兩情境」+ Rule 6 LOOT_DROP + EC ×2 |
+| **IB-2** non-looping OGG「gap-free」 | 改 "near-gap-free（≤1 frame）"，`finished` 係 deferred signal ~16ms gap；真無縫=提前 fade_sec（post-MVP）；AC-29 只驗順序 | Visual/Audio BGM rotation note |
+| **IB-3** `_register_duck` 無正數 guard | `assert(offset<=0)` + `clamp(offset, MUTE_FLOOR_DB, 0)` + push_warning；新 AC-09d | Rule 1 test seam + Formula 3 boundary + AC-09d |
+| **IB-4** PlatformDetect mock seam 缺失 | `var _platform_detect`（untyped）injection seam；7 條 platform-branch AC 前置；新 AC-32b | AC-32 + 新 AC-32b |
+| **IB-5** `set_complete` stagger 責任 | 歸 #9 WST forwarding（佢知同 frame）；刪 #4 catalog 入面 `create_timer` snippet；補 #9 forward contract 條目 | catalog `set_complete` row + Dependencies forward contract |
+| **IB-6** `_paused_focus_low`×`_suspended_bgm_state` | 新 EC：BOSS_ENCOUNTER SUSPENDED → `_suspended_bgm_state`=boss_theme，`_paused_focus_low` 保留 focus_low，兩 field 獨立；新 AC-34 | EC + 新 AC-34 |
+| **IB-7** `bgm_changed` emit timing | 改「crossfade **開始**時 emit」（headless Tween 唔 advance，emit-at-complete = phantom）；signal comment + AC-07 修正 | Rule 1 signal + AC-07 |
+| **IB-8** SUSPENDED duck Tween 未 spec | 新 EC：suspend → kill duck tween + Music bus hard-set base_music_db，`_active_ducks` 唔清；resume 重算；新 AC-33 | EC + 新 AC-33 |
+| **IB-9** `_voice_busy` vs `.playing` rationale | normative：`_voice_busy` 邏輯佔用，獨立 engine `.playing`；內部邏輯**永不**讀 `.playing`（即使 ref sample 用），headless-determinism 硬性要求 | Rule 1 test seam block |
+| **EG-4** workout_complete × loot fanfare 時序 | 新 EC：兩者皆 SFX bus 唔互 duck，priority 唔互 steal，天然錯開（workout 先、loot 隨 backend latency），極端同 frame=雙 reward（接受） | EC |
+
+順手 recommendation（Pass 5 list）：boss_death catalog row（high/STEREO，Pillar 3 最高峰原本靜音 gap）；Formula 2 `is_inf` guard（不只 is_nan）；`_crossfade_progress` sentinel 改 `< 0`（唔用 `== -1.0` 浮點等號）；新 knob `LOOT_BGM_TRANSITION_SEC`（0.25s）；`.values().min()` notation 已喺 Formula 3 在用。
+
+**未動（deferred / 留 Pass 6 verdict 判）**：其餘 ~8 條 Pass 5 recommendation（DUCK perceptibility invariant、Q3 降 RESOLVED-provisional、p=0.5 tiebreaker 等）非 blocking，留 Pass 6 順手或 verdict note。
+
+**External gates 狀態不變**：EG-1（#9 WST patch）、EG-2（#20 HUD GDD）、EG-3（#15 Pass 3 re-review）仍 tracked external，唔阻 #4 GDD approval（#10 先例）。
+
+### Next
+重跑 `/design-review design/gdd/audio-manager.md`（Pass 6 fresh-session 強烈建議）。預期：若無新一輪 churn，internal 全清 → APPROVE-able（external gates 標 tracked）。
+
+---
+
+## Review — 2026-06-02 (Pass 6, lean single-session re-review) — Verdict: NEEDS REVISION → 2 BLOCKING resolved inline → **APPROVED (user-ratified 2026-06-02)**
+Scope signal: L（implementation scope；fix 本身 = S 機械改動）
+Specialists: lean mode（無 6-specialist spawn — Pass 6 doc 極成熟 + harness spawn-conservatism；main session 自驗 + GSM/dependency ground-truth grep）
+Blocking items: 2 internal（both fix-induced 機械錯漏）| Recommended: ~4（deferred）| External gates: 3（tracked，不阻 approval）
+Prior verdict resolved: Pass 5（9 internal IB + EG-4）— **全部確認 held，逐項 trace 過，無 regression**
+
+### Summary
+架構仍 sound，Pass 1-5 fix 全部守住。逐一 trace IB-1..IB-9 + EG-4 落 GDD 實際位置全部到位（兩情境 loot-duck-boss 分拆、near-gap-free wording、`_register_duck` 正數 guard、PlatformDetect mock seam AC-32b、stagger→#9、`_paused_focus_low`×`_suspended_bgm_state` 獨立 EC、bgm_changed crossfade-start emit、SUSPENDED duck-kill AC-33、`_voice_busy` rationale）。Pass 5「順手」recommendation（boss_death catalog row / Formula 2 `is_inf` / sentinel `<0` / `LOOT_BGM_TRANSITION_SEC` knob）亦全部落實。churn pattern 延續但收斂——今次只剩 2 個機械 fix-induced 矛盾，零設計 re-litigation。
+
+### Blocking items (2) — both resolved inline (autonomous mode)
+1. **B1 [cross-system consistency]** Rule 6 line 120 map key `REST_BETWEEN_SETS` **唔係** GSM `GameState` enum 有效值（game-state-machine.md L589 = `REST_PERIOD`，"renamed from EXERCISE_SWITCHING per Decision #3"）→ 該 `→{rest_calm,1.0}` map entry 永不 fire，「我落到 bench 抖氣」rest_calm fantasy beat 靜默死亡 + scenario A loot-peak landing bed 削弱。**Fix**：line 120 key `REST_BETWEEN_SETS`→`REST_PERIOD` + 加 cross-system rationale 註。（rest_calm track 名其餘引用全部正確，無需動。）
+2. **B2 [internal consistency / AC testability]** `_suspended_bgm_state`（States table L159 / EC L249,251 / AC-34 L444 — 已升級 `{variant_id, position_sec}` dict）vs `_suspended_bgm_track`（L347 / AC-14 L413 / AC-14b L414 / AC-30 L436）= 同一 member 兩個名，implementer 無法分辨 canonical。更甚：AC-14/14b 仍寫 `_suspended_bgm_track == <track_id>`，但 field 已係 dict → 斷言 type-stale。**Fix**：全部收口 `_suspended_bgm_state`（L347/AC-30）+ AC-14/14b 斷言改 `.variant_id == <variant>`（dict 正確比較）。
+
+### Recommended (deferred — non-blocking)
+- R1 `STREAK_CHIME_DUCK_OFFSET_DB > DUCK_OFFSET_DB` invariant 未明文（值正確 −5 > −8，shallower）。
+- R2 BGM variant rotation（focus_low_pool 內換 variant）是否 emit `bgm_changed`？spec 沉默（同 track_id pool，估計唔應 emit，但未定義）。
+- R3 Q3 Safari auto-resume 降 RESOLVED-provisional（Pass 5 carryover）。
+- R4 Q-CLEANUP `_exit_tree()` kill retained Tweens（已 tracked，低優先 impl story 順手）。
+
+### External cross-system gates（tracked，不阻 #4 approval — #10 先例）
+- EG-1 #9 WST GDD patch（`audio_unlocked` subscribe + mid/high SFX buffer/flush + set_complete×streak_chime stagger）。**與 #10 epic-close gate 重疊。**
+- EG-2 #20 Gym-Mode HUD GDD authoring（banner soft-gate；#4 contract 已定，#20 GDD 待 author，檔案未存在）。
+- EG-3 #15 LootDrop Pass 3 re-review（confirm boss kill → LOOT_DROP from_state == BOSS_ENCOUNTER，scenario A conditional 依賴）。
+
+### Completeness: 8/8 sections present（+ States/Interactions/Visual-Audio/UI/Open-Questions 額外）
+### Dependency graph
+- ✓ game-state-machine.md / persistence-layer.md / gymsys-backend-client.md / particle-system-wrapper.md / screen-effects-system.md / streak-system.md / loot-drop-system.md — 全部存在（all Approved）
+- ✗ combat-visual-feedback.md（#25，Not Started forward ref，可接受）
+- ✗ gym-mode-hud.md（#20，Not Started forward ref；EG-2 tracked）
+
+### Next
+2 internal BLOCKING 已 resolved inline。Internal consistency 清。**User 裁定 2026-06-02：mark Approved（external gates tracked，#10 先例）。** #4 Audio Manager GDD 6 passes 收官。後續：3 external gate（EG-1 #9 WST patch / EG-2 #20 HUD GDD authoring / EG-3 #15 Pass 3 from-state confirm）在各自 GDD 軌道處理，唔阻 #4。下一步可 /create-epics audio-manager 或 /asset-spec system:audio-manager（待 art/audio bible approved）。
