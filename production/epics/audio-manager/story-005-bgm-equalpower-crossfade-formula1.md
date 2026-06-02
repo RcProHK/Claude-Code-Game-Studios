@@ -1,12 +1,12 @@
 # Story 005: BGM equal-power crossfade (Formula 1 + retained Tween)
 
 > **Epic**: Audio Manager
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Foundation
 > **Type**: Logic
 > **Estimate**: M (3-4h)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-02
 
 ## Context
 
@@ -76,5 +76,13 @@
 
 ## Dependencies
 
-- Depends on: 001 (crossfade seam `_crossfade_progress` / `_active_crossfade_count`)
+- Depends on: 001 (crossfade seam `_crossfade_progress` / `_active_crossfade_count`) ✅
 - Unlocks: 006 (GSM transition triggers crossfade), 008 (suspend mid-crossfade), 009 (rotation reuses crossfade)
+
+## Completion Notes
+**Completed**: 2026-06-02
+**Criteria**: 4/4 covered + local-verified (AC-04/12/18/21)
+**Files**: `src/autoload/audio_manager.gd`（`_build_bgm_pool` 2× AudioStreamPlayer on Music bus；`play_bgm` equal-power crossfade [idempotent same-track no-op, unknown→Rule 8, fade≤0 instant-swap, `bgm_changed` emit-at-START per IB-7]；`stop_bgm`；`_equal_power_gains` Vector2(cos,sin) p-space；`_start_crossfade`/`_crossfade_step`/`_crossfade_finish` [tween_method NOT tween_property; `_crossfade_progress` writer + endpoint hard-set; `_active_crossfade_count` 0/1]；`_pick_crossfade_players` 2-player mid-interrupt [keep louder as out-source]；`_instant_swap_bgm`；`_lookup_bgm`/`_load_bgm_catalog` [injectable `_bgm_catalog` seam, missing→safe mode+push_error]）· `tests/unit/audio/test_bgm_crossfade_formula1.gd`（4 tests）
+**Test Evidence**: Logic — `test_bgm_crossfade_formula1.gd` ✅ **LOCAL GUT 4/4**（audio 37/37）。**Full gate 237 scripts / 1437 tests / 1436 pass / 1 pending(AC-37) / 0 fail** — no regression.
+**Deviations**: None out-of-scope. `play_bgm` LOCKED branch returns (Story 007 adds single-slot defer). BGM streams null until /asset-spec (Q8) — production safe-mode; crossfade state machine fully implemented + tested via injected catalog. `stop_bgm` minimal (no AC). Variant rotation / near-gap-free = Story 009.
+**Code Review**: Complete (/code-review APPROVED WITH SUGGESTIONS).

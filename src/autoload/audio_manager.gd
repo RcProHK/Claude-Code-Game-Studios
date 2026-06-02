@@ -38,6 +38,8 @@ const DUCK_ATTACK_SEC: float = 0.05     ## duck lerp-down time (Story 004)
 const DUCK_RELEASE_SEC: float = 0.4     ## long/high stinger lerp-back time (Story 004)
 const SHALLOW_RELEASE_SEC: float = 0.15 ## short/mid stinger lerp-back (anti-pumping; release_class dispatch deferred)
 const SFX_VOICE_COUNT: int = 8          ## fixed pool size (web budget; filled Story 003)
+const BGM_DEFAULT_FADE_SEC: float = 1.0 ## default BGM crossfade time (Story 005)
+const BGM_CATALOG_PATH: String = "res://assets/data/bgm_catalog.tres"
 
 
 # ── Lifecycle (minimal — Story 008 owns full SUSPENDED multi-source bitmask) ───
@@ -61,9 +63,19 @@ var _base_music_db: float = DEFAULT_MUSIC_DB
 var _duck_tween: Tween = null
 
 
-# ── Crossfade observability (Story 005 drives the tween; these are the seams) ──
-var _active_crossfade_count: int = 0
-var _crossfade_progress: float = -1.0   ## sentinel < 0 ⇒ no crossfade in-flight
+# ── BGM crossfade (Story 005) ──────────────────────────────────────────────────
+## Two dedicated Music-bus players for equal-power crossfade (one out, one in).
+var _bgm_players: Array[AudioStreamPlayer] = []
+## Index of the currently-audible / crossfade-target player (-1 = nothing playing).
+var _bgm_active_idx: int = -1
+## track_id currently playing (&"" = none). Same-track play_bgm → idempotent no-op.
+var _current_bgm_track: StringName = &""
+## track_id → {stream:AudioStream, ...}. null until loaded/injected (safe mode if missing).
+var _bgm_catalog = null
+var _bgm_safe_mode: bool = false
+var _active_crossfade_count: int = 0    ## 0 = idle, 1 = crossfade in-flight (single retained tween)
+var _crossfade_progress: float = -1.0   ## sentinel < 0 ⇒ no crossfade in-flight; else p ∈ [0,1]
+var _crossfade_tween: Tween = null
 
 
 # ── SFX pool + priority-aware voice stealing (Story 003) ───────────────────────
@@ -135,8 +147,9 @@ func _ready() -> void:
 	_ensure_buses()
 	_build_sfx_pool()
 	_load_sfx_catalog()
+	_build_bgm_pool()
+	_load_bgm_catalog()
 	_load_persisted_volumes()
-	# BgmCatalog load wires here in Story 005/009.
 
 	_lifecycle_state = LifecycleState.READY
 
@@ -181,13 +194,57 @@ func play_sfx(event_id: StringName) -> void:
 	# NOTE: stream is null until /asset-spec produces the catalog audio (Q8). Logical voice
 	# occupancy (_voice_busy) is the source of truth for steal/count — never engine .playing.
 
-## Crossfade BGM to track_id over fade_in_sec. Same track already playing → no-op (Story 005).
-func play_bgm(_track_id: StringName, _fade_in_sec: float = 1.0) -> void:
-	pass  # Story 005: equal-power crossfade.
+## Equal-power crossfade BGM to track_id over fade_in_sec (GDD Rule 4 / Formula 1). Same track
+## already playing → idempotent no-op (no re-emit, no restart). Unknown track → push_warning +
+## no-op (Rule 8). fade_in_sec ≤ 0 → instant-swap (no div-by-zero). `bgm_changed` is emitted at
+## crossfade START (IB-7 — headless Tweens never advance, so emit-at-complete would phantom).
+func play_bgm(track_id: StringName, fade_in_sec: float = BGM_DEFAULT_FADE_SEC) -> void:
+	if _bgm_safe_mode:
+		return  # catalog missing — push_error'd once at boot
+	if not _audio_unlocked:
+		return  # GDD Rule 5: LOCKED → BGM deferred; Story 007 owns the single-slot defer + unlock
+	if track_id == _current_bgm_track:
+		return  # AC-04 idempotent no-op (no restart, no re-emit)
+	var entry: Dictionary = _lookup_bgm(track_id)
+	if entry.is_empty():
+		push_warning("[AudioManager] play_bgm unknown track_id: %s" % track_id)
+		return  # Rule 8 no-throw
+	var players: Vector2i = _pick_crossfade_players()  # x = in, y = out (-1 = none)
+	var in_idx: int = players.x
+	var out_idx: int = players.y
+	var stream: AudioStream = entry.get("stream", null)
+	if stream != null:
+		_bgm_players[in_idx].stream = stream
+		_bgm_players[in_idx].play()
+	_current_bgm_track = track_id
+	_bgm_active_idx = in_idx
+	bgm_changed.emit(track_id)  # IB-7: emit at crossfade START
+	if fade_in_sec <= 0.0:
+		_instant_swap_bgm(in_idx, out_idx)  # AC-21
+	else:
+		_start_crossfade(in_idx, out_idx, fade_in_sec)
 
-## Crossfade out the current BGM over fade_out_sec.
-func stop_bgm(_fade_out_sec: float = 1.0) -> void:
-	pass  # Story 005.
+## Crossfade the current BGM out to silence then stop. fade_out_sec ≤ 0 → instant stop.
+func stop_bgm(fade_out_sec: float = BGM_DEFAULT_FADE_SEC) -> void:
+	if _bgm_active_idx == -1:
+		return
+	if _crossfade_tween != null and _crossfade_tween.is_valid():
+		_crossfade_tween.kill()
+	var active: AudioStreamPlayer = _bgm_players[_bgm_active_idx]
+	if fade_out_sec <= 0.0:
+		active.stop()
+	else:
+		var idx: int = _bgm_active_idx
+		_crossfade_tween = create_tween()
+		_crossfade_tween.tween_method(
+			func(db: float) -> void: _bgm_players[idx].volume_db = db,
+			active.volume_db, MUTE_FLOOR_DB, fade_out_sec,
+		)
+		_crossfade_tween.finished.connect(active.stop, CONNECT_ONE_SHOT)
+	_current_bgm_track = &""
+	_bgm_active_idx = -1
+	_crossfade_progress = -1.0
+	_active_crossfade_count = 0
 
 ## Set a bus volume in dB. NaN/inf → MUTE_FLOOR_DB; finite values clamped to
 ## [MUTE_FLOOR_DB, MAX_BUS_DB] (boost forbidden — anti-clipping). Persisted to audio.<bus>_db.
@@ -494,3 +551,99 @@ func _apply_duck() -> void:
 		func(db: float) -> void: AudioServer.set_bus_volume_db(music_idx, db),
 		from_db, target, sec,
 	)
+
+
+# ── BGM equal-power crossfade (Story 005 — Formula 1) ──────────────────────────
+
+## Build the two Music-bus BGM players (idempotent). The Music bus must already exist.
+func _build_bgm_pool() -> void:
+	if not _bgm_players.is_empty():
+		return
+	for _i: int in 2:
+		var player := AudioStreamPlayer.new()
+		player.bus = &"Music"
+		player.volume_db = MUTE_FLOOR_DB  # start silent
+		add_child(player)
+		_bgm_players.append(player)
+
+## Formula 1 equal-power gains at progress p. Returns Vector2(out_gain, in_gain) — LINEAR gains.
+## out_gain = cos(p·π/2), in_gain = sin(p·π/2) ⇒ out² + in² = 1 (constant perceived loudness, no
+## mid-fade dip). p is clamped to [0,1] so a caller's elapsed/fade overrun never flips cos negative.
+func _equal_power_gains(p: float) -> Vector2:
+	var pc: float = clampf(p, 0.0, 1.0)
+	return Vector2(cos(pc * PI / 2.0), sin(pc * PI / 2.0))
+
+## Pick (in_idx, out_idx) for a new track. Steady state: in = the idle player, out = active. Mid-
+## crossfade (only 2 players): keep the LOUDER player as the out-source, reuse the quieter (the
+## previous out, already fading) as the in. Nothing playing: in = 0, out = -1.
+func _pick_crossfade_players() -> Vector2i:
+	if _bgm_active_idx == -1:
+		return Vector2i(0, -1)
+	if _crossfade_progress >= 0.0:
+		var louder: int = 0 if _bgm_players[0].volume_db >= _bgm_players[1].volume_db else 1
+		return Vector2i(1 - louder, louder)
+	return Vector2i(1 - _bgm_active_idx, _bgm_active_idx)
+
+## fade_sec ≤ 0 path: in player to full gain, out stopped, no crossfade in-flight (AC-21).
+func _instant_swap_bgm(in_idx: int, out_idx: int) -> void:
+	if _crossfade_tween != null and _crossfade_tween.is_valid():
+		_crossfade_tween.kill()
+	_bgm_players[in_idx].volume_db = 0.0  # full gain on the Music bus
+	if out_idx != -1 and out_idx != in_idx:
+		_bgm_players[out_idx].stop()
+	_crossfade_progress = -1.0
+	_active_crossfade_count = 0
+
+## Start an equal-power crossfade in p-space (NOT tween_property on volume_db — that is a linear-dB
+## ramp whose midpoint dips to ~−40 dB, violating Formula 1). Single retained tween, kill-before-
+## respawn. _crossfade_progress is written every step; the endpoint is hard-set in the finish
+## callback (never relies on the cos(π/2) ≈ 6e-17 trig residual).
+func _start_crossfade(in_idx: int, out_idx: int, fade_sec: float) -> void:
+	if _crossfade_tween != null and _crossfade_tween.is_valid():
+		_crossfade_tween.kill()
+	_bgm_players[in_idx].volume_db = MUTE_FLOOR_DB
+	_crossfade_progress = 0.0
+	_active_crossfade_count = 1
+	_crossfade_tween = create_tween()
+	_crossfade_tween.tween_method(
+		func(p: float) -> void: _crossfade_step(p, in_idx, out_idx),
+		0.0, 1.0, fade_sec,
+	)
+	_crossfade_tween.finished.connect(
+		func() -> void: _crossfade_finish(in_idx, out_idx), CONNECT_ONE_SHOT
+	)
+
+func _crossfade_step(p: float, in_idx: int, out_idx: int) -> void:
+	var gains: Vector2 = _equal_power_gains(p)
+	_bgm_players[in_idx].volume_db = linear_to_db(maxf(gains.y, 0.00001))
+	if out_idx != -1 and out_idx != in_idx:
+		_bgm_players[out_idx].volume_db = linear_to_db(maxf(gains.x, 0.00001))
+	_crossfade_progress = p
+
+func _crossfade_finish(in_idx: int, out_idx: int) -> void:
+	_bgm_players[in_idx].volume_db = 0.0  # hard-set full (no trig residual)
+	if out_idx != -1 and out_idx != in_idx:
+		_bgm_players[out_idx].stop()
+	_crossfade_progress = -1.0
+	_active_crossfade_count = 0
+
+## Look up a BGM catalog entry. Empty = unknown track OR no catalog.
+func _lookup_bgm(track_id: StringName) -> Dictionary:
+	if _bgm_catalog == null:
+		return {}
+	return _bgm_catalog.get(track_id, {})
+
+## Boot: resolve the BGM catalog (injected → used as-is; else load the .tres; missing → safe mode
+## + one push_error). Real tracks land via /asset-spec (Q8) — production runs safe until then.
+func _load_bgm_catalog() -> void:
+	if _bgm_catalog != null:
+		_bgm_safe_mode = false
+		return
+	if ResourceLoader.exists(BGM_CATALOG_PATH):
+		var res: Resource = load(BGM_CATALOG_PATH)
+		_bgm_catalog = _build_catalog_dict(res)
+		_bgm_safe_mode = _bgm_catalog.is_empty()
+	else:
+		_bgm_catalog = {}
+		_bgm_safe_mode = true
+		push_error("[AudioManager] BgmCatalog missing at %s — BGM disabled (safe no-op mode)" % BGM_CATALOG_PATH)
