@@ -13,7 +13,7 @@
 | 001 | Registry schema + core exercise lookup | Logic | ✅ Complete (CI-green 2026-06-02) | ADR-0007 |
 | 002 | Movement-pattern lookup + MovementPattern enum | Logic | ✅ Complete (CI-green 2026-06-02) | ADR-0007 |
 | 003 | Boot validation loop | Logic | ✅ Complete (CI-green 2026-06-02) | ADR-0007 |
-| 004 | Alias resolution + collision + is_known + edge/FAILED | Logic | Ready | ADR-0007 |
+| 004 | Alias resolution + collision + is_known + edge/FAILED | Logic | ✅ Complete (CI-green 2026-06-02) | ADR-0007 |
 | 005 | Autoload pos 5 registration + CI mutator-ban lint | Integration | Ready | ADR-0008 |
 
 Implementation order: 001 → 002 → 003 → 004 → 005 (each story's `Depends on:` lists prerequisites). Start: `/story-readiness production/epics/exercise-class-mapping/story-001-registry-lookup.md`.

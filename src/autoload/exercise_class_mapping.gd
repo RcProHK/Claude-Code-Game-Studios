@@ -70,6 +70,11 @@ const _REGISTRY_PATH: String = "res://assets/data/exercise_registry.tres"
 ## FAILED state: true when registry is missing/corrupt. All lookups return UNKNOWN safely.
 var _failed: bool = false
 
+## Test seam (AC-06): when set to a valid Callable, _load_registry() delegates to it instead
+## of touching the filesystem. Lets a headless test force the FAILED path (return null) without
+## a .tres on disk. Production leaves this unset. Set it BEFORE the node enters the tree.
+var _registry_loader_override: Callable = Callable()
+
 ## Runtime lookup: normalized exercise_id (String) → AbilityClass ordinal (int).
 ## Built from ExerciseRegistry.entries at boot. Read-only after _build_lookup().
 var _class_by_id: Dictionary = {}
@@ -108,12 +113,9 @@ func _ready() -> void:
 ## Returns AbilitySystem.AbilityClass ordinal (int):
 ##   0=STRIKE, 1=CONTROL, 2=MOBILITY, 3=UNKNOWN
 ##
-## Steps: normalize input → exact _class_by_id match → return ability_class ordinal.
+## Steps: normalize input → resolve canonical (direct id OR alias) → return ability_class.
 ##        No movement_pattern fallback (GDD Rule 5: two entry points independent).
-##        Miss → UNKNOWN(3) (GDD Rule 6: no fabrication).
-##
-## ⚠️ EXPANSION HOOK (Story 004): alias resolution via _canonical_by_alias should be
-##   inserted here between normalize and _class_by_id lookup.
+##        Miss / empty / FAILED → UNKNOWN(3) (GDD Rule 6: no fabrication).
 func get_class_for_exercise(exercise_id: StringName) -> int:
 	if _failed:
 		return _ABILITY_UNKNOWN
@@ -121,20 +123,48 @@ func get_class_for_exercise(exercise_id: StringName) -> int:
 	var normalized: String = _normalize(exercise_id)
 
 	if normalized.is_empty():
-		# AC-11 (Story 004 full implementation adds push_warning).
-		# Empty string can never match a registry entry — return UNKNOWN without crash.
+		# AC-11: empty input can never match a registry entry. Warn once (not an error — a caller
+		# passing "" is recoverable) and return UNKNOWN without crashing.
+		push_warning("ExerciseClassMapping: empty exercise_id — returning UNKNOWN")
 		return _ABILITY_UNKNOWN
 
+	# AC-05/05b: _resolve_canonical follows the alias table (normalize already applied), so a
+	# title-case / spaced alias resolves the same as the canonical id.
+	var canonical: String = _resolve_canonical(normalized)
+	if canonical.is_empty():
+		return _ABILITY_UNKNOWN
+	return _class_by_id[canonical]
+
+
+## Returns true if exercise_id resolves to a known registry entry (directly or via an alias).
+##
+## Shares the exact _normalize + _resolve_canonical path with get_class_for_exercise() — they
+## must never diverge (Control Manifest: same resolution path). Empty input → false WITHOUT a
+## push_warning (AC-14d): warning ownership belongs to get_class_for_exercise per AC-11.
+## FAILED state → false (nothing is known when the registry never loaded).
+func is_known_exercise(exercise_id: StringName) -> bool:
+	if _failed:
+		return false
+	var normalized: String = _normalize(exercise_id)
+	if normalized.is_empty():
+		return false
+	return not _resolve_canonical(normalized).is_empty()
+
+
+## Resolve a normalized id to its canonical registry key, following the alias table.
+## Returns the canonical normalized id (found directly in _class_by_id, or via _canonical_by_alias)
+## or "" when nothing matches. The single source of truth for id↔alias resolution so that
+## get_class_for_exercise() and is_known_exercise() can never disagree.
+## ⚠️ Private contract: consumers MUST call get_class_for_exercise() / is_known_exercise(),
+##   never this directly — those entry points own the FAILED guard, normalize, and empty/warn.
+func _resolve_canonical(normalized: String) -> String:
 	if _class_by_id.has(normalized):
-		return _class_by_id[normalized]
-
-	# ⚠️ EXPANSION HOOK (Story 004): alias lookup here before returning UNKNOWN.
-	# if _canonical_by_alias.has(normalized):
-	#     var canonical: String = _canonical_by_alias[normalized]
-	#     if _class_by_id.has(canonical):
-	#         return _class_by_id[canonical]
-
-	return _ABILITY_UNKNOWN
+		return normalized
+	if _canonical_by_alias.has(normalized):
+		var canonical: String = _canonical_by_alias[normalized]
+		if _class_by_id.has(canonical):
+			return canonical
+	return ""
 
 ## Formula 1b — movement_pattern lookup (GDD Rule 4b / 5).
 ##
@@ -254,10 +284,13 @@ func _validate_entries(rows: Array) -> Array:
 	return validated
 
 
-## Build the two runtime lookup Dictionaries from validated rows.
-## ⚠️ EXPANSION HOOK (Story 004): populate _canonical_by_alias from entry["aliases"],
-##   applying _normalize() to each alias, with first-listed canonical winning on collision.
+## Build the two runtime lookup Dictionaries from validated rows in two passes:
+##   Pass 1 — canonical exercise_id → ability_class (first-wins on duplicate id, AC-09).
+##   Pass 2 — alias → canonical id, with collision detection (AC-15).
+## Two passes so that alias-vs-canonical collisions resolve with canonical priority regardless
+## of entry array order (every canonical id is known before any alias is added).
 func _build_lookup(validated_rows: Array) -> void:
+	# Pass 1: canonical ids.
 	for entry in validated_rows:
 		var raw_id: String = entry.get("exercise_id", "")
 		var normalized_id: String = _normalize(raw_id)
@@ -269,7 +302,26 @@ func _build_lookup(validated_rows: Array) -> void:
 			_class_by_id[normalized_id] = entry.get("ability_class", _ABILITY_UNKNOWN)
 		else:
 			push_error("ExerciseClassMapping: duplicate exercise_id '%s' — first entry wins; this duplicate is skipped" % normalized_id)
-		# ⚠️ EXPANSION HOOK (Story 004): alias population goes here.
+
+	# Pass 2: aliases (AC-15 — canonical priority, then first-listed alias wins).
+	for entry in validated_rows:
+		var normalized_id: String = _normalize(entry.get("exercise_id", ""))
+		if normalized_id.is_empty():
+			continue
+		var aliases: Array = entry.get("aliases", [])
+		for raw_alias in aliases:
+			var normalized_alias: String = _normalize(raw_alias)
+			if normalized_alias.is_empty():
+				continue
+			# Canonical priority: an alias that collides with a real exercise_id is dropped.
+			if _class_by_id.has(normalized_alias):
+				push_error("ExerciseClassMapping: alias '%s' collides with a canonical exercise_id — alias skipped (canonical wins)" % normalized_alias)
+				continue
+			# Alias-vs-alias: first-listed (lower entry/alias index) wins; later collisions dropped.
+			if _canonical_by_alias.has(normalized_alias):
+				push_error("ExerciseClassMapping: duplicate alias '%s' — first-listed wins; this one skipped" % normalized_alias)
+				continue
+			_canonical_by_alias[normalized_alias] = normalized_id
 
 
 ## Coerce a row (ExerciseEntry Resource or Dictionary) to Dictionary.
@@ -288,10 +340,13 @@ func _row_to_dict(row: Variant) -> Dictionary:
 	return result
 
 
-## Injectable seam for registry loading.
-## Override in tests to simulate FAILED state (AC-06 headless verify).
-## Returns null → ExerciseClassMapping enters FAILED state → all lookups return UNKNOWN.
+## Injectable seam for registry loading (AC-06 headless verify).
+## When _registry_loader_override is a valid Callable, delegate to it (a test sets it to
+## `func(): return null` to force the FAILED state without a .tres on disk). Otherwise load
+## from _REGISTRY_PATH. Returns null → ExerciseClassMapping enters FAILED → all lookups UNKNOWN.
 func _load_registry() -> Resource:
+	if _registry_loader_override.is_valid():
+		return _registry_loader_override.call()
 	if not ResourceLoader.exists(_REGISTRY_PATH):
 		return null
 	return load(_REGISTRY_PATH)

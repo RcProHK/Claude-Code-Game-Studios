@@ -1,12 +1,12 @@
 # Story 004: Alias resolution + collision + is_known + edge/FAILED
 
 > **Epic**: Exercise → Class Mapping
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Core
 > **Type**: Logic
 > **Estimate**: M (~4h)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-02
 
 ## Context
 
@@ -77,8 +77,10 @@
 ## Test Evidence
 
 **Story Type**: Logic
-**Required evidence**: `tests/unit/exercise_class_mapping/alias_and_edge_test.gd` — must exist and pass
+**Required evidence**: `tests/unit/exercise_class_mapping/test_alias_and_edge.gd` — must exist and pass
 **Status**: [ ] Not yet created
+
+> ⚠️ GUT `test_` PREFIX (not `*_test.gd` suffix) — suffix files are silently skipped. See [[reference-gut-filename-convention]].
 
 ---
 
@@ -86,3 +88,14 @@
 
 - Depends on: Story 001 (`_normalize`, dicts, core lookup), Story 003 (`_validate_entries` — alias collision extends it)
 - Unlocks: Story 005 (full API surface complete → autoload registration + CI lint)
+
+---
+
+## Completion Notes
+**Completed**: 2026-06-02
+**Criteria**: 6/6 passing (AC-05, AC-05b, AC-06, AC-11, AC-14a/b/c/d, AC-15 — all COVERED by 13 automated unit tests)
+**Deviations**: None (behavior matches GDD Rule 5/7 + Edge Cases + alias-collision policy).
+- Design note: `_build_lookup` is now two-pass (canonical first, then aliases) so alias-vs-canonical collisions resolve with canonical priority independent of entry array order. `is_known_exercise` + `get_class_for_exercise` share a single `_resolve_canonical` helper (Control Manifest: same resolution path). FAILED state tested via new `_registry_loader_override` Callable seam (AC-06).
+**Test Evidence**: Logic — `tests/unit/exercise_class_mapping/test_alias_and_edge.gd` (13 tests, GUT green; `test_` prefix). #10 dir: 4 scripts / 55 tests / 55 pass. Full gate (unit+integration+static): 230 scripts / 1391 tests / 1390 pass / 1 pre-existing pending (AC-37) / 0 fail.
+**Code Review**: Complete — QL-STORY-READY + QL-TEST-COVERAGE ADEQUATE + LP-CODE-REVIEW APPROVED (full review mode, 2026-06-02).
+**Post-MVP tech debt (LP advisory, non-blocking)**: (1) `_normalize` underscore-collapse `while` loop is O(n²) worst case — fine for ≤50-char ids, optimize at scale. (2) `_build_lookup` pass 2 re-normalizes exercise_id already computed in pass 1 — cache normalized ids if registry grows large.
