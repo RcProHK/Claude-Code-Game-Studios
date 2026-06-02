@@ -1,0 +1,1 @@
+- [#10 Exercise→Class Mapping review](project_exercise_class_mapping_review.md) — 4 BLOCKING defects 2026-06-02; MovementPattern undefined + conflicts registered {PUSH,PULL,LEG} (entities.yaml:376)

@@ -373,7 +373,7 @@ formulas:
       # - design/gdd/exercise-class-mapping.md (#10 — provides class_id input)
     variables:
       - VOLUME_TICK_BASE           # float [0.01, 0.5], default 0.05 (knob)
-      - class_id                   # enum {PUSH, PULL, LEG}
+      - class_id                   # enum {PUSH, PULL, LEG} — MOVEMENT-PATTERN semantics (NOT AbilityClass). Per #10 exercise-class-mapping Pass 2 disambiguation: this is MovementPattern (PUSH=0/PULL=1/LEG=2), distinct from AbilityClass {STRIKE,CONTROL,MOBILITY,UNKNOWN}; ordinals 0/1/2 align by Pillar 4 1:1:1 design but the enum TYPES must not be conflated. Full 7-member MovementPattern {PUSH,PULL,LEG,CORE,CARDIO,FLEXIBILITY,COMPOUND,UNKNOWN_PATTERN} defined in exercise-class-mapping.md Rule 4b.
       - target_stat                # enum {STR, DEX, VIT}
       - class_weight               # float {0.0, 1.0} — hard mapping matrix lookup
     output_range: [0.0, 0.05]      # at default knob (VOLUME_TICK_BASE=0.05); expands to [0.0, 0.20] at max knob value; 0 if class_id-stat mismatch

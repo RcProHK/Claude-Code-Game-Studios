@@ -1,8 +1,10 @@
 # ADR-0008: Autoload Position Map
 
 ## Status
-**Accepted 2026-06-01** — ratified focused. The canonical map matches `project.godot` ground truth (F-SETUP-4); dependencies are met — ADR-0006 (Accepted, Contract 4 locks positions 1–2) + ADR-0001 (Accepted-structural, PlatformDetect ordering). Foundation boot verified green (combined GUT gate 1321/1322, 0 fail post-PR #10). The partial-order constraints (§Binding ordering) hold against the current tree. Closes architecture-review GAP-002. Unblocks deterministic autoload placement for the 3 unwritten autoloads — **#4 AudioManager (top of Presentation block, ~pos 11 around AvatarRenderer)**, #28 Telemetry (last), #33 AttentionBudget (after WorkoutStateTracker). No measurement/hardware gate (boot ordering is structural, already test-verified).
+**Accepted 2026-06-01** — ratified focused. The canonical map matches `project.godot` ground truth (F-SETUP-4); dependencies are met — ADR-0006 (Accepted, Contract 4 locks positions 1–2) + ADR-0001 (Accepted-structural, PlatformDetect ordering). Foundation boot verified green (combined GUT gate 1321/1322, 0 fail post-PR #10). The partial-order constraints (§Binding ordering) hold against the current tree. Closes architecture-review GAP-002. Unblocks deterministic autoload placement for the 4 unwritten autoloads — **#10 ExerciseClassMapping (after GymSysBackendClient → pos 5)**, **#4 AudioManager (top of Presentation block, ~pos 11 around AvatarRenderer)**, #28 Telemetry (last), #33 AttentionBudget (after WorkoutStateTracker). No measurement/hardware gate (boot ordering is structural, already test-verified).
 *(Previously: Proposed)*
+
+**Amendment 2026-06-02 (technical-director sign-off)** — added the #10 ExerciseClassMapping insertion rule (predecessor constraints + recommended pos 5) per its design-review Q1 resolution (autoload, static option dropped). This is a focused additive amendment: the current canonical map (= `project.godot` ground truth) is unchanged because #10 is not yet written into `project.godot`; #10 joins the reserved-insertion-rules table alongside #4/#28/#33. New binding constraint 7 (`ExerciseClassMapping ≺ StatSystem`) added. No re-ratification needed — additive, no constraint conflict, no measurement gate. Unblocks #10 Pass 2 fresh re-review.
 
 ## Date
 2026-05-29
@@ -86,14 +88,20 @@ authoritative.
 5. `StatSystem ≺ AbilitySystem` (class-tier derivation).
 6. Any subscriber using `connect_for_initial_state` is **order-resilient** to GSM
    (Contract 6 sentinel) and need only satisfy its data-producer predecessors.
+7. `ExerciseClassMapping ≺ StatSystem` (#10) — the exercise→class lookup must be
+   live before the Core stat/ability/workout pipeline boots, so any class lookup
+   issued during Core init resolves against a loaded `ExerciseRegistry.tres`. The
+   mapping is a pure categorical lookup (order-resilient, emits no boot events), so
+   this is the only forward constraint it imposes.
 
-### Reserved insertion rules for the 3 unwritten autoloads
+### Reserved insertion rules for the 4 unwritten autoloads
 These define *predecessor constraints*, not fixed numbers. On insertion, place at
 the earliest position satisfying the constraints, renumber `project.godot`
 downstream, and do NOT write the resulting absolute number into any GDD.
 
 | System | Predecessor constraints | Recommended placement |
 |--------|------------------------|-----------------------|
+| **#10 ExerciseClassMapping** | After PlatformDetect (loads `ExerciseRegistry.tres`); after GymSysBackendClient (preserves the Backend ≺ Core boundary — the mapping classifies the exercises the backend reports). **Before StatSystem** (binding constraint 7). Pure categorical lookup — order-resilient, emits no boot events. | Immediately after GymSysBackendClient (current pos 4 → new pos 5; StatSystem … ScreenEffects all shift +1) |
 | **#33 AttentionBudget & Interaction Policy** | After GameStateMachine (reads GSM state) **and** WorkoutStateTracker (input gating keys off active workout). Pillar 2 owner — must be live before combat/loot input gating. | Immediately after WorkoutStateTracker (current pos 8 → new pos 9; LootDrop/EnemyDirector shift down) |
 | **#4 AudioManager** | After GameStateMachine (subscribes state for combat/boss/loot stingers); presentation-adjacent. Order-resilient via `connect_for_initial_state`. | Top of the Presentation block (around AvatarRenderer) |
 | **#28 Telemetry** | Pure observer, no downstream consumers. Order-resilient (`connect_for_initial_state` back-fills initial state for late join). | **Last** — boots after all producers so it subscribes to a fully-booted tree |
@@ -143,6 +151,7 @@ downstream, and do NOT write the resulting absolute number into any GDD.
 | GDD System | Requirement | How This ADR Addresses It |
 |------------|-------------|--------------------------|
 | game-state-machine.md | Contract 4 positions 1–2 locked; line 364 AttentionBudget consumes GSM state | Map locks 1–2; #33 placed after GSM |
+| exercise-class-mapping.md (#10) | Autoload (Q1 resolved); must boot before Core consumers; no hard-coded position | Insertion rule places it after GymSys → pos 5; binding constraint 7 |
 | (systems-index) #33 AttentionBudget | Pillar 2 owner — gates input from session start | Insertion rule places it before combat/loot gating |
 | loot-drop-system.md / enemy-director.md | LootDrop must boot before EnemyDirector (EC-43, Rule 9) | Constraint 3 + map positions 9<10 |
 | particle-system-wrapper.md / screen-effects-system.md | ParticleSystemWrapper precedes ScreenEffects | Constraint 4 + map positions 12<14 |
@@ -157,8 +166,10 @@ downstream, and do NOT write the resulting absolute number into any GDD.
 1. Adopt the map as documentation; `project.godot` is already aligned — no code change.
 2. Reconcile registry: update PlatformDetect `position 0` → `position 3`
    (registry update, asked separately).
-3. When #4 / #28 / #33 GDDs are authored, apply their insertion rule, edit
-   `project.godot`, regenerate position audits + control manifest.
+3. When #10 / #4 / #28 / #33 GDDs are authored, apply their insertion rule, edit
+   `project.godot`, regenerate position audits + control manifest. #10 inserts at
+   pos 5 (renumbers StatSystem … ScreenEffects +1) — `project.godot` edit + CI
+   position audit / control manifest regeneration only; no GDD holds an absolute number.
 
 ## Validation Criteria
 - Boot smoke test passes with the documented order (already green).

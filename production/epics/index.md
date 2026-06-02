@@ -1,8 +1,8 @@
 # Epics Index
 
-Last Updated: 2026-06-01
+Last Updated: 2026-06-02
 Engine: Godot 4.6 (Web Export, Compatibility Renderer)
-Created by: /create-epics Foundation + Core (16 systems)
+Created by: /create-epics Foundation + Core (16 systems); #10 Exercise→Class Mapping promoted Placeholder→Ready 2026-06-02
 
 > **Implementation order**: Foundation layer first (pos 1→10 boot order), then Core layer.
 > **Critical pre-requisites before any stories start**:
@@ -37,7 +37,7 @@ Created by: /create-epics Foundation + Core (16 systems)
 | [Enemy Director](enemy-director/EPIC.md) | Core | #14 | enemy-director.md ✅ | **24 stories** (20 Ready, 4 Blocked) | Ready — 001 START HERE; 021 Blocked (art); 022 Blocked (hardware); 023 Blocked (#9 WST); 024 Blocked (ADR-0001 CPU) |
 | [Workout State Tracker](workout-state-tracker/EPIC.md) | Core | #9 | workout-state-tracker.md ✅ | **12 stories** (11 Complete, 1 Blocked: 011 ADR-0002-transport/#14) | **Complete 11/12** — 012 done mock-scoped (GUT local: Story 012 13/13, WST integ 27/27 + unit 85/86; CI verify on push); 011 needs #14 + live transport |
 | [Loot Drop System](loot-drop-system/EPIC.md) | Core | #15 | loot-drop-system.md ✅ Pass 2 | **15 stories** (12 Ready, 3 Blocked #2/#9/#14) | Ready — ADR-0005 Accepted 2026-05-30 |
-| [Exercise → Class Mapping](exercise-class-mapping/EPIC.md) | Core | #10 | NOT STARTED | Not yet created | **Placeholder** — ADR-0007 + GDD required (Pre-MVP) |
+| [Exercise → Class Mapping](exercise-class-mapping/EPIC.md) | Core | #10 | exercise-class-mapping.md ✅ Approved 2026-06-02 | **5 stories** (001 ✅ Complete CI-green, 002-005 Ready) | **In progress 1/5** — 001 done CI-green 2026-06-02; ADR-0007/0008/0003 Accepted; 2 cross-system close-gates (Q5 #9 patch + entities.yaml 7-member) |
 | [Attention Budget & Interaction Policy](attention-budget-policy/EPIC.md) | Core | #33 | NOT STARTED | Not yet created | **Placeholder** — GDD + ADR-0008 required (Pre-MVP) ★ Pillar 2 |
 
 ---
@@ -47,9 +47,9 @@ Created by: /create-epics Foundation + Core (16 systems)
 | Metric | Count |
 |--------|-------|
 | Total epics | 16 |
-| Ready (GDD Approved + ADR-0006 Accepted) | 14 |
+| Ready (GDD Approved + ADR-0006 Accepted) | 15 |
 | Blocked (ADR Proposed — stories auto-blocked) | 1 (#2 GymSys — ADR-0002/0004 transport VS-gated) |
-| Placeholder (no GDD) | 3 (#4 Audio, #10 ExerciseMapping, #33 AttentionBudget) |
+| Placeholder (no GDD) | 2 (#4 Audio, #33 AttentionBudget) |
 | Pending GDD approval | 1 (#15 LootDrop — Pass 3 required) |
 
 ---
