@@ -1,12 +1,12 @@
 # Story 002: Bus topology + volume persistence + Formula 2
 
 > **Epic**: Audio Manager
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Foundation
 > **Type**: Logic
 > **Estimate**: M (3h)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-02
 
 ## Context
 
@@ -77,5 +77,15 @@
 
 ## Dependencies
 
-- Depends on: 001 (gateway scaffold + seams)
-- Unlocks: 004 (duck recompute reads `base_music_db`)
+- Depends on: 001 (gateway scaffold + seams) ✅ Complete
+- Unlocks: 004 (duck recompute reads `_base_music_db`, now set by set_bus_volume_db/_load)
+
+## Completion Notes
+**Completed**: 2026-06-02
+**Criteria**: 7/7 covered + local-verified (AC-02/11/13/20a-c/22/23/28)
+**Files**: `src/autoload/audio_manager.gd`（bus topology Master→{Music,SFX} via `_ensure_buses`；`set/get_bus_volume_db` + `set_bus_muted`；Formula 2 `_slider_to_db`；`_load_persisted_volumes` boot load + 3-case corrupt fallback；`audio.*` keys；`_base_music_db` tracks un-ducked Music level）· `tests/unit/audio/test_bus_volume_persistence.gd`（9 tests）
+**Test Evidence**: Logic — `test_bus_volume_persistence.gd` ✅ **LOCAL GUT VERIFIED 9/9**（audio 21/21 total，177 asserts，Godot 4.6.3）。**Full gate 234 scripts / 1421 tests / 1420 pass / 1 pending(AC-37) / 0 fail** — no regression.
+**Deviations**:
+- ⚠️ **OUT-OF-SCOPE (user-accepted)**: edited `src/autoload/persistence_layer.gd` — added `"audio."` to `VALID_NAMESPACES` (line 292). Sanctioned by ADR-0003 (every sibling Foundation system registers its namespace there); 1-line, debug-only namespace-warning, zero behaviour change, full gate 0 fail.
+- ADVISORY: `_slider_to_db` (Formula 2) is a private helper; settings UI story (#20/settings UX) may want a public `set_bus_volume_slider(bus, s)` or public converter. AC-13/22 test `_slider_to_db` directly (pass).
+**Code Review**: Complete (/code-review APPROVED WITH SUGGESTIONS — 1 advisory: expose slider→dB for settings UI)

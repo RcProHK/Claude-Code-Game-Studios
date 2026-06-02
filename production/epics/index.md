@@ -25,7 +25,7 @@ Created by: /create-epics Foundation + Core (16 systems); #10 Exercise→Class M
 | [Screen Effects System](screen-effects-system/EPIC.md) | Foundation | #6 | screen-effects-system.md ✅ | **11 stories** (10 Complete CI-green, 1 Blocked: 011 ADR-0001 hw) | **Implemented 10/11** — CI-green 1266/1267 (2026-06-01); 011 perf-gated (VS hardware) |
 | [Camera System](camera-system/EPIC.md) | Foundation | #7 | camera-system.md ✅ | **12 stories** (10 Complete CI-green, 011 Blocked #22, 012 Blocked ADR-001 hw) | **Implemented 10/12** — CI-green 1312/1313 (2026-06-01); 011 (#22 GDD) + 012 (VS hardware) gated |
 | [Streak System](streak-system/EPIC.md) | Foundation | #8 | streak-system.md ✅ | **10 stories** (all Complete CI-green) | **Complete 10/10** — CI-green 1321/1322; 009 (AC-39 CI) + 010 (AC-37 retro + Story 002 drift-gate directional fix) closed 2026-06-01; AC-38 deferred (VS-tier) |
-| [Audio Manager](audio-manager/EPIC.md) | Foundation | #4 | audio-manager.md ✅ Approved 2026-06-02 (Pass 6) | **9 stories** (1 Complete CI-gated, 002-009 Ready — 6 Logic, 3 Integration) | **In Progress 1/9** — Story 001 (gateway scaffold + CI lint + seams + autoload pos 16) done 2026-06-02 (local-run BLOCKED by Bash EEXIST → CI-gated); NEXT 002; 3 external gates story-level (006 情境A / 007 forwarding) 唔阻 epic |
+| [Audio Manager](audio-manager/EPIC.md) | Foundation | #4 | audio-manager.md ✅ Approved 2026-06-02 (Pass 6) | **9 stories** (2 Complete local-verified, 003-009 Ready — 6 Logic, 3 Integration) | **In Progress 2/9** — 001 (gateway scaffold+CI lint+autoload pos 16) + 002 (bus topology+volume persist+Formula 2) done 2026-06-02 (local GUT verified, full gate 0 fail); NEXT 003 (sfx pool); 3 external gates story-level (006 情境A / 007 forwarding) 唔阻 epic |
 
 ## Core Layer
 

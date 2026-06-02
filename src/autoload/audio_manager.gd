@@ -105,8 +105,12 @@ func _ready() -> void:
 	if _gsm != null and _gsm.has_method("connect_for_initial_state"):
 		_gsm.connect_for_initial_state(_on_gsm_state_changed)
 
+	# Bus topology (GDD Rule 2) + persisted volume/mute load (Story 002). No sound on boot.
+	_ensure_buses()
+	_load_persisted_volumes()
+	# SfxCatalog / BgmCatalog load wires here in Story 003.
+
 	_lifecycle_state = LifecycleState.READY
-	# No sound on boot. Catalog load (Story 003) + persisted-volume load (Story 002) wire here.
 
 
 # ── Public API (closed gateway — bodies filled by Stories 002-009) ─────────────
@@ -123,17 +127,34 @@ func play_bgm(_track_id: StringName, _fade_in_sec: float = 1.0) -> void:
 func stop_bgm(_fade_out_sec: float = 1.0) -> void:
 	pass  # Story 005.
 
-## Set a bus volume in dB (clamped [MUTE_FLOOR_DB, MAX_BUS_DB]; persisted to audio.*). Story 002.
-func set_bus_volume_db(_bus: Bus, _db: float) -> void:
-	pass  # Story 002.
+## Set a bus volume in dB. NaN/inf → MUTE_FLOOR_DB; finite values clamped to
+## [MUTE_FLOOR_DB, MAX_BUS_DB] (boost forbidden — anti-clipping). Persisted to audio.<bus>_db.
+## For MUSIC, also updates the un-ducked base level (_base_music_db; Story 004 ducks below it).
+func set_bus_volume_db(bus: Bus, db: float) -> void:
+	var safe_db: float = MUTE_FLOOR_DB if (is_nan(db) or is_inf(db)) else db
+	var clamped: float = clampf(safe_db, MUTE_FLOOR_DB, MAX_BUS_DB)
+	if not (is_nan(db) or is_inf(db)) and not is_equal_approx(clamped, db):
+		push_warning("[AudioManager] set_bus_volume_db %f outside [%f, %f] — clamped to %f" % [
+			db, MUTE_FLOOR_DB, MAX_BUS_DB, clamped,
+		])
+	var idx: int = _bus_index(bus)
+	if idx != -1:
+		AudioServer.set_bus_volume_db(idx, clamped)
+	if bus == Bus.MUSIC:
+		_base_music_db = clamped
+	_persist_write("audio." + _bus_key(bus) + "_db", clamped)
 
-## Read the current dB of a bus.
-func get_bus_volume_db(_bus: Bus) -> float:
-	return 0.0  # Story 002.
+## Read the current (live) dB of a bus from AudioServer.
+func get_bus_volume_db(bus: Bus) -> float:
+	var idx: int = _bus_index(bus)
+	return AudioServer.get_bus_volume_db(idx) if idx != -1 else MUTE_FLOOR_DB
 
-## Mute / unmute a bus (persisted independently of volume).
-func set_bus_muted(_bus: Bus, _muted: bool) -> void:
-	pass  # Story 002.
+## Mute / unmute a bus. Persisted independently of volume (unmute restores the prior dB).
+func set_bus_muted(bus: Bus, muted: bool) -> void:
+	var idx: int = _bus_index(bus)
+	if idx != -1:
+		AudioServer.set_bus_mute(idx, muted)
+	_persist_write("audio." + _bus_key(bus) + "_muted", muted)
 
 ## True once audio is unlocked (desktop boot, or web after the first user gesture).
 func is_audio_unlocked() -> bool:
@@ -195,3 +216,89 @@ func _is_web() -> bool:
 	if _platform_detect != null and _platform_detect.has_method("is_web"):
 		return bool(_platform_detect.is_web())
 	return OS.has_feature("web")
+
+
+# ── Bus mapping + volume persistence (Story 002) ───────────────────────────────
+
+## Bus enum → AudioServer bus name (GDD Rule 2 topology).
+func _bus_name(bus: Bus) -> StringName:
+	match bus:
+		Bus.MUSIC: return &"Music"
+		Bus.SFX: return &"SFX"
+		_: return &"Master"
+
+## Bus enum → short token used in the audio.<token>_db / _muted persistence keys.
+func _bus_key(bus: Bus) -> String:
+	match bus:
+		Bus.MUSIC: return "music"
+		Bus.SFX: return "sfx"
+		_: return "master"
+
+## Bus enum → default dB (GDD Rule 2: Master 0 / Music −6 subtle / SFX 0).
+func _bus_default_db(bus: Bus) -> float:
+	match bus:
+		Bus.MUSIC: return DEFAULT_MUSIC_DB
+		Bus.SFX: return DEFAULT_SFX_DB
+		_: return DEFAULT_MASTER_DB
+
+func _bus_index(bus: Bus) -> int:
+	return AudioServer.get_bus_index(_bus_name(bus))
+
+## Create the Music + SFX sub-buses (routed to Master) if they don't exist yet. Idempotent —
+## safe to call on every boot. The gateway is the CI-exempt owner of AudioServer bus mutation.
+func _ensure_buses() -> void:
+	for bus_name: StringName in [&"Music", &"SFX"]:
+		if AudioServer.get_bus_index(bus_name) == -1:
+			AudioServer.add_bus()
+			var idx: int = AudioServer.get_bus_count() - 1
+			AudioServer.set_bus_name(idx, bus_name)
+			AudioServer.set_bus_send(idx, &"Master")
+
+## Formula 2: settings slider (0–1) → dB. NaN/inf → 0; s≤0 → MUTE_FLOOR_DB; else
+## linear_to_db(maxf(s, 0.0001)) clamped to [MUTE_FLOOR_DB, MAX_BUS_DB]. No boost reachable here
+## (s ≤ 1 ⇒ linear_to_db ≤ 0); a true boost needs a separate gain mapping (see GDD Formula 2 note).
+func _slider_to_db(s: float) -> float:
+	var s_safe: float = 0.0 if (is_nan(s) or is_inf(s)) else clampf(s, 0.0, 1.0)
+	if s_safe <= 0.0:
+		return MUTE_FLOOR_DB
+	return clampf(linear_to_db(maxf(s_safe, 0.0001)), MUTE_FLOOR_DB, MAX_BUS_DB)
+
+## Boot: apply persisted volume + mute for every bus. Missing key → default (no warn, normal
+## first boot); NaN / non-numeric → default + warn; out-of-range finite → clamp + warn (AC-20a/b/c).
+## Mute is re-applied every boot (default false) so it never leaks across reboots.
+func _load_persisted_volumes() -> void:
+	for bus: int in [Bus.MASTER, Bus.MUSIC, Bus.SFX]:
+		var default_db: float = _bus_default_db(bus)
+		var db: float = default_db
+		var raw: Variant = _persist_read("audio." + _bus_key(bus) + "_db")
+		if raw == null:
+			db = default_db
+		elif typeof(raw) != TYPE_FLOAT and typeof(raw) != TYPE_INT:
+			push_warning("[AudioManager] audio.%s_db non-numeric — using default %f" % [_bus_key(bus), default_db])
+			db = default_db
+		else:
+			var v: float = float(raw)
+			if is_nan(v) or is_inf(v):
+				push_warning("[AudioManager] audio.%s_db NaN/inf — using default %f" % [_bus_key(bus), default_db])
+				db = default_db
+			elif v < MUTE_FLOOR_DB or v > MAX_BUS_DB:
+				db = clampf(v, MUTE_FLOOR_DB, MAX_BUS_DB)
+				push_warning("[AudioManager] audio.%s_db %f out of range — clamped to %f" % [_bus_key(bus), v, db])
+			else:
+				db = v
+		var idx: int = _bus_index(bus)
+		if idx != -1:
+			AudioServer.set_bus_volume_db(idx, db)
+			var muted_raw: Variant = _persist_read("audio." + _bus_key(bus) + "_muted")
+			AudioServer.set_bus_mute(idx, typeof(muted_raw) == TYPE_BOOL and muted_raw)
+		if bus == Bus.MUSIC:
+			_base_music_db = db
+
+func _persist_read(key: String) -> Variant:
+	if _persistence != null and _persistence.has_method("read"):
+		return _persistence.read(key)
+	return null
+
+func _persist_write(key: String, value: Variant) -> void:
+	if _persistence != null and _persistence.has_method("write"):
+		_persistence.write(key, value)
