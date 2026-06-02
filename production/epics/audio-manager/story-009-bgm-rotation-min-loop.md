@@ -1,12 +1,12 @@
 # Story 009: BGM variant rotation + BGM_MIN_LOOP_SEC
 
 > **Epic**: Audio Manager
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Foundation
 > **Type**: Logic
 > **Estimate**: S (2-3h)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-02
 
 ## Context
 
@@ -71,5 +71,13 @@
 
 ## Dependencies
 
-- Depends on: 005 (crossfade primitive reused for rotation)
+- Depends on: 005 (crossfade primitive reused for rotation) ✅
 - Unlocks: None
+
+## Completion Notes
+**Completed**: 2026-06-02
+**Criteria**: AC-27/29 covered + local-verified
+**Files**: `src/autoload/audio_manager.gd`（`_pick_next_variant` non-immediate-repeat sequential cycle；`_rotate_focus_low` + `_on_bgm_finished` finished-driven rotation [reuses _start_crossfade]；`_validate_bgm_loop_lengths` boot no-throw warning；`FOCUS_LOW_VARIANT_COUNT`=3 / `BGM_MIN_LOOP_SEC`=90 consts；`_bgm_last_variant`/`_bgm_loop_warning_count` members；BGM player `finished` wired in _build_bgm_pool）· `tests/unit/audio/test_bgm_rotation_min_loop.gd`（6 tests）
+**Test Evidence**: Logic — `test_bgm_rotation_min_loop.gd` ✅ **LOCAL GUT 6/6**（audio 66/66）。**Full gate 241 scripts / 1466 tests / 1465 pass / 1 pending(AC-37) / 0 fail** — no regression.
+**Deviations / notes**: near-gap-free (≤1 frame, `finished` deferred) — NOT true gap-free (IB-2). Per-variant audio streams + real `finished` trigger = /asset-spec (Q8); rotation DECISION + min-loop validation are the tested logic. CI lint `check_bgm_loop_length.gd` (build-time hard enforce) deferred — runtime push_warning is the backstop. AC-29 verifies sequence (non-adjacent-repeat), not zero-gap. No out-of-scope files.
+**Code Review**: Complete (/code-review APPROVED WITH SUGGESTIONS).

@@ -41,6 +41,8 @@ const SFX_VOICE_COUNT: int = 8          ## fixed pool size (web budget; filled S
 const BGM_DEFAULT_FADE_SEC: float = 1.0 ## default BGM crossfade time (Story 005)
 const BOSS_THEME_FADE_SEC: float = 0.25 ## short fade into boss_theme — sharpens the stakes signal (Story 006)
 const LOOT_BGM_TRANSITION_SEC: float = 0.25 ## LOOT_DROP-from-BOSS quick fade boss_theme→rest_calm (情境A; Story 006)
+const FOCUS_LOW_VARIANT_COUNT: int = 3  ## focus_low rotation pool size — anti-fatigue (Story 009)
+const BGM_MIN_LOOP_SEC: float = 90.0    ## min BGM loop length; shorter → fatigue warning (Story 009)
 const BGM_CATALOG_PATH: String = "res://assets/data/bgm_catalog.tres"
 
 
@@ -93,6 +95,10 @@ var _current_bgm_track: StringName = &""
 ## track_id → {stream:AudioStream, ...}. null until loaded/injected (safe mode if missing).
 var _bgm_catalog = null
 var _bgm_safe_mode: bool = false
+## focus_low rotation state (Story 009): last-played variant index (-1 = none) for non-immediate-repeat.
+var _bgm_last_variant: int = -1
+## Test seam: count of BGM tracks flagged as shorter than BGM_MIN_LOOP_SEC at boot (AC-27).
+var _bgm_loop_warning_count: int = 0
 var _active_crossfade_count: int = 0    ## 0 = idle, 1 = crossfade in-flight (single retained tween)
 var _crossfade_progress: float = -1.0   ## sentinel < 0 ⇒ no crossfade in-flight; else p ∈ [0,1]
 var _crossfade_tween: Tween = null
@@ -173,6 +179,7 @@ func _ready() -> void:
 	_load_sfx_catalog()
 	_build_bgm_pool()
 	_load_bgm_catalog()
+	_validate_bgm_loop_lengths()
 	_build_gsm_track_map()
 	_load_persisted_volumes()
 
@@ -650,12 +657,14 @@ func _apply_duck() -> void:
 func _build_bgm_pool() -> void:
 	if not _bgm_players.is_empty():
 		return
-	for _i: int in 2:
+	for i: int in 2:
 		var player := AudioStreamPlayer.new()
 		player.bus = &"Music"
 		player.volume_db = MUTE_FLOOR_DB  # start silent
 		add_child(player)
 		_bgm_players.append(player)
+		# Non-looping focus_low variant ends → rotate (Story 009). Looped tracks never fire this.
+		player.finished.connect(_on_bgm_finished.bind(i))
 
 ## Formula 1 equal-power gains at progress p. Returns Vector2(out_gain, in_gain) — LINEAR gains.
 ## out_gain = cos(p·π/2), in_gain = sin(p·π/2) ⇒ out² + in² = 1 (constant perceived loudness, no
@@ -829,3 +838,45 @@ func _bgm_position() -> float:
 	if _bgm_active_idx >= 0 and _bgm_active_idx < _bgm_players.size():
 		return _bgm_players[_bgm_active_idx].get_playback_position()
 	return 0.0
+
+
+# ── BGM variant rotation + loop-length guard (Story 009 — GDD-owned) ───────────
+
+## Pick the next variant index, never the previous one (non-immediate-repeat). A sequential cycle
+## is deterministic and guarantees no adjacent repeat for count ≥ 2; count ≤ 1 has no choice (0).
+func _pick_next_variant(count: int, last: int) -> int:
+	if count <= 1:
+		return 0
+	return (last + 1) % count
+
+## Rotate focus_low to its next variant and crossfade to it. Triggered by the non-looping variant's
+## `finished` (a looped OGG never emits finished — GDD Pass-4 fix). NOTE near-gap-free (≤1 frame):
+## `finished` is deferred, so a tiny gap exists — NOT true gap-free (IB-2). Per-variant audio streams
+## are produced by /asset-spec (Q8); the rotation DECISION (which variant) is owned here.
+func _rotate_focus_low() -> void:
+	_bgm_last_variant = _pick_next_variant(FOCUS_LOW_VARIANT_COUNT, _bgm_last_variant)
+	if _bgm_active_idx != -1:
+		var in_idx: int = 1 - _bgm_active_idx
+		_start_crossfade(in_idx, _bgm_active_idx, BGM_DEFAULT_FADE_SEC)
+		_bgm_active_idx = in_idx
+
+## A non-looping BGM player finished naturally → rotate if it was the focus_low pool.
+func _on_bgm_finished(player_idx: int) -> void:
+	if player_idx == _bgm_active_idx and _current_bgm_track == &"focus_low_pool":
+		_rotate_focus_low()
+
+## Boot backstop: warn (no-throw) for any BGM track whose loop is shorter than BGM_MIN_LOOP_SEC —
+## short loops fatigue over a 30-90 min session (AC-27). The track still plays (Foundation no-throw).
+## A build-time CI lint (check_bgm_loop_length.gd) is the hard enforcement; this is the runtime guard.
+func _validate_bgm_loop_lengths() -> void:
+	if _bgm_catalog == null:
+		return
+	for track_id: Variant in _bgm_catalog:
+		var entry: Variant = _bgm_catalog[track_id]
+		if entry is Dictionary and entry.has("loop_sec"):
+			var loop_sec: float = float(entry["loop_sec"])
+			if loop_sec < BGM_MIN_LOOP_SEC:
+				_bgm_loop_warning_count += 1
+				push_warning("[AudioManager] BGM '%s' loop %.0fs < BGM_MIN_LOOP_SEC %.0fs — fatigue risk" % [
+					track_id, loop_sec, BGM_MIN_LOOP_SEC,
+				])
