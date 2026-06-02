@@ -12,7 +12,7 @@
 |---|-------|------|--------|-----|
 | 001 | Registry schema + core exercise lookup | Logic | ✅ Complete (CI-green 2026-06-02) | ADR-0007 |
 | 002 | Movement-pattern lookup + MovementPattern enum | Logic | ✅ Complete (CI-green 2026-06-02) | ADR-0007 |
-| 003 | Boot validation loop | Logic | Ready | ADR-0007 |
+| 003 | Boot validation loop | Logic | ✅ Complete (CI-green 2026-06-02) | ADR-0007 |
 | 004 | Alias resolution + collision + is_known + edge/FAILED | Logic | Ready | ADR-0007 |
 | 005 | Autoload pos 5 registration + CI mutator-ban lint | Integration | Ready | ADR-0008 |
 

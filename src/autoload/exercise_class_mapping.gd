@@ -217,11 +217,10 @@ func _validate_and_build(rows: Array) -> void:
 	_build_lookup(validated)
 
 
-## Validate entry rows. Returns validated rows with coerced ability_class values.
-##
-## Happy-path scaffold (Story 001): validates structure + ability_class range.
-## ⚠️ EXPANSION HOOK (Story 003): add full invalid-ordinal / sentinel / dup /
-##   authored-UNKNOWN push_error branches to this function body.
+## Boot validation loop (Story 003) — GDD Rule 3. Shared by _ready() and the test factory.
+## Returns validated rows with coerced ability_class / movement_pattern values. Per ADR-0007
+## (zero-default fabrication FORBIDDEN), an unset/invalid Classification field is detected and
+## forced to its sentinel rather than silently passing through as ordinal 0.
 func _validate_entries(rows: Array) -> Array:
 	var validated: Array = []
 	for row in rows:
@@ -229,23 +228,23 @@ func _validate_entries(rows: Array) -> Array:
 		var exercise_id: String = entry.get("exercise_id", "")
 		var ability_class: int = entry.get("ability_class", -1)
 
-		# Validate ability_class ordinal (Story 001 happy-path: -1 and out-of-range → UNKNOWN).
-		# Full push_error branches per Story 003 go here.
-		# AC-07: invalid ordinal (including sentinel -1) → force to UNKNOWN(3).
-		# AC-12: authored UNKNOWN(3) is LEGAL — not an error; no push_error.
+		# AC-07: ability_class == -1 (unset sentinel) OR ∉ {0,1,2,3} → push_error once naming the
+		# exercise_id, then force UNKNOWN(3). The -1 default exists precisely so a forgotten field
+		# is detectable here instead of fabricating STRIKE via a zero default.
+		# AC-12: authored UNKNOWN(3) is LEGAL (== 3 is neither < 0 nor > 3) → no push_error.
 		if ability_class < 0 or ability_class > 3:
-			# ⚠️ EXPANSION HOOK (Story 003): push_error("ExerciseClassMapping: invalid/unset ability_class %d for '%s'" % [ability_class, exercise_id])
 			push_error("ExerciseClassMapping: invalid/unset ability_class %d for '%s' — forcing to UNKNOWN" % [ability_class, exercise_id])
 			ability_class = _ABILITY_UNKNOWN
 
-		# Validate movement_pattern ordinal (Story 001: coerce invalid → UNKNOWN_PATTERN=7).
-		# AC-07b: invalid movement_pattern ≠ discard entry — ability_class still served.
+		# AC-07b (Story 003): movement_pattern ∉ {0..7} → push_error once + force UNKNOWN_PATTERN(7).
+		# The -1 default IS the "author forgot to set it" sentinel (GDD Rule 3) and is itself an
+		# authoring error — so it errors too, exactly like an out-of-range value. Crucially the
+		# entry is NOT discarded: get_class_for_exercise reads ability_class (Formula 1a), so a
+		# valid ability_class is still served even when movement_pattern was invalid.
 		var movement_pattern: int = entry.get("movement_pattern", -1)
-		if movement_pattern < 0 or movement_pattern > 7:
-			# ⚠️ EXPANSION HOOK (Story 003): full push_error with exercise_id naming.
-			if movement_pattern != -1:  # -1 is the authoring sentinel; don't error on intentional unset
-				push_error("ExerciseClassMapping: invalid movement_pattern %d for '%s' — forcing to UNKNOWN_PATTERN(7)" % [movement_pattern, exercise_id])
-			movement_pattern = 7  # UNKNOWN_PATTERN sentinel
+		if movement_pattern < 0 or movement_pattern > MovementPattern.UNKNOWN_PATTERN:
+			push_error("ExerciseClassMapping: invalid/unset movement_pattern %d for '%s' — forcing to UNKNOWN_PATTERN(7)" % [movement_pattern, exercise_id])
+			movement_pattern = MovementPattern.UNKNOWN_PATTERN
 
 		var coerced: Dictionary = entry.duplicate()
 		coerced["ability_class"] = ability_class
@@ -264,9 +263,12 @@ func _build_lookup(validated_rows: Array) -> void:
 		var normalized_id: String = _normalize(raw_id)
 		if normalized_id.is_empty():
 			continue
-		# First-listed wins on duplicate exercise_id (AC-09 — Story 003 push_error branch).
+		# AC-09: duplicate exercise_id (after normalize) → push_error naming the id; the
+		# first-listed entry (lower array index) wins, later duplicates are skipped.
 		if not _class_by_id.has(normalized_id):
 			_class_by_id[normalized_id] = entry.get("ability_class", _ABILITY_UNKNOWN)
+		else:
+			push_error("ExerciseClassMapping: duplicate exercise_id '%s' — first entry wins; this duplicate is skipped" % normalized_id)
 		# ⚠️ EXPANSION HOOK (Story 004): alias population goes here.
 
 

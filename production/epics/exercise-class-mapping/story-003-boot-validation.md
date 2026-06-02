@@ -1,12 +1,12 @@
 # Story 003: Boot validation loop
 
 > **Epic**: Exercise → Class Mapping
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Core
 > **Type**: Logic
 > **Estimate**: M (~3h)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-02
 
 ## Context
 
@@ -91,8 +91,10 @@
 ## Test Evidence
 
 **Story Type**: Logic
-**Required evidence**: `tests/unit/exercise_class_mapping/boot_validation_test.gd` — must exist and pass
+**Required evidence**: `tests/unit/exercise_class_mapping/test_boot_validation.gd` — must exist and pass
 **Status**: [ ] Not yet created
+
+> ⚠️ Path uses GUT `test_` PREFIX (not `*_test.gd` suffix). GUT v9.x collects only `test_*.gd`; a suffix-named file is silently skipped (phantom pass). See [[reference-gut-filename-convention]].
 
 ---
 
@@ -100,3 +102,14 @@
 
 - Depends on: Story 001 (`_validate_entries`/`_build_lookup` scaffold + dicts), Story 002 (MovementPattern ordinal range {0..7})
 - Unlocks: Story 004 (alias collision validation extends `_validate_entries`)
+
+---
+
+## Completion Notes
+**Completed**: 2026-06-02
+**Criteria**: 4/4 passing (AC-07, AC-07b, AC-09, AC-12 — all COVERED by automated unit tests)
+**Deviations**:
+- BUGFIX (GDD-faithful, intentional): removed Story 001 scaffold's `if movement_pattern != -1:` exception, which suppressed push_error on the unset sentinel. GDD Rule 3 (line 53/59) defines `-1` as the "author forgot to fill" sentinel that boot validation MUST detect — so `-1` (like any ∉{0..7}) now push_errors + coerces to UNKNOWN_PATTERN(7). Entry is NOT discarded (ability_class still served). Verified no other test relied on the old behavior (combined gate green).
+- Applied LP suggestion: `movement_pattern = 7` magic number → `MovementPattern.UNKNOWN_PATTERN` (enum-named, matches ADR-0007 convention).
+**Test Evidence**: Logic — `tests/unit/exercise_class_mapping/test_boot_validation.gd` (12 tests, GUT green; `test_` prefix). #10 dir: 3 scripts / 42 tests / 42 pass. Full gate (unit+integration+static): 229 scripts / 1378 tests / 1377 pass / 1 pre-existing pending (AC-37) / 0 fail.
+**Code Review**: Complete — QL-STORY-READY + QL-TEST-COVERAGE ADEQUATE + LP-CODE-REVIEW APPROVED (full review mode, 2026-06-02).
