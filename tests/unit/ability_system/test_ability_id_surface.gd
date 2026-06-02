@@ -6,7 +6,16 @@
 #
 # Framework: GUT (Godot Unit Testing) v9.x
 # Driving GDD: design/gdd/ability-system.md AC-01 (Rule 1); Story 002
+#
+# Godot 4.6 reflection note: AbilityId is an inner class (a GDScript). You CANNOT call
+# the instance method `.get(name)` on the class object directly — that is a parse error
+# ("Cannot call non-static function get() on the class ... Make an instance instead").
+# The correct way to read an inner class's `const`s by name is
+# `(AbilityId as GDScript).get_script_constant_map()`, which returns a Dictionary of
+# exactly the constants declared on that inner class — enabling a precise surface lock.
 extends GutTest
+
+const ABILITY_SYSTEM := preload("res://src/autoload/ability_system.gd")
 
 
 ## The 9 canonical ability ids: { const-name : expected lowercase StringName value }.
@@ -23,14 +32,22 @@ const EXPECTED_IDS: Dictionary = {
 }
 
 
+## Helper — the AbilityId inner class constant map { const_name : value }.
+func _ability_id_constants() -> Dictionary:
+	var ability_id: GDScript = ABILITY_SYSTEM.AbilityId
+	return ability_id.get_script_constant_map()
+
+
 ## AC-01: every canonical constant exists with its locked lowercase StringName value.
 func test_ability_id_surface_exposes_nine_canonical_constants() -> void:
 	# Arrange
-	var AbilityId = preload("res://src/autoload/ability_system.gd").AbilityId
+	var consts: Dictionary = _ability_id_constants()
 
 	# Act + Assert — each constant resolves to its locked value.
 	for const_name: String in EXPECTED_IDS:
-		var value: Variant = AbilityId.get(const_name)
+		assert_true(consts.has(const_name),
+			"AC-01: AbilityId must declare %s" % const_name)
+		var value: Variant = consts.get(const_name)
 		assert_eq(value, EXPECTED_IDS[const_name],
 			"AC-01: AbilityId.%s must equal %s" % [const_name, EXPECTED_IDS[const_name]])
 		assert_true(value is StringName,
@@ -38,20 +55,23 @@ func test_ability_id_surface_exposes_nine_canonical_constants() -> void:
 
 
 ## AC-01: the AbilityId surface is EXACTLY 9 constants — no extra id (e.g. STRIKE_TIER_4).
-## Reflection note (Godot 4.6): `ClassScript.get_property_list()` on the inner class is not a
-## stable way to enumerate `const`s; instead we assert the 9 canonical ids round-trip AND that
-## a deliberately-absent id (STRIKE_TIER_4) returns null via `.get()`, locking the surface size.
+## With get_script_constant_map() we can now assert the surface size precisely, rather than
+## probing a couple of known-absent names.
 func test_ability_id_surface_has_no_extra_ids() -> void:
 	# Arrange
-	var AbilityId = preload("res://src/autoload/ability_system.gd").AbilityId
+	var consts: Dictionary = _ability_id_constants()
 
-	# Assert — the 9 canonical names are present (count == 9 by construction of EXPECTED_IDS).
-	assert_eq(EXPECTED_IDS.size(), 9, "AC-01: exactly 9 canonical ids are expected")
+	# Assert — the const map is EXACTLY the 9 canonical ids, nothing more, nothing less.
+	assert_eq(consts.size(), 9,
+		"AC-01: AbilityId must expose exactly 9 constants — surface is locked at 9")
+	for const_name: String in consts:
+		assert_true(EXPECTED_IDS.has(const_name),
+			"AC-01: AbilityId exposes an unexpected constant '%s' — surface is closed" % const_name)
 
-	# Assert — a non-canonical id is NOT declared (surface is closed at 9).
-	assert_null(AbilityId.get("STRIKE_TIER_4"),
+	# Assert — a non-canonical id is NOT declared (explicit closed-surface guard).
+	assert_false(consts.has("STRIKE_TIER_4"),
 		"AC-01: no extra ability id (STRIKE_TIER_4) may exist — surface is locked at 9")
-	assert_null(AbilityId.get("CONTROL_TIER_4_LOCK"),
+	assert_false(consts.has("CONTROL_TIER_4_LOCK"),
 		"AC-01: no extra ability id (CONTROL_TIER_4_LOCK) may exist")
 
 
