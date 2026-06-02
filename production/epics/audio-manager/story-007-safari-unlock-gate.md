@@ -1,12 +1,12 @@
 # Story 007: Mobile Safari unlock gate (`_audio_unlocked` 正交 flag)
 
 > **Epic**: Audio Manager
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Foundation
 > **Type**: Integration
 > **Estimate**: M (3-4h)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-02
 
 ## Context
 
@@ -87,5 +87,17 @@
 
 ## Dependencies
 
-- Depends on: 001 (`_platform_detect` seam), 006 (GSM map for unlock query)
+- Depends on: 001 (`_platform_detect` seam) ✅, 006 (GSM map for unlock query) ✅
 - Unlocks: 008 (LOCKED×SUSPENDED coexistence)
+
+## Completion Notes
+**Completed**: 2026-06-02
+**Criteria**: AC-05/06/06b/19a/19b/26/31/32b covered + local-verified
+**Files**: `src/autoload/audio_manager.gd`（`_do_unlock()` idempotent [set flag + emit audio_unlocked + play audio_unlock_confirm + re-query GSM-current track, deferred fallback]；`_input()` engine fallback [InputEventScreenTouch/MouseButton → _do_unlock, no event consumption]；play_bgm LOCKED → `_deferred_bgm_track` single-slot latest-wins；`_deferred_bgm_track` member）· `tests/integration/audio/test_safari_unlock_gate.gd`（8 tests）
+**Test Evidence**: Integration — `test_safari_unlock_gate.gd` ✅ **LOCAL GUT 8/8**（audio 52/52）。**Full gate 239 scripts / 1452 tests / 1451 pass / 1 pending(AC-37) / 0 fail** — no regression.
+**Deviations / notes**:
+- ⚠️ **EG-1 (#9 WST pre-unlock SFX forwarding)** + **EG-2 (#20 banner soft-gate)** are EXTERNAL — #4 only exposes `is_audio_unlocked()` + `audio_unlocked` signal + idempotent `_do_unlock()` (callable by #20 banner `pressed`). Implemented + tested the #4 contract side.
+- Unlock prefers GSM-current track over the stale deferred slot (anti-stale, GDD Pass-2 fix); deferred is fallback when current state has no mapping.
+- `_input` real engine dispatch + Q7 real-device Safari AudioContext auto-resume = ADVISORY (headless can't test); unlock LOGIC verified via `_do_unlock()`.
+- No `JavaScriptBridge` (ADR-0001 — `_is_web` uses the seam / `OS.has_feature` fallback). No out-of-scope files.
+**Code Review**: Complete (/code-review APPROVED WITH SUGGESTIONS).

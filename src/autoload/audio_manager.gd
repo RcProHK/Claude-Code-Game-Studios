@@ -52,6 +52,9 @@ var _lifecycle_state: LifecycleState = LifecycleState.BOOTING
 # ── Orthogonal unlock flag (GDD Rule 5 — a derived gate, NOT a GSM state) ──────
 ## true once audio is unlocked: desktop/native boot, or web first gesture (Story 007).
 var _audio_unlocked: bool = false
+## Single-slot deferred BGM request while LOCKED (latest-wins). On unlock the GSM-current track
+## is preferred; this is only the fallback when the current state has no music mapping (Story 007).
+var _deferred_bgm_track: StringName = &""
 
 
 # ── Duck refcount source-of-truth (GDD Formula 3; multiset semantics) ──────────
@@ -161,6 +164,42 @@ func _ready() -> void:
 	_lifecycle_state = LifecycleState.READY
 
 
+# ── Unlock (GDD Rule 5 — Story 007) ────────────────────────────────────────────
+
+## Unlock audio on the first user gesture (web). Idempotent — early-returns if already unlocked.
+## Two callers race harmlessly: _input() (engine-level fallback for any real gesture) and #20's
+## banner `pressed` (the canonical UX path). Whichever fires first unlocks; the other is a no-op.
+func _do_unlock() -> void:
+	if _audio_unlocked:
+		return
+	_audio_unlocked = true
+	audio_unlocked.emit()
+	# First real action gets an audible response (Player Fantasy): a confirm chime (mid priority
+	# so a same-frame combat SFX cannot steal it).
+	play_sfx(&"audio_unlock_confirm")
+	# Start BGM from the GSM's CURRENT state — NOT the stale deferred slot (pre-unlock state churn
+	# could have queued a now-ended encounter's track). The deferred slot is only a fallback when
+	# the current state has no music mapping.
+	var started: bool = false
+	if _gsm != null and _gsm.has_method("get_current_state"):
+		var entry: Dictionary = _gsm_track_map.get(int(_gsm.get_current_state()), {})
+		if not entry.is_empty():
+			play_bgm(entry["track"], entry["fade"])
+			started = true
+	if not started and _deferred_bgm_track != &"":
+		play_bgm(_deferred_bgm_track)
+	_deferred_bgm_track = &""
+
+## Engine-level unlock fallback: any real gesture unlocks (idempotent). #20's banner `pressed` is
+## the canonical path; this guarantees unlock even on a stray tap outside the banner. Does not
+## consume the event (no set_input_as_handled) — the banner and other nodes still receive it.
+func _input(event: InputEvent) -> void:
+	if _audio_unlocked:
+		return
+	if event is InputEventScreenTouch or event is InputEventMouseButton:
+		_do_unlock()
+
+
 # ── Public API (closed gateway — bodies filled by Stories 002-009) ─────────────
 
 ## Play a one-shot pooled SFX by catalog event_id. Acquires a free voice or, when the pool is
@@ -209,7 +248,8 @@ func play_bgm(track_id: StringName, fade_in_sec: float = BGM_DEFAULT_FADE_SEC) -
 	if _bgm_safe_mode:
 		return  # catalog missing — push_error'd once at boot
 	if not _audio_unlocked:
-		return  # GDD Rule 5: LOCKED → BGM deferred; Story 007 owns the single-slot defer + unlock
+		_deferred_bgm_track = track_id  # GDD Rule 5: LOCKED → single-slot deferred (latest-wins)
+		return
 	if track_id == _current_bgm_track:
 		return  # AC-04 idempotent no-op (no restart, no re-emit)
 	var entry: Dictionary = _lookup_bgm(track_id)
