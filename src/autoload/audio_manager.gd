@@ -32,8 +32,11 @@ const DEFAULT_MUSIC_DB: float = -6.0    ## subtle default (game-concept locked)
 const DEFAULT_SFX_DB: float = 0.0
 const MUTE_FLOOR_DB: float = -80.0
 const MAX_BUS_DB: float = 0.0           ## MVP: boost forbidden (anti-clipping)
-const DUCK_OFFSET_DB: float = -8.0      ## high-priority duck depth (applied Story 004)
-const STREAK_CHIME_DUCK_OFFSET_DB: float = -5.0  ## mid-priority shallow duck (Story 004)
+const DUCK_OFFSET_DB: float = -8.0      ## high-priority duck depth
+const STREAK_CHIME_DUCK_OFFSET_DB: float = -5.0  ## mid-priority shallow duck
+const DUCK_ATTACK_SEC: float = 0.05     ## duck lerp-down time (Story 004)
+const DUCK_RELEASE_SEC: float = 0.4     ## long/high stinger lerp-back time (Story 004)
+const SHALLOW_RELEASE_SEC: float = 0.15 ## short/mid stinger lerp-back (anti-pumping; release_class dispatch deferred)
 const SFX_VOICE_COUNT: int = 8          ## fixed pool size (web budget; filled Story 003)
 
 
@@ -53,6 +56,9 @@ var _active_ducks: Dictionary = {}
 var _next_duck_handle: int = 1
 ## Music bus base dB (default; Story 002 reflects the live slider). _compute_duck_target floor.
 var _base_music_db: float = DEFAULT_MUSIC_DB
+## Single retained duck Tween (Story 004). Kill-before-respawn (no stacked Tweens); idle-gated
+## (refcount 0 + at base → killed, never spawned) so idle frames never touch AudioServer.
+var _duck_tween: Tween = null
 
 
 # ── Crossfade observability (Story 005 drives the tween; these are the seams) ──
@@ -81,6 +87,9 @@ var _voice_priority: Array[int] = []
 ## Per-slot monotonic assignment sequence — lowest = oldest = stolen first among equal priority.
 var _voice_seq: Array[int] = []
 var _next_seq: int = 0
+## Per-slot duck handle (-1 = no duck). mid/high voices register a duck; steal + finished release
+## it (Rule 7b — Godot 4.6 steal does NOT emit `finished`, so both paths release explicitly).
+var _voice_duck_handle: Array[int] = []
 ## event_id → {priority:int, channels:String, stream:AudioStream}. null until loaded/injected.
 var _sfx_catalog = null
 ## True when the catalog resource is missing/invalid → all play_sfx become no-ops (AC-16).
@@ -150,10 +159,20 @@ func play_sfx(event_id: StringName) -> void:
 		_unknown_event_count += 1
 		return  # Rule 8 no-throw (AC-10)
 	var slot: int = _acquire_slot()
+	# If we stole an active voice, release any duck it held (Rule 7b). Godot 4.6 steal does NOT
+	# emit `finished`, so the refcount must be decremented here or the Music bus ducks forever.
+	if _voice_busy[slot] and _voice_duck_handle[slot] != -1:
+		_release_duck(_voice_duck_handle[slot])
+		_voice_duck_handle[slot] = -1
+	var prio: int = int(entry.get("priority", SfxPriority.LOW))
 	_voice_busy[slot] = true
-	_voice_priority[slot] = int(entry.get("priority", SfxPriority.LOW))
+	_voice_priority[slot] = prio
 	_voice_seq[slot] = _next_seq
 	_next_seq += 1
+	# Mid/high voices duck the Music bus (Rule 7 / Formula 3); low voices do not duck.
+	var duck_offset: float = _priority_duck_offset(prio)
+	_voice_duck_handle[slot] = _register_duck(duck_offset) if duck_offset < 0.0 else -1
+	_apply_duck()
 	var stream: AudioStream = entry.get("stream", null)
 	if stream != null:
 		var player: AudioStreamPlayer = _sfx_pool[slot]
@@ -181,10 +200,14 @@ func set_bus_volume_db(bus: Bus, db: float) -> void:
 			db, MUTE_FLOOR_DB, MAX_BUS_DB, clamped,
 		])
 	var idx: int = _bus_index(bus)
-	if idx != -1:
-		AudioServer.set_bus_volume_db(idx, clamped)
 	if bus == Bus.MUSIC:
 		_base_music_db = clamped
+		# Music bus reflects the duck-effective target (= base when no duck is active), so a
+		# slider change mid-duck retargets relative to the new base instead of un-ducking.
+		if idx != -1:
+			AudioServer.set_bus_volume_db(idx, _compute_duck_target(_active_ducks))
+	elif idx != -1:
+		AudioServer.set_bus_volume_db(idx, clamped)
 	_persist_write("audio." + _bus_key(bus) + "_db", clamped)
 
 ## Read the current (live) dB of a bus from AudioServer.
@@ -210,9 +233,11 @@ func is_audio_unlocked() -> bool:
 ## attenuation). A positive offset (caller bug) is clamped to 0 (no-op duck) + warned —
 ## the Music bus is NEVER raised (would break the Pillar 3 reward-peak contrast).
 func _register_duck(offset: float) -> int:
-	assert(offset <= 0.0, "duck offset must be ≤ 0")
 	if offset > 0.0:
-		push_warning("[AudioManager] _register_duck got positive offset %f — clamped to 0 (no duck)" % offset)
+		# Loud debug catch (push_error, NOT assert — assert would abort GUT and make AC-09d
+		# untestable). Production safety = the clamp below (a positive offset becomes a no-op
+		# duck; the Music bus is NEVER raised, which would break the Pillar 3 reward contrast).
+		push_error("[AudioManager] _register_duck got positive offset %f — clamped to 0 (no duck)" % offset)
 	var stored: float = clampf(offset, MUTE_FLOOR_DB, 0.0)
 	var handle: int = _next_duck_handle
 	_next_duck_handle += 1
@@ -360,6 +385,8 @@ func _build_sfx_pool() -> void:
 	_voice_priority.fill(SfxPriority.LOW)
 	_voice_seq.resize(SFX_VOICE_COUNT)
 	_voice_seq.fill(0)
+	_voice_duck_handle.resize(SFX_VOICE_COUNT)
+	_voice_duck_handle.fill(-1)
 	for i: int in SFX_VOICE_COUNT:
 		var player := AudioStreamPlayer.new()
 		player.bus = &"SFX"
@@ -369,10 +396,14 @@ func _build_sfx_pool() -> void:
 		# (Godot 4.6 stop()/replay is silent), so the steal path clears occupancy directly.
 		player.finished.connect(_on_voice_finished.bind(i))
 
-## A voice finished playing naturally → free its slot (Story 004 also releases any held duck here).
+## A voice finished playing naturally → free its slot and release any duck it held (Rule 7b).
 func _on_voice_finished(slot: int) -> void:
 	if slot >= 0 and slot < _voice_busy.size():
 		_voice_busy[slot] = false
+		if _voice_duck_handle[slot] != -1:
+			_release_duck(_voice_duck_handle[slot])
+			_voice_duck_handle[slot] = -1
+			_apply_duck()
 
 ## Return a slot index for a new voice: a free slot if any, else the steal victim =
 ## lowest-priority voice (oldest sequence among ties). High priority is protected while any
@@ -428,3 +459,38 @@ func _build_catalog_dict(res: Resource) -> Dictionary:
 			if e is Dictionary and e.has("event_id"):
 				out[StringName(e["event_id"])] = e
 	return out
+
+
+# ── Ducking application (Story 004 — Formula 3 + single retained Tween + idle gate) ──
+
+## SFX priority → Music-bus duck offset (dB). HIGH/MID duck; LOW does not duck (returns 0).
+func _priority_duck_offset(prio: int) -> float:
+	match prio:
+		SfxPriority.HIGH: return DUCK_OFFSET_DB
+		SfxPriority.MID: return STREAK_CHIME_DUCK_OFFSET_DB
+		_: return 0.0
+
+## Drive the Music bus toward the current duck target (Formula 3). Single retained Tween,
+## killed-before-respawn (no stacked Tweens → no write race). Idle gate: with no active duck
+## the Tween is killed and the bus hard-set to base — never spawned — so idle frames (90%+ of a
+## session) never touch AudioServer. Uses a lambda closure, NEVER `.bind` (Godot 4.x bind appends
+## args → set_bus_volume_db(dB, idx) arg-reversal → silent ducking failure).
+func _apply_duck() -> void:
+	var music_idx: int = _bus_index(Bus.MUSIC)
+	if music_idx == -1:
+		return
+	if _duck_tween != null and _duck_tween.is_valid():
+		_duck_tween.kill()
+	if _active_ducks.is_empty():
+		# Idle gate: refcount 0 → restore base, do not spawn a Tween.
+		AudioServer.set_bus_volume_db(music_idx, _base_music_db)
+		return
+	var target: float = _compute_duck_target(_active_ducks)
+	var from_db: float = AudioServer.get_bus_volume_db(music_idx)
+	# Attack (going deeper) is fast; release (returning toward base) is slower (Rule 7b).
+	var sec: float = DUCK_ATTACK_SEC if target < from_db else DUCK_RELEASE_SEC
+	_duck_tween = create_tween()
+	_duck_tween.tween_method(
+		func(db: float) -> void: AudioServer.set_bus_volume_db(music_idx, db),
+		from_db, target, sec,
+	)

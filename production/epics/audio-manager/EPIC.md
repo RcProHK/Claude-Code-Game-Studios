@@ -3,8 +3,8 @@
 > **Layer**: Foundation
 > **GDD**: design/gdd/audio-manager.md ✅ (Approved 2026-06-02, Pass 6 lean — 6 passes total)
 > **Architecture Module**: AudioManager (autoload, `src/autoload/audio_manager.gd`; position per ADR-0008 pos 11+ block)
-> **Status**: In Progress — 3/9 Complete
-> **Stories**: 9 stories created 2026-06-02 — Story 001-003 Complete (local-verified); 004-009 Ready
+> **Status**: In Progress — 4/9 Complete
+> **Stories**: 9 stories created 2026-06-02 — Story 001-004 Complete (local-verified); 005-009 Ready
 
 ## Overview
 
@@ -67,7 +67,7 @@ This epic is complete when:
 | 001 | [ci-lints-closed-api-scaffold](story-001-ci-lints-closed-api-scaffold.md) | Logic | **Complete** ✅ (CI-gated) | ADR-0008 (+0006 C4) | AC-01 + seams |
 | 002 | [bus-topology-volume-persistence](story-002-bus-topology-volume-persistence.md) | Logic | **Complete** ✅ (local-verified) | ADR-0003 | AC-02/11/13/20/22/23/28 |
 | 003 | [sfx-pool-priority-steal](story-003-sfx-pool-priority-steal.md) | Logic | **Complete** ✅ (local-verified) | ADR-0001 | AC-03/03b/10/16/17 |
-| 004 | [ducking-formula3-multiset](story-004-ducking-formula3-multiset.md) | Logic | Ready | N/A (GDD F3) | AC-09/09b/09c/09d/15/25 |
+| 004 | [ducking-formula3-multiset](story-004-ducking-formula3-multiset.md) | Logic | **Complete** ✅ (local-verified) | N/A (GDD F3) | AC-09/09b/09c/09d/15/25 |
 | 005 | [bgm-equalpower-crossfade-formula1](story-005-bgm-equalpower-crossfade-formula1.md) | Logic | Ready | ADR-0001 | AC-04/12/18/21 |
 | 006 | [gsm-music-transition](story-006-gsm-music-transition.md) | Integration | Ready | ADR-0006 C6 | AC-07/08/32 (情境A ⚠️EG-3) |
 | 007 | [safari-unlock-gate](story-007-safari-unlock-gate.md) | Integration | Ready | ADR-0001 | AC-05/06/06b/19a/19b/26/31/32b (⚠️EG-1/EG-2 external) |

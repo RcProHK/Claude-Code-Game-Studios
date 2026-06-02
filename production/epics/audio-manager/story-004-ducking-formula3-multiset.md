@@ -1,12 +1,12 @@
 # Story 004: Ducking system (Formula 3 + multiset de-escalation)
 
 > **Epic**: Audio Manager
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Foundation
 > **Type**: Logic
 > **Estimate**: M (3-4h)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-02
 
 ## Context
 
@@ -82,5 +82,13 @@
 
 ## Dependencies
 
-- Depends on: 002 (`base_music_db` from bus volume), 003 (steal/finished release hook)
+- Depends on: 002 (`_base_music_db` from bus volume) ✅, 003 (steal/finished release hook) ✅
 - Unlocks: 008 (SUSPENDED duck-kill builds on duck tween)
+
+## Completion Notes
+**Completed**: 2026-06-02
+**Criteria**: 6/6 covered + local-verified (AC-09/09b/09c/09d/15/25)
+**Files**: `src/autoload/audio_manager.gd`（`_apply_duck` single retained lambda-closure `tween_method` + idle gate [refcount 0 → kill + hard-set base, never spawn]; `_priority_duck_offset` LOW→0/MID→-5/HIGH→-8; play_sfx registers duck for mid/high + releases stolen voice's duck [Rule 7b]; `_on_voice_finished` releases duck; `set_bus_volume_db` MUSIC → `_compute_duck_target` [duck-aware]; `_register_duck` assert→push_error; `_voice_duck_handle` per-slot; DUCK_ATTACK/RELEASE/SHALLOW_RELEASE consts; `_duck_tween` member）· `tests/unit/audio/test_ducking_formula3.gd`（7 tests）
+**Test Evidence**: Logic — `test_ducking_formula3.gd` ✅ **LOCAL GUT 7/7**（audio 33/33）。**Full gate 236 scripts / 1433 tests / 1432 pass / 1 pending(AC-37) / 0 fail** — no regression (play_sfx + set_bus_volume_db changes safe).
+**Deviations** (ADVISORY): (1) `_register_duck` `assert(offset<=0)`→`push_error` so AC-09d's positive-offset clamp is testable in debug GUT (assert would abort); production safety = the clamp (unchanged). (2) `SHALLOW_RELEASE_SEC` const added but unused — release_class dispatch (short vs long stinger) deferred to catalog per GDD Pass-3 rec. (3) `set_bus_volume_db` MUSIC path now routes through `_compute_duck_target` (duck-aware; verified no story-002 regression). No out-of-scope files touched.
+**Code Review**: Complete (/code-review APPROVED WITH SUGGESTIONS).
