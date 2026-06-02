@@ -39,6 +39,8 @@ const DUCK_RELEASE_SEC: float = 0.4     ## long/high stinger lerp-back time (Sto
 const SHALLOW_RELEASE_SEC: float = 0.15 ## short/mid stinger lerp-back (anti-pumping; release_class dispatch deferred)
 const SFX_VOICE_COUNT: int = 8          ## fixed pool size (web budget; filled Story 003)
 const BGM_DEFAULT_FADE_SEC: float = 1.0 ## default BGM crossfade time (Story 005)
+const BOSS_THEME_FADE_SEC: float = 0.25 ## short fade into boss_theme — sharpens the stakes signal (Story 006)
+const LOOT_BGM_TRANSITION_SEC: float = 0.25 ## LOOT_DROP-from-BOSS quick fade boss_theme→rest_calm (情境A; Story 006)
 const BGM_CATALOG_PATH: String = "res://assets/data/bgm_catalog.tres"
 
 
@@ -76,6 +78,10 @@ var _bgm_safe_mode: bool = false
 var _active_crossfade_count: int = 0    ## 0 = idle, 1 = crossfade in-flight (single retained tween)
 var _crossfade_progress: float = -1.0   ## sentinel < 0 ⇒ no crossfade in-flight; else p ∈ [0,1]
 var _crossfade_tween: Tween = null
+## GSM GameState (int) → {track:StringName, fade:float} music map (Story 006; built at boot from
+## GameStateMachine.GameState). States with no entry → maintain current BGM. LOOT_DROP handled
+## conditionally in _on_gsm_state_changed (情境A/B), not via this map.
+var _gsm_track_map: Dictionary = {}
 
 
 # ── SFX pool + priority-aware voice stealing (Story 003) ───────────────────────
@@ -149,6 +155,7 @@ func _ready() -> void:
 	_load_sfx_catalog()
 	_build_bgm_pool()
 	_load_bgm_catalog()
+	_build_gsm_track_map()
 	_load_persisted_volumes()
 
 	_lifecycle_state = LifecycleState.READY
@@ -330,10 +337,27 @@ func _test_get_active_crossfade_count() -> int:
 
 # ── Internal ────────────────────────────────────────────────────────────────────
 
-## GSM state→music handler. The full state→track map is Story 006; the initial-state sentinel
-## (ADR-0006 C6) must be a no-op here. Signature matches the typed `state_changed` contract.
-func _on_gsm_state_changed(_from: Variant, _to: Variant, _payload: Variant = null) -> void:
-	pass  # Story 006: data-driven state→track crossfade + bgm_changed emit.
+## GSM state→track music transition (ADR-0006 C6). The initial-state sentinel is a no-op (audio
+## does not auto-start BGM at boot — web is LOCKED until a gesture; unlock re-queries GSM, Story 007).
+## States with no map entry maintain the current BGM. Signature matches the typed `state_changed`.
+func _on_gsm_state_changed(from: Variant, to: Variant, payload: Variant = null) -> void:
+	# Initial-state sentinel (Contract 6) → noop (AC-08). Carried by payload.source_event.
+	if payload != null and payload.get(&"source_event") == "initial_state":
+		return
+	var to_state: int = int(to)
+	# LOOT_DROP is conditional (情境A/B), not in the static map.
+	if to_state == GameStateMachine.GameState.LOOT_DROP:
+		# 情境A — from BOSS_ENCOUNTER: quick fade boss_theme → rest_calm so the loot peak lands on a
+		# calm bed (the loot fanfare SFX then ducks rest_calm, Rule 7). ⚠️ The from-state assumption
+		# depends on #15 confirming boss-kill → LOOT_DROP comes from BOSS_ENCOUNTER (EG-3 gate).
+		# 情境B — from non-boss (workout-time loot): keep focus_low (stinger duck suffices).
+		if int(from) == GameStateMachine.GameState.BOSS_ENCOUNTER:
+			play_bgm(&"rest_calm", LOOT_BGM_TRANSITION_SEC)
+		return
+	var entry: Dictionary = _gsm_track_map.get(to_state, {})
+	if entry.is_empty():
+		return  # state with no track entry → keep current BGM (no change, no warning)
+	play_bgm(entry["track"], entry["fade"])
 
 ## Web-platform detection via the injected seam, falling back to the engine feature flag when
 ## PlatformDetect (a stub) does not yet expose is_web(). Story 007 makes the seam canonical.
@@ -647,3 +671,18 @@ func _load_bgm_catalog() -> void:
 		_bgm_catalog = {}
 		_bgm_safe_mode = true
 		push_error("[AudioManager] BgmCatalog missing at %s — BGM disabled (safe no-op mode)" % BGM_CATALOG_PATH)
+
+
+# ── GSM state → music map (Story 006 — ADR-0006 C6) ────────────────────────────
+
+## Build the data-driven GameState→{track, fade} map. Keyed by GameStateMachine.GameState ints
+## (the autoload boots at pos 2, before AudioManager at 11+, so the enum is available). Per-state
+## fade override; BOSS_ENCOUNTER uses the short fade to sharpen the stakes signal. REST_PERIOD
+## (NOT "REST_BETWEEN_SETS" — that is not a valid GameState) → rest_calm. LOOT_DROP is conditional
+## and handled in _on_gsm_state_changed, not here.
+func _build_gsm_track_map() -> void:
+	_gsm_track_map = {
+		GameStateMachine.GameState.WORKOUT_ACTIVE: {"track": &"focus_low_pool", "fade": BGM_DEFAULT_FADE_SEC},
+		GameStateMachine.GameState.BOSS_ENCOUNTER: {"track": &"boss_theme", "fade": BOSS_THEME_FADE_SEC},
+		GameStateMachine.GameState.REST_PERIOD: {"track": &"rest_calm", "fade": BGM_DEFAULT_FADE_SEC},
+	}

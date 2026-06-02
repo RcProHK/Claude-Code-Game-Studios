@@ -1,12 +1,12 @@
 # Story 006: GSM state→music transition + connect_for_initial_state
 
 > **Epic**: Audio Manager
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Foundation
 > **Type**: Integration
 > **Estimate**: M (3-4h)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-02
 
 ## Context
 
@@ -81,5 +81,17 @@
 
 ## Dependencies
 
-- Depends on: 005 (crossfade primitive), 001 (`_gsm` seam)
+- Depends on: 005 (crossfade primitive) ✅, 001 (`_gsm` seam) ✅
 - Unlocks: 007 (unlock 重 query GSM current), 008 (suspend GSM handling)
+
+## Completion Notes
+**Completed**: 2026-06-02
+**Criteria**: AC-07/08/32 + state→track map + 情境A/B covered + local-verified
+**Files**: `src/autoload/audio_manager.gd`（`_on_gsm_state_changed` data-driven map dispatch + sentinel noop via `payload.source_event=="initial_state"` + LOOT_DROP 情境A/B from/to branch；`_build_gsm_track_map` keyed by `GameStateMachine.GameState` [WORKOUT_ACTIVE→focus_low_pool / BOSS_ENCOUNTER→boss_theme fade 0.25 / REST_PERIOD→rest_calm]；`BOSS_THEME_FADE_SEC`/`LOOT_BGM_TRANSITION_SEC` consts；`_gsm_track_map` member）· `tests/integration/audio/test_gsm_music_transition.gd`（7 tests）
+**Test Evidence**: Integration — `test_gsm_music_transition.gd` ✅ **LOCAL GUT 7/7**（audio 44/44）。**Full gate 238 scripts / 1444 tests / 1443 pass / 1 pending(AC-37) / 0 fail** — no regression.
+**Deviations / notes**:
+- ⚠️ **情境A (LOOT_DROP from BOSS_ENCOUNTER) EG-3 gated**: implemented + tested the from/to==BOSS_ENCOUNTER→rest_calm quick-fade branch, BUT the assumption that boss-kill→LOOT_DROP transitions FROM BOSS_ENCOUNTER depends on #15 LootDrop confirming the GSM from-state (EG-3). If #15 routes LOOT_DROP from a different state, this branch needs revisiting. Sub-AC marked EG-3-gated.
+- Avoided GUT 9.6 `assert_signal_emitted_with_parameters` internal type-error on StringName signal params → used `assert_signal_emitted` + `_current_bgm_track` value assertion.
+- `REST_PERIOD` (NOT `REST_BETWEEN_SETS`) — Pass-6 GDD fix honoured.
+- No out-of-scope files touched.
+**Code Review**: Complete (/code-review APPROVED WITH SUGGESTIONS).
