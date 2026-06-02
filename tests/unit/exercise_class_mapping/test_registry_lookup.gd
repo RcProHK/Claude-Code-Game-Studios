@@ -1,10 +1,14 @@
-## registry_lookup_test.gd — #10 Exercise→Class Mapping, Story 001
+## test_registry_lookup.gd — #10 Exercise→Class Mapping, Story 001
 ##
 ## Governing story : production/epics/exercise-class-mapping/story-001-registry-lookup.md
 ## GDD             : design/gdd/exercise-class-mapping.md (Approved 2026-06-02)
 ## Governing ADRs  : ADR-0007 (AbilityClass Classification enum — zero-default FORBIDDEN)
 ##
 ## Test strategy:
+##   - SUT is the ExerciseClassMapping autoload SCRIPT, which has NO class_name and is
+##     NOT yet registered as an autoload (Story 005 registers it at pos 5). We therefore
+##     preload the script and instantiate it directly — the same pattern used by every
+##     other no-class_name autoload test in this project (e.g. screen_effects).
 ##   - Uses _create_test_registry(Array[Dictionary]) factory — zero ExerciseEntry.new(),
 ##     zero class_name cache dependency → headless GUT safe (no local Godot install needed).
 ##   - Deterministic: no random seeds, no time-dependent logic, no filesystem I/O.
@@ -14,6 +18,9 @@
 ##   STRIKE=0, CONTROL=1, MOBILITY=2, UNKNOWN=3
 extends GutTest
 
+# ── SUT script (no class_name → preload, do not reference a global type) ──────
+const ECM := preload("res://src/autoload/exercise_class_mapping.gd")
+
 # ── Shared fixture constants ─────────────────────────────────────────────────
 const _STRIKE: int = 0    ## AbilitySystem.AbilityClass.STRIKE
 const _CONTROL: int = 1   ## AbilitySystem.AbilityClass.CONTROL
@@ -21,15 +28,12 @@ const _MOBILITY: int = 2  ## AbilitySystem.AbilityClass.MOBILITY
 const _UNKNOWN: int = 3   ## AbilitySystem.AbilityClass.UNKNOWN
 
 # SUT instance — fresh per test via before_each
-var _sut: ExerciseClassMapping
+var _sut
 
 
 func before_each() -> void:
-	_sut = ExerciseClassMapping.new()
-
-
-func after_each() -> void:
-	_sut = null
+	_sut = ECM.new()
+	add_child_autofree(_sut)
 
 
 # ── TC-001-01: Registry exact hit (AC-01) ────────────────────────────────────

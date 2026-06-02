@@ -41,6 +41,28 @@ const _ABILITY_CONTROL: int = 1   ## AbilitySystem.AbilityClass.CONTROL
 const _ABILITY_MOBILITY: int = 2  ## AbilitySystem.AbilityClass.MOBILITY
 const _ABILITY_UNKNOWN: int = 3   ## AbilitySystem.AbilityClass.UNKNOWN (anti-fabrication sentinel)
 
+# ── MovementPattern Classification enum (GDD Rule 4 / 4b; ADR-0007) ──────────
+## A NEW Classification-family enum owned by #10 — distinct TYPE from AbilityClass.
+## Declaration order is LOAD-BEARING (ADR-0007): the first three ordinals 0/1/2
+## deliberately align 1:1:1 with AbilityClass {STRIKE,CONTROL,MOBILITY} and with
+## target_stat (the Pillar 4 "Muscle = Class" spine), but this is a DISTINCT type —
+## never conflate it with AbilityClass. UNKNOWN_PATTERN is the sentinel and MUST stay
+## last (zero-default fabrication FORBIDDEN — an unset field never silently becomes PUSH).
+## `LEG` is singular to match entities.yaml. Embedded here (not a shared `class_name`
+## file) so the script stays headless-GUT safe and avoids the autoload/class_name
+## collision Story 005 would hit at registration; full 7-member entities.yaml
+## registration is a separate cross-system gate (systems-designer), not this story.
+enum MovementPattern {
+	PUSH = 0,             ## → STRIKE   (spine row 1)
+	PULL = 1,             ## → CONTROL  (spine row 2)
+	LEG = 2,              ## → MOBILITY (spine row 3)
+	CORE = 3,            ## non-spine → UNKNOWN (consumer must use registry id-lookup)
+	CARDIO = 4,          ## non-spine → UNKNOWN
+	FLEXIBILITY = 5,     ## non-spine → UNKNOWN
+	COMPOUND = 6,        ## non-spine → UNKNOWN (compound MUST have an explicit registry entry)
+	UNKNOWN_PATTERN = 7, ## sentinel (declaration order: MUST stay last)
+}
+
 # ── Registry resource path ───────────────────────────────────────────────────
 const _REGISTRY_PATH: String = "res://assets/data/exercise_registry.tres"
 
@@ -114,12 +136,33 @@ func get_class_for_exercise(exercise_id: StringName) -> int:
 
 	return _ABILITY_UNKNOWN
 
-## Formula 1b — movement_pattern lookup (GDD Rule 5).
-## EXPANSION: This is a Story 002 stub. Returns UNKNOWN for all inputs until Story 002
-## implements MovementPattern enum + _pattern_map + the 3-spine lookup.
-## ⚠️ EXPANSION HOOK (Story 002): replace body with pattern_map match statement.
-func get_class_for_movement_pattern(_pattern: int) -> int:
-	return _ABILITY_UNKNOWN
+## Formula 1b — movement_pattern lookup (GDD Rule 4b / 5).
+##
+## Independent entry point: maps a MovementPattern ordinal to an AbilitySystem.AbilityClass
+## ordinal via the 1:1:1 spine. Does NOT call get_class_for_exercise() — the two entry
+## points never fall back to each other (GDD Rule 5).
+##
+## Spine (the only mapped rows):
+##   PUSH(0) → STRIKE(0), PULL(1) → CONTROL(1), LEG(2) → MOBILITY(2)
+##
+## Everything else — CORE(3)/CARDIO(4)/FLEXIBILITY(5)/COMPOUND(6)/UNKNOWN_PATTERN(7),
+## plus any out-of-range int (negative, >7, MAX_INT) — returns UNKNOWN(3). No fabrication
+## (GDD Rule 6): we never guess a class for a non-spine pattern. COMPOUND in particular is
+## intentionally unmapped — compound exercises must carry an explicit registry entry and be
+## resolved through get_class_for_exercise(), not this pattern API.
+##
+## Implemented with `match` rather than a `const Dictionary`: GDScript `const Dictionary`
+## is not truly immutable, whereas a literal `match` cannot be mutated and reads cleaner.
+func get_class_for_movement_pattern(pattern: int) -> int:
+	match pattern:
+		MovementPattern.PUSH:
+			return _ABILITY_STRIKE
+		MovementPattern.PULL:
+			return _ABILITY_CONTROL
+		MovementPattern.LEG:
+			return _ABILITY_MOBILITY
+		_:
+			return _ABILITY_UNKNOWN
 
 
 # ── Factory (GUT test entry point) ──────────────────────────────────────────

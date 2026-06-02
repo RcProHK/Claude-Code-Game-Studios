@@ -1,12 +1,12 @@
 # Story 002: Movement-pattern lookup + MovementPattern enum
 
 > **Epic**: Exercise → Class Mapping
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Core
 > **Type**: Logic
 > **Estimate**: S (~2h)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-02
 
 ## Context
 
@@ -72,8 +72,14 @@
 ## Test Evidence
 
 **Story Type**: Logic
-**Required evidence**: `tests/unit/exercise_class_mapping/movement_pattern_lookup_test.gd` — must exist and pass
-**Status**: [ ] Not yet created
+**Required evidence**: `tests/unit/exercise_class_mapping/test_movement_pattern_lookup.gd` — must exist and pass
+**Status**: [x] Created + passing (14 tests, GUT `test_` prefix so it actually runs — see note below)
+
+> ⚠️ **GUT filename convention**: GUT default collects only `test_*.gd` (prefix), NOT
+> `*_test.gd` (suffix). The original evidence path used the suffix form, which GUT silently
+> skips ("Nothing was run" = phantom pass). Corrected to `test_` prefix. The same defect was
+> found in Story 001's `registry_lookup_test.gd` (never ran + referenced an undeclared global
+> type) and fixed here → renamed `test_registry_lookup.gd` with the preload SUT pattern.
 
 ---
 
@@ -81,3 +87,15 @@
 
 - Depends on: Story 001 (uses the autoload + AbilityClass ordinal convention; can be implemented in parallel after 001's scaffold)
 - Unlocks: Story 003 (boot validation references MovementPattern ordinal range {0..7})
+
+---
+
+## Completion Notes
+**Completed**: 2026-06-02
+**Criteria**: 3/3 passing (AC-02, AC-03, AC-13 — all COVERED by automated unit tests)
+**Deviations**:
+- ADVISORY (test path): Test Evidence path corrected `movement_pattern_lookup_test.gd` → `test_movement_pattern_lookup.gd`. GUT default collects only `test_*.gd` (prefix); the `*_test.gd` suffix is silently skipped ("Nothing was run" = phantom pass).
+- OUT OF SCOPE (valid): fixed Story 001's phantom test `registry_lookup_test.gd` → `test_registry_lookup.gd` + converted to preload SUT pattern (`const ECM := preload(...)` + `ECM.new()`). Story 001 referenced an undeclared global type `ExerciseClassMapping` (autoload not registered until Story 005, no class_name) → parse error; combined with the wrong filename it NEVER ran. Now Story 001's 16 tests actually execute + pass. Implementation code was already correct — only the test harness was broken.
+**Test Evidence**: Logic — `tests/unit/exercise_class_mapping/test_movement_pattern_lookup.gd` (14 tests, GUT green). Combined gate: 1281 tests / 1280 pass / 1 pre-existing pending (AC-37, non-#10) / 0 fail. #10 dir: 2 scripts / 30 tests / 30 pass / 42 asserts.
+**Code Review**: Complete — QL-TEST-COVERAGE ADEQUATE + LP-CODE-REVIEW APPROVED (full review mode, 2026-06-02).
+**Follow-up (cross-epic, not #10)**: 2 other pre-existing phantom tests use the wrong `*_test.gd` suffix and never run — `tests/unit/loot/loot_rarity_formula_test.gd`, `tests/unit/state_machine/connect_for_initial_state_test.gd`. Recommend each owning epic rename to `test_*` prefix and verify they compile + pass.
