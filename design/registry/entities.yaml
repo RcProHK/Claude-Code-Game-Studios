@@ -1267,6 +1267,7 @@ constants:
     source: design/gdd/screen-effects-system.md
     referenced_by:
       - design/gdd/screen-effects-system.md
+      - design/gdd/gym-mode-hud.md  # #20 — HUD lives on HUDLayer (50) < ScreenEffectsLayer (100), inherits shake; Tier 1 readability-during-shake constraint (AC-V-2)
       # Expected future referrers:
       # - design/gdd/character-screen.md  (#22 — accessibility settings panel may expose toggle)
     value: true
