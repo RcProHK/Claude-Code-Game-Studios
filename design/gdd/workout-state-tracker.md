@@ -852,6 +852,8 @@ The `total_volume` formula is defined as:
 | #10 | Exercise → Class Mapping (Pre-MVP) | Soft caller | `IExerciseClassMapper.classify(exercise_id) -> AbilityClass` | VS-tier inline stub: bench_press→STRIKE, row→CONTROL, squat→MOBILITY; replaced by #10 when designed |
 | #4 | Audio Manager (MVP) | None — boot order only | (none) | If #4 deferred past VS, #9 boot position 5 → 4 |
 
+> **EG-1 resolution (2026-06-03 — Option B, user-ratified)**: #4 audio-manager.md once carried a forward contract assigning "workout SFX forwarding during LOCKED" (buffer mid/high SFX until `audio_unlocked`, then flush) to a "#9 WST forwarding layer". That conflicts with #9's locked **pure data/event layer** architecture (Rule 16; Section "audio binding to #9 = architectural smell"). **#9 is NOT patched and NEVER calls `play_sfx` / subscribes `audio_unlocked` / buffers SFX.** #9 only forwards workout events (`workout_completed_forwarded` / `workout_summary_available`); per-set SFX triggers come from consumers subscribing `#2.set_logged` directly (the #18 PR Detection precedent — Interactions row #18). The audio SFX forwarding/buffering + `set_complete`×`streak_chime` same-frame stagger now belong to a **presentation-layer audio-trigger consumer (#20 Gym-Mode HUD, EG-2 scope, or a dedicated workout-feedback adapter)**. #4 audio-manager.md Dependencies forward contract amended accordingly. #9 stays a pure data layer.
+
 ### Downstream Consumers (5 — all but #14 Not Started)
 
 | # | System | Type | Reads from #9 | Status |

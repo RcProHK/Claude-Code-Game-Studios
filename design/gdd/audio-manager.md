@@ -277,18 +277,20 @@ Attack 用 `ATTACK_SEC` lerp 落，release（high-priority SFX `finished` 或 st
 
 **Bidirectional flag**：上述 consumer GDD 嘅 Dependencies section 應列「depends on #4 AudioManager (SFX co-trigger)」。particle-system-wrapper.md 已有「audio direction co-trigger contract」⇒ 一致。
 
-**⚠️ Forward contract — #9 WST workout SFX forwarding（[game-designer] Pass 4 BLOCKING — BLK-B1）**：AudioManager 喺 LOCKED 期間 drop `play_sfx`（Rule 5，intentional）。但 #2 GymSys HTTP polling（5s interval，ADR-0002）可在 first screen tap 之前推送 `set_logged`/`streak_updated` event，觸發 `set_complete`/`streak_chime` SFX request。第一組 set 嘅 SFX 靜音 → 破壞「每個真實動作都有聲音回應」（Player Fantasy core promise + Pillar 1）。
+**⚠️ Forward contract — workout SFX forwarding during LOCKED（[game-designer] Pass 4 BLOCKING — BLK-B1; ownership RESOLVED 2026-06-03 via EG-1 — Option B）**：AudioManager 喺 LOCKED 期間 drop `play_sfx`（Rule 5，intentional）。但 #2 GymSys HTTP polling（5s interval，ADR-0002）可在 first screen tap 之前推送 `set_logged`/`streak_updated` event，觸發 `set_complete`/`streak_chime` SFX request。第一組 set 嘅 SFX 靜音 → 破壞「每個真實動作都有聲音回應」（Player Fantasy core promise + Pillar 1）。
 
-**解決方案（[creative-director] 裁決）**：由 **#9 WST forwarding layer** 持 high/mid priority workout SFX（`set_complete`、`streak_chime`、`workout_complete`）直到收到 AudioManager `audio_unlocked` signal，再 forward 呼叫 `play_sfx`。AudioManager 自身保持 stateless gateway（唔做 time-windowed defer-replay，保持 Rule 5 架構），enforcement 落喺 source 端（#9）。
+**解決方案（[creative-director] 裁決 + EG-1 ownership 修正 2026-06-03）**：由**真正 call `play_sfx` 嘅 presentation-layer audio-trigger consumer** 持 high/mid priority workout SFX（`set_complete`、`streak_chime`、`workout_complete`）直到收到 AudioManager `audio_unlocked` signal，再 forward 呼叫 `play_sfx`。AudioManager 自身保持 stateless gateway（唔做 time-windowed defer-replay，保持 Rule 5 架構），enforcement 落喺 SFX-emitting consumer 端。
 
-**Contract 喺 #9 WST GDD 必須實現**：
-- Subscribe `AudioManager.audio_unlocked`（或 poll `is_audio_unlocked()` on each SFX trigger point）
-- LOCKED 期間 hold pending SFX call（queue 或 defer）；`audio_unlocked` emit → flush pending calls
-- `low` priority SFX（`set_complete` 唔 buffer？）vs `high/mid`（`workout_complete` / `streak_chime` buffer）— 建議只 buffer `mid/high`，`low` SFX 仍 drop（唔影響 P1/P2）
-- **`set_complete` × `streak_chime` 同-frame stagger（IB-5）**：#9 forwarding layer 負責 — 若同 frame fire 兩者，自行 delay 其中一個 `play_sfx` call 80-120ms（AudioManager 唔做 delay，stateless gateway）。
-- **此 contract 標記為 #9 WST GDD authoring prerequisite（#9 已 Approved，需 patch）**
+> ⚠️ **NOT #9 WorkoutStateTracker（EG-1 conflict 裁決）**：#9 係 locked **pure data/event layer**（workout-state-tracker.md CD-praised「至今最 architecturally sound」；GDD 明文「任何 visual/audio 直接綁定 #9 = architectural smell」）。#9 **永不** call `play_sfx`、永不 subscribe `audio_unlocked`、永不 buffer SFX。佢只 forward workout events（`workout_completed_forwarded` / `workout_summary_available`），而 per-set 事件由 consumer **直接訂 `#2.set_logged`**（先例：#18 PR Detection 直接訂 #2，唔經 #9 — workout-state-tracker.md line 493）。先前「#9 forwarding layer」嘅 wording 同 #9 purity invariant 衝突，已撤回；ownership 搬去 presentation-layer consumer。
 
-**Indirect**：#2 GymSys workout events 唔直接入 AudioManager，而係經 #8/#15 等中介 trigger SFX。
+**Contract（presentation-layer audio-trigger consumer 必須實現 — assign 去 #20 Gym-Mode HUD GDD，與 EG-2 收口；或 dedicated workout-feedback adapter）**：
+- Subscribe `AudioManager.audio_unlocked`（或 poll `is_audio_unlocked()` on each SFX trigger point）+ subscribe `#2.set_logged` / #9 forwarded workout events 做 SFX trigger source
+- LOCKED 期間 hold pending mid/high SFX call（queue 或 defer）；`audio_unlocked` emit → flush pending calls
+- `low` priority SFX 仍 drop（唔 buffer，唔影響 P1/P2）；只 buffer `mid/high`（`workout_complete` high / `streak_chime` mid / `set_complete` 視最終 priority）
+- **`set_complete` × `streak_chime` 同-frame stagger（IB-5）**：由呢個 consumer adapter 負責（佢係兩個 SFX 嘅 funnel，知道 same-frame timing）— 若同 frame fire 兩者，自行 delay 其中一個 `play_sfx` call 80-120ms（AudioManager 唔做 delay，stateless gateway）。
+- **此 contract = #20 Gym-Mode HUD GDD authoring prerequisite（EG-2 範圍；或 dedicated adapter）。#9 WST 無需 patch（保持 pure data layer）。**
+
+**Indirect**：#2 GymSys workout events 唔直接入 AudioManager，而係經 presentation-layer audio-trigger consumer（+ #8/#15 等）中介 trigger SFX。
 
 ## Tuning Knobs
 
@@ -363,7 +365,7 @@ Attack 用 `ATTACK_SEC` lerp 落，release（high-priority SFX `finished` 或 st
 | `enemy_death` | #14 | low | mono | enemy 死 |
 | `ability_cast_{strike,control,mobility}` | #12 | low | mono | ability 釋放,**3 sub-id freeze**(Pillar 4 audio identity,[audio-director] Pass 2) |
 | `damage_taken` | #13/#25 | low | mono | avatar 受擊 |
-| `set_complete` | #9 WST | low | mono | 一組完。**Stagger 責任歸 #9 WST（IB-5 [audio-director BLK-5-1] — 唔係 #4 code）**：若 `set_complete` 同 `streak_chime` 同 frame fire，需錯開 80-120ms 避免 transient 重疊 / SFX bus clip + 語意 muddy（「組完確認」同「streak +1」混為一聲）。**呢個 stagger 由 #9 WST forwarding layer 負責**——只有 #9 知道兩個 event 係咪同 frame（佢係 source）。AudioManager 係 stateless gateway，`play_sfx` 收到就即播，**唔做** time-windowed delay（呢個會違反 gateway 無狀態原則 + Rule 5 architecture）。先前 catalog 備註入面嘅 `create_timer` snippet 屬 #9 實作細節，已移除。Contract：#9 喺兩 event 同 frame 時，自行 delay 其中一個 `play_sfx` call 80-120ms（見 Dependencies forward contract）。Craft 細節（音色、長度）留 Q8 / `/asset-spec`。[audio-director + game-designer] Pass 4/5 |
+| `set_complete` | #2 set_logged event（trigger）→ presentation consumer（play_sfx） | low | mono | 一組完。**Stagger 責任歸 presentation-layer audio-trigger consumer（IB-5 + EG-1 ownership 修正 2026-06-03 — 唔係 #4 code，亦唔係 #9 WST）**：若 `set_complete` 同 `streak_chime` 同 frame fire，需錯開 80-120ms 避免 transient 重疊 / SFX bus clip + 語意 muddy（「組完確認」同「streak +1」混為一聲）。**呢個 stagger 由 audio-trigger consumer adapter 負責**——佢係兩個 SFX 嘅 funnel，知道 same-frame timing。AudioManager 係 stateless gateway，`play_sfx` 收到就即播，**唔做** time-windowed delay（違反 gateway 無狀態原則 + Rule 5）。⚠️ **NOT #9 WST**（#9 pure data layer，唔 call play_sfx — EG-1 Option B）：consumer 直接訂 `#2.set_logged` 做 trigger。Contract：consumer 喺兩 event 同 frame 時，自行 delay 其中一個 `play_sfx` call 80-120ms（見 Dependencies forward contract）。Craft 細節（音色、長度）留 Q8 / `/asset-spec`。[audio-director + game-designer] Pass 4/5 + EG-1 |
 | `workout_complete` | #9 WST | **high (duck)** | mono | 整個 workout 完，ritual moment。**Mono rationale（明確）**：`workout_complete` 定位係「莊重確認（dignified resolved）」而非「爆炸性 dopamine spike」，同 `loot_fanfare_*` 嘅 excitement 係不同情緒維度，而非同一 intensity 軸上嘅「大 vs 小」。Pillar 3 明文「loot fanfare = 唯一許可嘅 peak」，`workout_complete` 刻意唔搶呢個 crown — 改以 warm + long tail mono 傳遞莊嚴感（non-STEREO）。若 sound-designer 認為 STEREO 更符合 fantasy，需升級呢個 rationale 先可改。[audio-director + game-designer] Pass 4 |
 | `streak_chime` | #8 | **mid (淺 duck)** | mono | low-key 暖 bell（淺 duck `STREAK_CHIME_DUCK_OFFSET_DB` default 深化 −5,確保 gym 噪音下聽到,[game-designer] Pass 2） |
 | `loot_fanfare_{common,uncommon,rare,epic,legendary}` | #15 | **high (duck)** | **STEREO** | rarity-tiered ascending grandeur（見下）;短 tier 用 `SHALLOW_RELEASE_SEC` |
