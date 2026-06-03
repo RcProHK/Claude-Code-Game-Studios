@@ -1,5 +1,31 @@
 # Gym-Mode HUD (#20) — Design Review Log
 
+## Review — 2026-06-03 (R8 fresh-session re-review) — Verdict: ✅ APPROVED
+Scope signal: XL
+Specialists: 無 adversarial spawn — **CD-mandated verifier-grep verification pass**(符合 R7 CD binding ruling「停 paper review 轉 tween spike,之後唯一 R8 verification pass」+ STRUCTURAL FREEZE escalation 第 3 級:verifier 主動 grep ground-truth,唔再 adversarial inline)。
+Blocking items: 0 | Recommended: 2
+Prior verdict resolved: **Yes** — R7 fresh re-review 13 BLOCKING 全部 spike-grounded 或 grep-verified resolved;exit bar(new-phantom == 0)**達成**。
+
+### 三軸驗證(CD R7 ruling 指定)
+- **① Tween cluster ↔ spike 一致**:GDD EC-F4 / F8/F9 / AC-EC-F4b 逐項對齊 `prototypes/tween-spike/SPIKE-FINDINGS.md`(12/12 pass, Godot 4.6.3 + GUT 9.6.0)——A1/B2 kill-path 獨立 erase(`kill()` 唔 emit finished)/ B3 `_restart_count++` branch-head ordering 先於 cap-check / B4 snap@`MAX+1`(create 第 1 個唔算 restart)/ B5 empty-handle identity-guard no-op / A4/B6 2-param seam `_on_tween_finished(stat_id, src_tween)` via `.bind` / A2 natural-finished reset。**全部一致 ✅**。
+- **② B1 sort-key 全鏈 grep-verified**:上游 ability-system.md L386(publish `(tier_ordinal, class_ordinal)` mapping)/ L405-406(tier/class ordinal 定義)/ L413 invariant 1(明文「無視 insertion order」)全部確認。CR-12 / EC-S7 / AC-CR-12 / CR-13⑨ 四處一致 `tier_ordinal DESC, class_ordinal ASC`(#20-owned `SkillIconRegistry` intrinsic data)。R5/R6/R7 三個 sort-key phantom 根因(依賴上游 ordering)由「#20-owned intrinsic」一次過消除。**✅**。
+- **③ B8 BOSS_ENCOUNTER 三處對齊**:matrix(EXP○ STAT◐)/ EC-S7(count 4)/ AC-U-3(== 4, EXP○ STAT/PROG◐)一致;R7 既存矛盾(matrix STAT=○ vs AC count 排除 STAT)已修正。**✅**。
+
+### 新 phantom 掃描
+逐審 R8 六項改動(SkillIconRegistry / B8 emphasis / EC-R6 / B11 cockpit bound / B12 stub / B7 F1 joint assert)——**未發現新內部矛盾或 cross-ref phantom**。F1 三段 invariant 實算:下半截 max(element)0.24 < min(threshold)0.25 ✅、上半截 max(threshold)0.40 < min(ambient)0.45 ✅,兩條 conjunctive assert 覆蓋全 safe-range。Exit bar 達成。
+
+### 2 RECOMMENDED(非 blocking)
+1. EC-R6(新增,B9)冇專屬 AC——◐ skip-tween + emphasis-snap reconcile 目前只由 AC-CR-2 zero-floor 間接覆蓋;建議補 explicit AC-EC-R6。
+2. `prototypes/tween-spike/` 欠 README.md(prototype-code.md 要求;有 SPIKE-FINDINGS.md 但 hook 已 flag)。
+
+### Process note
+spike-grounding 成功打破 R2..R7 連續 7 輪 paper saturation。今輪刻意**唔 spawn adversarial specialists**——再 spawn = 重入 CD 凍結咗嘅 saturation loop。CD 既定流程 = 對 empirical spike + grep ground-truth 做 verification pass,已執行。
+
+### Next
+`/ux-design gym-mode-hud`(交付 AC-V-1 binding glance protocol + Boss HP non-color glyph + skill silhouette glyph set + min_bar_height_px;Q-OQ9/Q-OQ10 design-layer)。Sprint `/story-readiness` 前 re-check 5 dep/gate(#33 / #8 / #2-GDD / #21 / SUSPENDED producer Q-OQ12)。
+
+---
+
 ## R8 Revision — 2026-06-03 (tween-spike-grounded inline resolution of R7 13 BLOCKING) — pending fresh re-review
 CD binding ruling「停 paper review 轉 tween spike」執行。
 
