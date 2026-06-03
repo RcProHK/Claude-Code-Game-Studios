@@ -1,5 +1,40 @@
 # Gym-Mode HUD (#20) — Design Review Log
 
+## R8 Revision — 2026-06-03 (tween-spike-grounded inline resolution of R7 13 BLOCKING) — pending fresh re-review
+CD binding ruling「停 paper review 轉 tween spike」執行。
+
+### Tween spike (CD-mandated deliverable)
+`prototypes/tween-spike/test_tween_spike.gd` — 12 tests / 32 asserts / **ALL PASS** (Godot 4.6.3 + GUT 9.6.0, headless)。
+`prototypes/tween-spike/SPIKE-FINDINGS.md` = authoritative reverse-author spec。
+實測裁決:
+- **A1/B2**: `kill()` 唔 emit `finished` → kill path 必須有獨立 erase code path
+- **A2**: 自然完成 emit finished 剛好一次 → lifecycle ③ 只行自然路徑
+- **A3**: kill 後 `is_valid()==false`(但仍需 identity 區分新舊)
+- **A4/B6**: `finished`(0-arg) + `.bind(stat_id, tween)` → callback 收 2 param → 2-param seam 可行且必須
+- **B4 off-by-one**: snap 喺第 `MAX_RESTART+1` 個 event(create 第 1 個唔算 restart)
+
+### 13 BLOCKING resolution
+- B1+B13: CR-12/AC-CR-12 sort key → `tier_ordinal DESC, class_ordinal ASC`(#20-owned SkillIconRegistry;grounded ability-system.md L386/L413/L696;消 Dictionary-iteration-order phantom + Stagnation Mirror)+ CR-13⑨
+- B2: EC-F4 kill-path 獨立 erase(spike A1)
+- B3: EC-F4 `_restart_count++` ordering pin(branch head,先於 cap-check)
+- B4: AC-EC-F4b off-by-one fix(snap@MAX+1,spike test_B4)
+- B5: AC-EC-F4b empty/stale-handle no-op(identity guard,spike test_B5)
+- B6: EC-F4/AC-EC-F4b 2-param seam `_on_tween_finished(stat_id, src_tween)`(spike A4/test_B6)取代 R7 single-param
+- B7: F1 CI joint assert 兩條 conjunctive(element<threshold AND threshold<ambient)
+- B8: 矩陣 BOSS_ENCOUNTER EXP ◐→○(honor CR-1④ + Anchor moment)+ STAT ○→◐;EC-S7/AC-U-3 count 3→4;順帶修 STAT matrix 矛盾
+- B9: EC-R6 新增(◐ element 收 stat_changed → skip tween 直接 set;state 升 emphasis snap reconcile)
+- B10: AC-U-3 cluster icon CI 拆 design-time(metadata)/ runtime(AC-CR-12 ≤4)
+- B11: AC-U-2 REST_PERIOD cockpit bound(SKILLS list 有界)
+- B12: Q-OQ1 #20 consumer 兩分支 stub(correlation-key / same-frame route)
+
+### Process note
+呢輪打破 7-round paper saturation:tween cluster(B2-B6)由 headless GUT spike 實測 ground,唔再靠 paper 推理。B1 改用 #20-owned intrinsic tier_ordinal 一次過消除三輪 sort-key phantom 根因(依賴上游 ordering)。
+
+### Next
+`/clear` → fresh-session `/design-review design/gdd/gym-mode-hud.md` 驗 R8(tween cluster spec vs spike reference impl 一致 + B1 sort-key 全鏈 + B8 三處對齊)→ `/ux-design gym-mode-hud`。
+
+---
+
 ## Review — 2026-06-03 (R7 fresh re-review) — Verdict: MAJOR REVISION NEEDED
 Scope signal: XL
 Specialists: game-designer · systems-designer · qa-lead · ux-designer · audio-director · ui-programmer · creative-director (senior synthesis, 6-specialist adversarial convergence)
