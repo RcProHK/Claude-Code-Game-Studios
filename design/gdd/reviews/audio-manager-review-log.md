@@ -234,3 +234,16 @@ Prior verdict resolved: Pass 5（9 internal IB + EG-4）— **全部確認 held�
 
 ### Next
 2 internal BLOCKING 已 resolved inline。Internal consistency 清。**User 裁定 2026-06-02：mark Approved（external gates tracked，#10 先例）。** #4 Audio Manager GDD 6 passes 收官。後續：3 external gate（EG-1 #9 WST patch / EG-2 #20 HUD GDD authoring / EG-3 #15 Pass 3 from-state confirm）在各自 GDD 軌道處理，唔阻 #4。下一步可 /create-epics audio-manager 或 /asset-spec system:audio-manager（待 art/audio bible approved）。
+
+---
+
+## EG-1 RESOLVED — 2026-06-03 (Option B, user-ratified)
+**Gate**: EG-1 (workout SFX forwarding during LOCKED) — opened, found to be a cross-GDD conflict, resolved by amending #4 (not patching #9).
+
+**Conflict**: #4 audio-manager.md's forward contract assigned "workout SFX forwarding layer" (buffer mid/high SFX until `audio_unlocked` → flush) to **#9 WorkoutStateTracker**. But #9 is a locked **pure data/event layer** (workout-state-tracker.md CD-praised "至今最 architecturally sound"; explicit "audio binding to #9 = architectural smell"; Rule 16 anti-fabrication NEVERs). The CD audio ruling and #9's purity invariant directly contradicted.
+
+**Resolution (Option B, user-chosen)**: keep #9 pure; relocate the SFX forwarding/buffering ownership to the **presentation-layer audio-trigger consumer** that actually calls `play_sfx` (#20 Gym-Mode HUD — EG-2 scope — or a dedicated workout-feedback adapter). That consumer subscribes `#2.set_logged` directly (the #18 PR-Detection precedent) + `AudioManager.audio_unlocked`, buffers mid/high while LOCKED, flushes on unlock, low drops, and owns the `set_complete`×`streak_chime` same-frame 80-120ms stagger. AudioManager stays a stateless gateway; #9 NEVER calls play_sfx.
+
+**Edits**: (1) audio-manager.md Dependencies forward contract re-owned (#9→consumer) + NOT-#9 callout + catalog `set_complete` row stagger-owner updated. (2) workout-state-tracker.md #4 dependency row gets an EG-1-resolution note (#9 not patched, stays pure). 
+
+**Effect on gate list**: **EG-1 is now FOLDED INTO EG-2 (#20 Gym-Mode HUD GDD authoring)** — the audio-trigger consumer contract is a #20 authoring prerequisite. There is no longer a separate "#9 WST patch". #9 needs no change. EG-3 (#15 from-state) unchanged.
