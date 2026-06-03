@@ -56,7 +56,7 @@ Mirror Hero 係 2D side-scrolling action RPG，玩家嘅真實 gym 訓練數據�
 | 17 | Equipment & Inventory (merged) | Feature | MVP | Not Started | — | 3, 11, 15 |
 | 18 | PR Detection & Avatar Progression | Feature | Pre-MVP | Not Started | — | 2, 3, 12 |
 | 19 | Zone System ⚠️ | Feature | MVP | Not Started | — | 3, 14 |
-| 20 | Gym-Mode HUD (inferred) | Presentation | MVP | Not Started | — | 11, 12 |
+| 20 | Gym-Mode HUD (inferred) | Presentation | MVP | **In Design — skeleton + scope locked 2026-06-03** (EG-2 opened; pending fresh-session section-by-section authoring). Pillar 2 PRIMARY owner. **Absorbs #4 audio EG-2 contracts**: silent-mode banner soft-gate + audio-trigger consumer SFX forwarding (relocated here by EG-1 Option B — #20 subscribes #2.set_logged + audio_unlocked, buffers mid/high while LOCKED, owns set_complete×streak_chime stagger). NEXT: /design-system gym-mode-hud (fresh session, resumes from skeleton). | [gym-mode-hud.md](gym-mode-hud.md) | 11, 12, 4, 2, 9 |
 | 21 | Loot Drop Modal | Presentation | Pre-MVP | Not Started | — | 5, 15, 17 |
 | 22 | Character Screen (inferred) | Presentation | MVP | Not Started | — | 11, 17, 18, 26 |
 | 23 | Inventory UI (inferred) | Presentation | MVP | Not Started | — | 17 |
