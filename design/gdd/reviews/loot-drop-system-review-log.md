@@ -17,3 +17,16 @@
 - Pillar substrate post-fix: P1 anti-fabrication chain 第六件套 honest (workout_id resolution closes ceremony-binding gap + workout-score tier-ceiling gate closes RNG shadowing) / P3 PRIMARY substrate intact (final boss ceremony reservation guarantee) / P4 dominant-class derivation unchanged / P5 decoupled (acceptable for #15)
 - Prior verdict resolved: **Yes — Pass 1 inline APPROVED retrospectively rescinded; Pass 2 inline-fixed pending Pass 3 fresh-session re-verification**
 - Next action: `/clear` → fresh-session `/design-review design/gdd/loot-drop-system.md` for Pass 3 CD-GDD-ALIGN re-verification (independent verification of inline F-1..F-8 resolutions); OR direct progression to #26 Avatar Renderer if user accepts Pass 2 inline + Pass 3 deferral
+
+---
+
+## EG-3 (audio #4 cross-system gate) RESOLVED — 2026-06-03
+
+**Gate**: #4 Audio Manager 情境A (LOOT_DROP-from-BOSS_ENCOUNTER → boss_theme→rest_calm quick fade) needed confirmation that boss-kill loot enters the GSM LOOT_DROP state with `from_state == BOSS_ENCOUNTER`.
+
+**Finding — CONFIRMED, no #15 change needed**:
+- The GSM owns the LOOT_DROP state transition, NOT #15. game-state-machine.md line 213 (BossEncounter state) defines `Boss defeated → LootDrop (BossOutcome.DEFEATED)` AND `workout_completed → LootDrop (INTERRUPTED_WITH_CREDIT)` → final-boss-kill LOOT_DROP `from_state == BOSS_ENCOUNTER`. ✓
+- #15 (this GDD) is a pure data/event layer (Rule: receives boss_killed/enemy_killed/workout_completed → generate loot + emit `loot_dropped` ceremony signal). It does NOT own or alter the GSM state transition, so it cannot contradict the from-state. ✓
+- Nuance: mini-boss kills happen during COMBAT_ACTIVE (not BOSS_ENCOUNTER — GSM line 213: BossEncounter is promoted from CombatActive = final boss); deferred-reveal loot (GSM Decision #1) enters LOOT_DROP from a safe state. Both → `from ≠ BOSS_ENCOUNTER`, and boss_theme is not playing then, so the audio handler correctly does NOT fire 情境A. The only path where boss_theme plays AND we enter LOOT_DROP is the final boss via BOSS_ENCOUNTER — exactly the `from == BOSS_ENCOUNTER` discriminator.
+
+**Outcome**: EG-3 CLOSED. audio-manager.md Q-PENDING-BLK8-CO marked RESOLVED. No edit required to loot-drop-system.md (data layer, GSM-owned transition confirmed correct). This is independent of #15's still-pending Pass 3 CD-GDD-ALIGN re-review (which is about #15's own internal design, not this audio from-state question).
