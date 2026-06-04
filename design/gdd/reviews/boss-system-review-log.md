@@ -459,4 +459,40 @@ User pre-authorized「全部跟推薦去做」for this GDD. The two Pass-5 desig
 
 Then: `/design-review` (fresh) → expect Approved → `/create-epics #16`. New Followup #21 (ADR-003 persist boss.current_hp scope).
 
-Status: **Pass 6 design decisions LOCKED (DD#1 persist current_hp + DD#2 effort-signal tier gate). Spec fix-pass (Tier 0/1/2/3, ~15 edits) pending FRESH focused session. Epic still BLOCKED until spec pass complete + /design-review Approved.**
+Status: ~~Pass 6 design decisions LOCKED — spec fix-pass pending~~ **Superseded — spec fix-pass COMPLETE below.**
+
+---
+
+## Pass 6 Spec Fix-Pass — 2026-06-04 — COMPLETE (pending /design-review)
+
+User directed「繼續 #16 Boss spec-fix-pass」(declined the /clear recommendation; proceeded same session). Applied all ~16 Tier 0/1/2/3 edits with grep-verify discipline (no net-regression: each target section read before editing, no new cross-contradictions introduced).
+
+**Tier 0 — compilability (5):**
+- GP-F2: `BossVisualResource` un-nested → own file `res://src/data/boss_visual_resource.gd` (was 2nd file-level class_name in BossTemplate script = parse error).
+- GP-F3: added `BossTemplate.boss_scene: PackedScene` + defined `_instantiate_boss()` (instantiate the scene, not `BossInstance.new()` which has no scene-tree children).
+- GP-F4: added full **`class_name BossSystem extends Node`** autoload-class-contract section (`_spawned_transition_ids` field + signals + `_instantiate_boss` + `_emit_telemetry`); removed duplicate `const POSITION_TOLERANCE_PX` from spawn pseudocode.
+- GP-F5: telemetry helper unified to `_emit_telemetry` + local graceful-noop wrapper (#28 Not Started).
+- GP-F8: declared `signal hp_changed(current_hp, max_hp)` on BossInstance + single `_set_current_hp` mutator.
+
+**Tier 1 — death wiring (3):**
+- Defined canonical `_enter_state(new_state)` with idempotent DYING guard (= double-cleanup guard root).
+- Wired `_on_enemy_killed_self_listen(transition_id, faction, tier)` — `.connect` callsite in `_ready` + self-filter `transition_id == self.transition_id` + routes to `_enter_state(DYING)`; renamed old body to `_play_death_and_free()`.
+- DD#1 removed the second death-path caller (skip-to-kill) → single canonical path. Added **AC-11b** (enemy_killed→DYING + self-filter + idempotent re-fire coverage).
+
+**Tier 2 — apply DDs + novelty (3):**
+- **DD#1**: Rule 12 rewritten — persist `boss.current_hp` (ONE int) → exact-restore on bfcache resume; boss death ALWAYS player-hit-originated; removed `MID_FIGHT_SKIP_HP_THRESHOLD` knob + INV-10. Followup #21 (ADR-003 scope).
+- **DD#2**: Rule 2/10 tier gate set-count → ADR-005 `effort_score` (`MINI_BOSS_EFFORT_THRESHOLD`); fixes P5-4 strength-program inverted-reward; updated Moment C, States table, EC-22, INV-7, knob table, knob-stability, Q-X5 (largely resolved). Forward-constraint to #14 (joint single source of truth).
+- **AC-39 escalated** ADVISORY→**MVP-gate BLOCKING** (≥3.5 Likert / n≥10 / ≥8 sessions) — novelty collapse is a certainty, prior gate too weak.
+
+**Tier 3 — formula/AC (7):**
+- F1: AC-18 regression fixed (ATTACK_POWER=0 → A3.3 bootstrap branch, NOT floor=50; floor reframed defensive; bootstrap path = AC-41).
+- F2: bootstrap-vs-MIN_BOSS_HP reconciled — first-session HP cap (`FIRST_SESSION_EXPECTED_HIT_DAMAGE × FIRST_SESSION_KILL_HITS_MAX`) + **INV-9b** (first session never the hardest fight) + Followup #23.
+- F3: endgame saturation disclosed (EC-07 + **AC-44** ADVISORY) — hit-count collapse to 2-3 = accepted MVP behavior + telemetry; v0.2 TIER_4 (Followup #24).
+- F4: **EC-25** avatar-downed spec — companion auto-battler, NO game-over/permadeath/retry (Pillar 2); avatar auto-recovers, boss fight continues, loot unaffected; new NEVER (no game-over during workout).
+- F6: INV-8 operator `RARE > RARE` → `>=` (joint-equal valid; distributional gradient via ADR-005 modifiers, not static) + Followup #22 (distribution evidence).
+- Rule 9: added `final_tier = max(adr005_rolled, loot_guarantee_min_tier)` combine pseudocode (#15 consumes; RarityTier ordinal-ordered per ADR-0007).
+- AC-07: added **AC-07b** wall-clock ≤200ms budget (foreground) + throttled-tab exemption (frame-count contract holds).
+
+New Followups: #21 (ADR-003 persist boss.current_hp), #22 (ADR-005 boss-vs-mini tier distribution evidence), #23 (FIRST_SESSION_EXPECTED_HIT_DAMAGE #13 co-calibration), #24 (v0.2 endgame MAX_BOSS_HP ramp / TIER_4).
+
+Status: **Pass 6 spec fix-pass COMPLETE. NEXT: `/design-review design/gdd/boss-system.md` (fresh — expect Approved; optional 3-specialist systems+gameplay+qa re-validate) → `/create-epics boss-system`. Epic BLOCKED until Approved.**

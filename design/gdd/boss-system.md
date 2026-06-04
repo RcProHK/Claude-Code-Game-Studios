@@ -1,7 +1,7 @@
 # Boss System
 
-> **Status**: MAJOR REVISION NEEDED (Pass 5 fresh-session /design-review 2026-06-01) — **Pass 6 design decisions LOCKED 2026-06-01** (DD#1 persist `current_hp`; DD#2 effort-signal tier gate); spec fix-pass (Tier 0/1/2/3, ~15 edits) PENDING fresh focused session. **Epic creation BLOCKED until spec pass + /design-review Approved.** See review log Pass 6 entry.
-> **Author**: user + claude (Pass 4 = TIER A spec authoring; Pass 6 = 2 design decisions locked, spec fix-pass deferred to fresh session)
+> **Status**: **Pass 6 spec fix-pass COMPLETE 2026-06-04 — pending /design-review** (DD#1 persist `current_hp` + DD#2 effort-signal tier gate applied; Tier 0 compilability [BossSystem class + un-nest BossVisualResource + boss_scene/_instantiate_boss + _emit_telemetry + hp_changed] + Tier 1 canonical death path [_enter_state + wired self-filtered enemy_killed + double-cleanup guard + AC-11b] + Tier 2 [Rule 12 persist current_hp + Rule 2/10 effort gate + AC-39 escalated MVP-BLOCKING] + Tier 3 [AC-18 regression fix + F2 bootstrap reconcile/INV-9b + F3 saturation AC-44 + F4 avatar-downed EC-25 + F6 INV-8 operator + Rule 9 combine pseudocode + AC-07b wall-clock] all done). **Epic creation BLOCKED until /design-review Approved.** See review log.
+> **Author**: user + claude (Pass 4 = TIER A spec authoring; Pass 6 = 2 design decisions locked + full spec fix-pass 2026-06-04)
 > **Last Updated**: 2026-06-01
 > **Implements Pillar**: Pillar 3 (Drop Euphoria) PRIMARY climax — boss kill = signature loot ritual trigger; Pillar 5 (Mirror Moment) secondary — boss reveal ritual = climactic mirror moment instance; Pillar 2 (Frictionless Companion) supporting (inherits #14 boss anchor sub-500ms); Pillar 1 (Real Body, Real Power) supporting (boss difficulty scales with player real PR progression)
 > **NOT serving Pillar 4 (Muscle = Class) in MVP** — Pillar 4 mechanical expression requires multi-archetype boss roster (≥3 final bosses) which is honestly deferred to post-MVP. MVP class differentiation is presentation-layer only (silhouette + audio signature + palette family). See [Pillar 4 Scope Honesty Note](#pillar-4-scope-honesty-note) below.
@@ -50,7 +50,7 @@ Boss 係 workout 嘅 dramatic climax — 唔係 generic enemy 嘅升級版，而
 
 **Moment B — Leg day final set，MOBILITY presentation family boss 出現** (v0.2+ scope; MVP 只有 STRIKE fallback)：boss silhouette 採用 multi-segment agile 形象（唔係 punching tank），audio signature 偏呼嘯 / 風聲，particle palette 用 yellow dash streak。**注意**：MVP 階段呢個 Moment 唔 deliverable — MVP 一律 STRIKE fallback。Moment B 列出做 post-MVP path 樣本，唔係 MVP commitment。
 
-**Moment C — Light workout (≤2 sets) 嘅 mini-boss 體面退場**：玩家因為時間關係只做 2 sets warm-up squat。冇 final boss，但有 **scaled-down mini-boss with reduced ritual** (per #14 LIGHT_WORKOUT_THRESHOLD_SETS=2) — 短一啲嘅 focal camera、淡一啲嘅 particle burst、相應 minor loot。「我冇練重，但我有上 gym」呢一刻嘅 acknowledged but not trivialized 感覺 = Pillar 1 honesty + Pillar 3 anti-trivialization。
+**Moment C — Low-effort workout 嘅 mini-boss 體面退場**：玩家因為時間關係只做幾組 warm-up squat，effort 偏低(DD#2:由 ADR-005 `effort_score < MINI_BOSS_EFFORT_THRESHOLD` 判定,**唔再用 raw set count** — 因為 3×3/5×5 strength 雖然 set 少但 effort 高,唔應被當 light)。冇 final boss,但有 **scaled-down mini-boss with reduced ritual** — 短一啲嘅 focal camera、淡一啲嘅 particle burst、相應 minor loot。「我冇練重,但我有上 gym」呢一刻嘅 acknowledged but not trivialized 感覺 = Pillar 1 honesty + Pillar 3 anti-trivialization。
 
 ### Architectural Protection (Pillar 1/3 cohesion)
 
@@ -110,6 +110,7 @@ class_name BossTemplate extends Resource
 @export var base_hp: int                     # pre-scaling baseline HP, range [50, 500]
 @export var base_defense: int                # per #13 Formula 1 input
 @export var attack_patterns: Array[AttackPatternResource]   # min 2, max 4 for MVP
+@export var boss_scene: PackedScene                         # GP-F3: BossInstance.tscn (root node type = BossInstance + required children per BossInstance contract). _instantiate_boss() instantiates THIS, not BossInstance.new() (BossInstance needs the $AnimationPlayer/$CollisionShape2D/$Sprite2D/$HitArea2D scene-tree children — a bare .new() has no children → _ready asserts fail).
 @export var visual_template: BossVisualResource             # see schema stub below — Q-V2 ownership pending #26 finalize
 @export var audio_template_id: StringName                   # audio cue id for #4 (when available)
 @export var loot_guarantee_min_tier: RarityTier             # RARE for FINAL (Pass 4 A3.1 — raised UNCOMMON→RARE to preserve dramatic weight gradient now that mini ceiling restored to RARE per game-concept promise)
@@ -117,10 +118,15 @@ class_name BossTemplate extends Resource
 @export var arena_constraint_mode: ArenaConstraintMode = ArenaConstraintMode.SPAWN_RELATIVE  # see Rule 14
 @export var arena_constraint_px: Vector2                    # interpretation depends on arena_constraint_mode
 
-# Supporting enums + schemas
+# Supporting enums (enums declared inside a class_name script are legal — same file as BossTemplate)
 enum BossTier { FINAL }   # MVP: FINAL only. STANDARD removed per CRIT-2. Mini-boss = EnemyTemplate (separate resource).
 enum ArenaConstraintMode { WORLD_ABSOLUTE, SPAWN_RELATIVE, AVATAR_LEASH }   # see Rule 14
+```
 
+> **GP-F2 (Pass 6 compilability fix)**: `BossVisualResource` lives in its **own file** `res://src/data/boss_visual_resource.gd` — **NOT** nested in the BossTemplate script. GDScript permits only **one file-level `class_name` per script**; declaring a second `class_name` in `boss_template.gd` is a parse error. `BossTemplate.visual_template: BossVisualResource` (above) just references the type, which resolves once the separate file registers the global class.
+
+```gdscript
+# res://src/data/boss_visual_resource.gd  (separate file — GP-F2)
 # BossVisualResource stub schema (Q-V2 — #16 owns until #26 Avatar Renderer finalizes)
 class_name BossVisualResource extends Resource
 @export var sprite_texture: Texture2D          # base sprite atlas
@@ -139,6 +145,11 @@ class_name BossVisualResource extends Resource
 class_name BossInstance extends Node2D
 # Extends Node2D — world-space entity with global_position + transform (NOT Control/CanvasItem;
 # boss lives in game world, NOT UI layer). Inherits process loop for AI state machine ticking.
+
+# === Signals (GP-F8 — declared on BossInstance) ===
+signal hp_changed(current_hp: int, max_hp: int)   # emitted whenever current_hp mutates (HUD boss bar consumer per line ~380)
+# Emit contract: every write to current_hp (combat hit via #13, bfcache restore via Rule 12) MUST go through
+# a single _set_current_hp(value) mutator that clamps [0, max_hp] then emits hp_changed (Pillar-2 single-source).
 
 # === Spawn-time immutable fields (set in spawn_boss, never mutated post-spawn) ===
 @export var boss_id: StringName                          # mirrors BossTemplate.boss_id
@@ -209,15 +220,19 @@ func _exit_tree() -> void:
 
 **Input snapshot at COMMITTED state**:
 - `dominant_class` from `WorkoutSummaryRO.dominant_class` (already cached via #9 Rule 10 emission order)
-- `total_planned_sets` from workout summary (for mini vs final classification)
+- `effort_score` — **DD#2 (Pass 6)**: the ADR-005 effort signal `workout_score = clamp(volume_factor × pr_factor × streak_factor, 0, 1)`, the **mini-vs-final classifier** (replaces the set-count proxy). Already computed for ADR-005 loot — no GymSys backend extension needed.
+- `total_planned_sets` — retained ONLY for the empty-workout anti-fabrication guard (EC-23: `==0` → reject), **NOT** for tier classification.
 - `transition_id` from BossAnchor commit (per ADR-006 Contract 2)
 
-**Selection** (revised 2026-05-27 — STANDARD removed; mini-boss path moved to #14):
+**Selection** (revised 2026-06-04 Pass 6 — **DD#2: effort-signal tier gate, replaces set-count proxy**):
 ```
 # #16 only spawns FINAL boss. Mini-boss spawn = #14 wave system responsibility.
-if total_planned_sets <= LIGHT_WORKOUT_THRESHOLD_SETS (=2 per #14):
-    # Light-workout path — #16 does NOT spawn final boss. #14 wave system handles
-    # light-workout mini-boss via EnemyTemplate. See Rule 10 for spec.
+# DD#2: classify by effort, NOT raw set count. Fixes P5-4 — strength programs (3×3 / 5×5)
+# are LOW set count but HIGH effort; set-count proxy wrongly demoted them to mini-boss
+# (inverted Pillar 1 reward). Effort score (volume×PR×streak) rewards real exertion.
+if effort_score < MINI_BOSS_EFFORT_THRESHOLD:
+    # Low-effort path — #16 does NOT spawn final boss. #14 wave system handles
+    # the low-effort mini-boss via EnemyTemplate. See Rule 10 for spec.
     return  # no #16 action
 
 selected_class = dominant_class if dominant_class != UNKNOWN else STRIKE  # Rule 13 (presentation-only)
@@ -239,7 +254,7 @@ boss_template = pick_deterministic(candidates, seed=DeterministicHash.determinis
 |--------|--------------------------|---------------------------|
 | **Resource type** | `EnemyTemplate` (with elevated HP/damage stats + boss flag) | `BossTemplate` (this GDD's schema) |
 | **Spawn pipeline** | #14 wave system (mid-workout) OR #14 light-workout fallback (Rule 10) | #16 `spawn_boss()` via #14 BossAnchor COMMITTED |
-| **Spawn trigger** | Mid-workout exercise switch OR `total_planned_sets ≤ 2` light-workout | `workout_completed` via #14 BossAnchor COMMITTED |
+| **Spawn trigger** | Mid-workout exercise switch OR `effort_score < MINI_BOSS_EFFORT_THRESHOLD` low-effort (DD#2 — was `total_planned_sets ≤ 2`) | `workout_completed` via #14 BossAnchor COMMITTED |
 | **Loot guarantee** | **Guaranteed 1 drop, UNCOMMON floor / RARE ceiling** (Pass 4 A3.1 — restores game-concept「uncommon-rare 範圍」public promise) | GUARANTEED 1 drop, ≥ RARE floor (Pass 4 A3.1 — raised UNCOMMON→RARE to preserve gradient now mini ceiling = RARE), no ceiling (ADR-005 can push EPIC/LEGENDARY via volume + PR + streak modifiers) |
 | **Reveal ritual** | Rule 7 **lite** (particle burst + shake; **NO camera focal**) at intensity 0.6× | Rule 7 **full** (camera focal + shake + particle) at intensity 1.0× |
 | **HP scaling target** | 4-6 hit kill window (per #14 EnemyTemplate config) | 9-12 hit kill window (per Formula 1) |
@@ -417,14 +432,50 @@ Frame 0           Frame 1            Frame 2          Frame 3+        T=600ms+
 - **"Camera focal hold tail"** = 0.6s × ritual_mult, runs async AFTER dispatch (non-blocking).
 - All these are **separate measurements** — Pillar 2 sub-500ms boss-visible budget satisfied + Pillar 5 ritual anchor preserved.
 
-**Pseudocode at COMMITTED state** (Pass 4 — A1.3 4-param signature + A2.3 post-add_child re-set + is_equal_approx + A1.2 caller-passed snapshot + A1.4 sync emit before return):
+##### BossSystem autoload class contract — Pass 6 GP-F4 (mirrors BossInstance completeness)
+
+**Rationale**: Pass 5 found `BossSystem` referenced everywhere (`spawn_boss`, `_spawned_transition_ids`, `_instantiate_boss`, `_emit_telemetry`) but **never declared** — Tier 0 not-compilable. This section locks the full autoload contract.
 
 ```gdscript
-# Typed signal declaration (Godot 4.6 — runtime not enforced but tooling catches typos)
-signal boss_committed(template: BossTemplate, boss: BossInstance, snapshot: StatSnapshot, spawn_pos: Vector2, transition_id: String)
+# res://src/autoload/boss_system.gd  (autoload singleton — registered in project.godot per ADR-0008 position map)
+class_name BossSystem extends Node
+# Extends Node — root for spawned BossInstance children; MUST have identity transform
+# (Pass 4 A2.3 parent-identity contract — BossInstance never nested under a transform-modifying parent).
 
-# Position float tolerance — Pass 4 A2.3 per godot-specialist #1
-const POSITION_TOLERANCE_PX: float = 0.5  # sub-pixel parent-transform drift acceptable
+# === Idempotency state (Pillar 1 chain integrity — EC-01) ===
+var _spawned_transition_ids: Dictionary = {}   # transition_id:String -> true; rejects same-id replay (GP-F4 declares it)
+
+# === Signals (full surface — declared on the autoload) ===
+signal boss_committed(template: BossTemplate, boss: BossInstance, snapshot: StatSnapshot, spawn_pos: Vector2, transition_id: String)
+# (spawn_boss below is the canonical emitter; subscribers connect at _ready per ADR-006 Contract 6)
+
+# === Constants ===
+const POSITION_TOLERANCE_PX: float = 0.5
+
+# === GP-F3: scene instantiation convention ===
+func _instantiate_boss(template: BossTemplate) -> BossInstance:
+    # BossInstance needs scene-tree children ($AnimationPlayer/$CollisionShape2D/$Sprite2D/$HitArea2D);
+    # a bare BossInstance.new() has none → _ready asserts fail. We instantiate the template's PackedScene.
+    assert(template.boss_scene != null, "BossTemplate.boss_scene MUST be set (GP-F3 scene-load convention)")
+    var boss := template.boss_scene.instantiate() as BossInstance
+    assert(boss != null, "boss_scene root node MUST be type BossInstance (got non-BossInstance root)")
+    return boss
+
+# === GP-F5: telemetry helper — single canonical name `_emit_telemetry`; #28 Not Started → graceful local noop ===
+func _emit_telemetry(event: StringName, payload: Dictionary) -> void:
+    # #28 Telemetry is Not Started. Until it lands, this is a local graceful noop (debug-print only in debug builds).
+    # When #28 exists, this forwards to the telemetry autoload. NEVER hard-depends on #28 (Pillar 2 — boss must run without it).
+    if OS.is_debug_build():
+        print_verbose("[BossSystem telemetry] %s %s" % [event, payload])
+```
+
+> **GP-F5 naming lock**: the canonical name is `_emit_telemetry` (underscore-prefixed private). All prior `emit_telemetry` callsites (e.g. Rule 12) are renamed to `_emit_telemetry`.
+
+**Pseudocode at COMMITTED state** (Pass 4 — A1.3 4-param signature + A2.3 post-add_child re-set + is_equal_approx + A1.2 caller-passed snapshot + A1.4 sync emit before return). *(The `signal boss_committed` + `const POSITION_TOLERANCE_PX` shown again below for locality are the SAME declarations as the class contract above — not duplicates; the class contract is authoritative.)*
+
+```gdscript
+# (members of BossSystem autoload — signal boss_committed + const POSITION_TOLERANCE_PX
+#  declared in the class contract above; _instantiate_boss + _emit_telemetry also there)
 
 # spawn_boss: A1.3 canonical 4-param + A2.3 post-add_child re-set + is_equal_approx
 func spawn_boss(
@@ -537,15 +588,27 @@ func _on_boss_committed(template: BossTemplate, boss: BossInstance, snapshot: St
 - Mini-boss has compressed modifier window (single exercise volume) — mean tier sits at UNCOMMON-RARE band edge, not pushing into EPIC zone.
 - **Net effect**: light workout median = UNCOMMON-RARE, full workout median = RARE-EPIC (modifier-driven), with both anchored to「mini ≤ RARE ≤ final」joint floor.
 
+**Tier-combine pseudocode (Pass 6 — qa B3.1; #15 LootDrop consumes this contract)**:
+```gdscript
+# #15 LootDrop, on a boss enemy_killed: the guaranteed floor and the ADR-005 rolled tier COMBINE via max().
+# The boss GUARANTEES at least loot_guarantee_min_tier; ADR-005 (volume×PR×streak) can roll HIGHER, never lower.
+func resolve_boss_loot_tier(boss_template: BossTemplate, transition_id: String) -> RarityTier:
+    var adr005_rolled: RarityTier = LootRarity.roll_tier(transition_id)   # ADR-005 workout_score → tier (seeded by transition_id)
+    var floor_tier: RarityTier = boss_template.loot_guarantee_min_tier    # RARE for final boss
+    return maxi(adr005_rolled, floor_tier)   # RarityTier enum ordinal-ordered COMMON<UNCOMMON<RARE<EPIC<LEGENDARY;
+                                             # max() = "guarantee floor, but let ADR-005 exceed it"
+```
+> **Contract for #15**: `final_tier = max(adr005_rolled, loot_guarantee_min_tier)`. RarityTier enum MUST be ordinal-ordered (COMMON=0 … LEGENDARY=4) so `maxi()` is meaningful (ADR-0007 Classification-enum convention — declaration order load-bearing). #15 stories cite this exact combine.
+
 - #16 only carries the FINAL flag；#15 LootDrop implements actual loot generation
 - **Mini-boss loot semantics 移交 #14**：`EnemyTemplate.loot_modifier` 屬 #14 next-revision spec scope (forward constraint)
 - **#15 LootDrop tier alignment** (per CRIT-5): #15 upgraded to VS tier (joint with #16) — VS milestone delivers complete Pillar 3 reward loop。See systems-index for tier change confirmation。
 
 ---
 
-#### Rule 10 — Light-Workout Path (revised 2026-05-27 — mini-boss 移交 #14)
+#### Rule 10 — Low-Effort Path (revised 2026-06-04 Pass 6 — DD#2 effort-signal gate; mini-boss 移交 #14)
 
-When `workout_summary.total_planned_sets <= LIGHT_WORKOUT_THRESHOLD_SETS` (=2 per #14 owned constant):
+When `effort_score < MINI_BOSS_EFFORT_THRESHOLD` (DD#2 — ADR-005 `workout_score`, replaces the `total_planned_sets <= LIGHT_WORKOUT_THRESHOLD_SETS` set-count proxy):
 - **#14 wave system spawns mini-boss as final encounter** (EnemyTemplate with `MINI_BOSS_LOOT` flag)
 - **#16 does NOT trigger** — `spawn_boss()` early-return per Rule 2 revised algorithm
 - BossAnchor 仍然 transition COMMITTED→IDLE 作為 workout_completed acknowledgment，但唔 invoke #16
@@ -553,12 +616,11 @@ When `workout_summary.total_planned_sets <= LIGHT_WORKOUT_THRESHOLD_SETS` (=2 pe
 - Loot = guaranteed 1, **UNCOMMON floor / RARE ceiling** (Pass 4 A3.1 — per Rule 9 revised; restores game-concept promise)
 - Pillar 1 honesty: light workout 唔 deliver final boss climax，但 mini-boss kill ritual 仍 acknowledge effort
 
-**Open Question Q-X5 (new — per Q2 light-workout framing concern)**:
-應否引入 `session_intent` flag (玩家喺 GymSys self-mark「recovery day」/「full session」/「quick warm-up」)，作為 light-workout-vs-full-workout 嘅 primary trigger，而唔係用 set count threshold？
+**Open Question Q-X5 (LARGELY RESOLVED by Pass 6 DD#2)**:
+原問題:應否引入 `session_intent` flag,而唔係用 set count threshold 判 light-vs-full?
 
-- **Pro**: 解決「2 sets 對某啲玩家係完整 mobility/deload session」嘅 punishment framing 問題 (per game-designer Q2)
-- **Con**: 需要 GymSys backend extension + UI add (額外 scope)
-- **MVP path**: 沿用 set count threshold；session_intent 列為 Pre-MVP feature candidate (gates on GymSys API extension feasibility)
+- **DD#2 (Pass 6) 已解決核心 punishment concern**:tier gate 由 set-count 改 ADR-005 `effort_score`(volume×PR×streak)。「幾組 strength 雖 set 少但 effort 高」唔再被誤判 light;「2 sets 但係完整 deload」由 effort_score 自然反映(低 volume → 低 effort → mini,合理)。**唔再需要 set-count proxy,亦唔需要 backend session_intent extension 嚟修呢個 framing 問題。**
+- **殘留(post-MVP candidate)**:若將來想畀玩家**主動覆寫**(例如「我特登做輕鬆 recovery day 但想當完整 session 對待」),session_intent flag 仍係 Pre-MVP feature candidate(gates on GymSys API extension)。但已非 MVP 必需。
 
 ---
 
@@ -572,7 +634,30 @@ When `workout_summary.total_planned_sets <= LIGHT_WORKOUT_THRESHOLD_SETS` (=2 pe
 ```gdscript
 const CLEANUP_TIMEOUT_MS: int = 3000  # 3.0s wall-clock deadline (bfcache-safe)
 
-func _on_enemy_killed_self_listen() -> void:
+# === Connection callsite (GP-F1/F7 Pass 6 — was missing) ===
+# In BossInstance._ready(): `EnemyDirector.enemy_killed.connect(_on_enemy_killed_self_listen)`
+# (#14 owns enemy_killed emission per Rule 8; BossInstance only LISTENS for its own death.)
+
+# === Canonical AI-state entry (GP-F4 Pass 6 — _enter_state was undefined) ===
+func _enter_state(new_state: int) -> void:
+	if _ai_state == new_state:
+		return                       # idempotent re-entry no-op = double-cleanup guard root
+	_ai_state = new_state            # Rule 15 inherits #14 enemy_ai_state machine
+	match new_state:
+		EnemyAIState.DYING:
+			_play_death_and_free()
+		# SPAWNING / IDLE / ATTACKING / STAGGERED per Rule 15 (#14 enemy AI state machine)
+
+# === Self-filtered enemy_killed handler (Tier 1 Pass 6 — connect + filter; was bodyless+unwired) ===
+# Signature matches #14 enemy_killed(transition_id, faction, tier); payload.transition_id == BossAnchor
+# commit id per Rule 8 #3 + AC-08 (exact match, not regenerated).
+func _on_enemy_killed_self_listen(transition_id: String, _faction: int, _tier: int) -> void:
+	if transition_id != self.transition_id:
+		return                       # NOT this boss — ignore (self-filter; any-enemy-kill won't trigger cleanup)
+	_enter_state(EnemyAIState.DYING) # canonical entry (idempotent; safe even if already DYING)
+
+# === Death animation + cleanup (Tier 1 Pass 6 — formerly the unwired _on_enemy_killed_self_listen body) ===
+func _play_death_and_free() -> void:
     # GP2 resolution: guard against node freed before signal arrives
     if not is_instance_valid(self) or not is_inside_tree():
         return
@@ -657,39 +742,49 @@ func _on_resume_detected() -> void:
 
 ---
 
-#### Rule 12 — Persistence Considerations (revised 2026-05-28 Pass 4 A3.2 — mid-fight bfcache hybrid per CD Pillar 1 vs Pillar 2 adjudication)
+#### Rule 12 — Persistence Considerations (revised 2026-06-04 Pass 6 — **DD#1 persist `current_hp` for perfect bfcache continuity**)
 
-- Boss instance **transient** — NOT persisted to `wst.*` / `boss.*` namespace
 - BossTemplate definitions = read-only `.tres` resources (no migration concerns)
-- **Mid-fight bfcache resume hybrid (Pass 4 A3.2 — CD adjudicated game-designer position correct)**: Pass 3 「always restart at FULL HP」 erased honest-derived state (HP IS derived from honest workout output via Formula 1+2; resetting fabricates a higher-effort fight than honest progression earned). Pass 4 implements skip-to-kill / restart hybrid:
+- **DD#1 (Pass 6 LOCKED) — persist `boss.current_hp` (ONE int)**: replaces the Pass 4 skip-to-kill / restart-at-full hybrid (which made boss death fire from a browser resume event, betraying「我嗰 rep 殺 boss」). On bfcache resume the boss restores its **EXACT** pre-freeze HP and continues — so **boss death ALWAYS originates from a player hit** (Rule 8 enemy_killed), never from a resume event. Eliminates P5-1 (death from resume), P5-6, P5-7/8 (skip-to-kill vs EC-16 double-loot race) in one move.
 
-  ```
-  On bfcache resume mid-fight (detected via Rule 11 _on_resume_detected multi-hook):
-    if workout_completed emitted pre-freeze (transition_id committed in #14 BossAnchor):
-      if boss.current_hp < boss.max_hp × MID_FIGHT_SKIP_HP_THRESHOLD (default 0.30):
-        # SKIP-TO-KILL path — Pillar 2 continuity + Pillar 3 reward chain preserved
-        # Boss already meaningfully wounded; bfcache resume must not erase ≥70% damage progress.
-        # Skip remaining HP, trigger death animation directly, emit enemy_killed with cached transition_id.
-        boss.current_hp = 0
-        boss._enter_state(EnemyAIState.DYING)   # AnimationPlayer.play("death") via Rule 11
-        # enemy_killed emit happens via #14 standard pipeline on DYING state
-        emit_telemetry("boss.bfcache_skip_to_kill", {boss_id, hp_at_freeze, threshold})
+  ```gdscript
+  # Persisted fields (boss.* namespace — ONE ephemeral mid-fight record; deleted on death/cleanup):
+  #   boss.transition_id : String     # re-association key (must match BossAnchor commit)
+  #   boss.boss_id       : StringName
+  #   boss.current_hp    : int        # the ONLY mutable persisted field
+
+  # Single HP mutator (GP-F8) — every HP write (combat hit via #13, bfcache restore) goes through this:
+  func _set_current_hp(value: int) -> void:
+      current_hp = clampi(value, 0, max_hp)
+      hp_changed.emit(current_hp, max_hp)
+      PersistenceLayer.write("boss.current_hp", current_hp)   # DD#1 mirror
+      if current_hp == 0:
+          _enter_state(EnemyAIState.DYING)   # defensive in-instance trigger; real death still via Rule 8
+                                             # enemy_killed (idempotent _enter_state → no double path)
+
+  # On bfcache resume mid-fight (detected via Rule 11 _on_resume_detected multi-hook):
+  if workout_completed emitted pre-freeze (transition_id committed in #14 BossAnchor):
+      var restored_hp = PersistenceLayer.read("boss.current_hp")          # null if never written
+      var restored_tid = PersistenceLayer.read("boss.transition_id")
+      if restored_hp != null and restored_tid == boss.transition_id:
+          boss._set_current_hp(restored_hp)   # restore EXACT pre-freeze HP — fight continues from here
+          # Boss stays in its current AI state; NO re-reveal ritual, NO skip-to-kill, NO HP fabrication.
+          # If restored_hp == 0 (killing blow landed pre-freeze, enemy_killed not yet processed):
+          # _set_current_hp(0) → _enter_state(DYING) idempotent; EC-16/EC-24 dedupe guard the single loot drop.
       else:
-        # RESTART-AT-FULL-HP path — Pillar 1 honesty (boss had ≥70% HP, fight scarcely started)
-        # No fabrication concern — boss restarts from designed initial state, NOT mid-derived state.
-        boss.current_hp = boss.max_hp
-        boss._enter_state(EnemyAIState.SPAWNING)   # re-runs reveal ritual (Rule 7)
-        emit_telemetry("boss.bfcache_restart_full_hp", {boss_id, hp_at_freeze})
-    else:
-      # workout_completed NOT emitted (e.g., PRE_SPAWN freeze before commit)
-      # — boss shouldn't exist mid-resume; cleanup defensively. Real workout flow re-triggers via #14.
+          boss._set_current_hp(boss.max_hp)   # no record (first-frame-post-spawn freeze, zero damage yet)
+  else:
+      # workout_completed NOT emitted (PRE_SPAWN freeze before commit) — boss shouldn't exist; cleanup defensively.
       boss._cleanup_resources()
       boss.queue_free()
+      PersistenceLayer.delete("boss.current_hp")   # clear stale ephemeral record
   ```
 
-- **Rationale (Pillar 1 vs Pillar 2 adjudication per Pass 3 fresh-session CD synthesis)**: Pillar 1「real_body real_power」protects against FABRICATED values (e.g., spoofed PR, synthetic class assignment) — boss HP at 30% IS derived honestly from real player damage. Reset-to-full erases that honest derivation. CD verdict: "Pillar 1 anti-fabrication spirit 守 transition_id chain，HP 已 derived from honest workout output 唔係 fabricated value。Reset 反而 erase 咗 honest derived state."
-- **Threshold 30% selected because**: (a) below 30% = fight psychologically「nearly done」— player expects kill payoff; (b) above 30% = fight just begun — restart feels less disruptive than fabricated mid-state; (c) tunable via `MID_FIGHT_SKIP_HP_THRESHOLD` knob if playtest reveals different boundary.
-- **Open Question Q-X2 resolved (Pass 4 A3.2)**: mid-fight resume = hybrid skip-to-kill (HP<30%) / restart-at-full (HP≥30%) / cleanup (no commit). Closed. Telemetry events allow Pre-MVP playtest to calibrate threshold.
+- **Cleanup**: on boss death (`_play_death_and_free`) the `boss.*` ephemeral record is deleted (no stale mid-fight HP leaking across workouts).
+- **Pillar 1 honesty preserved + strengthened**: persisted `current_hp` IS honest-derived state (real player damage). Restoring the EXACT value is MORE honest than the Pass-3 reset-to-full (fabricated higher-effort fight) OR the Pass-4 skip-to-kill (death from a non-hit event). DD#1 makes boss death unconditionally player-hit-originated.
+- **Ripple — Followup #21**: ADR-003 save scope gains ONE ephemeral mid-fight field (`boss.current_hp`); needs save-strategy + #15 confirm (design-level decision made; NOT a GDD blocker).
+- **`MID_FIGHT_SKIP_HP_THRESHOLD` knob REMOVED** (Pass 6 — skip-to-kill path deleted).
+- **Q-X2 resolved (Pass 6 DD#1)**: mid-fight resume = restore exact persisted `current_hp`; boss death always player-hit-originated. Closed.
 
 ---
 
@@ -831,7 +926,20 @@ else:
 
 boss_max_hp_raw = base_hp + (effective_atk × TARGET_KILL_HITS × HP_SCALE_FACTOR)
 boss_max_hp = clamp(boss_max_hp_raw, MIN_BOSS_HP, MAX_BOSS_HP)
+
+# === Pass 6 F2 reconciliation — first-session must NOT be tougher than mid-game ===
+# Problem (Pass 5 systems-designer): on the bootstrap branch the boss HP is computed from
+# effective_atk (≥ BOOTSTRAP_ATTACK_POWER) but a first-session player's ACTUAL hit damage
+# (#13, derived from near-floor stats) is low → 21-29 hits = tougher than a mid-game fight.
+# That inverts the "first impression must be engaging, not punishing" goal (INV-9 spirit).
+# Fix: on the bootstrap branch ONLY, cap HP so the boss dies within FIRST_SESSION_KILL_HITS_MAX
+# given the first-session player's expected per-hit damage (a #13-calibrated constant, NOT atk-scaled):
+if player_attack_power == 0:   # bootstrap branch (same condition as above)
+    var first_session_hp_cap = FIRST_SESSION_EXPECTED_HIT_DAMAGE × FIRST_SESSION_KILL_HITS_MAX
+    boss_max_hp = min(boss_max_hp, first_session_hp_cap)   # never tankier than the new-player can clear in-window
 ```
+
+> **F2 cross-system flag**: `FIRST_SESSION_EXPECTED_HIT_DAMAGE` is a #13-calibrated value (first-session player's typical per-hit output). #16 owns the cap knob but the VALUE must be co-calibrated with #13 + playtest (Followup #23 NEW). Invariant **INV-9b** (NEW): `first_session_hit_count ≤ mid_game_hit_count` — first session is never the hardest fight.
 
 **Knob defaults (Pass 4 A3.3)**:
 - `BOOTSTRAP_ATTACK_POWER = 10` (matches #11 ATTACK_POWER floor — boss winnable in ~9 hits at base_hp=200, HP_SCALE_FACTOR=1.0)
@@ -1064,7 +1172,10 @@ Used in 3 downstream calls per Rule 7:
 
 **EC-06 [Scaling | CRITICAL]** (revised 2026-05-27 — CRIT-6 P4 fix): 如果 player `MAX_HP ∈ [0, 9]` (degenerate state — #11 INV-2 enforces max(1, ...) so MAX_HP=0 唔應該發生，但 [1, 9] range 仍然 possible at boot before equipment loads)，**則** `MAX_BOSS_DAMAGE_dynamic = floor(MAX_HP × 0.5) ∈ [0, 4]` < `MIN_BOSS_DAMAGE = 5`。Per CRIT-6 clamp inversion guard：`MAX_BOSS_DAMAGE = max(MAX_BOSS_DAMAGE_dynamic, MIN_BOSS_DAMAGE) = 5`，clamp range becomes [5, 5] = fixed 5。Boss attack damage = 5 (single-hit player kill at MAX_HP < 5 — telemetry emit `boss.degenerate_player_hp(workout_id, hp)` for emergency tuning). Pillar 3 protection: boss 唔會 0 damage feels broken；MIN_BOSS_DAMAGE floor preserved。(Formula 2 + CRIT-6 P4)
 
-**EC-07 [Scaling | HIGH]**: 如果 `boss_max_hp_raw > MAX_BOSS_HP=10000` (player 達 endgame stat)，**則** clamp 至 10000 + log `BOSS_HP_CEILING_HIT_001` (WARN, payload=raw, player_atk)。Anti-fabrication: real-stat-driven 但唔讓 design impossible。Long-term: re-tune MAX_BOSS_HP or introduce TIER_4 bosses v0.2。(Formula 1)
+**EC-07 [Scaling | HIGH]**: 如果 `boss_max_hp_raw > MAX_BOSS_HP=10000` (player 達 endgame stat)，**則** clamp 至 10000 + log `BOSS_HP_CEILING_HIT_001` (WARN, payload=raw, player_atk)。Anti-fabrication: real-stat-driven 但唔讓 design impossible。**Pass 6 F3 — saturation hit-count DISCLOSED (accepted MVP limitation)**: 一旦 player ATTACK_POWER 高到 boss_max_hp clamp 撞頂(≈ atk ≥ 1056 with base_hp=200, TARGET=9, SCALE=1.0),9-hit target window 會塌落 2-3 hit kill — 因為 10000 HP cap 唔再隨 player 變強。**呢個係 MVP 已知 + 接受 + telemetry-tracked 嘅行為**(唔係 bug):endgame player one-2-3-shot boss = power-fantasy payoff,唔傷 Pillar 3(loot 照爆)。**MVP mitigation = disclose + AC-44(NEW)**;真正修復(MAX_BOSS_HP 隨 player ramp / TIER_4 boss)deferred v0.2(Followup #24 NEW)。(Formula 1)
+
+**AC-44 [Logic | ADVISORY | Unit]** (Pass 6 F3 — endgame saturation disclosure): **GIVEN** player_attack_power 高到 boss_max_hp_raw > 10000, **WHEN** Formula 1, **THEN** boss_max_hp == 10000 (clamped) + `BOSS_HP_CEILING_HIT_001` telemetry emitted with raw + atk payload; 並 documented：hit-count 喺呢個 régime 跌穿 9-hit target(accepted MVP behavior,非 regression)。標 ADVISORY(power-fantasy payoff,非 blocker);v0.2 TIER_4 mitigation per Followup #24。
+  - **Evidence**: `tests/unit/feature/boss_system/test_ac44_endgame_saturation_disclosure.gd`
 
 **EC-08 [Scaling | HIGH]**: 如果 `pattern_damage_multiplier > 2.5` (BossTemplate typo)，**則** clamp at 2.5 + log + push_warning。Anti-fabrication: 防止 designer 不慎 lock 一個 9-shot avatar kill pattern。(Formula 2)
 
@@ -1118,7 +1229,7 @@ Used in 3 downstream calls per Rule 7:
 
 ### Category 8 — Light-Workout Boundary
 
-**EC-22 [LightWorkout | MEDIUM]**: 如果 `total_planned_sets == LIGHT_WORKOUT_THRESHOLD_SETS (=2)`，**則** boundary inclusive — spawn MINI tier。同 #14 EC-19 light-workout boundary 一致 (≤ 2 → mini)。CI lint 確保 #14 + #16 boundary 同步。(Rule 10)
+**EC-22 [LowEffort | MEDIUM]** (DD#2 Pass 6): 如果 `effort_score == MINI_BOSS_EFFORT_THRESHOLD`(剛好喺邊界),**則** boundary = `< threshold → MINI`,`>= threshold → FINAL`(即邊界值判 FINAL,strict-less-than 為 mini)。#14 + #16 必須用**同一** `effort_score`(ADR-005 workout_score)+ 同一 threshold(single source of truth,見 INV-7 revised)。CI lint 確保 #14 + #16 gate 同步。(Rule 10)
 
 **EC-23 [LightWorkout | LOW]**: 如果 `total_planned_sets == 0` (空 workout 但 backend 莫名其妙 emit workout_completed)，**則** **拒絕 boss spawn** + emit `boss.empty_workout(workout_id)` (ERROR)。Pillar 1 — 冇 set 唔可能有 boss。(Rule 16 NEVER #11)
 
@@ -1127,6 +1238,8 @@ Used in 3 downstream calls per Rule 7:
 ### Category 9 — Boss Kill Race
 
 **EC-24 [Kill | CRITICAL]**: 如果 boss 喺同一 frame 收到 multiple killing-blow hits (AOE per #13 MAX_TARGETS_PER_CAST=8)，**則** **僅第一 hit 觸發 enemy_killed emission** (per #14 Rule 15 idempotency dedupe by enemy_instance_id)。後續 hits drop + log `boss.dup_kill_blow(boss_id, count)` (INFO)。Loot 只爆 1 次。(Rule 8 + #14 Rule 15)
+
+**EC-25 [AvatarDowned | HIGH]** (Pass 6 F4 — avatar「death」spec; was MISSING): 如果 avatar HP 喺 boss fight 中跌到 0（degenerate `player_max_hp=1` one-shot,或長 fight 累積傷害穿過 anti-one-shot ceiling），**則** **Mirror Hero 係 gym companion auto-battler — 冇 game-over / 冇 permadeath / 冇 retry screen（Pillar 2 frictionless）**。Avatar 進入短暫「downed」state(~1s knockdown anim)然後**自動回復**到 low HP(`AVATAR_RECOVER_HP_FRACTION` × max_hp,default 0.25),boss fight 繼續。Boss **唔會「贏」**——fight 由 workout 驅動,boss 只喺 `enemy_killed`(workout-completion / player-hit chain)時死。Loot 照爆(Pillar 3 唔受 avatar-downed 影響)。Telemetry `boss.avatar_downed(boss_id, transition_id)` 畀 #28。**理由**:呢個係陪伴玩家做 gym 嘅 game,任何「你死喇,重嚟過」嘅 friction 都直接謀殺 Pillar 2。avatar 係**打唔死嘅見證者**,唔係會 fail 嘅 player character。(Formula 2 + Rule 16 NEVER — 新增「NEVER 顯示 game-over / death screen during workout」)
 
 ---
 
@@ -1204,7 +1317,7 @@ Used in 3 downstream calls per Rule 7:
 | `MAX_BOSS_DAMAGE_RATIO` | 0.5 | [0.3, 0.5] | Formula 2 — multiplier on player_max_hp for hard ceiling (Pass 3 — capped 0.5 per INV-5 STRICT, prevents F4 high-mult pattern variety loss) | < 0.3 → boss attack feels weak; > 0.5 → one-shot avatar kill risk violates INV-5 |
 | `MIN_RITUAL_INTENSITY` | 0.5 | [0.4, 0.6] | Formula 4 — anti-invisible final-boss reveal (Pass 3 — raised 0.4→0.5 per systems-designer Weber-Fechner: 0.6×0.4=0.24s camera focal below human perception threshold ~200ms) | < 0.4 → final boss reveal feels weak; > 0.6 → mini-vs-final gradient 收窄 (但 mini 用 categorical NO focal — gradient by presence/absence) |
 | `MAX_RITUAL_INTENSITY` | 1.0 | [1.0, 1.5] | Formula 4 — clamp to #5 max_caller_multiplier ceiling | > 1.5 → violates ADR-001 #5 budget; < 1.0 → final boss treatment 上限 受限 |
-| `MID_FIGHT_SKIP_HP_THRESHOLD` | 0.30 | [0.10, 0.50] | Rule 12 Pass 4 A3.2 bfcache hybrid — HP fraction below which resume skips-to-kill; above which restarts at full HP | < 0.10 → almost all resumes restart (Pillar 2 continuity violated); > 0.50 → nearly any damage triggers skip-to-kill (Pillar 1 honesty drift — fights feel skippable) |
+| ~~`MID_FIGHT_SKIP_HP_THRESHOLD`~~ | — | — | **REMOVED Pass 6 DD#1** — skip-to-kill bfcache path deleted; `boss.current_hp` now persisted for exact-restore continuity (Rule 12). No threshold needed. |
 | `BOOTSTRAP_ATTACK_POWER` | 10 | [5, 30] | Formula 1 Pass 4 A3.3 first-session fallback — minimum effective_atk when player_attack_power=0 | < 5 → boss HP floor 撞 MIN_BOSS_HP=50 (trivial fight); > 30 → first session bootstrap too punishing (defeats "first impression must be engaging" goal) |
 | `FIRST_SESSION_BASELINE_ATK` | 28 | [20, 50] | Formula 1 Pass 4 A3.3 — ATTACK_POWER target after duration ramp completes (≥10 min into first workout) | < 20 → bootstrap too lenient; > 50 → first session boss tougher than mid-game stat player (paradox) |
 | `FIRST_SESSION_DURATION_TARGET_SEC` | 600 | [300, 1800] | Formula 1 Pass 4 A3.3 — workout_duration_sec ramp denominator (linear ramp from 0 → 1.0 over this duration) | < 300 → bootstrap ramps before player has done meaningful work; > 1800 → bootstrap never reaches baseline within typical workout |
@@ -1220,7 +1333,7 @@ Used in 3 downstream calls per Rule 7:
 
 | Knob | Owner | Value | #16 uses for |
 |------|-------|-------|-------------|
-| `LIGHT_WORKOUT_THRESHOLD_SETS` | #14 EnemyDirector | 2 | Rule 10 mini vs final boundary |
+| `MINI_BOSS_EFFORT_THRESHOLD` (DD#2 — replaces `LIGHT_WORKOUT_THRESHOLD_SETS`) | #14 EnemyDirector (joint w/ #16; forward-constraint to #14 next-revision) | 0.25 (provisional — ADR-005 `workout_score` scale [0,1]; playtest-calibrate) | Rule 2/10 mini-vs-final gate: `effort_score < threshold → mini`. Same effort signal both systems use (single source of truth). |
 | `FOCAL_ENTRY_DURATION` (BASE_FOCAL_DURATION alias) | #7 Camera | 0.6s | Formula 4 base × ritual_mult |
 | `max_caller_multiplier` | #5 Particle System | 1.5 | Formula 4 ceiling (CI-4 constraint) |
 | `EXERCISE_TARGET_COUNT` | ADR-005 | 5 | Indirectly via #15 LootDrop volume_factor |
@@ -1244,14 +1357,14 @@ Used in 3 downstream calls per Rule 7:
 | **INV-4** | `MAX_RITUAL_INTENSITY ≤ #5 max_caller_multiplier (1.5)` | CI-4 binding — #5 budget |
 | **INV-5** | `MAX_BOSS_DAMAGE_RATIO ≤ 0.5` STRICT | Anti-one-shot avatar — Pillar 3 protection |
 | **INV-6** | `MIN_RITUAL_INTENSITY < default final ritual_intensity (1.0)` | Default final template falls inside safe range (mini ritual_intensity 屬 #14 EnemyTemplate post CRIT-4 split — removed from #16's invariant scope per A4.1) |
-| **INV-7** | `LIGHT_WORKOUT_THRESHOLD_SETS == #14 owned value (2)` — single source of truth | Avoid #14 / #16 boundary divergence (pattern from consistency-failures log) |
-| **INV-8** (Pass 4 A3.1) | `BossTemplate.loot_guarantee_min_tier (RARE) > EnemyTemplate.loot_rarity_ceiling (RARE)` joint at RARE; final boss tier ≥ mini boss ceiling, gradient via ADR-005 modifiers | Preserves dramatic weight gradient post Pass 4 mini UNCOMMON-RARE band restoration; cross-system constraint requires #14 GDD next-revision to lock `EnemyTemplate.loot_rarity_ceiling = RARE` |
+| **INV-7** (DD#2 Pass 6) | `MINI_BOSS_EFFORT_THRESHOLD` + the `effort_score` formula (ADR-005 `workout_score`) are IDENTICAL across #14 and #16 — single source of truth | Avoid #14 / #16 mini-vs-final gate divergence; both classify the SAME workout the same way (was set-count `LIGHT_WORKOUT_THRESHOLD_SETS`) |
+| **INV-8** (Pass 6 F6 — operator fix) | `BossTemplate.loot_guarantee_min_tier (RARE) >= EnemyTemplate.loot_rarity_ceiling (RARE)` — final boss **floor** ≥ mini boss **ceiling** (both = RARE → joint-equal is VALID; Pass 5 flagged the prior `>` literal as `RARE > RARE = false`, a static-gradient-of-zero bug). **The differentiator is DISTRIBUTIONAL, not static**: both can roll RARE at the floor/ceiling, but the final boss's ADR-005 modifiers (volume×PR×streak from a full workout) push its rolled tier ABOVE RARE far more often than a mini boss's. | Preserves dramatic weight gradient. **Followup #22 (NEW)**: provide ADR-005 rolled-tier distribution evidence (final-boss vs mini-boss expected EPIC+ rate) to confirm the distributional gradient is perceptible — replaces the prior hand-wave. Cross-system: #14 GDD next-revision locks `EnemyTemplate.loot_rarity_ceiling = RARE`. |
 | **INV-9** (Pass 4 A3.3) | `BOOTSTRAP_ATTACK_POWER ≤ FIRST_SESSION_BASELINE_ATK` | Bootstrap floor 不可高過 ramp target (otherwise ramp downward — semantically broken) |
-| **INV-10** (Pass 4 A3.2) | `0.10 ≤ MID_FIGHT_SKIP_HP_THRESHOLD ≤ 0.50` | Outside this range, bfcache hybrid degenerates to「always skip」OR「never skip」— defeats Pillar 1/2 balance per CD adjudication |
+| ~~**INV-10**~~ (Pass 4 A3.2) | ~~`0.10 ≤ MID_FIGHT_SKIP_HP_THRESHOLD ≤ 0.50`~~ | **REMOVED Pass 6 DD#1** — `MID_FIGHT_SKIP_HP_THRESHOLD` knob deleted (skip-to-kill path gone; `boss.current_hp` persisted exact-restore) |
 
 ### Knob Stability Classification
 
-- **LOCKED** (changing requires GDD revision + CI lint update): `LIGHT_WORKOUT_THRESHOLD_SETS` (referenced from #14), `MAX_RITUAL_INTENSITY` (CI-4 bound)
+- **LOCKED** (changing requires GDD revision + CI lint update): `MINI_BOSS_EFFORT_THRESHOLD` (DD#2 — joint w/ #14, single source of truth per INV-7), `MAX_RITUAL_INTENSITY` (CI-4 bound)
 - **DESIGN-FROZEN** (safe range narrow, requires #11/#13/#15 coordination): `TARGET_KILL_HITS_*`, `DAMAGE_RATIO_PER_HIT_*`, `MAX_BOSS_DAMAGE_RATIO`
 - **TUNABLE** (designer-adjustable per playtest evidence): `HP_SCALE_FACTOR`, `MIN_BOSS_HP`, `MAX_BOSS_HP`, `MIN_BOSS_DAMAGE`, `MIN_RITUAL_INTENSITY`
 - **PROVISIONAL** (pending real playtest data): all per-BossTemplate values
@@ -1356,8 +1469,11 @@ Boss = world-space entity；冇 Control / Canvas widget。Boss-related UI 屬其
 - **AC-06 [Logic | BLOCKING | Unit]** (Rule 6: Attack pattern anti-spam): **GIVEN** boss with 3 patterns, **WHEN** 100 consecutive attack pattern selections via Formula 3, **THEN** zero consecutive same-pattern sequences detected。
   - **Evidence**: `tests/unit/feature/boss_system/test_attack_pattern_anti_spam.gd`
 
-- **AC-07 [Integration | BLOCKING | Integration]** (Rule 7: Reveal ritual dispatch — revised 2026-05-27 Pass 3 per F2 Camera-Leading reorder + GP3 position fix): **GIVEN** mock #5/#6/#7 spies, **WHEN** boss commits (COMMITTED state entered, `boss_committed` signal emitted with `spawn_pos` payload), **THEN** (a) **Camera.request_focal dispatched FIRST (frame 0)** — assert call_order_index = 0; (b) ScreenEffects.shake + ParticleSystem.spawn dispatched frame 1-2 AFTER Camera (assert call_order_index for shake/particles > Camera); (c) all 3 visual calls + boss visible within ≤ 2 process frames total (frame-count-based, NOT wall-clock ms); (d) Camera target argument === `spawn_pos` payload (NOT boss.global_position late-read — GP3 fix); (e) each call's `caller_mult` argument == `boss_template.reveal_ritual_intensity`; (f) `boss.global_position == spawn_pos` post-add_child (GP3 transform persistence assertion); (g) **scope = dispatch contract + order test, NOT visual outcome**. Visual outcome covered by AC-29 manual playtest.
+- **AC-07 [Integration | BLOCKING | Integration]** (Rule 7: Reveal ritual dispatch — revised 2026-05-27 Pass 3 per F2 Camera-Leading reorder + GP3 position fix): **GIVEN** mock #5/#6/#7 spies, **WHEN** boss commits (COMMITTED state entered, `boss_committed` signal emitted with `spawn_pos` payload), **THEN** (a) **Camera.request_focal dispatched FIRST (frame 0)** — assert call_order_index = 0; (b) ScreenEffects.shake + ParticleSystem.spawn dispatched frame 1-2 AFTER Camera (assert call_order_index for shake/particles > Camera); (c) all 3 visual calls + boss visible within ≤ 2 process frames total (frame-count-based — the dispatch-order contract); (d) Camera target argument === `spawn_pos` payload (NOT boss.global_position late-read — GP3 fix); (e) each call's `caller_mult` argument == `boss_template.reveal_ritual_intensity`; (f) `boss.global_position == spawn_pos` post-add_child (GP3 transform persistence assertion); (g) **scope = dispatch contract + order test, NOT visual outcome**. Visual outcome covered by AC-29 manual playtest.
   - **Evidence**: `tests/integration/feature/boss_system/test_reveal_ritual_sequence.gd`
+
+- **AC-07b [Integration | BLOCKING | Integration]** (Rule 7 wall-clock budget — **Pass 6 B1.1; frame-count alone doesn't prove the Pillar-2 ≤200ms budget on a throttled tab**): **GIVEN** the dispatch runs under a NORMAL (non-throttled, ≥30fps) frame cadence injected via a deterministic test clock, **WHEN** boss commits, **THEN** wall-clock elapsed from `boss_committed` emit to all-3-dispatched ≤ 200ms. **Throttled-tab exemption**: when `Engine.get_frames_per_second() < 10` (background/throttled tab) the wall-clock assertion is SKIPPED and only the frame-count contract (AC-07 c) holds — a throttled tab cannot make wall-clock guarantees and the player isn't looking anyway. The ≤200ms budget is a foreground-attention promise, not a background one.
+  - **Evidence**: `tests/integration/feature/boss_system/test_reveal_ritual_wallclock_budget.gd`
 
 - **AC-08 [Logic | BLOCKING | Unit]** (Rule 8: enemy_killed.transition_id chain integrity): **GIVEN** boss spawned with transition_id="abc123" + boss dies, **WHEN** observe #14 enemy_killed emission, **THEN** payload.transition_id == "abc123" (exact match, not regenerated)。
   - **Evidence**: `tests/unit/feature/boss_system/test_kill_txn_chain.gd`
@@ -1370,6 +1486,9 @@ Boss = world-space entity；冇 Control / Canvas widget。Boss-related UI 屬其
 
 - **AC-11 [Logic | BLOCKING | Unit]** (Rule 11: Boss cleanup): **GIVEN** boss DYING state animation finishes, **WHEN** cleanup runs, **THEN** all _spawned_emitters released via #5 wrapper + boss instance queue_free called within 2 frames。
   - **Evidence**: `tests/unit/feature/boss_system/test_boss_cleanup.gd`
+
+- **AC-11b [Logic | BLOCKING | Unit]** (Tier 1 Pass 6 — canonical death path: `enemy_killed → DYING` wiring, was uncovered): **GIVEN** a BossInstance with `transition_id="abc"` connected to a mock `enemy_killed` signal, **WHEN** `enemy_killed("abc", faction, tier)` fires, **THEN** `_enter_state(DYING)` is entered exactly once (death anim + cleanup begin). **AND GIVEN** `enemy_killed("OTHER_id", …)` fires (different boss), **THEN** this boss does NOT enter DYING (self-filter `transition_id != self.transition_id` holds). **AND** a second `enemy_killed("abc", …)` re-fire (or HP→0 `_set_current_hp(0)` after already DYING) does NOT run cleanup twice (idempotent `_enter_state` guard — double-cleanup guard).
+  - **Evidence**: `tests/unit/feature/boss_system/test_enemy_killed_to_dying.gd`
 
 - **AC-12 [Static | ADVISORY (CI-blocked) → BLOCKING (when tooling ready) | Static]** (Rule 12 + Rule 16 NEVER #10: No persistence — Pass 3 downgraded per qa-lead AC-12/16/33 CI self-contradiction finding): **Pre-condition (BLOCKED-ON: BOSS-AC-followup-08 tooling story)**: `tools/ci/check_boss_no_persist.gd` MUST exist + integrated into CI pipeline; until then, AC status = ADVISORY (manual grep acceptable during sprint, gate-promoted to BLOCKING when CI script lands). **GIVEN** repo src/, **WHEN** static grep `PersistenceLayer.write\("boss\.` outside any whitelisted file, **THEN** 0 matches；CI script enforces。
   - **Evidence**: `tools/ci/check_boss_no_persist.gd` + `tests/static/test_boss_no_persist.gd`
@@ -1391,7 +1510,7 @@ Boss = world-space entity；冇 Control / Canvas widget。Boss-related UI 屬其
 - **AC-17 [Logic | BLOCKING | Unit]** (Formula 1: boss_max_hp_scaling worked example): **GIVEN** player_attack_power=159, base_hp=200, TARGET_KILL_HITS=9, HP_SCALE_FACTOR=1.0, **WHEN** compute Formula 1, **THEN** boss_max_hp == 1631 ± 1。
   - **Evidence**: `tests/unit/feature/boss_system/test_formula1_hp_scaling.gd`
 
-- **AC-18 [Logic | BLOCKING | Unit]** (Formula 1 + CF-1: floor/ceiling clamp): **GIVEN** edge case ATTACK_POWER=0 OR ATTACK_POWER=4500 (max), **WHEN** Formula 1, **THEN** floor case → boss_max_hp=MIN_BOSS_HP=50; ceiling case → boss_max_hp=MAX_BOSS_HP=10000 + telemetry emit。
+- **AC-18 [Logic | BLOCKING | Unit]** (Formula 1 + CF-1: floor/ceiling clamp — **Pass 6 F1 regression fix**): **GIVEN** ATTACK_POWER=4500 (max) with base_hp=200, **WHEN** Formula 1, **THEN** ceiling case → boss_max_hp=MAX_BOSS_HP=10000 + ceiling telemetry emit. **AND GIVEN** a degenerate input forcing `boss_max_hp_raw < MIN_BOSS_HP` (defensive — base_hp range [50,500] means raw ≥ base_hp ≥ 50 normally, so the floor is a guard against a future sub-50 base_hp), **WHEN** Formula 1, **THEN** boss_max_hp clamped up to MIN_BOSS_HP=50. **NOTE (Pass 6)**: the `ATTACK_POWER=0 → boss_max_hp=50` claim was a Pass-4-regression — when `player_attack_power == 0` Formula 1 takes the **A3.3 bootstrap branch** (effective_atk = max(BOOTSTRAP_ATTACK_POWER, duration×baseline) ≥ 10 → raw ≥ base_hp+90 ≥ ~290, NOT 50). That path is covered by **AC-41**, not AC-18.
   - **Evidence**: `tests/unit/feature/boss_system/test_formula1_clamps.gd`
 
 - **AC-19 [Logic | BLOCKING | Unit]** (Formula 2 + CF-2: anti-one-shot ceiling): **GIVEN** player_max_hp=200, DAMAGE_RATIO_PER_HIT=0.28, pattern_damage_multiplier=2.5 (max), **WHEN** Formula 2, **THEN** boss_attack_damage ≤ ⌊200×0.5⌋ = 100 always；MAX_BOSS_DAMAGE clamp triggered。
@@ -1483,7 +1602,7 @@ Boss = world-space entity；冇 Control / Canvas widget。Boss-related UI 屬其
 - **AC-38 [Logic | BLOCKING | Unit]** (Rule 11 GP4 wall-clock cleanup timeout — per gameplay-programmer SceneTreeTimer bfcache finding): **GIVEN** boss in DYING state, AnimationPlayer plays "death" but `animation_finished` signal NEVER fires (simulate bfcache drop), **WHEN** observe cleanup behavior using mock `Time.get_ticks_msec()` advancing past `deadline_ms`, **THEN** (a) cleanup proceeds after wall-clock 3000ms (NOT after process_frame count — wall-clock independent of frame rate); (b) `_spawned_emitters.clear()` called exactly once; (c) `queue_free()` called。Validates bfcache-safe wall-clock pattern。
   - **Evidence**: `tests/unit/feature/boss_system/test_ac38_cleanup_wallclock_timeout.gd`
 
-- **AC-39 [Visual/Feel | ADVISORY (post-MVP retention) | Manual]** (new Pass 3 per game-designer F1 — single-boss novelty collapse risk; Test #1b session 5+ retention): **GIVEN** n≥5 playtesters complete ≥5 workout sessions across ≥1 week (testing same single STRIKE boss content), **WHEN** post-session-5 Likert「session 5 boss kill 想 screenshot 嘅感覺對比 session 1 點?」(1=失去全部 / 3=維持 / 5=更強), **THEN** mean ≥ 3.0 (no collapse). Fail (< 3.0) → MVP boss content roster expansion 提前到 Pre-MVP，唔可以等 v0.2。Validates F1 paper fantasy → real-fantasy 收斂風險。
+- **AC-39 [Visual/Feel | BLOCKING (MVP gate) | Manual]** (Pass 6 ESCALATED per game-designer P5-3 — single-boss-asset + auto-play + frozen-outcome = novelty collapse is a **CERTAINTY, not a risk**; the prior ADVISORY ≥3.0/n≥5/≥5-session test was too weak to stop it): **GIVEN** **n≥10** playtesters complete **≥8 workout sessions across ≥2 weeks** (testing the same single STRIKE boss content), **WHEN** post-session-8 Likert「session 8 boss kill 想 screenshot 嘅感覺對比 session 1 點?」(1=失去全部 / 3=維持 / 5=更強), **THEN** mean ≥ **3.5**. **Fail (< 3.5) = MVP gate BLOCKER** → boss content roster expansion MUST move from v0.2 into Pre-MVP scope (more boss archetypes/variants) BEFORE MVP ships — a single frozen-outcome boss cannot carry Pillar 3 climax across a retention window. **MVP gate enforcement**: `/gate-check pre-production` greps `production/qa/evidence/boss_novelty_retention_*` for an `n≥10, sessions≥8` evidence file; absent or mean<3.5 → gate verdict FAIL (not CONCERNS).
   - **Evidence**: `production/qa/evidence/boss_novelty_retention_[date].md`
 
 - **AC-40 [Static | ADVISORY (CI-blocked) | Static]** (Pass 3 — Rule 16 NEVER → AC 1:1 traceability matrix per qa-lead F5): **GIVEN** Rule 16 NEVERs list (12 items), **WHEN** maintain `design/gdd/boss-system-never-traceability.md` mapping NEVER #N → covering AC IDs, **THEN** every NEVER has ≥1 AC coverage (runtime test OR CI lint OR architectural assertion); zero NEVERs marked「lint-only」without runtime check。Format: markdown table NEVER ID | covered_by_AC_ids | coverage_type (runtime/lint/arch)。
