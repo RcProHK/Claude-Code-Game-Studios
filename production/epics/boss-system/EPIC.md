@@ -4,7 +4,7 @@
 > **GDD**: design/gdd/boss-system.md ✅ APPROVED 2026-06-05 (Pass 11 — STRUCTURAL FREEZE lifted)
 > **Architecture Module**: #16 Boss System (Feature layer — boss content owner + #14 EnemyDirector BossAnchor lifecycle consumer)
 > **Status**: Ready
-> **Stories**: Not yet created — run `/create-stories boss-system`
+> **Stories**: 15 created (Ready) — implement in dependency order (001 → …)
 
 ## Overview
 
@@ -64,6 +64,31 @@ This epic is complete when:
 - **CI tooling stories (BOSS-AC-followup-08)**: `check_boss_no_persist` / `check_boss_nevers` / `check_boss_template_validity` / `check_boss_formulas_purity` / `check_boss_snapshot_caching` / scene-tree-contract / parent-identity — AC-12/16/33/36/41(e) are ADVISORY until these land.
 - **Advisory followups (Pass 11, non-blocking)**: anticipation/ceremony two-peak; downed-animation must-not-read-as-fail (asset/Section-I scope); AC-39(B) prospective baseline; Coverage Map EC-03/06/09 deferred rows.
 
+## Stories
+
+| # | Story | Type | Status | Primary ADR | Depends on |
+|---|-------|------|--------|-------------|-----------|
+| 001 | BossTemplate / Visual / AttackPattern schema | Logic | Ready | ADR-0007 | — |
+| 002 | BossInstance scene-tree contract + HP mutator | Logic | Ready | ADR-0009 | 001 |
+| 003 | BossFormulas + Formula 1 HP-scaling + bootstrap | Logic | Ready | ADR-0001 | 001, 002 |
+| 004 | Formula 2 damage scaling (live-HP) | Logic | Ready | ADR-0001 | 003 |
+| 005 | Formula 3 attack-pattern selection (FNV-1a) | Logic | Ready | ADR-0006 | 003, 001 |
+| 006 | Formula 4 reveal_ritual_intensity | Logic | Ready | ADR-0001 | 003, 001 |
+| 007 | BossSystem autoload + spawn_boss + idempotency | Integration | Ready | ADR-0006 | 002, 003 |
+| 008 | Spawn selection — effort gate + archetype + UNKNOWN | Logic | Ready | ADR-0007 | 007, 001 |
+| 009 | Snapshot freeze caching (CF-3) | Logic | Ready | ADR-0006 | 007, 003/004 |
+| 010 | Reveal ritual dispatch (Camera-leading) | Integration | Ready | ADR-0001 | 007, 006 |
+| 011 | enemy_killed → DYING self-filtered wiring | Integration | Ready | ADR-0009 | 002, 007 |
+| 012 | Boss cleanup + bfcache DD#1 exact-restore | Integration | Ready | ADR-0003 | 011, 002 |
+| 013 | Avatar-downed auto-recover + grace window | Logic | Ready | N/A (Pillar-2 behavior) | 004 |
+| 014 | Spawn position + arena constraint | Logic | Ready | ADR-0006 | 002, 007 |
+| 015 | Loot-tier combine + CI tooling + playtest gates | Integration | Ready (sub-items deferred) | ADR-0005 | 001, 011 |
+
+**Implementation order**: 001 → 002 → 003 → {004, 005, 006} → 007 → {008, 009, 010, 011} → 012 → 013 → 014 → 015. Story 015 sub-items (8 CI-tooling lints → followup-08; playtest AC-29/30/35/39 → external; AC-23 → #15) are deferred/blocked, not on the critical path.
+
+Type distribution: 9 Logic, 6 Integration. (Visual/Feel + Manual ACs — AC-29/30/35/39 — live in Story 015's deferred external-evidence sub-items.)
+
 ## Next Step
 
-Run `/create-stories boss-system` to break this epic into implementable stories.
+Run `/story-readiness production/epics/boss-system/story-001-boss-template-schema.md` → `/dev-story` to begin implementation (story 001 has no dependencies).
+

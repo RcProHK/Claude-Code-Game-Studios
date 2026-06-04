@@ -44,7 +44,7 @@ Created by: /create-epics Foundation + Core (16 systems); #10 Exercise→Class M
 
 | Epic | Layer | System # | GDD | Stories | Status |
 |------|-------|----------|-----|---------|--------|
-| [Boss System](boss-system/EPIC.md) | Feature | #16 | boss-system.md ✅ APPROVED 2026-06-05 (Pass 11 — STRUCTURAL FREEZE lifted) | Not yet created | **Ready** — first Feature epic. Governing ADR-0005/0006/0001 (MED) / 0003/0007/0009; **18/18 TR traced**; 54 ACs. `spawn_boss` invoked by #14 EnemyDirector (Ready, 24 stories). Loot-side AC-23 → #15; CI-tooling ACs (AC-12/16/33/36/41e) → followup-08. Pillar 3 PRIMARY climax. |
+| [Boss System](boss-system/EPIC.md) | Feature | #16 | boss-system.md ✅ APPROVED 2026-06-05 (Pass 11 — STRUCTURAL FREEZE lifted) | **15 stories** (9 Logic, 6 Integration; Ready) | **Ready** — first Feature epic. Governing ADR-0005/0006/0001 (MED) / 0003/0007/0009; **18/18 TR traced**; 54 ACs. `spawn_boss` invoked by #14 EnemyDirector (Ready, 24 stories). Loot-side AC-23 → #15; CI-tooling ACs (AC-12/16/33/36/41e) → followup-08. Pillar 3 PRIMARY climax. |
 
 ## Presentation Layer
 
