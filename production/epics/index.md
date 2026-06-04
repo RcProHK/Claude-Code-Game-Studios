@@ -1,8 +1,8 @@
 # Epics Index
 
-Last Updated: 2026-06-03
+Last Updated: 2026-06-04
 Engine: Godot 4.6 (Web Export, Compatibility Renderer)
-Created by: /create-epics Foundation + Core (16 systems); #10 Exercise→Class Mapping promoted Placeholder→Ready 2026-06-02; #4 Audio Manager promoted Placeholder→Ready 2026-06-02 (GDD Approved Pass 6 + ADR-0008 Accepted); **#20 Gym-Mode HUD (first Presentation epic) created 2026-06-03** (GDD R8 APPROVED + UX spec APPROVED)
+Created by: /create-epics Foundation + Core (16 systems); #10 Exercise→Class Mapping promoted Placeholder→Ready 2026-06-02; #4 Audio Manager promoted Placeholder→Ready 2026-06-02 (GDD Approved Pass 6 + ADR-0008 Accepted); **#20 Gym-Mode HUD (first Presentation epic) created 2026-06-03** (GDD R8 APPROVED + UX spec APPROVED); **#33 Attention Budget promoted Placeholder→Ready 2026-06-04** (GDD Approved re-review pass 2 + ADR-0006/0008 Accepted)
 
 > **Implementation order**: Foundation layer first (pos 1→10 boot order), then Core layer.
 > **Critical pre-requisites before any stories start**:
@@ -38,7 +38,7 @@ Created by: /create-epics Foundation + Core (16 systems); #10 Exercise→Class M
 | [Workout State Tracker](workout-state-tracker/EPIC.md) | Core | #9 | workout-state-tracker.md ✅ | **12 stories** (11 Complete, 1 Blocked: 011 ADR-0002-transport/#14) | **Complete 11/12** — 012 done mock-scoped (GUT local: Story 012 13/13, WST integ 27/27 + unit 85/86; CI verify on push); 011 needs #14 + live transport |
 | [Loot Drop System](loot-drop-system/EPIC.md) | Core | #15 | loot-drop-system.md ✅ Pass 2 | **15 stories** (12 Ready, 3 Blocked #2/#9/#14) | Ready — ADR-0005 Accepted 2026-05-30 |
 | [Exercise → Class Mapping](exercise-class-mapping/EPIC.md) | Core | #10 | exercise-class-mapping.md ✅ Approved 2026-06-02 | **5 stories** (001 ✅ Complete CI-green, 002-005 Ready) | **In progress 1/5** — 001 done CI-green 2026-06-02; ADR-0007/0008/0003 Accepted; 2 cross-system close-gates (Q5 #9 patch + entities.yaml 7-member) |
-| [Attention Budget & Interaction Policy](attention-budget-policy/EPIC.md) | Core | #33 | NOT STARTED | Not yet created | **Placeholder** — GDD + ADR-0008 required (Pre-MVP) ★ Pillar 2 |
+| [Attention Budget & Interaction Policy](attention-budget-policy/EPIC.md) | Core | #33 | attention-budget-policy.md ✅ Approved 2026-06-04 | **6 stories** (3 Logic, 3 Integration) | **Ready** — GDD Approved (re-review pass 2; Hybrid + `LOOT_DROP` ceremony lock 對齊 GSM AC-11b) + ADR-0006/0008 Accepted. Story 001 = stub migration (Rule 10). Deferred story-gates: AC-06→#20, AC-15/18b→#8/#28. ★ Pillar 2 PRIMARY |
 
 ## Presentation Layer
 
@@ -55,7 +55,7 @@ Created by: /create-epics Foundation + Core (16 systems); #10 Exercise→Class M
 | Total epics | 17 (16 Foundation+Core + 1 Presentation) |
 | Ready (GDD Approved + ADR-0006 Accepted) | 17 |
 | Blocked (ADR Proposed — stories auto-blocked) | 1 (#2 GymSys — ADR-0002/0004 transport VS-gated) |
-| Placeholder (no GDD) | 1 (#33 AttentionBudget) |
+| Placeholder (no GDD) | 0 — #33 AttentionBudget GDD Approved 2026-06-04, epic now Ready |
 | Pending GDD approval | 1 (#15 LootDrop — Pass 3 required) |
 
 ---
