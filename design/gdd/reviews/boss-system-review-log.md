@@ -589,4 +589,45 @@ The Pass 6 re-review's 4-specialist pass did NOT flag these, but the grep-everyt
 - `design/gdd/boss-system.md` — Status header; Player Fantasy (Q1 framing + anti-pattern reconcile); Rule 2 (DD#2 Q2 worked example/normalization/derivation); Rule 11 (merge note + connect comment); Rule 1 schema (merged `_ready`); Rule 12 (`_persist_fight_anchor` + fight_timestamp + TTL branch); Rule 16 (NEVER #10 whitelist + NEVER #13); Formula 1 (`_emit_telemetry` + F2 floor-safe cap); Interactions + Dependencies (#3 Hard + ADR-003); Tuning Knobs (+4 knobs, header count, INV-9b/9c, INV-7/EC-22 Followup #25, stability TUNABLE); ECs (EC-17 / EC-21 / EC-25→AC-45); ACs (AC-02/03/07b/10/12/18/39/42/45/46 + AC-40 count + Coverage Map + count headers + Gate Distribution); Followup tracker (#21b/#22/#23/#24/#25); Q-X2.
 - `design/gdd/reviews/boss-system-review-log.md` — this Pass 7 entry.
 
-Status: **Pass 7 COMPLETE — orphan-cleanup applied with grep-verify discipline, 6/6 exit-bar greps pass, no new orphan, 4 extra pre-existing orphans also closed. Pending fresh-session `/design-review` (expect Approved) → then `/create-epics boss-system`. Epic creation BLOCKED until Approved.**
+Status: ~~Pass 7 COMPLETE — pending fresh-session /design-review~~ **Superseded — Pass 7 /design-review verdict NEEDS REVISION below.**
+
+---
+
+## Review — 2026-06-04 — Verdict: NEEDS REVISION (Pass 7 /design-review)
+
+Mode: full — 4 adversarial specialists (gameplay-programmer + systems-designer + qa-lead + game-designer) + creative-director synthesis. Fresh-context re-review of the Pass 7 orphan-cleanup spec-fix-pass.
+Scope signal: M (targeted fixes; no new ADR; no design decision needed; only cross-file is B2 reading #14).
+Blocking items: 6 | Recommended: ~6 | False-positives dropped by CD: 4.
+
+Summary: Pass 7's 6-grep exit bar genuinely passed and the 14 mechanical fixes + 3 CD rulings landed. But the full-specialist pass surfaced **6 BLOCKING issues the exit-bar greps don't cover** — arithmetic, cross-spec, and signal-signature defects, plus editorial table-sync gaps. CD adjudication: these are **pre-existing defects (which even the Pass 6 4-specialist re-review missed) + editorial table syncs — NOT Pass 7 self-introduced cross-reference orphans. Structural Freeze condition NOT met.** Pass 8 = targeted inline fixes in a FRESH session.
+
+### 6 BLOCKING (Pass 8 must fix)
+- **B1 — AC-27a zombie** [gameplay-programmer + qa-lead, main-reviewer grep-verified L1587]: still mocks `NOTIFICATION_APPLICATION_PAUSED/RESUMED` (removed Pass 4 A2.1) + asserts「respawns at FULL HP」(superseded by DD#1 exact-restore). Pass 7 rewrote EC-17/AC-42 but missed AC-27a. → rewrite AC-27a to DD#1 exact-restore semantics.
+- **B2 — `enemy_killed` signal signature mismatch** [gameplay-programmer, main-reviewer grep-verified]: handler `_on_enemy_killed_self_listen(transition_id: String, _faction: int, _tier: int)` is 3 positional params, but #14 `enemy-director.md` L145 declares `signal enemy_killed(payload: EnemyKilledPayload)` — a single typed payload. Runtime arg-count mismatch + the self-filter compares `enemy_id` against `self.transition_id` (broken). → change handler to `(payload: EnemyKilledPayload)` reading `payload.transition_id`. Pre-existing from Pass 6 Tier 1 wiring (no one grepped #14's real signal).
+- **B3 — Formula 1 `_emit_telemetry` scope** [gameplay-programmer]: `BossFormulas.compute_max_hp` is a static helper and cannot call `BossSystem._emit_telemetry` (autoload method). → move the `boss.first_session_bootstrap` / `boss.scaling_clamp` telemetry callsites out of the pure-math formula into the `BossSystem.spawn_boss` post-formula block. Pre-existing Pass 6 GP-F5 gap.
+- **B4 — INV-9b numeric contradiction** [systems-designer]: default knobs give first-session HP cap = `FIRST_SESSION_EXPECTED_HIT_DAMAGE(20) × FIRST_SESSION_KILL_HITS_MAX(12) = 240` → 240/20 = **12 hits** > mid-game `TARGET_KILL_HITS_FINAL = 9` → first session is literally HARDER, violating INV-9b. Side-effect: `FIRST_SESSION_DURATION_TARGET_SEC` + `FIRST_SESSION_BASELINE_ATK` become phantom knobs (cap always binds). → reframe INV-9b as a feeling invariant OR set `FIRST_SESSION_KILL_HITS_MAX ≤ 9`. Numeric defect from Pass 6 cap value.
+- **B5 — DD#2 effort_score cold-start div-by-zero** [systems-designer]: Pass 7 Q2 prose defined `volume_factor = session_volume ÷ trailing-median session volume`, but first session has trailing-median = 0 → division by zero, no fallback. → add cold-start guard (`trailing_median == 0 → volume_factor = 1.0`) OR cite ADR-005's handling. (The one item arguably newest — but it's explanatory-prose elaboration of an ADR-005-owned value, not a core-mechanic orphan; CD ruled NOT a Structural-Freeze trigger.)
+- **B6 — table sync** [qa-lead]: Test Type Distribution still shows 49 (header says 54) → update to 54/recompute; Gate Distribution still lists AC-39 under ADVISORY (it's now MVP-BLOCKING) + omits AC-44 (new ADVISORY); Coverage Map Rule 16 row missing AC-45 (NEVER #13 untraceable). → table edits.
+
+### Recommended (non-blocking)
+- **MINI_BOSS_EFFORT_THRESHOLD TUNABLE without range guard** [game-designer]: Pillar 1 gate freely tunable + Followup #25 sync still BLOCKED → add acceptable range bound [0.15, 0.40] + out-of-range needs design re-review. (CD did not list among the 6 BLOCKING; main reviewer keeps as Recommended.)
+- F4 `MIN_RITUAL_INTENSITY` variable-table [0.3,0.5] vs knob [0.4,0.6]; TTL missing「≥ max workout-session duration」invariant; threshold-0.25「derivation」wording is heuristic not derived; F1「緊張感」→「期待感/儀式感」(boss fight is a reveal ceremony, loot is deterministic pre-fight); Coverage Map EC-16/17 → AC-27,42,46 + EC-07 → AC-44; AC-45 add a Section-H ref (currently inline Section E only); player_max_hp=1 infinite-down sub-case; resume pseudocode `boss.`→`self.`.
+
+### Specialist disagreement (CD-adjudicated)
+qa-lead flagged **AC-07b** BLOCKING (no falsifiable failure mode + Followup #17 open); CD dropped it as a false-positive (Pass 7 already moved it to a deterministic MockClock seam). Other CD-dropped false-positives: stakes framing, AC-39 remediation path, Moment B scope label (all already present/labelled).
+
+### Pass 8 exit bar (7 checks — all must pass to advance to /create-epics)
+1. AC-27a semantics == EC-17/AC-42 (DD#1 exact-restore); no APPLICATION_PAUSED/RESUMED, no respawn-at-full.
+2. `_on_enemy_killed_self_listen` handler signature == #14 `enemy_killed(payload: EnemyKilledPayload)` (grep #14 to confirm).
+3. Formula 1 telemetry callsite lives in BossSystem scope, not the static formula.
+4. INV-9b no longer literally violated by default knobs.
+5. cold-start `volume_factor` fallback spec exists (trailing-median=0 covered).
+6. Test Type Distribution = 54; Gate Distribution AC-39 → BLOCKING MVP gate + AC-44 → ADVISORY; Coverage Map Rule 16 → +AC-45.
+7. **Zero new cross-reference orphans — any new orphan → STRUCTURAL FREEZE, no exception.**
+
+### Process
+- **FRESH SESSION** (per the [[feedback_orphan_cleanup_fresh_context]] lesson this GDD keeps re-proving; this review session is already long after the full Pass 7 edit + 5-agent review). B2 first: grep `design/gdd/enemy-director.md` for the real `enemy_killed` semantic before editing the handler. Grep all downstream mentions per edit. Run the 7-item exit bar.
+
+Prior verdict resolved: Pass 6 Re-review MAJOR REVISION (net-regression orphans) → Pass 7 closed those + 4 extra, 6/6 exit-bar pass → this Pass 7 review found 6 deeper BLOCKING (pre-existing defects the prior re-review missed + table syncs).
+
+Status: **NEEDS REVISION — Pass 8 targeted inline fixes pending FRESH session. Epic creation BLOCKED until Approved.**
