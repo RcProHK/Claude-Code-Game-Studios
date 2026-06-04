@@ -1,12 +1,12 @@
 # Story 008: Dim states + DIM_PRODUCT_FLOOR + emphasis alpha + EC-R6
 
 > **Epic**: Gym-Mode HUD (#20)
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Presentation
 > **Type**: Logic
 > **Estimate**: M (3h)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-04
 
 ## Context
 
@@ -73,3 +73,13 @@
 
 - Depends on: Story 001 (matrix dispatch) · Story 003 (skip-tween 機制)
 - Unlocks: Story 009 (glance CI 讀 alpha const)
+
+---
+
+## Completion Notes
+**Completed**: 2026-06-04
+**Criteria**: 4/4 passing (AC-KNOB-B 3-case / emphasis alpha 3-axis + invariant / EC-R6 / AC-EC-S3)
+**Deviations**: None. DISCONNECT_DIM_MULTIPLIER=1.0 標 structural（非 tuning knob，formula uniformity）。alpha 三軸 invariant 0.22<0.35<0.55 由 const 構造，Story 009 CI boot-assert。
+**Test Evidence**: Logic — `tests/unit/gym_mode_hud/test_dim_states_emphasis_alpha.gd` (9 test functions, 9/9 pass; gym unit dir 4 scripts 45 tests green).
+**Code Review**: Complete — APPROVED (dim 讀 config const、clamp 落最終乘積 KNOB-A、alpha 三軸 + invariant、EC-R6 skip-tween 用 Story 003 機制、LOOT defer 無自畫 loot 文字)
+**Files**: `src/ui/gym_mode_hud/gym_mode_hud.gd` (dim/alpha const + compute_effective_dim + get_emphasis_alpha), `tests/unit/gym_mode_hud/test_dim_states_emphasis_alpha.gd` (created)

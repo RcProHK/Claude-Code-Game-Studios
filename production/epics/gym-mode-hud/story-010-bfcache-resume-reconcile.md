@@ -1,12 +1,12 @@
 # Story 010: bfcache/resume reconcile + SUSPENDED
 
 > **Epic**: Gym-Mode HUD (#20)
-> **Status**: Ready (S9b ADVISORY BLOCKED — 見 Dependencies)
+> **Status**: Complete (S9a/EC-S2/EC-R4/SM headless done;S9b real-browser ADVISORY BLOCKED Q-OQ12)
 > **Layer**: Presentation
 > **Type**: Integration
 > **Estimate**: M (3-4h)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-04
 
 ## Context
 
@@ -75,3 +75,15 @@
 - Depends on: Story 001 (state machine) · Story 006 (banner dismiss flag) · Story 007 (flush)
 - **BLOCKED (partial)**: AC-EC-S9b — Q-OQ12 SUSPENDED producer(#1/platform_detect/TD)`pageshow`→SUSPENDED 落地;S9a/EC-S2/EC-R4 headless 部分**唔 blocked**
 - Unlocks: —
+
+---
+
+## Completion Notes
+**Completed**: 2026-06-04
+**Criteria**: 4/5 done + 1 ADVISORY-gated
+- ✅ AC-EC-S9a reconcile one-shot snap + 防重彈 · EC-S2 banner 復現/unlock-永不重出 · EC-S9/SM AND guard + SM-D terminal branch + SM-C generational defer · AC-EC-R4 count ordering-independent
+- ⏸️ AC-EC-S9b (ADVISORY) — 真 browser `pageshow`/visibilitychange → reconcile wiring，需 Q-OQ12 SUSPENDED producer（#1/platform_detect/TD）落地 + browser playtest evidence。headless 物理上無 DOM/bfcache。
+**Deviations**: generational guard 用 `_gsm.has_method("is_transitioning")` seam — real GSM 目前 `_transitioning` private 無 public getter，real wiring 須 GSM expose `is_transitioning()`（或 #20 用 state_changed settle 偵測），tracked as follow-up。reconcile 唔自己 flush SFX（adapter audio_unlocked path 處理，避 double-flush）。
+**Test Evidence**: Integration — `tests/integration/gym_mode_hud/test_bfcache_resume_reconcile.gd` (9 test functions, 9/9 pass; gym integration 5 scripts 60 tests). Full gate 243 scripts / 1506 pass / 0 fail / 1 pending. S9b browser evidence (`production/qa/evidence/bfcache-reconcile-evidence.md`) deferred 到 Q-OQ12 producer。
+**Code Review**: Complete — APPROVED (reconcile 純 method、generational defer SM-C、one-shot snap 無 replay、AND guard、SM-D branch、防重彈、count⊥ordering;對 GDD SM-A/B/C/D + ADR-0006)
+**Files**: `src/ui/gym_mode_hud/gym_mode_hud.gd` (reconcile + _gsm_in_flight + _snap_bars_to_current + _is_audio_unlocked), `tests/integration/gym_mode_hud/test_bfcache_resume_reconcile.gd` (created)

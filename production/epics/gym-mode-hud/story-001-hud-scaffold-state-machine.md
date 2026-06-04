@@ -1,12 +1,12 @@
 # Story 001: HUD scaffold + 3-state view + GSM boot wiring
 
 > **Epic**: Gym-Mode HUD (#20)
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Presentation
 > **Type**: Integration
 > **Estimate**: M (3-4h)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-04
 
 ## Context
 
@@ -95,3 +95,13 @@
 
 - Depends on: #1 GSM (Ready, autoload) · #11 Stat (merged) · #9 WST (merged) — 全 available
 - Unlocks: Story 002-010(全部疊喺 scaffold + matrix dispatch 上)
+
+---
+
+## Completion Notes
+**Completed**: 2026-06-04
+**Criteria**: 5/5 passing (0 deferred)
+**Deviations**: None
+**Test Evidence**: Integration — `tests/integration/gym_mode_hud/test_hud_scaffold_state_machine.gd` (19 test functions, 19/19 pass, 67 asserts). Full combined gate green: 1414 tests / 1413 pass / 0 fail / 1 pre-existing pending (AC-37 WST).
+**Code Review**: Complete — APPROVED WITH SUGGESTIONS (2 future-story suggestions: matrix `.tres` extraction [Story 008 owns dim alpha]; `_hud_state` settles 1 frame after pull via connect_for_initial_state delivery, within AC-UX-1 ≤200ms budget). Neither blocks closure.
+**Files**: `src/ui/gym_mode_hud/gym_mode_hud.gd` (created), `tests/integration/gym_mode_hud/test_hud_scaffold_state_machine.gd` (created)

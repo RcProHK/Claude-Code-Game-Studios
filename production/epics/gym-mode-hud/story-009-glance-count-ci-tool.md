@@ -1,12 +1,12 @@
 # Story 009: Glance-count CI tool + AC-U-3 + 0px anchor + alpha invariant
 
 > **Epic**: Gym-Mode HUD (#20)
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Presentation
 > **Type**: Logic / UI
 > **Estimate**: M (3-4h)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-04
 
 ## Context
 
@@ -73,3 +73,17 @@
 
 - Depends on: Story 004 (cluster metadata) · Story 008 (alpha const)
 - Unlocks: Story 011 (AC-V-1 playtest 之 design-time 前置)
+
+---
+
+## Completion Notes
+**Completed**: 2026-06-04
+**Criteria**: 2/4 passing + 2 DEFERRED
+- ✅ AC-U-3 per-state exact count (WORKOUT==3 / COMBAT==3 / BOSS==4，exact 接住 STAT-promotion regression) — CI tool + 7 unit tests
+- ✅ B7 alpha invariant (deep_dim 0.22 < threshold 0.35 < ambient 0.55) — `alpha_invariants_hold()` boot-assert + CI tool
+- ⏸️ **DEFERRED — AC-U-3 cluster metadata (glance_group / cluster_icon_cap)**：需 #20 HUD `.tscn` scene node metadata，scene 未建（Story 001-009 全係 .gd logic）。待 scene-build story（Story 011 visual 或專屬 scene story）建立 .tscn 後補 metadata 驗證。
+- ⏸️ **DEFERRED — AC-UX-3 0px anchor**：需 .tscn layout（Z1 absolute rect 跨 9 state 量度），同上 scene 前置。屬 UI evidence（ADVISORY），Story 011 visual playtest 涵蓋。
+**Deviations**: CI tool 用 instantiate-HUD + `_build_state_matrix()` 計 count（非 .tscn metadata scan），因 scene 未建；count 真相源 = `_state_matrix` + `get_emphasis_alpha`。CI tool standalone exit 0（autoload boot stderr noise 係 `--script` SceneTree 固有，同 GUT run 一致，exit-code gate 綠）。
+**Test Evidence**: Logic — `tools/ci/check_glance_tier1_count.gd` (CI deliverable, exit 0) + `tests/unit/gym_mode_hud/test_glance_count_ci.gd` (7 test functions, 7/7 pass). Full gate 239 scripts / 1465 pass / 0 fail / 1 pending.
+**Code Review**: Complete — APPROVED (per-state exact 封死 count=5 phantom；alpha invariant 兩條 ordering；CI tool ADR-0001 CI 家族風格)
+**Files**: `tools/ci/check_glance_tier1_count.gd` (created), `tests/unit/gym_mode_hud/test_glance_count_ci.gd` (created), `src/ui/gym_mode_hud/gym_mode_hud.gd` (get_glance_tier1_count + alpha_invariants_hold + GLANCE_TIER1_MAX)

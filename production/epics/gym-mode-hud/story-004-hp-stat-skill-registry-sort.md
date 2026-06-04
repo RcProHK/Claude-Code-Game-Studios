@@ -1,12 +1,12 @@
 # Story 004: HP/stat + SkillIconRegistry sort + cluster display cap
 
 > **Epic**: Gym-Mode HUD (#20)
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Presentation
 > **Type**: Logic
 > **Estimate**: M (3h)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-04
 
 ## Context
 
@@ -74,3 +74,13 @@
 
 - Depends on: Story 001 (scaffold) · #11 Stat (merged) · #12 Ability (merged)
 - Unlocks: Story 009 (cluster CI metadata) · Story 011 (skill silhouette evidence)
+
+---
+
+## Completion Notes
+**Completed**: 2026-06-04
+**Criteria**: 4/4 passing (AC-CR-12 HP + sort / AC-CR-13⑨ anti-Stagnation / AC-UX-4 empty+NaN)
+**Deviations**: None. SkillIconRegistry tier/class_ordinal 對映 #12 AbilityClass(STRIKE0/CONTROL1/MOBILITY2) + AbilityTier(T1=0/T2=1/T3=2) 同 9 canonical AbilityId（ability_system.gd L76-84）。HP non-depleting（無 current-HP owner，Q-OQ3 deferred #25）。
+**Test Evidence**: Logic — `tests/unit/gym_mode_hud/test_hp_stat_skill_registry.gd` (11 test functions, 11/11 pass). Full combined gate green: 237 scripts / 1449 pass / 0 fail / 1 pre-existing pending.
+**Code Review**: Complete — APPROVED (#20-owned registry 無讀 #12 internal/order/timestamp；sort key 唯一→deterministic+insertion-order-agnostic；對 GDD CR-12/CR-13⑨ + ADR-0009)
+**Files**: `src/ui/gym_mode_hud/gym_mode_hud.gd` (HP value + SkillIconRegistry + cluster sort), `tests/unit/gym_mode_hud/test_hp_stat_skill_registry.gd` (created)

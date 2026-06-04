@@ -1,12 +1,12 @@
 # Story 003: Tween circuit-breaker + handle-map (spike-grounded)
 
 > **Epic**: Gym-Mode HUD (#20)
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Presentation
 > **Type**: Logic
 > **Estimate**: M (3-4h)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-04
 
 ## Context
 
@@ -87,3 +87,13 @@
 
 - Depends on: Story 002 (tween core + `_active_tween_count` seam)
 - Unlocks: Story 008 (◐ emphasis 用 EC-R6 skip-tween)
+
+---
+
+## Completion Notes
+**Completed**: 2026-06-04
+**Criteria**: 5/5 passing (AC-EC-F4b 1-4 / AC-EC-F4 guard / AC-EC-R2 / AC-CR-2 zero-floor / EC-R6)
+**Deviations**: None. `_active_tween_count` 改為 derived getter (= `_active_tweens.size()`)，消雙真相源（systems-designer ADVISORY），spike invariant 由構造成立。Story 002 tween core 重構入 generic `_request_stat_tween`（EXP 為首個 caller，Story 004 加 HP）。
+**Test Evidence**: Logic — `tests/unit/gym_mode_hud/test_tween_circuit_breaker.gd` (10 test functions mirror spike PART B B2-B6 + resume + reduce_motion + EC-R6, 10/10 pass). Full combined gate green: 1438 pass / 0 fail / 1 pre-existing pending.
+**Code Review**: Complete — APPROVED (rewrite 到 production 標準，唔搬 prototype；kill 獨立 erase / restart++先於cap / snap@MAX+1 / 2-param identity guard 全對 SPIKE-FINDINGS.md)
+**Files**: `src/ui/gym_mode_hud/gym_mode_hud.gd` (refactored — handle-map circuit breaker), `tests/unit/gym_mode_hud/test_tween_circuit_breaker.gd` (created)

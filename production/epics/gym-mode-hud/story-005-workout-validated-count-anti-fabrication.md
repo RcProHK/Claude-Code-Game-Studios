@@ -1,12 +1,12 @@
 # Story 005: #9-validated count/progress + anti-fabrication
 
 > **Epic**: Gym-Mode HUD (#20)
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Presentation
 > **Type**: Integration
 > **Estimate**: M (3-4h)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-04
 
 ## Context
 
@@ -73,3 +73,13 @@
 - Depends on: Story 001 (scaffold/wiring) · Story 002 (EXP bar) · #9 WST (merged) · #11 Stat (merged)
 - Unlocks: Story 007 (audio adapter uses raw set_logged separately)
 - **Note**: #2-GDD bidirectional gap (Q-OQ5) affects Story 007 audio path, NOT this #9-validated count path
+
+---
+
+## Completion Notes
+**Completed**: 2026-06-04
+**Criteria**: 4/4 passing (AC-CR-8 count + anti-fab / AC-CR-4 no-interpolation / AC-EC-S1 BannerGate decouple)
+**Deviations**: anti-fabrication 用 stub-based negative assertion（#20 冇 `_on_set_logged` handler + 無 #9 emit → progress 0 + exp delta 0）而非 real-#9 full chain — #9 真實 drop 行為係 #9 自己嘅 anti-fabrication test responsibility（已有，per [[project_wst_epic_status]]）；#20 嘅 contract 係「無 consumer-side fabrication path」negative assertion，已釘死（`has_method("_on_set_logged")==false`）。
+**Test Evidence**: Integration — `tests/integration/gym_mode_hud/test_workout_validated_count.gd` (7 test functions, 7/7 pass; gym integration 2 scripts 26 tests). Full gate 240 scripts / 1472 pass / 0 fail / 1 pending.
+**Code Review**: Complete — APPROVED (count 綁 #9 set_progress_changed absolute、EXP 綁 #11、零 set_logged subscription、無 _process interpolation、count⊥audio/banner B1 decouple；對 GDD CR-8 收斂1 + ADR-0009)
+**Files**: `src/ui/gym_mode_hud/gym_mode_hud.gd` (#9 wiring + count/phase handlers + getters), `tests/integration/gym_mode_hud/test_workout_validated_count.gd` (created)

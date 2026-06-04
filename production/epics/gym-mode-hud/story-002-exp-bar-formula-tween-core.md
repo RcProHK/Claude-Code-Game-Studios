@@ -1,12 +1,12 @@
 # Story 002: EXP bar + Formula 1/2 + tween core + reduce_motion
 
 > **Epic**: Gym-Mode HUD (#20)
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Presentation
 > **Type**: Logic
 > **Estimate**: M (3-4h)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-04
 
 ## Context
 
@@ -73,3 +73,13 @@
 
 - Depends on: Story 001 (scaffold + dispatch)
 - Unlocks: Story 003 (circuit-breaker 疊喺 tween core)
+
+---
+
+## Completion Notes
+**Completed**: 2026-06-04
+**Criteria**: 3/3 passing (AC-F1 / AC-F2 / AC-CR-2)
+**Deviations**: None. `_exp_to_next` 係 seam（default 1.0），Story 011 wire #11 真值 query（#11 未 expose EXP stat，formula 用注入值，符合 Logic story self-contained 原則）。
+**Test Evidence**: Logic — `tests/unit/gym_mode_hud/test_exp_bar_formula_tween.gd` (15 test functions, 15/15 pass). Full combined gate green: 1429 tests / 1428 pass / 0 fail / 1 pre-existing pending (AC-37).
+**Code Review**: Complete — APPROVED (F1/F2 純 static、config-const、SceneTreeTween 非 _process、counter floored、cap degrade，對齊 GDD F1/F2/CR-2 + ADR-0001 burst cap)
+**Files**: `src/ui/gym_mode_hud/gym_mode_hud.gd` (expanded — F1/F2 static + _set_exp_fill + tween counter), `tests/unit/gym_mode_hud/test_exp_bar_formula_tween.gd` (created)

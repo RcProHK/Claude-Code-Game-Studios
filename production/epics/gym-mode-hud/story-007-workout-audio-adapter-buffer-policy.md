@@ -1,12 +1,12 @@
 # Story 007: WorkoutAudioAdapter + GSM-state gate + buffer policy + stagger
 
 > **Epic**: Gym-Mode HUD (#20)
-> **Status**: Ready (部分 AC BLOCKED — 見 Dependencies)
+> **Status**: Complete (核心 unblocked AC done;AC-CR-9 整合 + AC-CR-11 真實 streak wiring gated)
 > **Layer**: Presentation
 > **Type**: Integration
 > **Estimate**: L (4h)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-04
 
 ## Context
 
@@ -81,3 +81,16 @@
   - **AC-CR-11** — #8 streak signal expose + correlation key (Q-OQ1, Prov-3)
   - Fallback **AC-EC-S6** self-contained 可過 → buffer policy + deny-side spy 部分**唔 blocked**,先做
 - Unlocks: —
+
+---
+
+## Completion Notes
+**Completed**: 2026-06-04
+**Criteria**: 7/8 done + 1 doc-gated
+- ✅ AC-CR-10 buffer FIFO cap + low drop + flush · AC-EC-A1 20-event cap + exit clear · AC-EC-A4 deferred chime guard · AC-EC-S4×4 deny spy · AC-EC-S6 fallback · AC-CR-11 stagger schedule (code path, fake timer)
+- ✅ AC-CR-9 code path (unlocked → play_sfx once) verified; **#2-GDD bidirectional doc-gate (Q-OQ5) remains** — #2 GDD 須補列 #20 為 set_logged subscriber 至完成 binding（doc gate，非 code blocker）
+- ⏸️ AC-CR-11 真實 streak chime wiring needs #8 streak_chime signal expose (Q-OQ1 correlation key) — stagger mechanism + delay 已驗，real #8 source gated
+**Deviations**: priority 用 `_sfx_catalog` DI seam（Dictionary event_id→int OR object.get_priority）— real #4 `SfxCatalog.tres` binding deferred（.tres missing + structure internal）；無 catalog → default MID（保守，唔 silently drop）。stagger 用 `ITimerService` seam（fake timer，無 wall-clock，符 determinism）。audio gate 有意 non-generational（enhancement asymmetry vs 視覺 SM-C）。
+**Test Evidence**: Integration — `tests/integration/gym_mode_hud/test_workout_audio_adapter.gd` (11 test functions, 11/11 pass; gym integration 4 scripts 51 tests). Full gate 242 scripts / 1497 pass / 0 fail / 1 pending.
+**Code Review**: Complete — APPROVED (raw set_logged 只此 adapter 食 SFX-only、GSM gate deny spy、FIFO cap、flush priority-desc、ITimerService 無 wall-clock、exit clear、deferred chime guard;對 GDD CR-9/10/11 + ADR-0002)
+**Files**: `src/ui/gym_mode_hud/workout_audio_adapter.gd` (created — dedicated child node), `tests/integration/gym_mode_hud/test_workout_audio_adapter.gd` (created)

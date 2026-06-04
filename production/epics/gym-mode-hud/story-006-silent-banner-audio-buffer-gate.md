@@ -1,12 +1,12 @@
 # Story 006: Silent-mode banner + audio-buffer gate + Formula 3
 
 > **Epic**: Gym-Mode HUD (#20)
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Presentation
 > **Type**: Integration
 > **Estimate**: M (3-4h)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-04
 
 ## Context
 
@@ -76,3 +76,13 @@
 
 - Depends on: Story 001 (scaffold + BannerGate branch) · #4 Audio (merged)
 - Unlocks: Story 007 (audio buffer flush on unlock) · Story 010 (banner reconcile)
+
+---
+
+## Completion Notes
+**Completed**: 2026-06-04
+**Criteria**: 5/5 passing (AC-CR-6 / AC-CR-7 / AC-F3 / AC-U-4 / AC-EC-S5); focus_mode actual-node binding deferred to .tscn
+**Deviations**: `focus_mode==FOCUS_NONE` 以 contract const `BANNER_FOCUS_MODE`(=Control.FOCUS_NONE 0) + `get_banner_focus_mode()` 提供 — actual banner Control node 喺 HUD `.tscn`(未建,Story 011)apply。banner tap unlock 用 `_audio_manager._do_unlock()`(cross-call，#4 audio_manager.gd L215 comment 明確邀請「#20 banner pressed = canonical path」)。
+**Test Evidence**: Integration — `tests/integration/gym_mode_hud/test_silent_banner_gate.gd` (14 test functions, 14/14 pass; gym integration 3 scripts 40 tests). Full gate 241 scripts / 1486 pass / 0 fail / 1 pending.
+**Code Review**: Complete — APPROVED (F3 inline fmod+max guard、banner 只 gate audio buffer B1 decouple、dismiss in-memory 不重現、tap 豁免 #33 + canonical _do_unlock、reduce_motion amp override；對 GDD CR-6/7/F3 + ADR-0002)
+**Files**: `src/ui/gym_mode_hud/gym_mode_hud.gd` (banner const + dismiss flag + should_show_banner + _on_banner_tapped + compute_banner_alpha F3), `tests/integration/gym_mode_hud/test_silent_banner_gate.gd` (created)

@@ -1,12 +1,12 @@
 # Story 011: Glance playtest (AC-V-1) + a11y evidence + min-floors + REST cockpit + L10n
 
 > **Epic**: Gym-Mode HUD (#20)
-> **Status**: Ready (AC-V-1 result BLOCKED on external playtest — 見 Dependencies)
+> **Status**: Partial-Complete (logic floors/cap done CI-green;AC-V-1 playtest + colorblind/shake visual + .tscn DEFERRED external — epic ship-with-deferred per DoD)
 > **Layer**: Presentation
 > **Type**: Visual/Feel · UI
 > **Estimate**: L (4h + external playtest session)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-04
 
 ## Context
 
@@ -83,3 +83,18 @@
 - Depends on: Story 002 (bars) · Story 004 (skills) · Story 008 (Boss HP/dim) · Story 009 (design-time glance CI 前置)
 - **BLOCKED (AC-V-1 result)**: external human tachistoscope playtest(N=12,OQ-U4 tooling + tester 招募)— protocol-delivery gate ✅(UX spec);result gate 待 playtest 執行。**epic 可選 ship-with-AC-V-1-deferred-and-tracked(user decision,見 EPIC Definition of Done)**
 - Unlocks: epic close
+
+---
+
+## Completion Notes
+**Completed (logic portion)**: 2026-06-04
+**Criteria**: 3/7 logic done CI-green + 4 DEFERRED (external playtest / 真渲染 scene / 真人 a11y)
+- ✅ AC-UX-5 EXP bar height floor · AC-U-6 font floor (text_scale 0.8 守 7px) · AC-UX-10/U-2 REST cockpit cap (top-8 + scroll, ≠ BOSS glance 4) · AC-UX-8 touch target const (44)
+- ⏸️ **DEFERRED — AC-V-1 (BINDING entry gate)**: external human N=12 tachistoscope playtest，需 OQ-U4 web 閃現 harness + gym community tester 招募 + 真 HUD `.tscn` 渲染。headless 物理上驗唔到（體感）。epic ship-with-deferred-tracked per EPIC DoD。
+- ⏸️ **DEFERRED — AC-UX-6/V-5 colorblind**: 需 BOSS_ENCOUNTER 真渲染截圖 + 3 色盲 sim + lead sign-off（`.tscn` scene 前置）。
+- ⏸️ **DEFERRED — AC-V-2/CR-1/13⑧ shake readability**: 需 screenshot + lead sign-off（真渲染 + #6 shake）。
+- ⏸️ **DEFERRED — AC-UX-9 reduce_motion visual**: Logic 面已喺 Story 002/006 unit 覆；visual 確認需 scene。
+**Deviations**: 只做 self-contained logic AC（floors/cap pure formula + const）。全部 visual/playtest/a11y AC 需 HUD `.tscn` scene（未建）+ external 真人 playtest，誠實 DEFERRED（唔可 headless fabricate）。evidence docs（`production/qa/evidence/gym-mode-hud-{glance-playtest,colorblind,visual}.md`）待 scene-build + playtest session。
+**Test Evidence**: Logic — `tests/unit/gym_mode_hud/test_min_floors_rest_cockpit.gd` (9 test functions, 9/9 pass). Full gate 244 scripts / 1515 pass / 0 fail / 1 pending.
+**Code Review**: Complete — APPROVED (min floors pure static + text_scale floor、REST cap ≠ glance cap、touch const;對 GDD AC-UX-5/U-6/UX-10/U-2/UX-8)
+**Files**: `src/ui/gym_mode_hud/gym_mode_hud.gd` (floor/cap const + compute_exp_bar_height + compute_effective_font_size + get_rest_skills_display), `tests/unit/gym_mode_hud/test_min_floors_rest_cockpit.gd` (created)
