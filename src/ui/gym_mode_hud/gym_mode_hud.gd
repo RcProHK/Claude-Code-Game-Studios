@@ -74,23 +74,34 @@ const STAT_ID_MAX_HP: StringName = &"max_hp"
 ## Skill cluster display cap (BOSS_ENCOUNTER glance budget — top-N strongest, rest collapse "+N").
 const SKILL_CLUSTER_DISPLAY_CAP: int = 4
 
-## #20-OWNED SkillIconRegistry (Story 004). 9 MVP-locked canonical ability_id → intrinsic
-## icon slot metadata. tier_ordinal/class_ordinal mirror #12 published mapping (ability-system.md
-## L386/L405) and are SLOT IDENTITY (e.g. strike_tier_3 is always tier 2), NOT runtime state.
-## This is #20's own data — #20 NEVER reads #12 collection iteration order, timestamps, or
-## internal state (ability-system.md L413 insertion-order-agnostic, L696 NEVER access internal).
+## Preloaded #12 script — the LOCKED AbilityId constant surface. Referenced (never raw magic
+## id strings) so the registry survives an id rename and passes CI lint check_ability_id_magic_string
+## (GDD Rule 1 / ADR-0006 C12). preload is compile-time; the inner-class const is read at registry build.
+const _ABILITY_SCRIPT := preload("res://src/autoload/ability_system.gd")
+
+## #20-OWNED SkillIconRegistry (Story 004). 9 MVP-locked canonical ability_id → intrinsic icon slot
+## metadata. tier_ordinal/class_ordinal mirror #12 published mapping (ability-system.md L386/L405) and
+## are SLOT IDENTITY (e.g. strike_tier_3 is always tier 2), NOT runtime state. #20's own data — NEVER
+## reads #12 collection iteration order, timestamps, or internal state (L413 insertion-order-agnostic,
+## L696 NEVER access internal). Built in _ready() from AbilityId constants (NOT magic strings).
 ## glyph_shape: Strike=diagonal/sharp · Control=symmetric/arc · Mobility=flowing/negative-space (P-04).
-const SKILL_ICON_REGISTRY: Dictionary = {
-	&"strike_tier_1_jab":          {"tier_ordinal": 0, "class_ordinal": 0, "glyph_shape": "diagonal_sharp"},
-	&"strike_tier_2_hook":         {"tier_ordinal": 1, "class_ordinal": 0, "glyph_shape": "diagonal_sharp"},
-	&"strike_tier_3_overhand":     {"tier_ordinal": 2, "class_ordinal": 0, "glyph_shape": "diagonal_sharp"},
-	&"control_tier_1_parry":       {"tier_ordinal": 0, "class_ordinal": 1, "glyph_shape": "symmetric_arc"},
-	&"control_tier_2_hook_pull":   {"tier_ordinal": 1, "class_ordinal": 1, "glyph_shape": "symmetric_arc"},
-	&"control_tier_3_grapple":     {"tier_ordinal": 2, "class_ordinal": 1, "glyph_shape": "symmetric_arc"},
-	&"mobility_tier_1_dash":       {"tier_ordinal": 0, "class_ordinal": 2, "glyph_shape": "flowing_negative_space"},
-	&"mobility_tier_2_leap":       {"tier_ordinal": 1, "class_ordinal": 2, "glyph_shape": "flowing_negative_space"},
-	&"mobility_tier_3_ground_pound": {"tier_ordinal": 2, "class_ordinal": 2, "glyph_shape": "flowing_negative_space"},
-}
+var _skill_icon_registry: Dictionary = {}
+
+
+## Build the SkillIconRegistry from the locked AbilityId surface (CI-safe — no magic id strings).
+func _build_skill_icon_registry() -> void:
+	var aid := _ABILITY_SCRIPT.AbilityId
+	_skill_icon_registry = {
+		aid.STRIKE_TIER_1_JAB:          {"tier_ordinal": 0, "class_ordinal": 0, "glyph_shape": "diagonal_sharp"},
+		aid.STRIKE_TIER_2_HOOK:         {"tier_ordinal": 1, "class_ordinal": 0, "glyph_shape": "diagonal_sharp"},
+		aid.STRIKE_TIER_3_OVERHAND:     {"tier_ordinal": 2, "class_ordinal": 0, "glyph_shape": "diagonal_sharp"},
+		aid.CONTROL_TIER_1_PARRY:       {"tier_ordinal": 0, "class_ordinal": 1, "glyph_shape": "symmetric_arc"},
+		aid.CONTROL_TIER_2_HOOK_PULL:   {"tier_ordinal": 1, "class_ordinal": 1, "glyph_shape": "symmetric_arc"},
+		aid.CONTROL_TIER_3_GRAPPLE:     {"tier_ordinal": 2, "class_ordinal": 1, "glyph_shape": "symmetric_arc"},
+		aid.MOBILITY_TIER_1_DASH:       {"tier_ordinal": 0, "class_ordinal": 2, "glyph_shape": "flowing_negative_space"},
+		aid.MOBILITY_TIER_2_LEAP:       {"tier_ordinal": 1, "class_ordinal": 2, "glyph_shape": "flowing_negative_space"},
+		aid.MOBILITY_TIER_3_GROUND_POUND: {"tier_ordinal": 2, "class_ordinal": 2, "glyph_shape": "flowing_negative_space"},
+	}
 
 ## Formula 2 base tween duration. Config-const (GDD F2 safe range [0.2, 0.5], default 0.3).
 ## reduce_motion overrides to 0.0 (instant set).
@@ -255,6 +266,7 @@ var _banner_dismissed_this_session: bool = false
 
 func _ready() -> void:
 	_build_state_matrix()
+	_build_skill_icon_registry()
 
 	# Fall back to autoload globals when not injected (production path).
 	if _gsm == null:
@@ -784,7 +796,7 @@ func get_skill_overflow_count(ability_ids: Array, cap: int = SKILL_CLUSTER_DISPL
 func _known_abilities_sorted(ability_ids: Array) -> Array:
 	var known: Array = []
 	for id: Variant in ability_ids:
-		if SKILL_ICON_REGISTRY.has(id):
+		if _skill_icon_registry.has(id):
 			known.append(id)
 	known.sort_custom(_compare_skill_slots)
 	return known
@@ -793,8 +805,8 @@ func _known_abilities_sorted(ability_ids: Array) -> Array:
 ## Sort comparator: tier_ordinal DESC (strongest first), class_ordinal ASC tie-break.
 ## anti-Stagnation (AC-CR-13⑨): strongest tier wins a cluster slot, never insertion order.
 func _compare_skill_slots(a: StringName, b: StringName) -> bool:
-	var ra: Dictionary = SKILL_ICON_REGISTRY[a]
-	var rb: Dictionary = SKILL_ICON_REGISTRY[b]
+	var ra: Dictionary = _skill_icon_registry[a]
+	var rb: Dictionary = _skill_icon_registry[b]
 	if ra["tier_ordinal"] != rb["tier_ordinal"]:
 		return ra["tier_ordinal"] > rb["tier_ordinal"]  # DESC
 	return ra["class_ordinal"] < rb["class_ordinal"]      # ASC tie-break
