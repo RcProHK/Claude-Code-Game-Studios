@@ -5,26 +5,30 @@
 > **UX Spec**: design/ux/gym-mode-hud.md ✅ APPROVED (`/ux-review`, 2026-06-03)
 > **Architecture Module**: Presentation Layer — persistent HUD overlay (CanvasLayer 50, below ScreenEffects layer 100)
 > **System #**: 20
-> **Status**: Ready — 11 stories created (2026-06-03). ⚠️ **sprint-entry gated** (see Entry Gates)
-> **Stories**: 11 (5 Logic, 5 Integration, 1 Visual/UI) — run `/story-readiness` → `/dev-story`
+> **Status**: In Progress — 12 stories (001-010 Complete, 011 Partial, 012 Ready). Implementation commit 8df3a8a (2026-06-04). ⚠️ epic-close still gated (see Entry Gates)
+> **Stories**: 12 (5 Logic, 5 Integration, 2 Visual/UI) — 001-009/010 self-contained AC done CI-green; 011 visual + 012 scene-build remain
 
 ## Stories
 
 | # | Story | Type | Status | ADR | Gate |
 |---|-------|------|--------|-----|------|
-| 001 | HUD scaffold + 3-state view + GSM boot wiring | Integration | Ready | ADR-0006 | — |
-| 002 | EXP bar + Formula 1/2 + tween core + reduce_motion | Logic | Ready | ADR-0001 | — |
-| 003 | Tween circuit-breaker + handle-map (spike-grounded) | Logic | Ready | ADR-0001 | — |
-| 004 | HP/stat + SkillIconRegistry sort + cluster cap | Logic | Ready | ADR-0009 | — |
-| 005 | #9-validated count/progress + anti-fabrication | Integration | Ready | ADR-0009/0002 | — |
-| 006 | Silent banner + audio-buffer gate + Formula 3 | Integration | Ready | ADR-0002/0001 | fallback #33 (AC-EC-S5) |
-| 007 | WorkoutAudioAdapter + GSM gate + buffer policy + stagger | Integration | Ready | ADR-0002/0009 | partial BLOCKED #8/#2-GDD (fallback AC-EC-S6) |
-| 008 | Dim states + DIM_PRODUCT_FLOOR + emphasis alpha + EC-R6 | Logic | Ready | ADR-0001 | fallback #21 (AC-EC-S3) |
-| 009 | Glance-count CI tool + AC-U-3 + 0px anchor + alpha invariant | Logic/UI | Ready | ADR-0001 | — |
-| 010 | bfcache/resume reconcile + SUSPENDED | Integration | Ready | ADR-0006/0003 | S9b ADVISORY BLOCKED Q-OQ12 |
-| 011 | Glance playtest (AC-V-1) + a11y + min-floors + REST cockpit + L10n | Visual/UI | Ready | ADR-0001 | AC-V-1 external playtest (N=12) |
+| 001 | HUD scaffold + 3-state view + GSM boot wiring | Integration | ✅ Complete | ADR-0006 | — |
+| 002 | EXP bar + Formula 1/2 + tween core + reduce_motion | Logic | ✅ Complete | ADR-0001 | — |
+| 003 | Tween circuit-breaker + handle-map (spike-grounded) | Logic | ✅ Complete | ADR-0001 | — |
+| 004 | HP/stat + SkillIconRegistry sort + cluster cap | Logic | ✅ Complete | ADR-0009 | — |
+| 005 | #9-validated count/progress + anti-fabrication | Integration | ✅ Complete | ADR-0009/0002 | — |
+| 006 | Silent banner + audio-buffer gate + Formula 3 | Integration | ✅ Complete | ADR-0002/0001 | fallback #33 (AC-EC-S5) ✅ |
+| 007 | WorkoutAudioAdapter + GSM gate + buffer policy + stagger | Integration | ✅ Complete* | ADR-0002/0009 | AC-CR-9 #2-GDD doc / AC-CR-11 #8 gated |
+| 008 | Dim states + DIM_PRODUCT_FLOOR + emphasis alpha + EC-R6 | Logic | ✅ Complete | ADR-0001 | fallback #21 (AC-EC-S3) ✅ |
+| 009 | Glance-count CI tool + AC-U-3 + 0px anchor + alpha invariant | Logic/UI | ✅ Complete* | ADR-0001 | cluster-metadata + 0px deferred → 012 |
+| 010 | bfcache/resume reconcile + SUSPENDED | Integration | ✅ Complete* | ADR-0006/0003 | S9b ADVISORY BLOCKED Q-OQ12 |
+| 011 | Glance playtest (AC-V-1) + a11y + min-floors + REST cockpit + L10n | Visual/UI | ◐ Partial | ADR-0001 | AC-V-1 N=12 playtest + visual sign-off + scene (012) |
+| 012 | HUD .tscn scene build + node binding + glance metadata | UI | ✅ Complete | ADR-0001/0006 | — (unlocked 009 metadata + 011 visual base) |
 
-**Recommended implementation order**: 001 → 002 → 003 → 004 → 008 → 009 → 005 → 006 → 007 → 010 → 011。Self-contained Logic stories (001-004, 008, 009) 先做(無外部 gate);005-007 audio/count path;010 reconcile;011 visual/playtest last(gated)。
+`*` = self-contained AC done CI-green; remaining AC external/cross-system (see Story completion notes).
+
+**Implementation done (001-010 + 011 logic + 012 scene, commits 8df3a8a + follow-up)**: 100 tests, full gate 245 scripts / 1525 pass / 0 fail / 1 pre-existing pending. All self-contained code/logic/scene AC complete.
+**Remaining (all external, non-code)**: N=12 glance playtest (AC-V-1) · colorblind/shake human visual sign-off · real art assets (P-04/P-11) · main-scene CanvasLayer 50 mount · 3 cross-GDD doc-gates (#2 Q-OQ5 / #8 Q-OQ1 / Q-OQ12 SUSPENDED producer).
 
 ## Overview
 

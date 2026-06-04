@@ -58,6 +58,14 @@ func _ready() -> void:
 		GameStateMachine.GameState.COMBAT_ACTIVE: true,
 		GameStateMachine.GameState.BOSS_ENCOUNTER: true,
 	}
+	# Autoload fallback (Story 012): when mounted from GymModeHud.tscn, no one injects the DI
+	# seams, so resolve the real autoloads. Tests that inject stubs keep them (fallback skipped).
+	if _audio_manager == null:
+		_audio_manager = get_node_or_null("/root/AudioManager")
+	if _gsm == null:
+		_gsm = get_node_or_null("/root/GameStateMachine")
+	if _gymsys == null:
+		_gymsys = get_node_or_null("/root/GymSysClient")
 	if _audio_manager != null:
 		_audio_manager.audio_unlocked.connect(_on_audio_unlocked)
 	if _gymsys != null and _gymsys.has_signal("set_logged"):

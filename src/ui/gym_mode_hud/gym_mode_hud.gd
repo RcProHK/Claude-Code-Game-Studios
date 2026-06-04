@@ -239,6 +239,19 @@ var _workout_phase: int = 0
 ## audio lock state, but once dismissed in THIS session the banner never re-appears (AC-CR-7).
 var _banner_dismissed_this_session: bool = false
 
+# ── Bound scene nodes (Story 012) — nullable @onready ──
+# Resolved from GymModeHud.tscn. In pure-logic tests (script .new() with no scene children)
+# these stay null and _sync_nodes_to_state() no-ops — the internal vars remain the source of
+# truth (existing unit/integration tests are unaffected). When loaded from the .tscn, the
+# emphasis/value state mirrors onto the real nodes (modulate.a / visible / Range.value).
+@onready var _hp_bar = get_node_or_null("Zones/Z1/HPBar")
+@onready var _exp_bar = get_node_or_null("Zones/Z1/EXPBar")
+@onready var _stat_block = get_node_or_null("Zones/Z3/StatBlock")
+@onready var _skills_cluster = get_node_or_null("Zones/Z5/SkillsCluster")
+@onready var _prog_label = get_node_or_null("Zones/PROG/ProgLabel")
+@onready var _boss_bar = get_node_or_null("Zones/Z6/BossBar")
+@onready var _banner = get_node_or_null("Banner")
+
 
 func _ready() -> void:
 	_build_state_matrix()
@@ -397,6 +410,7 @@ func _apply_state_matrix(gsm_state: int) -> void:
 	var row: Dictionary = _state_matrix.get(gsm_state, {})
 	for elem_key: StringName in row:
 		_element_emphasis[elem_key] = row[elem_key]
+	_sync_nodes_to_state()
 
 
 ## Drive the thin 3-state view on GSM state change (SM-D / SM-B from GDD §States).
@@ -511,6 +525,7 @@ func _set_immediate(stat_id: StringName, value: float) -> void:
 	var prop: String = _STAT_BAR_PROPERTY.get(stat_id, "")
 	if not prop.is_empty():
 		set(prop, value)
+	_sync_nodes_to_state()
 
 
 ## Natural-finish seam (spike B5/B6): 2-param identity guard. Only the CURRENT live
@@ -521,6 +536,7 @@ func _on_tween_finished(stat_id: StringName, src_tween: Tween) -> void:
 		return  # stale residual finished, or already replaced by restart → no-op
 	_active_tweens.erase(stat_id)
 	_restart_count[stat_id] = 0
+	_sync_nodes_to_state()
 
 
 ## Map a stat_id to its HUD element emphasis key (for EC-R6 deep-dim skip).
@@ -528,6 +544,35 @@ func _emphasis_key_for_stat(stat_id: StringName) -> StringName:
 	if stat_id == STAT_ID_EXP:
 		return ELEM_EXP
 	return stat_id
+
+
+# ── Scene-node mirror (Story 012) ──
+
+## Map a HUD element key to its bound scene node (null in pure-logic tests / unmapped).
+func _node_for_element(elem_key: StringName):
+	match elem_key:
+		ELEM_HP: return _hp_bar
+		ELEM_EXP: return _exp_bar
+		ELEM_STAT: return _stat_block
+		ELEM_SKILLS: return _skills_cluster
+		ELEM_PROG: return _prog_label
+		ELEM_BOSS: return _boss_bar
+	return null
+
+
+## Mirror current emphasis + bar values onto the bound scene nodes (Story 012, AC-SCENE-6).
+## No-op for every element whose node is null (pure-logic tests). HIDDEN/DEFER → not visible.
+func _sync_nodes_to_state() -> void:
+	for elem_key: StringName in [ELEM_HP, ELEM_EXP, ELEM_STAT, ELEM_SKILLS, ELEM_PROG, ELEM_BOSS]:
+		var node = _node_for_element(elem_key)
+		if node == null:
+			continue
+		var a: float = get_emphasis_alpha(get_element_emphasis(elem_key))
+		if node is CanvasItem:
+			node.visible = a > 0.0
+			node.modulate.a = a
+	if _exp_bar != null:
+		_exp_bar.value = _exp_bar_value
 
 
 # ── bfcache / resume reconcile (Story 010) ──
@@ -567,6 +612,7 @@ func _snap_bars_to_current() -> void:
 	for stat_id: StringName in _active_tweens.keys():
 		_kill(stat_id)
 	_exp_bar_value = compute_exp_fill(_current_exp, _exp_to_next)
+	_sync_nodes_to_state()
 
 
 func _is_audio_unlocked() -> bool:
