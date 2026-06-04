@@ -541,4 +541,52 @@ Mode: full 4-specialist (gameplay-programmer + systems-designer + qa-lead + game
 
 New Followups: #25 (effort-threshold sync CI lint, BLOCKED on #14).
 
-Status: **MAJOR REVISION NEEDED — Pass 7 spec-fix-pass pending FRESH session (orphan-cleanup pass — MUST be done in clean context per the very lesson Pass 6 just re-proved). Epic creation BLOCKED until Approved.**
+Status: ~~MAJOR REVISION NEEDED — Pass 7 spec-fix-pass pending FRESH session~~ **Superseded — Pass 7 spec-fix-pass COMPLETE below.**
+
+---
+
+## Pass 7 Spec Fix-Pass — 2026-06-04 — COMPLETE (orphan-cleanup, fresh context; pending /design-review)
+
+Done in a FRESH session (the discipline Pass 6 re-proved by failing it). Each edit grep-verified across all downstream mentions before moving on — no single-edit propagation failure. All 14 mechanical fixes + 3 CD design rulings applied; all 6 CD exit-bar greps pass; no new orphan introduced.
+
+### Group A — Pass 6 orphan/contradictions (5)
+1. **Rule 16 NEVER #10** — now carves out the single DD#1 ephemeral record (`boss.current_hp` via whitelisted `_set_current_hp` + `boss.transition_id`/`boss.fight_timestamp` via whitelisted `_persist_fight_anchor`); position still NEVER persisted. AC-12 grep + EC-21 updated to whitelist the two `boss_instance.gd` callsites (EC-21 was a live DD#1 contradiction — fixed).
+2. **EC-17** rewritten to DD#1 exact-restore + Q3 TTL three-branch (was deleted Pass 4 skip-to-kill/restart-full).
+3. **AC-42** rewritten to DD#1 exact-restore contract; `MID_FIGHT_SKIP_HP_THRESHOLD` appears only as an explicit "no reference" negation; evidence path renamed `test_ac42_bfcache_exact_restore.gd`. Coverage Map + Q-X2 + Gate Distribution labels swept.
+4. **Dependencies #3 PersistenceLayer** NONE→**Hard** (Interactions table) + ADR-003 added to ADR Dependencies table.
+5. **Formula 1** `emit_telemetry(`→`_emit_telemetry(` (GP-F5 sweep — the one missed callsite).
+
+### Group B — Tier 0/1 compile (3)
+6. **BossInstance two `_ready()` merged into one** canonical block in the Rule 1 schema (asserts → max_hp → `_set_current_hp` → `_persist_fight_anchor` → idle → enemy_killed connect → bfcache subscribe). The Rule 11 second `_ready` replaced with a pointer note.
+7. **`_on_enemy_killed_self_listen` `.connect`** is now a REAL statement in the merged `_ready` (was comment-only); the Rule 11 callsite comment updated to say so.
+8. **`current_hp = max_hp` routed through `_set_current_hp`** mutator (no more direct bypass).
+
+### Group C — F2 ghosts + floor (2)
+9. **`FIRST_SESSION_EXPECTED_HIT_DAMAGE` (20) + `FIRST_SESSION_KILL_HITS_MAX` (12)** added to Tuning Knobs (were undefined symbols).
+10. **F2 cap** `min(boss_max_hp, cap)` → `max(min(boss_max_hp, cap), MIN_BOSS_HP)` + **INV-9c** (`cap ≥ MIN_BOSS_HP`); also added **INV-9b** to the INV table (was prose-only).
+
+### Group D — AC quality (4)
+11. **AC-18** floor case now reachable via test-only synthetic `base_hp=1` + marked『defensive future-config guard』.
+12. **AC-07b** rewritten Integration-wall-clock → **Logic/Unit** with injectable monotonic clock seam (logical budget, deterministic; real-browser timing delegated to AC-27b/AC-30b). Cites the no-time-dependent-assertion determinism standard.
+13. **AC-39** binding gate made reachable: **n≥12 recruited / ≥10 completers (attrition buffer)** + producer-scheduled ≥3-week window; stays MVP-BLOCKING.
+14. **EC-25 → AC-45** (avatar-downed auto-recover, BLOCKING) + `AVATAR_RECOVER_HP_FRACTION` knob; Coverage Map +AC-07b/AC-11b/AC-45/AC-46; INV-7「CI lint ensures sync」→ **Followup #25** (real script, BLOCKED until #14 aligns); RarityTier **ADR-0007 cite dropped** (ADR-0007 locks AbilityClass; RarityTier is #15 scope).
+
+### CD design rulings (3, applied directly)
+- **Q1** EC-25 zero-stakes CORRECT — added Player-Fantasy「Stakes 係 outcome 唔係 HP」framing + reconciled the「NO unkillable boss」anti-pattern wording (killable boss vs undefeatable avatar) + **NEVER #13 no-game-over** (Rule 16 now 13 NEVERs; AC-40 traceability count 12→13).
+- **Q2** kept multiplicative DD#2 — added 5×1 powerlifting worked example (low volume × high pr × streak), `volume_factor` trailing-median normalization basis, 0.25 threshold geometric-midpoint derivation, `MINI_BOSS_EFFORT_THRESHOLD` LOCKED→**TUNABLE**, optional `PR_OVERRIDE` post-MVP path.
+- **Q3** DD#1 staleness — `BOSS_HP_PERSIST_TTL_SEC` (7200, [3600,86400]) + persisted `boss.fight_timestamp` + bfcache TTL-expire branch (Rule 12 + EC-17) + **AC-46**.
+
+### CD exit bar — 6/6 grep checks PASS
+(a) NEVER #10 shows `_set_current_hp` whitelist ✓ · (b) EC-17 no live skip-to-kill (only negation/historical) ✓ · (c) AC-42 no `MID_FIGHT_SKIP_HP_THRESHOLD` (only "no reference" negation) ✓ · (d) exactly ONE `func _ready()` ✓ · (e) `FIRST_SESSION_EXPECTED_HIT_DAMAGE` + `FIRST_SESSION_KILL_HITS_MAX` in Tuning Knobs ✓ · (f) AC-39 n≥12 ✓. **No new orphan** — `REVEAL_DISPATCH_BUDGET_MS` (briefly introduced in AC-07b) de-named to the existing Pillar-2 200ms budget to avoid one.
+
+### Additional pre-existing Pass-6 orphans found + fixed (beyond the 14, disclosed honestly)
+The Pass 6 re-review's 4-specialist pass did NOT flag these, but the grep-everything cleanup surfaced them — leaving them would have failed Approval:
+- **AC-02 / AC-03 / AC-10** still tested the removed `total_planned_sets` / `LIGHT_WORKOUT_THRESHOLD_SETS` set-count gate → rewritten to the DD#2 `effort_score < MINI_BOSS_EFFORT_THRESHOLD` gate (a 5×1 session now correctly spawns FINAL; `total_planned_sets` survives only as the EC-23 ==0 empty-guard, AC-26).
+- **Followup #22/#23/#24** were cited in the body (INV-8 / F2 flag / EC-07-AC-44) but never added to the tracker → added (plus #21b save-scope, #25 effort-sync lint).
+- **AC count + knob count + NEVER count** reconciled (54 effective ACs; 16 active owned knobs; 13 NEVERs) with an honest Pass-4-snapshot note on the distribution tables.
+
+### Files modified in Pass 7
+- `design/gdd/boss-system.md` — Status header; Player Fantasy (Q1 framing + anti-pattern reconcile); Rule 2 (DD#2 Q2 worked example/normalization/derivation); Rule 11 (merge note + connect comment); Rule 1 schema (merged `_ready`); Rule 12 (`_persist_fight_anchor` + fight_timestamp + TTL branch); Rule 16 (NEVER #10 whitelist + NEVER #13); Formula 1 (`_emit_telemetry` + F2 floor-safe cap); Interactions + Dependencies (#3 Hard + ADR-003); Tuning Knobs (+4 knobs, header count, INV-9b/9c, INV-7/EC-22 Followup #25, stability TUNABLE); ECs (EC-17 / EC-21 / EC-25→AC-45); ACs (AC-02/03/07b/10/12/18/39/42/45/46 + AC-40 count + Coverage Map + count headers + Gate Distribution); Followup tracker (#21b/#22/#23/#24/#25); Q-X2.
+- `design/gdd/reviews/boss-system-review-log.md` — this Pass 7 entry.
+
+Status: **Pass 7 COMPLETE — orphan-cleanup applied with grep-verify discipline, 6/6 exit-bar greps pass, no new orphan, 4 extra pre-existing orphans also closed. Pending fresh-session `/design-review` (expect Approved) → then `/create-epics boss-system`. Epic creation BLOCKED until Approved.**
