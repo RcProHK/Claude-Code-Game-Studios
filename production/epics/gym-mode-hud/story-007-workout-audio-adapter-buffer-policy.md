@@ -88,7 +88,7 @@
 **Completed**: 2026-06-04
 **Criteria**: 7/8 done + 1 doc-gated
 - ✅ AC-CR-10 buffer FIFO cap + low drop + flush · AC-EC-A1 20-event cap + exit clear · AC-EC-A4 deferred chime guard · AC-EC-S4×4 deny spy · AC-EC-S6 fallback · AC-CR-11 stagger schedule (code path, fake timer)
-- ✅ AC-CR-9 code path (unlocked → play_sfx once) verified; **#2-GDD bidirectional doc-gate (Q-OQ5) remains** — #2 GDD 須補列 #20 為 set_logged subscriber 至完成 binding（doc gate，非 code blocker）
+- ✅ AC-CR-9 code path (unlocked → play_sfx once) verified; **#2-GDD bidirectional doc-gate (Q-OQ5) RESOLVED 2026-06-04** — #2 `gymsys-backend-client.md` 已補列 #20 為 `set_logged` soft-dependent (audio-trigger only) + Bidirectional Consistency Check entry (Q-OQ5/Q-X9 closed)。Remaining: live-integration test needs real #2 backend (ADR-0002 VS-tier transport empirical gate) — code path + doc reciprocity both done
 - ⏸️ AC-CR-11 真實 streak chime wiring needs #8 streak_chime signal expose (Q-OQ1 correlation key) — stagger mechanism + delay 已驗，real #8 source gated
 **Deviations**: priority 用 `_sfx_catalog` DI seam（Dictionary event_id→int OR object.get_priority）— real #4 `SfxCatalog.tres` binding deferred（.tres missing + structure internal）；無 catalog → default MID（保守，唔 silently drop）。stagger 用 `ITimerService` seam（fake timer，無 wall-clock，符 determinism）。audio gate 有意 non-generational（enhancement asymmetry vs 視覺 SM-C）。
 **Test Evidence**: Integration — `tests/integration/gym_mode_hud/test_workout_audio_adapter.gd` (11 test functions, 11/11 pass; gym integration 4 scripts 51 tests). Full gate 242 scripts / 1497 pass / 0 fail / 1 pending.
