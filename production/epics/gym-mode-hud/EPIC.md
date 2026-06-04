@@ -68,7 +68,7 @@ Gym-Mode HUD 係玩家做 gym set 期間唯一持續顯示嘅 game UI overlay。
 2. **5 dep/gate**（`/story-readiness` 須 re-check）:
    - **#33 Attention Budget**（Not Started)— AC-CR-5 input-gate / AC-CR-13⑦。Fallback **AC-EC-S5**(banner tap 直接 unlock)self-contained 可過。
    - **#8 Streak**（streak signal 未 expose,Prov-3)— AC-CR-9 streak 路由 / AC-CR-11 stagger + correlation key(Q-OQ1)。Fallback **AC-EC-S6**(即播無 stagger)可過;#20 已 spec 兩分支 consumer stub。
-   - **#2 GymSys GDD bidirectional**（Q-OQ5)— #2 GDD 須補列 #20 為 `set_logged` subscriber(AC-CR-9 整合測前置)。
+   - ~~**#2 GymSys GDD bidirectional**（Q-OQ5)~~ ✅ **RESOLVED 2026-06-04** — #2 `gymsys-backend-client.md` 已補列 #20 為 `set_logged` soft-dependent + Bidirectional Consistency Check (commit 8ae26f0)。AC-CR-9 doc-gate cleared;live-integration 仍 ADR-0002 VS-tier transport gate。
    - **#21 Loot Drop Modal**（Not Started)— defer handshake;Fallback **AC-EC-S3**(自 defer,絕不自畫 loot 文字)self-contained 可過。
    - **Q-OQ12 SUSPENDED producer**（#1/platform_detect/TD 缺口)— AC-EC-S9b bfcache wiring 須 upstream `pageshow`→SUSPENDED 落地。
 3. **Cross-doc reconcile**（UX OQ-U2)— accessibility-requirements「bitmap m5x7 / font-scaling v0.2+ deferred」vs GDD「MSDF + `text_scale` player-facing knob」須 reconcile（`min_font_size_px=7` 與兩者一致,但 scaling knob MVP 地位待裁)。
