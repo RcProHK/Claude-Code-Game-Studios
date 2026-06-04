@@ -1,8 +1,8 @@
 # Epics Index
 
-Last Updated: 2026-06-02
+Last Updated: 2026-06-03
 Engine: Godot 4.6 (Web Export, Compatibility Renderer)
-Created by: /create-epics Foundation + Core (16 systems); #10 Exercise→Class Mapping promoted Placeholder→Ready 2026-06-02; #4 Audio Manager promoted Placeholder→Ready 2026-06-02 (GDD Approved Pass 6 + ADR-0008 Accepted)
+Created by: /create-epics Foundation + Core (16 systems); #10 Exercise→Class Mapping promoted Placeholder→Ready 2026-06-02; #4 Audio Manager promoted Placeholder→Ready 2026-06-02 (GDD Approved Pass 6 + ADR-0008 Accepted); **#20 Gym-Mode HUD (first Presentation epic) created 2026-06-03** (GDD R8 APPROVED + UX spec APPROVED)
 
 > **Implementation order**: Foundation layer first (pos 1→10 boot order), then Core layer.
 > **Critical pre-requisites before any stories start**:
@@ -40,14 +40,20 @@ Created by: /create-epics Foundation + Core (16 systems); #10 Exercise→Class M
 | [Exercise → Class Mapping](exercise-class-mapping/EPIC.md) | Core | #10 | exercise-class-mapping.md ✅ Approved 2026-06-02 | **5 stories** (001 ✅ Complete CI-green, 002-005 Ready) | **In progress 1/5** — 001 done CI-green 2026-06-02; ADR-0007/0008/0003 Accepted; 2 cross-system close-gates (Q5 #9 patch + entities.yaml 7-member) |
 | [Attention Budget & Interaction Policy](attention-budget-policy/EPIC.md) | Core | #33 | NOT STARTED | Not yet created | **Placeholder** — GDD + ADR-0008 required (Pre-MVP) ★ Pillar 2 |
 
+## Presentation Layer
+
+| Epic | Layer | System # | GDD | Stories | Status |
+|------|-------|----------|-----|---------|--------|
+| [Gym-Mode HUD](gym-mode-hud/EPIC.md) | Presentation | #20 | gym-mode-hud.md ✅ APPROVED (R8 2026-06-03) + UX spec ✅ APPROVED | **11 stories** (5 Logic, 5 Integration, 1 Visual/UI) | **Ready** — ⚠️ sprint-entry gated: AC-V-1 playtest (external, Story 011) + dep-gates (#33/#8/#2-GDD/#21/Q-OQ12) w/ fallback ACs (S5/S6/S3). Self-contained Logic 001-004/008/009 先做. Governing ADR-0001 (HIGH) + ADR-0006. ★ Pillar 2 PRIMARY owner |
+
 ---
 
 ## Summary
 
 | Metric | Count |
 |--------|-------|
-| Total epics | 16 |
-| Ready (GDD Approved + ADR-0006 Accepted) | 16 |
+| Total epics | 17 (16 Foundation+Core + 1 Presentation) |
+| Ready (GDD Approved + ADR-0006 Accepted) | 17 |
 | Blocked (ADR Proposed — stories auto-blocked) | 1 (#2 GymSys — ADR-0002/0004 transport VS-gated) |
 | Placeholder (no GDD) | 1 (#33 AttentionBudget) |
 | Pending GDD approval | 1 (#15 LootDrop — Pass 3 required) |

@@ -35,6 +35,7 @@ Mirror Hero 係一個 web-based gym companion RPG，設計為 background auto-pl
 | P-08 | [reduce-motion-toggle](#p-08-reduce-motion-toggle) | Settings / Accessibility | Character Screen (#22) | Defined |
 | P-09 | [single-tap-exercise-switch](#p-09-single-tap-exercise-switch) | Input | Exercise switch (GymSys) | Defined |
 | P-10 | [damage-number-popup](#p-10-damage-number-popup) | Feedback | Combat VFX (#25) | Defined |
+| P-11 | [enemy-threat-hud-bar](#p-11-enemy-threat-hud-bar) | Data Display | HUD (#20) — Boss HP | Defined |
 
 ---
 
@@ -325,6 +326,31 @@ Mirror Hero 係一個 web-based gym companion RPG，設計為 background auto-pl
 **When to Use**: Every combat hit event from CombatResolver. Critical hits get enhanced treatment.
 
 **When NOT to Use**: Stat changes from workout events (use P-03 stat-number-ticker instead — different semantic). Healing (use green color variant + upward arrow prefix "+").
+
+---
+
+### P-11: enemy-threat-hud-bar
+
+**Category**: Data Display
+**Used In**: HUD (#20) — Boss HP (BOSS_ENCOUNTER)
+**Derived From**: GDD #20 Gym-Mode HUD (R4 B5 binding invariant), Art Bible Section 4.B/4.C colorblind safety, P-02 frameless-hud-bar (sibling variant)
+
+**Description**: A horizontal depleting HP bar for a hostile entity (boss), displayed in the HUD top-center region. It is a deliberate visual *contrast* to the player's P-02 frameless-hud-bar so the player can distinguish "enemy threat" from "my strength" in a single 0.3s peripheral glance — **without relying on color, and without relying on the deplete animation** (a time-dimension cue that yields zero bits in a single-frame snapshot). This satisfies the binding accessibility rule that every semantic meaning carry ≥2 non-color signals.
+
+**Specification**:
+- Shape: rounded-rectangle body with **angular notched end-caps** (vs P-02 player bar's symmetric 2px rounded corners) — geometry is non-color channel #2
+- **Threat glyph prefix** (non-color channel #1, glance-valid): 8×8 px enemy marker at the bar's leading edge — downward-pointing chevron ▼ + angular silhouette (skull / threat mark), `ui_ink_bg #1A1D24` outline + crimson fill. Player bar has NO prefix.
+- Fill color: `ui_enemy_threat` crimson (recommended `#C8453E`, art-director final) — must be visibly distinct from Strike-class red `#E85A5A`. Color is enhancement channel #3 (NOT load-bearing).
+- Track color: `ui_ink_mid #2D323D`
+- Deplete direction: right → left (vs player non-depleting) — channel #4, valid only under focus
+- Position: screen top-center (player anchor bars sit top-left) — separation by position
+- Height: matches or slightly exceeds player HP bar (≥6px) for boss-encounter emphasis
+- Animation: `ease-out quad` drain 200ms on damage; bar removed on boss defeat (no lingering empty bar)
+- Accessibility: passes greyscale + deuteranopia/protanopia/tritanopia simulation — glyph prefix + angular geometry remain distinguishable from player bar at 8×8 squint (no color/deplete dependency)
+
+**When to Use**: Hostile-entity HP in a HUD context where it must coexist with and be distinguished from player resource bars at a glance (boss fights, elite enemies).
+
+**When NOT to Use**: Player resources — use [P-02 frameless-hud-bar](#p-02-frameless-hud-bar). Loot rarity / non-HP state — use the relevant feedback pattern. Generic enemy health in the world (non-HUD) — use floating world-space bar (to be defined if needed).
 
 ---
 

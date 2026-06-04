@@ -1,0 +1,110 @@
+[gd_scene load_steps=3 format=3 uid="uid://cg20hudscene01"]
+
+[ext_resource type="Script" path="res://src/ui/gym_mode_hud/gym_mode_hud.gd" id="1_hud"]
+[ext_resource type="Script" path="res://src/ui/gym_mode_hud/workout_audio_adapter.gd" id="2_adp"]
+
+[node name="GymModeHud" type="Control"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_hud")
+
+[node name="WorkoutAudioAdapter" type="Node" parent="."]
+script = ExtResource("2_adp")
+
+[node name="Zones" type="Control" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
+[node name="Z1" type="Control" parent="Zones"]
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 216.0
+offset_bottom = 64.0
+mouse_filter = 2
+
+[node name="HPBar" type="ProgressBar" parent="Zones/Z1"]
+offset_right = 200.0
+offset_bottom = 6.0
+max_value = 1.0
+value = 1.0
+show_percentage = false
+metadata/glance_visible = true
+
+[node name="EXPBar" type="ProgressBar" parent="Zones/Z1"]
+offset_top = 10.0
+offset_right = 200.0
+offset_bottom = 14.0
+max_value = 1.0
+value = 0.0
+show_percentage = false
+metadata/glance_visible = true
+
+[node name="Z3" type="Control" parent="Zones"]
+offset_left = 16.0
+offset_top = 80.0
+offset_right = 216.0
+offset_bottom = 140.0
+mouse_filter = 2
+
+[node name="StatBlock" type="Control" parent="Zones/Z3"]
+mouse_filter = 2
+metadata/glance_visible = false
+
+[node name="Z5" type="Control" parent="Zones"]
+offset_left = 16.0
+offset_top = 150.0
+offset_right = 216.0
+offset_bottom = 210.0
+mouse_filter = 2
+
+[node name="SkillsCluster" type="Control" parent="Zones/Z5"]
+mouse_filter = 2
+metadata/glance_group = true
+metadata/cluster_icon_cap = 4
+metadata/glance_visible = true
+
+[node name="PROG" type="Control" parent="Zones"]
+offset_left = 16.0
+offset_top = 220.0
+offset_right = 216.0
+offset_bottom = 250.0
+mouse_filter = 2
+
+[node name="ProgLabel" type="Label" parent="Zones/PROG"]
+text = ""
+
+[node name="Z6" type="Control" parent="Zones"]
+offset_left = 16.0
+offset_top = 260.0
+offset_right = 216.0
+offset_bottom = 290.0
+mouse_filter = 2
+
+[node name="BossBar" type="ProgressBar" parent="Zones/Z6"]
+offset_right = 200.0
+offset_bottom = 8.0
+max_value = 1.0
+value = 1.0
+show_percentage = false
+metadata/glance_visible = true
+
+[node name="Banner" type="Button" parent="."]
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -100.0
+offset_top = -60.0
+offset_right = 100.0
+offset_bottom = -16.0
+focus_mode = 0
+custom_minimum_size = Vector2(200, 44)
+text = "㩒一下開聲"
+
+[connection signal="pressed" from="Banner" to="." method="_on_banner_tapped"]
