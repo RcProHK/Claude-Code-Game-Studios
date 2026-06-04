@@ -495,4 +495,50 @@ User directed「繼續 #16 Boss spec-fix-pass」(declined the /clear recommendat
 
 New Followups: #21 (ADR-003 persist boss.current_hp), #22 (ADR-005 boss-vs-mini tier distribution evidence), #23 (FIRST_SESSION_EXPECTED_HIT_DAMAGE #13 co-calibration), #24 (v0.2 endgame MAX_BOSS_HP ramp / TIER_4).
 
-Status: **Pass 6 spec fix-pass COMPLETE. NEXT: `/design-review design/gdd/boss-system.md` (fresh — expect Approved; optional 3-specialist systems+gameplay+qa re-validate) → `/create-epics boss-system`. Epic BLOCKED until Approved.**
+Status: ~~Pass 6 spec fix-pass COMPLETE — pending /design-review~~ **Superseded — Pass 6 re-review MAJOR REVISION NEEDED below.**
+
+---
+
+## Pass 6 Re-review — 2026-06-04 — Verdict: MAJOR REVISION NEEDED
+
+Mode: full 4-specialist (gameplay-programmer + systems-designer + qa-lead + game-designer) + creative-director synthesis. Fresh-context re-review of the Pass 6 spec-fix-pass (which was authored in EXHAUSTED context after the reviewer's /clear recommendation was declined).
+
+**Root cause (CD): the Pass 6 spec-fix was correct in DESIGN (DD#1 exact-restore + DD#2 effort gate are right) but suffered single-edit propagation failure** — Rule 12 was rewritten but downstream references (Rule 16 NEVER, EC-17, AC-42, Dependencies table, Formula telemetry) were NOT grepped/updated → the GDD's signature net-regression pattern (Pass 2→3) reappeared. **This is exactly what doing a multi-item spec-pass in exhausted context produces** — validates the /clear discipline.
+
+**Convergent type: finite, addressable cleanup (NOT infinite phantom spiral). NOT yet Structural Freeze** (Pass 6 was the first mandate-closed pass). **CD EXIT BAR: if Pass 7 self-introduces ANY new cross-reference orphan → immediate Structural Freeze.**
+
+### Pass 7 fix list (14 mechanical + 3 design rulings)
+
+**Group A — Pass 6 orphan/contradictions (BLOCKING):**
+1. Rule 16 NEVER #10「NEVER persists boss HP/position」→ add exception「except the single `boss.current_hp` ephemeral record via whitelisted `_set_current_hp` (Rule 12 DD#1)」; AC-12 grep pattern must whitelist `_set_current_hp`.
+2. EC-17 — rewrite from deleted skip-to-kill/restart-full hybrid → DD#1 exact-restore semantics.
+3. AC-42 — rewrite from zombie skip-to-kill/restart-full test (+ removed MID_FIGHT_SKIP_HP_THRESHOLD knob ref) → DD#1 exact-restore contract test.
+4. Dependencies/Interactions table `#3 PersistenceLayer: NONE` → Hard dep (write/read/delete boss.current_hp + boss.transition_id; deleted on death).
+5. Formula 1 `emit_telemetry(` → `_emit_telemetry(` (GP-F5 sweep).
+
+**Group B — Tier 0/1 still not compilable (BLOCKING):**
+6. BossInstance has TWO `_ready()` (schema ~L187 + Rule 11 bfcache ~L699) → merge into one (asserts+max_hp init → bfcache subscribe → enemy_killed connect).
+7. `_on_enemy_killed_self_listen` `.connect` callsite is only a COMMENT → move into the merged `_ready()` as real spec pseudocode.
+8. `current_hp = max_hp` in `_ready` bypasses `_set_current_hp` mutator → route through mutator.
+
+**Group C — F2 ghosts + floor violation (BLOCKING):**
+9. `FIRST_SESSION_EXPECTED_HIT_DAMAGE` (default 20, #13 co-cal Followup #23) + `FIRST_SESSION_KILL_HITS_MAX` (default 12, [8,15]) → add to Tuning Knobs (currently undefined symbols).
+10. F2 cap `min(boss_max_hp, cap)` after MIN_BOSS_HP clamp can go sub-50 → `max(min(boss_max_hp, cap), MIN_BOSS_HP)` + INV `cap ≥ MIN_BOSS_HP`.
+
+**Group D — AC quality (BLOCKING/MAJOR):**
+11. AC-18 floor case unreachable (base_hp∈[50,500]→raw≥50) → use test-only `base_hp=1` synthetic input + mark「defensive future-config guard」.
+12. AC-07b wall-clock non-deterministic in headless CI → rewrite as unit test with injectable `MockClock.get_ticks_msec()` seam testing LOGICAL timeout (not wall-clock measurement), OR demote ADVISORY|Manual (real-browser, parallel AC-27b). Cites determinism standard.
+13. AC-39 unreachable binding gate → recruit n≥12 pool / report min n=10 completers (attrition buffer) + producer-scheduled ≥3-week playtest window; keep MVP-BLOCKING but reachable.
+14. EC-25 zero AC → add **AC-45** (avatar-downed auto-recover, BLOCKING) + `AVATAR_RECOVER_HP_FRACTION` knob; add AC-07b + EC-25/AC-45 to Coverage Map; INV-7「CI lint ensures sync」→ Followup #25 (real script, BLOCKED until #14 aligns); RarityTier ordinal — drop ADR-0007 cite (it locks AbilityClass; RarityTier is #15 scope, confirm at #15 authoring).
+
+### CD design rulings (apply directly — no further user decision needed)
+- **Q1 EC-25 zero-stakes**: zero-fail-state is **CORRECT** (stakes = effort→loot outcome, not avatar HP). Add Player-Fantasy sentence:「Stakes 係 outcome 唔係 HP — 緊張感來自 effort input→loot tier 因果鏈;avatar 係打唔死嘅見證者,boss 係 workout outcome 具象化」. No mechanic change. Reconcile the「NO unkillable boss」anti-pattern wording with the unkillable-avatar framing.
+- **Q2 DD#2 multiplicative**: keep multiplicative formula (max()/weighted-sum introduce worse Pillar-1 problems). Add a 5×1 powerlifting **worked example** (low volume_factor × high pr × streak → may sit below 0.25 = INTENDED: reward effort VOLUME, not single-rep intensity) + mark `MINI_BOSS_EFFORT_THRESHOLD` **TUNABLE** (was LOCKED) for Pre-MVP calibration; optional `if pr_factor >= PR_OVERRIDE: force_final` future path. Define volume_factor normalization basis + threshold-0.25 derivation.
+- **Q3 DD#1 staleness**: add `BOSS_HP_PERSIST_TTL_SEC` (default 7200, [3600,86400]) + `boss.fight_timestamp` persisted field + bfcache TTL-expire branch (record older than TTL → treat as no record → restore max_hp + delete) + EC-17 TTL branch + **AC-46**.
+
+### CD Pass 7 exit bar (6 grep checks — all must pass to advance to /create-epics)
+(a) Rule 16 NEVER #10 shows `_set_current_hp` whitelist exemption; (b) EC-17 shows NO skip-to-kill/restart-at-full old semantics; (c) AC-42 shows NO `MID_FIGHT_SKIP_HP_THRESHOLD`; (d) BossInstance has exactly ONE `_ready()` block; (e) `FIRST_SESSION_EXPECTED_HIT_DAMAGE` + `FIRST_SESSION_KILL_HITS_MAX` visible in Tuning Knobs; (f) AC-39 shows n≥12 attrition buffer. **If Pass 7 introduces any NEW orphan → Structural Freeze.**
+
+New Followups: #25 (effort-threshold sync CI lint, BLOCKED on #14).
+
+Status: **MAJOR REVISION NEEDED — Pass 7 spec-fix-pass pending FRESH session (orphan-cleanup pass — MUST be done in clean context per the very lesson Pass 6 just re-proved). Epic creation BLOCKED until Approved.**
