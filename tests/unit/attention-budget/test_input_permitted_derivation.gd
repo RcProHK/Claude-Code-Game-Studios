@@ -523,9 +523,10 @@ func test_ac17a_is_input_permitted_zero_allocation_structural() -> void:
 		"AC-17a: is_input_permitted body must not contain inline [ (Array/Dict literal allocation)"
 	)
 
-	# 2. .new( — object allocation
+	# 2. .new( — object allocation (skip comment lines; doc comments legitimately
+	#    mention ".new()" when documenting the zero-allocation rule).
 	assert_false(
-		method_body.contains(".new("),
+		_method_body_has_token(method_body, ".new("),
 		"AC-17a: is_input_permitted body must not contain .new( (object allocation)"
 	)
 
@@ -540,6 +541,23 @@ func test_ac17a_is_input_permitted_zero_allocation_structural() -> void:
 		_method_body_has_inline_brace(method_body),
 		"AC-17a: is_input_permitted body must not contain inline { (Dictionary literal allocation)"
 	)
+
+
+## Helper: returns true if a token appears in a non-comment code line of the body.
+## Doc/inline comments are stripped first (they may legitimately mention the token,
+## e.g. a doc comment stating "no .new()").
+func _method_body_has_token(body: String, token: String) -> bool:
+	for line in body.split("\n"):
+		var stripped: String = line.strip_edges()
+		if stripped.begins_with("#"):
+			continue
+		var code_part: String = stripped
+		var comment_pos: int = stripped.find(" #")
+		if comment_pos >= 0:
+			code_part = stripped.substr(0, comment_pos)
+		if token in code_part:
+			return true
+	return false
 
 
 ## Helper: returns true if method body has a '[' that is not part of a comment.
