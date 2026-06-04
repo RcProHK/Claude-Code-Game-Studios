@@ -1,12 +1,12 @@
 # Story 004: Boot subscription + Substate + derivation independence + CI lint
 
 > **Epic**: Attention Budget & Interaction Policy
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Core
 > **Type**: Integration
 > **Estimate**: M (~3-4h)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-04
 
 ## Context
 
@@ -80,3 +80,14 @@
 
 - Depends on: Story 001（seam）DONE；Story 002（derivation，AC-14/16 需 is_input_permitted 真實作）建議 DONE
 - Unlocks: None
+
+---
+
+## Completion Notes
+**Completed**: 2026-06-04
+**Criteria**: AC-12(a) GSM `connect_for_initial_state` + initial callback / AC-12(b) WST `phase_changed.connect` plain / AC-12 CI lint（violation + clean fixtures）/ AC-14 derivation independence / AC-16 substate boot fail-closed + INITIALISING→READY。AC-20 callback 3-arg no-bind 確認。
+**GUT**: ~15 tests pass（attention-budget dir 78/78）；combined 256 scripts / 1670 / 1669 pass / 0 fail / 1 pending — 新 autoload 註冊冇破 boot test（count 已 bump）。
+**Files**: `src/autoload/attention_budget.gd`（finalize _ready boot subscription + `_wire_subscriptions` testable seam + Substate→READY）· `project.godot`（register AttentionBudget autoload pos 11+，append after 現有 autoloads，ADR-0008）· `tools/ci/check_attention_subscription.gd`（new CI lint，**GSM owner-exempt** game_state_machine.gd — MAJOR-5）· `tests/fixtures/attention_subscription_{violation,clean}.gd`（new）· `tests/integration/attention-budget/test_boot_subscription.gd`（new）。
+**MAJOR-5 確認**: CI lint ban `state_changed.connect(` 但 exempt GSM owner file（防 main RED，同 PR #12 debug_override 教訓）。
+**Test Evidence**: Integration — `tests/integration/attention-budget/test_boot_subscription.gd`。
+**Code Review**: Pending（lean — sprint close 前批量）。

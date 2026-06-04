@@ -1,12 +1,12 @@
 # Story 005: Glance budget ceiling + Formula 3
 
 > **Epic**: Attention Budget & Interaction Policy
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Core
 > **Type**: Logic
 > **Estimate**: S (~2h)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-04
 
 ## Context
 
@@ -72,11 +72,22 @@ glance_within_budget(measured_ms) = measured_ms <= GLANCE_BUDGET_CEILING_MS
 **Story Type**: Logic
 **Required evidence**: `tests/unit/attention-budget/test_glance_budget_ceiling.gd` — must exist and pass
 
-**Status**: [ ] Not yet created
+**Status**: [x] Created + passing — `tests/unit/attention-budget/test_glance_budget_ceiling.gd`（8/8 pass）
 
 ---
 
 ## Dependencies
 
 - Depends on: Story 001（autoload surface 攞 const）DONE
+
+---
+
+## Completion Notes
+**Completed**: 2026-06-04
+**Criteria**: AC-13 boundary（2000→true / 2001→false / 300→true / 0→true）+ const==2000 + assert_glance_within_budget（OS.is_debug_build gate + push_error，非 assert()；GDD godot R-5）。
+**GUT**: 8 tests pass（attention-budget dir 86/86）。
+**Files**: `src/autoload/attention_budget.gd`（+GLANCE_BUDGET_CEILING_MS const + glance_within_budget + assert_glance_within_budget）· `tests/unit/attention-budget/test_glance_budget_ceiling.gd`（new）。
+**Notes（ADVISORY）**: over-budget push_error 用 smoke 斷言（唔依賴 version-fragile GUT error-monitoring API）；release no-op 分支 headless 必 debug build 故無直接覆蓋（structural，test #6 反證 debug 分支）。
+**Test Evidence**: Logic — `tests/unit/attention-budget/test_glance_budget_ceiling.gd`（8/8）。
+**Code Review**: Pending（lean — sprint close 前批量）。
 - Unlocks: None

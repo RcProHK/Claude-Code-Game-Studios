@@ -1,12 +1,12 @@
 # Story 003: `is_notification_permitted()` + CRITICAL_NOTIFICATION_KINDS allowlist
 
 > **Epic**: Attention Budget & Interaction Policy
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Core
 > **Type**: Logic
 > **Estimate**: S (~2-3h)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-04
 
 ## Context
 
@@ -89,3 +89,15 @@ is_notification_permitted() =
 
 - Depends on: Story 001（seam + autoload surface）DONE
 - Unlocks: None（#8/#28 producer epic 之後對接 AC-18b/AC-15 full）
+
+---
+
+## Completion Notes
+**Completed**: 2026-06-04
+**Criteria**: AC-07 / AC-08 / AC-18a 全 covered；Formula 2 full（含 WORKOUT_ACTIVE+WARM_UP→true 證 suppression 嚟自 phase term 非 GSM floor，+ contrast WORKOUT_ACTIVE+SET_ACTIVE→false）；H1 WORKOUT_COMPLETE permit；B1 sentinel 加埋落 is_notification_permitted（fail-closed 一致）。
+**GUT**: 18 tests pass（attention-budget dir 63/63）；combined 255 scripts / 1655 / 1654 pass / 0 fail / 1 pending。
+**Files**: `src/systems/attention_budget_policy.gd`（finalize is_notification_permitted + B1 sentinel）· `src/autoload/attention_budget.gd`（+CRITICAL_NOTIFICATION_KINDS const + is_critical_notification）· `tests/unit/attention-budget/test_notification_permitted.gd`（new，18 tests）。
+**Test-fix iteration**: Story 002 AC-17a structural test 嘅 `.new(` check 原用 naive `.contains()` 冇剔 comment → Story 003 finalize doc comment 加「no .new()」字眼被 body-extraction sweep 誤判 → 修 test 用 `_method_body_has_token`（剔 comment 行，同其餘 3 check 一致）。
+**Deferred（按 GDD 決定）**: AC-18b producer-compliance grep + AC-15 full drop-not-queue → #8 Streak / #28 Telemetry producer epic（#33 唔 own producer）。
+**Test Evidence**: Logic — `tests/unit/attention-budget/test_notification_permitted.gd`（18/18）。
+**Code Review**: Pending（lean — sprint close 前批量）。

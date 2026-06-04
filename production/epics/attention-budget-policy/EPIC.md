@@ -3,8 +3,8 @@
 > **Layer**: Core
 > **GDD**: design/gdd/attention-budget-policy.md ✅ Approved 2026-06-04 (re-review pass 2)
 > **Architecture Module**: AttentionBudget (`src/autoload/attention_budget.gd` — pos 11+ per ADR-0008 insertion rule; absolute integer assigned impl-time per #4 Audio precedent)
-> **Status**: Ready
-> **Stories**: 6 created (3 Logic, 3 Integration) — run `/story-readiness` per story
+> **Status**: ✅ IMPLEMENTED — 6/6 stories Complete (CI-green) 2026-06-04
+> **Stories**: 6/6 Complete (3 Logic, 3 Integration) — attention-budget 93/93 GUT; final combined gate 258 scripts / 1685 / 0 fail
 
 ## Stories
 
@@ -12,10 +12,10 @@
 |---|-------|------|--------|-----|--------|
 | 001 | Stub migration — IInputPolicy seam + ctor + factory + constants | Integration | ✅ Complete | ADR-0006 C13/C14 | Rule 1/10, AC-05 (GUT 17/17) |
 | 002 | `is_input_permitted()` Hybrid derivation + hot-path perf | Logic | ✅ Complete | ADR-0006 C13 | Formula 1; AC-01a/01b/02/03/04/09/10/19/17a/17b + B1 sentinel (GUT 29/29) |
-| 003 | `is_notification_permitted()` + CRITICAL_NOTIFICATION_KINDS | Logic | Ready | N/A (GDD Rule 7) | Formula 2; AC-07/08/18a/15(unit) |
-| 004 | Boot subscription + Substate + derivation independence + CI lint | Integration | Ready | ADR-0006 C6/C4 | Rule 9; AC-12/14/16 |
-| 005 | Glance budget ceiling + Formula 3 | Logic | Ready | N/A (cross-system const) | Rule 8; AC-13 |
-| 006 | Phone-lock / app-switch recovery | Integration | Ready | ADR-0006 C13/C4 | EC-6/7; AC-11 |
+| 003 | `is_notification_permitted()` + CRITICAL_NOTIFICATION_KINDS | Logic | ✅ Complete | N/A (GDD Rule 7) | Formula 2; AC-07/08/18a + B1 sentinel (GUT 18/18) |
+| 004 | Boot subscription + Substate + derivation independence + CI lint | Integration | ✅ Complete | ADR-0006 C6/C4 | Rule 9; AC-12/14/16 + autoload register + CI lint (GUT 78/78 dir) |
+| 005 | Glance budget ceiling + Formula 3 | Logic | ✅ Complete | N/A (cross-system const) | Rule 8; AC-13 (GUT 8/8) |
+| 006 | Phone-lock / app-switch recovery | Integration | ✅ Complete | ADR-0006 C13/C4 | EC-6/7; AC-11 (zero prod code — Rule 2; GUT 7/7) |
 
 **Deferred（唔開 story，已記下）**: AC-06（unlock exemption Integration）→ #20 epic；AC-15 full Integration + AC-18b（producer-compliance grep）→ #8 Streak / #28 Telemetry producer epic。
 

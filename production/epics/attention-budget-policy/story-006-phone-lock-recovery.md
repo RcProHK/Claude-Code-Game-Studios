@@ -1,12 +1,12 @@
 # Story 006: Phone-lock / app-switch recovery
 
 > **Epic**: Attention Budget & Interaction Policy
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Core
 > **Type**: Integration
 > **Estimate**: S (~2-3h)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-04
 
 ## Context
 
@@ -79,3 +79,14 @@
 
 - Depends on: Story 002（derivation）DONE
 - Unlocks: None
+
+---
+
+## Completion Notes
+**Completed**: 2026-06-04
+**Criteria**: AC-11（suspend@floor→SUSPENDED→resume non-floor REST_PERIOD = true 無 stale lock；floor resume 對照 = false）/ EC-6（SET_ACTIVE 鎖 suspend 後完全清）/ EC-7（reconcile→SET_ACTIVE 維持鎖、#9 推進 phase 後即開）/ pure-pull 自動 recovery。
+**零 production code**：recovery 係 Story 002 pure-pull derivation 嘅架構性副產品（Rule 2：無 cached gate → 無 stale lock，無需 reset hook）。implementer 確認無 gap、無 Rule 2 違規信號。
+**GUT**: 7 tests pass（含 instance-id integrity self-guard 坐實「無 reset」）；final combined 258 scripts / 1685 / 1684 pass / 0 fail / 1 pending。
+**Files**: `tests/integration/attention-budget/test_phone_lock_recovery.gd`（new，唯一檔案）。
+**Test Evidence**: Integration — `tests/integration/attention-budget/test_phone_lock_recovery.gd`（7/7）。
+**Code Review**: Pending（lean — sprint close 前批量）。
