@@ -897,17 +897,30 @@ constants:
     source: design/gdd/game-state-machine.md
     referenced_by:
       - design/gdd/game-state-machine.md
+      - design/gdd/attention-budget-policy.md               # #33 — owns implementation (Designed 2026-06-04); IInputPolicy interface per ADR-006 Contract 13; derives from GSM current_state + WST phase (Formula 1)
+      - design/gdd/gym-mode-hud.md                          # #20 — calls to gate taps (AC-CR-5); unlock gesture exempt per #33 Rule 6
       # Expected future referrers:
-      # - design/gdd/attention-budget-interaction-policy.md  (#33 — owns implementation)
-      # - design/gdd/gym-mode-hud.md                          (#20 — calls to gate taps)
       # - design/gdd/loot-drop-modal.md                       (#21)
       # - design/gdd/character-screen.md                      (#22)
       # - design/gdd/inventory-ui.md                          (#23)
     value: "is_input_permitted() -> bool"
     unit: api_contract
     added: 2026-05-25
+    revised: "2026-06-04 — #33 Attention Budget Policy GDD authored (Designed). is_input_permitted() formalized as pure pull-based derivation from GSM current_state + WST phase (NOT cached); SET_ACTIVE phase dominates (Rule 3). Added #33 (owner) + #20 (consumer) as active referrers. Companion API is_notification_permitted() -> bool added by #33 Rule 7."
+    notes: "Pillar 2 architectural enforcement boundary. Owned by #33 Attention Budget Policy via ADR-006 Contract 13 IInputPolicy interface (ctor-injected into handlers; concrete AttentionBudgetPolicy + test MockInputPolicy). GameStateMachine MUST NEVER call this method itself (AC-15 static analysis test). UI consumers call this before accepting taps. Derivation: false when WST phase==SET_ACTIVE OR GSM state ∈ {BOOTING, SUSPENDED}; else true (#33 Formula 1)."
+
+  - name: glance_budget_ceiling_ms
+    status: active
+    source: design/gdd/attention-budget-policy.md
+    referenced_by:
+      - design/gdd/attention-budget-policy.md          # #33 — owns (Rule 8 / Formula 3); cross-system single-glance attention upper bound
+      # Expected future referrers:
+      # - design/gdd/gym-mode-hud.md                      (#20 — its 0.3s 餘光 is stricter than this 2s ceiling)
+    value: "2000"
+    unit: milliseconds
+    added: 2026-06-04
     revised: ""
-    notes: "Pillar 2 architectural enforcement boundary. Owned by #33 Attention Budget Policy (derives from state_changed). GameStateMachine MUST NEVER call this method itself (AC-15 static analysis test). UI consumers call this before accepting taps."
+    notes: "Pillar 2 cross-system glance ceiling. No in-session UI element may demand >2000ms single-glance attention. #20 HUD owns a stricter 0.3s 餘光 target; this is the hard cap for ALL in-session elements. Safe range [800, 3000]: >3000 betrays Pillar 2; <800 over-restricts readable HUD. Enforced design-time (AC) + playtest (tachistoscope), NOT per-frame runtime — debug-build assert_glance_within_budget(element_id, measured_ms) only. Sibling constitutional constants (non-tunable): INPUT_LOCKED_PHASES={SET_ACTIVE}, MAX_SET_ACTIVE_INTERACTIONS=0."
 
   - name: lootdrop_pending_ttl_days
     status: active
