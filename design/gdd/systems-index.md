@@ -69,7 +69,7 @@ Mirror Hero 係 2D side-scrolling action RPG，玩家嘅真實 gym 訓練數據�
 | 30 | Skill Tree System | Polish | v0.2 | Not Started | — | 12, 18 |
 | 31 | SSE / Realtime Upgrade | Polish | v0.2 | Not Started | — | 2 |
 | 32 | Friend Leaderboard | Polish | T3 | Not Started | — | 17, 18 |
-| 33 | Attention Budget & Interaction Policy (added per CD-SYSTEMS) | Core | Pre-MVP | Not Started | — | 1, 9 |
+| 33 | Attention Budget & Interaction Policy (added per CD-SYSTEMS) | Core | Pre-MVP | **✅ IMPLEMENTED 2026-06-04 — 6/6 stories CI-green** (GDD Approved pass 3 full 4-agent)。Hybrid `is_input_permitted() = null→B1 sentinel→GSM_floor + LOOT_DROP ceremony + lifecycle + WST_refinement`；is_notification_permitted Formula 2；CRITICAL_NOTIFICATION_KINDS allowlist；boot connect_for_initial_state + CI lint(GSM owner-exempt)；glance ceiling；pure-pull recovery(zero prod code)。attention-budget 93/93 GUT；combined 258 scripts / 1685 / 0 fail。autoload registered project.godot。Deferred: AC-06→#20, AC-15/18b→#8/#28。Review log + 6 story Completion Notes。 | [attention-budget-policy.md](attention-budget-policy.md) | 1, 9 |
 
 > Systems marked **(inferred)** are not explicitly named in `game-concept.md` but are required by the explicit systems' implementation needs. Systems marked **(merged)**, **(split)**, **(renamed)**, or **(added per CD-SYSTEMS)** reflect changes from the original 34-system enumeration after director gate review.
 > ⚠️ marks systems with anti-pillar drift risk — see [Anti-Pillar Constraints](#anti-pillar-constraints) section below.
