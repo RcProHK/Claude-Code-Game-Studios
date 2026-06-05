@@ -1,12 +1,16 @@
 # Story 005: Formula 3 attack-pattern selection (FNV-1a anti-spam)
 
 > **Epic**: Boss System
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Feature
 > **Type**: Logic
 > **Estimate**: S
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-05
+
+**Completion Notes (2026-06-05)**: `src/utils/deterministic_hash.gd` (`class_name DeterministicHash`, FNV-1a 32-bit — followup-19 didn't exist, created here) + `BossFormulas.select_attack_pattern(candidates, last_pattern_id, transition_id, attack_count)` (pure; caller holds/updates state) + `tests/unit/boss_system/test_formula3_pattern_selection.gd` (7 tests; combined 262scr/1722/1721pass/0fail/1pending). AC-06/AC-20 (zero consecutive same over 100), AC-34 (golden vector + determinism + non-negative), EC-10/EC-11.
+- **GDD GOLDEN-VECTOR ERROR FOUND + FIXED**: GDD stated `deterministic_hash("abc") == 1454761972` — that's WRONG. Canonical FNV-1a 32-bit "abc" = **440920331 (0x1A47E90B)**. Implementation follows standard FNV-1a (verified); corrected the GDD (AC-34 + Followup #19) + test to 440920331.
+- `select_attack_pattern` is pure static — `_last_emitted_pattern_id` + `attack_count` passed in as params (caller = BossInstance updates them).
 
 ## Context
 

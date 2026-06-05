@@ -144,3 +144,40 @@ static func compute_attack_damage(player_max_hp: int, pattern_damage_multiplier:
 	# CRIT-6 guard: ceiling never below the floor (degenerate low-HP boot, EC-06).
 	var max_damage: int = maxi(floori(float(player_max_hp) * MAX_BOSS_DAMAGE_RATIO), MIN_BOSS_DAMAGE)
 	return clampi(raw, MIN_BOSS_DAMAGE, max_damage)
+
+
+## Formula 3 — attack_pattern_selection (Story 005, TR-boss-005).
+##
+## Deterministic round-robin with anti-spam: never returns the same pattern twice
+## in a row when >= 2 patterns exist. Seeded by `transition_id + attack_count` via
+## FNV-1a (DeterministicHash) for cross-platform reproducibility (AC-34) — NOT
+## Godot's build-dependent hash(). posmod kept as defense-in-depth (FNV-1a is
+## already non-negative).
+##
+## STATELESS: `last_pattern_id` + `attack_count` are passed IN; the caller
+## (BossInstance) holds `_last_emitted_pattern_id` / `attack_count` and updates
+## them with the returned pattern's id. This keeps BossFormulas pure.
+##
+## @param candidates       BossTemplate.attack_patterns (Array[AttackPatternResource]).
+## @param last_pattern_id  The previously emitted pattern_id (&"" on first attack).
+## @param transition_id    BossAnchor commit id (opaque seed component).
+## @param attack_count     Per-boss attack counter.
+## @return                 The selected AttackPatternResource, or null if candidates empty (EC-10).
+static func select_attack_pattern(
+	candidates: Array,
+	last_pattern_id: StringName,
+	transition_id: String,
+	attack_count: int
+) -> AttackPatternResource:
+	if candidates.is_empty():
+		return null  # EC-10 defensive — BossRegistry CI lint should prevent this
+	if candidates.size() == 1:
+		return candidates[0]  # EC-11 — anti-spam waived for single-pattern bosses
+	var valid: Array = candidates.filter(func(p: AttackPatternResource) -> bool:
+		return p.pattern_id != last_pattern_id)
+	if valid.is_empty():
+		# All candidates share the last pattern_id (data error) — bypass anti-spam.
+		valid = candidates
+	var seed_str: String = "%s_pattern_%d" % [transition_id, attack_count]
+	var idx: int = posmod(DeterministicHash.deterministic_hash(seed_str), valid.size())
+	return valid[idx]
