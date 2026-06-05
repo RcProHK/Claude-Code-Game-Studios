@@ -1,12 +1,19 @@
 # Story 002: BossInstance scene-tree contract + HP mutator
 
 > **Epic**: Boss System
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Feature
 > **Type**: Logic
 > **Estimate**: M
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-05
+
+**Completion Notes (2026-06-05)**: `src/gameplay/boss_instance.gd` (`class_name BossInstance extends Node2D`) + `src/data/boss_spawn_context.gd` (the snapshot-max_hp resolution) + `tests/unit/boss_system/test_boss_instance_contract.gd` (7 tests; combined 264scr/1735/1734pass/0fail/1pending).
+- **SNAPSHOT DESIGN RESOLVED (Option A — GDD AC-22's recommendation)**: created `BossSpawnContext extends RefCounted` (attack_power + max_hp + crit_chance + workout_duration_sec) — the richer frozen snapshot both formulas read. `player_stat_snapshot: BossSpawnContext` (deviation from GDD's `CombatResolver.StatSnapshot`, which lacks max_hp/workout_duration). #14 caller populates it from `StatSystem.get_stat(MAX_HP/ATTACK_POWER)` + #9 WorkoutSummaryRO.
+- SINGLE `_ready` (asserts → compute_max_hp → `_set_current_hp` → `_persist_fight_anchor` → idle anim guarded by `has_animation` → enemy_killed connect → bfcache subscribe via has_signal guard). `_set_current_hp` mutator (clamp + emit + `boss.current_hp` persist + 0→DYING). `_enter_state` idempotent guard. AC-15 `_ai_state` = `EnemyDirector.EnemyAIState`.
+- **Scaffolds** for Story 011 (`_on_enemy_killed_self_listen` typed `EnemyKilledPayload`) + Story 012 (`_play_death_and_free` / `_cleanup_resources` / `_on_resume_detected` / `_notification`) — wired + working, refined later.
+- Added **`"boss."` to PersistenceLayer VALID_NAMESPACES** (audio precedent; debug-only warning, sanctioned).
+- Test builds BossInstance with 4 stub scene-tree children + in-tree `_ready`; isolated `_set_current_hp` (0→DYING tested off-tree so no queue_free).
 
 ## Context
 

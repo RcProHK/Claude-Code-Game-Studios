@@ -289,7 +289,7 @@ func write(key: String, value: Variant, flush: bool = false) -> bool:
 	# GDD Rule 12: namespace convention push_warning (debug only, never blocks write).
 	if OS.is_debug_build():
 		const VALID_NAMESPACES: Array[String] = [
-			"gsm.", "gym.", "_internal.", "streak.", "wst.", "stat.", "ability.unlocked.", "audio."
+			"gsm.", "gym.", "_internal.", "streak.", "wst.", "stat.", "ability.unlocked.", "audio.", "boss."
 		]
 		var has_prefix := VALID_NAMESPACES.any(func(ns: String) -> bool: return key.begins_with(ns))
 		if not has_prefix:
