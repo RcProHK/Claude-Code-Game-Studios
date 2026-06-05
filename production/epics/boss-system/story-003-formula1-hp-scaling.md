@@ -1,12 +1,19 @@
 # Story 003: BossFormulas + Formula 1 boss_max_hp_scaling
 
 > **Epic**: Boss System
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Feature
 > **Type**: Logic
 > **Estimate**: M
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-05
+
+**Completion Notes (2026-06-05)**: `src/formulas/boss_formulas.gd` (`class_name BossFormulas extends RefCounted`, pure static) + `tests/unit/boss_system/test_formula1_hp_scaling.gd` (13 tests; combined 260scr/1709/1708pass/0fail/1pending AC-37).
+- **Dependency correction**: Story 003 depends on Story 001 ONLY — `compute_max_hp` takes the snapshot value as a param, NOT from BossInstance, so it does NOT depend on Story 002. (003 was wrongly listed as depending on 002.)
+- **SIGNATURE DEVIATION (shipped-code-driven)**: GDD's `compute_max_hp(template, snapshot: CombatResolver.StatSnapshot)` is NOT implementable — shipped `CombatResolver.StatSnapshot` (combat_resolver.gd:142) carries ONLY `attack_power` + `crit_chance`, NO `workout_duration_sec` (and NO `max_hp`). Implemented as pure scalars `compute_max_hp(base_hp: int, player_attack_power: float, workout_duration_sec: float) -> int` (matches GP-F9「static func taking explicit inputs」). Caller sources base_hp from template, attack_power from snapshot, workout_duration_sec from #9 WorkoutSummaryRO. GDD signature reconciliation = non-blocking #16 doc-sync followup.
+- Split out `compute_effective_atk(...)` as its own static func so AC-41 (a)-(d) can test the ramp intermediate (the first-session cap=180 masks effective_atk in the final HP — the INERT-knob effect).
+- **⚠️ CROSS-STORY FLAG for Story 004 / 002 / 007**: Formula 2 needs `player_max_hp`, ALSO absent from `CombatResolver.StatSnapshot`. The boss player snapshot (Story 002 field / Story 007 caller-pass) must carry `max_hp` — either a richer boss-specific snapshot OR pass `player_max_hp` as a scalar to `compute_attack_damage`. Resolve at Story 004/002/007.
+- Knobs are `const` in BossFormulas (MVP; data-driven .tres = post-MVP refinement).
 
 ## Context
 
