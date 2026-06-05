@@ -73,7 +73,7 @@ This epic is complete when:
 | 003 | BossFormulas + Formula 1 HP-scaling + bootstrap | Logic | ✅ Complete | ADR-0001 | 001 (NOT 002) |
 | 004 | Formula 2 damage scaling (live-HP) | Logic | ✅ Complete | ADR-0001 | 003 |
 | 005 | Formula 3 attack-pattern selection (FNV-1a) | Logic | ✅ Complete | ADR-0006 | 003, 001 |
-| 006 | Formula 4 reveal_ritual_intensity | Logic | Ready | ADR-0001 | 003, 001 |
+| 006 | Formula 4 reveal_ritual_intensity | Logic | ✅ Complete | ADR-0001 | 003, 001 |
 | 007 | BossSystem autoload + spawn_boss + idempotency | Integration | Ready | ADR-0006 | 002, 003 |
 | 008 | Spawn selection — effort gate + archetype + UNKNOWN | Logic | Ready | ADR-0007 | 007, 001 |
 | 009 | Snapshot freeze caching (CF-3) | Logic | Ready | ADR-0006 | 007, 003/004 |

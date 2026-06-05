@@ -181,3 +181,28 @@ static func select_attack_pattern(
 	var seed_str: String = "%s_pattern_%d" % [transition_id, attack_count]
 	var idx: int = posmod(DeterministicHash.deterministic_hash(seed_str), valid.size())
 	return valid[idx]
+
+
+# --- Formula 4 tuning knobs (boss-system.md Tuning Knobs) ---
+
+## Anti-invisible final-boss-reveal floor. Uses the Tuning-Knobs value (0.5);
+## NOTE: the Formula 4 Variables table lists 0.4 — a GDD intra-doc discrepancy
+## (Pass 11 game-designer Recommended). Either value passes AC-21 (test inputs
+## >= MIN); 0.5 is the canonical knob-registry value. GDD doc-fix followup.
+const MIN_RITUAL_INTENSITY: float = 0.5
+
+## Ceiling — clamps to #5 max_caller_multiplier headroom. CI-4: must be <= 1.5.
+const MAX_RITUAL_INTENSITY: float = 1.0
+
+
+## Formula 4 — reveal_ritual_intensity_scaling (Story 006, TR-boss-009/010).
+##
+## FINAL boss only (mini-boss reveal is #14's lite path — categorical NO focal,
+## never routed through this formula, F4 DEAD PATH for mini). The single returned
+## multiplier drives all 3 reveal calls (Camera focal / shake / particles, Story
+## 010), so changing one BossTemplate value scales all three in lockstep.
+##
+## @param template_intensity  BossTemplate.reveal_ritual_intensity (default 1.0 final).
+## @return                    Clamped caller multiplier in [MIN, MAX] (<= 1.0 < #5's 1.5).
+static func compute_ritual_intensity(template_intensity: float) -> float:
+	return clampf(template_intensity, MIN_RITUAL_INTENSITY, MAX_RITUAL_INTENSITY)

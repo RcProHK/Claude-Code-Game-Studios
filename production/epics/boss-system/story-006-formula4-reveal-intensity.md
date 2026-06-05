@@ -1,12 +1,14 @@
 # Story 006: Formula 4 reveal_ritual_intensity_scaling
 
 > **Epic**: Boss System
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Feature
 > **Type**: Logic
 > **Estimate**: S
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-05
+
+**Completion Notes (2026-06-05)**: `BossFormulas.compute_ritual_intensity(template_intensity) -> float` appended + `tests/unit/boss_system/test_formula4_ritual_clamp.gd` (6 tests; combined 263scr/1728/1727pass/0fail/1pending). AC-21 (0.6/1.0/1.5→0.6/1.0/1.0), below-floor clamp, CF-5, CI-4 (MAX 1.0 ≤ #5 1.5). Used `MIN_RITUAL_INTENSITY=0.5` (Tuning-Knobs value); **flagged GDD intra-doc discrepancy** (Formula 4 Variables table says 0.4 — non-blocking doc-fix, both pass AC-21). AC-24「all templates ≤ 1.0」registry-content part deferred to Story 015 (needs .tres content). All 4 boss formulas now Complete (003/004/005/006).
 
 ## Context
 
