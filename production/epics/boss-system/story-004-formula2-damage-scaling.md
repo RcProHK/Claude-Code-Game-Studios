@@ -1,12 +1,14 @@
 # Story 004: Formula 2 boss_attack_damage_scaling (live-HP)
 
 > **Epic**: Boss System
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Feature
 > **Type**: Logic
 > **Estimate**: S
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-05
+
+**Completion Notes (2026-06-05)**: `BossFormulas.compute_attack_damage(player_max_hp: int, pattern_damage_multiplier: float) -> int` appended to `src/formulas/boss_formulas.gd` + `tests/unit/boss_system/test_formula2_damage_scaling.gd` (6 tests; combined 261scr/1715/1714pass/0fail/1pending). AC-19 (clamp to floor(max_hp*0.5)=100), standard pattern 56, EC-06/CRIT-6 degenerate (max_hp 4/9 → MIN_BOSS_DAMAGE 5), CF-2 sweep, INV-5. **player_max_hp is an explicit scalar** (NOT in CombatResolver.StatSnapshot) — confirms the Story-003 cross-story flag: the boss player snapshot must carry max_hp (caller sources `StatSystem.get_stat(StatId.MAX_HP)`), resolved at Story 002/007. Texture/anti-flicker framing (not survival one-shot guard) per Pass 11.
 
 ## Context
 

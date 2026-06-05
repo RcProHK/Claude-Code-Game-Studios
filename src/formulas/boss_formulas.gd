@@ -106,3 +106,41 @@ static func compute_max_hp(base_hp: int, player_attack_power: float, workout_dur
 		var cap: int = FIRST_SESSION_EXPECTED_HIT_DAMAGE * FIRST_SESSION_KILL_HITS_MAX
 		boss_max_hp = maxi(mini(boss_max_hp, cap), MIN_BOSS_HP)
 	return boss_max_hp
+
+
+# --- Formula 2 tuning knobs (boss-system.md Tuning Knobs) ---
+
+## Per-hit damage ratio (final boss). Range [0.20, 0.40].
+const DAMAGE_RATIO_PER_HIT_FINAL: float = 0.28
+
+## Anti-tap-of-nothing floor — a boss hit always has visible impact.
+const MIN_BOSS_DAMAGE: int = 5
+
+## Multiplier on player_max_hp for the dynamic ceiling. INV-5: <= 0.5 STRICT.
+const MAX_BOSS_DAMAGE_RATIO: float = 0.5
+
+
+## Formula 2 — boss_attack_damage_scaling (Story 004, TR-boss-008).
+##
+## REAL damage INPUT to #13 CombatResolver.compute_hit_damage(boss as attacker) —
+## #13 owns the avatar HP write, NOT #16. The avatar is invincible (EC-25 auto-
+## recover), so this number sets the fight's TEXTURE (impact intensity + downed->
+## recover cadence), never a fail/lose. The <= 50%-max_hp clamp is an
+## anti-downed-flicker / texture guard (AC-19), NOT a survival one-shot guard.
+##
+## CRIT-6 clamp-inversion guard: when `floor(player_max_hp * MAX_BOSS_DAMAGE_RATIO)`
+## drops below MIN_BOSS_DAMAGE (degenerate player_max_hp in [1,9], EC-06), the
+## ceiling is lifted to MIN_BOSS_DAMAGE so the clamp range [MIN, MAX] stays valid.
+##
+## player_max_hp is an EXPLICIT scalar param — it is NOT in `CombatResolver.StatSnapshot`
+## (which carries only attack_power + crit_chance). The caller sources it from
+## `StatSystem.get_stat(StatId.MAX_HP)` at snapshot-capture time (Story 002/007).
+##
+## @param player_max_hp              Frozen snapshot MAX_HP.
+## @param pattern_damage_multiplier  AttackPatternResource.damage_multiplier [0.5,2.5].
+## @return                           boss_attack_damage in [MIN_BOSS_DAMAGE, dynamic ceiling].
+static func compute_attack_damage(player_max_hp: int, pattern_damage_multiplier: float) -> int:
+	var raw: int = roundi(float(player_max_hp) * DAMAGE_RATIO_PER_HIT_FINAL * pattern_damage_multiplier)
+	# CRIT-6 guard: ceiling never below the floor (degenerate low-HP boot, EC-06).
+	var max_damage: int = maxi(floori(float(player_max_hp) * MAX_BOSS_DAMAGE_RATIO), MIN_BOSS_DAMAGE)
+	return clampi(raw, MIN_BOSS_DAMAGE, max_damage)
