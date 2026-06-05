@@ -1,12 +1,17 @@
 # Story 007: BossSystem autoload + spawn_boss + idempotency
 
 > **Epic**: Boss System
-> **Status**: Ready
+> **Status**: Complete (autoload registration deferred — see notes)
 > **Layer**: Feature
 > **Type**: Integration
 > **Estimate**: L
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-05
+
+**Completion Notes (2026-06-05)**: `src/gameplay/boss_system.gd` (`class_name BossSystem extends Node`) + `tests/integration/boss_system/test_spawn_boss_lifecycle.gd` (5 tests; combined 265scr/1740/1739pass/0fail/1pending). spawn_boss (A1.3 4-param) + idempotency + ordering (set fields → add_child → re-set pos → asserts → boss_committed sync) + `_instantiate_boss` (PackedScene) + telemetry noop + AC-41(e) bootstrap telemetry caller-side + eviction-on-free (Pass 11 512MB rec via `boss.tree_exited`). AC-25 (dup→null), AC-26/EC-02 (empty txn→null), AC-43 (null snapshot→null), AC-37 (position + commit signal).
+- **empty-txn refinement**: GDD used `assert(transition_id != "")` → refined to graceful **return-null + push_error + telemetry** (EC-02「reject + #14 rollback」semantics + GUT-testable; assert crashes in debug).
+- snapshot param type = `BossSpawnContext` (Story 002 resolution, not CombatResolver.StatSnapshot).
+- **⚠️ AUTOLOAD REGISTRATION DEFERRED**: BossSystem is NOT yet registered in project.godot. Rationale: nothing calls it at boot yet (#14 EnemyDirector boss-anchor wiring — which invokes `BossSystem.spawn_boss` — is in #14's epic, not done), and the boot-position tests assert specific autoload indices (main-CI-red risk). spawn logic is fully tested via `.new()` + in-tree. **Register (append at end of autoload block per ADR-0008) WHEN #14 wires boss-spawn** — a clean cross-epic integration point. Test builds a packable BossInstance scene (owner-set children) for `_instantiate_boss`.
 
 ## Context
 
