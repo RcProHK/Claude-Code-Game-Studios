@@ -68,7 +68,7 @@ This epic is complete when:
 
 | # | Story | Type | Status | Primary ADR | Depends on |
 |---|-------|------|--------|-------------|-----------|
-| 001 | BossTemplate / Visual / AttackPattern schema | Logic | Ready | ADR-0007 | — |
+| 001 | BossTemplate / Visual / AttackPattern schema | Logic | ✅ Complete | ADR-0007 | — |
 | 002 | BossInstance scene-tree contract + HP mutator | Logic | Ready | ADR-0009 | 001 |
 | 003 | BossFormulas + Formula 1 HP-scaling + bootstrap | Logic | Ready | ADR-0001 | 001, 002 |
 | 004 | Formula 2 damage scaling (live-HP) | Logic | Ready | ADR-0001 | 003 |

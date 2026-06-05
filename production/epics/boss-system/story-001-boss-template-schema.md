@@ -1,12 +1,14 @@
 # Story 001: BossTemplate / BossVisualResource / AttackPatternResource schema
 
 > **Epic**: Boss System
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Feature
 > **Type**: Logic
 > **Estimate**: M
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-05
+
+**Completion Notes (2026-06-05)**: Implemented `src/data/boss_template.gd` + `boss_visual_resource.gd` + `attack_pattern_resource.gd` + `tests/unit/boss_system/test_template_schema.gd` (11 tests / 38 asserts, all pass; combined gate 259scr/1696/1695pass/0fail/1pending pre-existing AC-37). **ADR-0007 decision**: `class_archetype` defaults to UNKNOWN(3) sentinel, NOT STRIKE(0) — Rule 13 maps UNKNOWN→STRIKE explicitly at spawn (Story 008), avoiding zero-default fabrication. `class_archetype` + `loot_guarantee_min_tier` stored as `@export_enum(...) var: int` (autoload-nested enums have no @export-typeable form). Resources in `src/data/` (per GP-F2 path for BossVisualResource).
 
 ## Context
 
