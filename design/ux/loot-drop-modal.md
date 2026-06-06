@@ -1,6 +1,7 @@
 # UX Spec: Loot Drop Modal
 
-> **Status**: Complete(pending `/ux-review`)
+> **Status**: ✅ APPROVED(/ux-review 2026-06-07 — 0 blocking / 3 advisory:header Platform Target 欄、numeric char limits、resolution list — G-LM-7/epic 時補)
+> **Platform Target**: Web(primary)+ Desktop(secondary)· Touch primary(single-tap)+ KB/Mouse · 零 gamepad
 > **Author**: frank + ux-designer(/ux-design,FULL AUTONOMOUS — 內容嚴格衍生自 APPROVED #21 GDD,零新設計決策)
 > **Last Updated**: 2026-06-07
 > **Journey Phase(s)**: unknown — 無 player journey map(見 Open Questions)
