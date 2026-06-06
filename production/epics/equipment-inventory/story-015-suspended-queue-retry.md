@@ -1,12 +1,12 @@
 # Story 015: SUSPENDED durable queue + drain + rejection retry
 
 > **Epic**: Equipment & Inventory (#17)
-> **Status**: Ready
+> **Status**: Implemented (pending CI verification)
 > **Layer**: Feature
 > **Type**: Integration
 > **Estimate**: M (~3.5h)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-06 (autonomous implementation run)
 
 ## Context
 

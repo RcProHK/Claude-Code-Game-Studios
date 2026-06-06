@@ -1,12 +1,12 @@
 # Story 008: Aggregation + AntiSnowball clamp + #11 push
 
 > **Epic**: Equipment & Inventory (#17)
-> **Status**: Ready
+> **Status**: Implemented (pending CI verification)
 > **Layer**: Feature
 > **Type**: Logic
 > **Estimate**: M (~4h)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-06 (autonomous implementation run)
 
 ## Context
 

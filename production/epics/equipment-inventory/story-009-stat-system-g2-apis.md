@@ -1,12 +1,12 @@
 # Story 009: #11 G-2 additive APIs(cross-epic)
 
 > **Epic**: Equipment & Inventory (#17)
-> **Status**: Ready
+> **Status**: Implemented (pending CI verification)
 > **Layer**: Core(cross-epic touch — 改 #11 Stat System)
 > **Type**: Logic
 > **Estimate**: S (~1.5h)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-06 (autonomous implementation run)
 
 ## Context
 

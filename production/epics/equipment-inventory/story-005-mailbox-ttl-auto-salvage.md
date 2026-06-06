@@ -1,12 +1,12 @@
 # Story 005: Mailbox TTL auto-salvage + hard-cap FIFO + cross-session 時基
 
 > **Epic**: Equipment & Inventory (#17)
-> **Status**: Ready
+> **Status**: Implemented (pending CI verification)
 > **Layer**: Feature
 > **Type**: Logic
 > **Estimate**: M (~3h)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-06 (autonomous implementation run)
 
 ## Context
 
