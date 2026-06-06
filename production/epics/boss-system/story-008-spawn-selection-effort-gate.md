@@ -1,12 +1,16 @@
 # Story 008: Spawn selection — effort gate + class archetype + UNKNOWN fallback
 
 > **Epic**: Boss System
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Feature
 > **Type**: Logic
 > **Estimate**: M
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-06
+
+**Completion Notes (2026-06-06)**: `src/data/boss_registry.gd` (`class_name BossRegistry extends Resource`) + `tests/unit/boss_system/test_spawn_selection.gd` (8 tests; combined 266scr/1748/1747pass/0fail/1pending). AC-02 (determinism), AC-03/AC-10 (effort gate 0.10→null / 0.50→FINAL), AC-04/AC-13 (class routing + UNKNOWN→STRIKE), EC-22 (==threshold→FINAL), EC-03 (missing class→STRIKE fallback→null).
+- **OWNERSHIP DESIGN RESOLVED**: #16 owns the SELECTION (`BossRegistry.select_final_template(dominant_class, effort_score, transition_id)` — pure: effort gate + class→template + Rule 13 UNKNOWN→STRIKE + deterministic FNV-1a pick). #14 owns ORCHESTRATION — at COMMITTED it calls the selector and branches: null → #14 mini-boss wave path (Rule 10); template → `BossSystem.spawn_boss(template,...)`. This IS the GDD's「gate check at #14 caller side」(#14 invokes #16's pure selector). spawn_boss itself doesn't take effort_score.
+- `MINI_BOSS_EFFORT_THRESHOLD=0.25` const (synced #14↔#16 INV-7, range [0.15,0.40]). Boundary `< threshold → mini` (strict-less-than). `BossRegistry` authored as `res://data/boss_registry.tres`.
 
 ## Context
 

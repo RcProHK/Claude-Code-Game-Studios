@@ -75,7 +75,7 @@ This epic is complete when:
 | 005 | Formula 3 attack-pattern selection (FNV-1a) | Logic | ✅ Complete | ADR-0006 | 003, 001 |
 | 006 | Formula 4 reveal_ritual_intensity | Logic | ✅ Complete | ADR-0001 | 003, 001 |
 | 007 | BossSystem autoload + spawn_boss + idempotency | Integration | ✅ Complete (autoload reg deferred → #14 wiring) | ADR-0006 | 002, 003 |
-| 008 | Spawn selection — effort gate + archetype + UNKNOWN | Logic | Ready | ADR-0007 | 007, 001 |
+| 008 | Spawn selection — effort gate + archetype + UNKNOWN | Logic | ✅ Complete | ADR-0007 | 007, 001 |
 | 009 | Snapshot freeze caching (CF-3) | Logic | Ready | ADR-0006 | 007, 003/004 |
 | 010 | Reveal ritual dispatch (Camera-leading) | Integration | Ready | ADR-0001 | 007, 006 |
 | 011 | enemy_killed → DYING self-filtered wiring | Integration | Ready | ADR-0009 | 002, 007 |
