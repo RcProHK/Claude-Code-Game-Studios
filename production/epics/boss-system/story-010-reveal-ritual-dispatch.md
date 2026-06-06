@@ -1,12 +1,17 @@
 # Story 010: Reveal ritual dispatch (Camera-leading)
 
 > **Epic**: Boss System
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Feature
 > **Type**: Integration
 > **Estimate**: M
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-06
+
+**Completion Notes (2026-06-06)**: `src/gameplay/boss_reveal_coordinator.gd` (`class_name BossRevealCoordinator extends Node`) + `tests/integration/boss_system/test_reveal_ritual_sequence.gd` (7 tests; combined 271scr/1775/1774pass/0fail/1pending). Camera-LEADING dispatch (frame 0 focal → await → frame 1-2 shake/particle/audio). AC-07 (camera first, shake/particle after, cached spawn_pos target, caller_mult scaling, audio sfx), AC-07b (injectable `_now_ms` clock — 32ms PASS / 250ms stall FAIL, falsifiable budget).
+- **DI SEAMS** `_camera`/`_screen_effects`/`_particles`/`_audio` (default real autoloads, mock-injected in test — autoload methods can't be cleanly overridden). One MockReveal injected as all 4, records call order.
+- **GDD method-name corrections** (real shipped): `ParticleSystemWrapper.play(PresetId,pos,mult)` (GDD said `spawn`), `AudioManager.play_sfx(id)` (GDD said `play_cue`). CameraController.request_focal + ScreenEffects.shake match.
+- **WIRING DEFERRED**: the `BossSystem.boss_committed` subscription is established when BossSystem registers as autoload (Story 007 → #14 wiring); until then `_on_boss_committed`/`dispatch_reveal` driven directly + tested.
 
 ## Context
 

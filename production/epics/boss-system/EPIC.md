@@ -77,7 +77,7 @@ This epic is complete when:
 | 007 | BossSystem autoload + spawn_boss + idempotency | Integration | ✅ Complete (autoload reg deferred → #14 wiring) | ADR-0006 | 002, 003 |
 | 008 | Spawn selection — effort gate + archetype + UNKNOWN | Logic | ✅ Complete | ADR-0007 | 007, 001 |
 | 009 | Snapshot freeze caching (CF-3) | Logic | ✅ Complete | ADR-0006 | 007, 003/004 |
-| 010 | Reveal ritual dispatch (Camera-leading) | Integration | Ready | ADR-0001 | 007, 006 |
+| 010 | Reveal ritual dispatch (Camera-leading) | Integration | ✅ Complete (subscription wiring → #14) | ADR-0001 | 007, 006 |
 | 011 | enemy_killed → DYING self-filtered wiring | Integration | ✅ Complete | ADR-0009 | 002, 007 |
 | 012 | Boss cleanup + bfcache DD#1 exact-restore | Integration | Ready | ADR-0003 | 011, 002 |
 | 013 | Avatar-downed auto-recover + grace window | Logic | Ready | N/A (Pillar-2 behavior) | 004 |
