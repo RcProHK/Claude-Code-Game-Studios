@@ -258,9 +258,15 @@ func _confirm_pr(exercise_id: String, weight: float, reps: int, new_e1rm: float,
 		"stat_id": String(stat_id), "delta": delta})
 
 
-## Story 006 — Formula 4 establishment window (candidates only, zero PR).
-func _establishment_update(_exercise_id: String, _new_e1rm: float) -> void:
-	pass  # Story 006.
+## Formula 4 / INV-PR-1 (Story 006) — establishment window: with no trusted
+## baseline this set only RAISES the candidate; it can never be a PR. The window
+## spans the exercise's whole first workout (a single-set window would turn the
+## warmup ramp 40→50→60 into a fake-PR cascade — Pass 1's top finding).
+func _establishment_update(exercise_id: String, new_e1rm: float) -> void:
+	var current: float = float(_pr_state.candidates.get(exercise_id, 0.0))
+	if new_e1rm > current:
+		_pr_state.candidates[exercise_id] = new_e1rm
+		_persist_state(false)  # non-anchor write; commit flushes at workout_completed
 
 
 ## Story 007 — D8 pending corroboration check (runs before this set's judgment).
@@ -292,9 +298,29 @@ func _on_workout_started() -> void:
 	# Story 010: session summary clear (next-workout-started semantics).
 
 
-## #2 workout_completed — establishment-window commit (story 006).
+## #2 workout_completed — establishment-window commit (Formula 4, Story 006)
+## + D8 pending discard deadline (story 007).
 func _on_workout_completed(_completed_at: int) -> void:
-	pass  # Story 006 (Formula 4 commit + Baseline Forged).
+	var established: Array = []
+	for exercise_id: Variant in _pr_state.candidates:
+		var e1rm: float = _pr_state.candidates[exercise_id]
+		_pr_state.baselines[exercise_id] = e1rm
+		established.append([String(exercise_id), e1rm])
+	_pr_state.candidates.clear()
+	if not established.is_empty():
+		_persist_state(true)  # baseline establishment is an anchor moment
+		for entry: Variant in established:
+			# Baseline Forged moment (Rule 11 / AC-28) — player-visible consumer
+			# channel is a binding forward contract (#20); never telemetry-only.
+			baseline_established.emit(entry[0], entry[1])
+			_emit_telemetry("pr.baseline_established", {
+				"exercise_id": entry[0], "e1rm": entry[1]})
+	_discard_expired_pending()
+
+
+## Story 007 — D8 discard deadline (pending older than its opening workout).
+func _discard_expired_pending() -> void:
+	pass  # Story 007.
 
 
 ## GSM listener — telemetry-silent (Rule 10); pending-emit buffer flush = story 011.
