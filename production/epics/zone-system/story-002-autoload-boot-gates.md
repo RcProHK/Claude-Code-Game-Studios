@@ -1,7 +1,7 @@
 # Story 002: Autoload 骨架 + boot lifecycle + gates(G-Z-1 / G-Z-3)
 
 > **Epic**: Zone System (#19)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-06 — combined gate 1930/1929,0 fail)
 > **Layer**: Feature
 > **Type**: Logic
 > **Estimate**: S-M

@@ -1,7 +1,7 @@
 # Story 004: Training-day count(dedup + monotone date guard)
 
 > **Epic**: Zone System (#19)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-06 — combined gate 1930/1929,0 fail)
 > **Layer**: Feature
 > **Type**: Logic
 > **Estimate**: S

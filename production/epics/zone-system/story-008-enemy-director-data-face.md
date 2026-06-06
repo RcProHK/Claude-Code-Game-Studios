@@ -1,7 +1,7 @@
 # Story 008: #14 data face(pool sentinel + zero-churn 三件套)
 
 > **Epic**: Zone System (#19)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-06 — combined gate 1930/1929,0 fail)
 > **Layer**: Feature
 > **Type**: Integration
 > **Estimate**: S
