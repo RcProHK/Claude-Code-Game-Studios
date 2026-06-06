@@ -6,6 +6,8 @@
 
 **Amendment 2026-06-02 (technical-director sign-off)** — added the #10 ExerciseClassMapping insertion rule (predecessor constraints + recommended pos 5) per its design-review Q1 resolution (autoload, static option dropped). This is a focused additive amendment: the current canonical map (= `project.godot` ground truth) is unchanged because #10 is not yet written into `project.godot`; #10 joins the reserved-insertion-rules table alongside #4/#28/#33. New binding constraint 7 (`ExerciseClassMapping ≺ StatSystem`) added. No re-ratification needed — additive, no constraint conflict, no measurement gate. Unblocks #10 Pass 2 fresh re-review.
 
+**Amendment 2026-06-06 (#17 G-4, design-review Pass 1)** — added binding constraint 8 (`StatSystem ≺ InventorySystem ≺ LootDropSystem`) and the #17 InventorySystem reserved insertion rule. The second half of the constraint is binding, not coincidence: #15 calls `Inventory.receive_loot()` at runtime and during boot catch-up (#15 L300/EC-48). Recommended slot = the position immediately before LootDropSystem that satisfies `StatSystem ≺ here` (e.g. between WorkoutStateTracker and LootDropSystem; renumber downstream on insertion). Focused additive — canonical map unchanged (InventorySystem not yet in `project.godot`); no re-ratification needed.
+
 ## Date
 2026-05-29
 
@@ -93,6 +95,13 @@ authoritative.
    issued during Core init resolves against a loaded `ExerciseRegistry.tres`. The
    mapping is a pure categorical lookup (order-resilient, emits no boot events), so
    this is the only forward constraint it imposes.
+8. `StatSystem ≺ InventorySystem ≺ LootDropSystem` (#17, added 2026-06-06 G-4) —
+   InventorySystem's boot replay calls `apply_equipment_modifier` (needs StatSystem
+   Ready, asserted via `is_boot_completed()`); LootDropSystem calls
+   `Inventory.receive_loot()` at runtime and during boot catch-up (#15 L300/EC-48),
+   so Inventory must precede it. **The second half is binding, not coincidence** —
+   before this constraint it held only because "after StatSystem" happened to land
+   before LootDrop's position.
 
 ### Reserved insertion rules for the 4 unwritten autoloads
 These define *predecessor constraints*, not fixed numbers. On insertion, place at
@@ -105,6 +114,7 @@ downstream, and do NOT write the resulting absolute number into any GDD.
 | **#33 AttentionBudget & Interaction Policy** | After GameStateMachine (reads GSM state) **and** WorkoutStateTracker (input gating keys off active workout). Pillar 2 owner — must be live before combat/loot input gating. | Immediately after WorkoutStateTracker (current pos 8 → new pos 9; LootDrop/EnemyDirector shift down) |
 | **#4 AudioManager** | After GameStateMachine (subscribes state for combat/boss/loot stingers); presentation-adjacent. Order-resilient via `connect_for_initial_state`. | Top of the Presentation block (around AvatarRenderer) |
 | **#28 Telemetry** | Pure observer, no downstream consumers. Order-resilient (`connect_for_initial_state` back-fills initial state for late join). | **Last** — boots after all producers so it subscribes to a fully-booted tree |
+| **#17 InventorySystem** (added 2026-06-06 G-4, GDD Pass 1) | After StatSystem (boot replay pushes `&"equipment_aggregate"` modifier; asserts `is_boot_completed()` — never awaits the signal, Contract 4 trap). **Before LootDropSystem** (binding constraint 8 — #15 calls `Inventory.receive_loot` at runtime/catch-up). Subscribes GSM via `connect_for_initial_state` (Suspended-at-boot → pending-replay flag). | The slot immediately before LootDropSystem satisfying `StatSystem ≺ here` (i.e. between WorkoutStateTracker and LootDropSystem; renumber downstream) |
 
 ### Key Interfaces
 - `project.godot` `[autoload]` block is the **single source of truth** for absolute

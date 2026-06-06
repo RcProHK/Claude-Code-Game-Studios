@@ -37,6 +37,7 @@
 #   Each entry: name, status, source, referenced_by[], attributes{}, added, revised
 
 version: 1
+# 2026-06-06: GDD #17 Equipment & Inventory CD-GDD-ALIGN APPROVED (full mode: economy-designer + systems-designer + creative-director); appended 1 item (forge_shard) + 6 formulas (contribution_score / salvage_yield / craft_cost / upgrade_cost / equipment_atk_effective / equipment_item_id) + 12 constants/enums/schemas (SHARD_BASE / RARITY_SHARD_MULT / CRAFT_BASE / RARITY_CRAFT_MULT / UPGRADE_DISCOUNT / STAT_WEIGHT / ANTISNOWBALL_FLOOR / ANTISNOWBALL_MULT / ItemLifecycle / EquipSlot / EquipmentItem / SourceReceipt); first Feature-tier registration; updated 5 existing entries with #17 referrer (item_type_weighted_selection / class_affinity_resolution / overflow_mailbox_ttl_days / w_workout_loot_drop_signal_contract) + SYNCED max_inventory_slots 60→120 per #15 body (Pass 2 F-10) — STALENESS FLAG: #15 Formula E4/CI-7/AC-17 prose still cite 60, /consistency-check to reconcile
 last_updated: "2026-05-28"  # GDD #26 Avatar Renderer APPROVED — CD-GDD-ALIGN CONCERNS (acceptable) resolved inline 2026-05-28 (6 ALIGN + 2 CONCERN F-7/F-8 promoted to pre-sprint scope gates + 2 ADVISORY F-9/F-10 inline-fixed); 5 formulas + 9 constants + 2 enums registered; anti-fabrication chain 第七件套 complete (#2 + #3 + #11 + #14 + #9 + #15 + #26); last VS-tier GDD complete (VS 14/14 → 100%)
 # 2026-05-28: GDD #15 Loot Drop System Pass 2 Revised — Fresh-session /design-review verdict MAJOR REVISION NEEDED → 8 BLOCKING (F-1..F-8) inline-fixed same-session; AC count 42 → 44 (+AC-43 daily token + AC-44 EC-22); awaiting Pass 3 fresh-session re-verification
 # 2026-05-28: GDD #15 Loot Drop System APPROVED — CD-GDD-ALIGN CONCERNS resolved inline (6 of 8); 5 formulas + 11 constants registered; 1 existing formula loot_rarity_score updated with #15 referrer
@@ -88,7 +89,21 @@ entities: []
 # Attribute fields: value_gold, weight, stackable, category, and any stat
 #   modifiers that another system (e.g., economy, crafting) might reference.
 
-items: []
+items:
+  - name: forge_shard
+    status: active
+    source: design/gdd/equipment-inventory.md
+    referenced_by:
+      - design/gdd/equipment-inventory.md
+      - design/gdd/loot-drop-system.md   # #15 EC-38 cosmetic dupe auto-convert = salvage_yield(rarity) (G-3 回填 2026-06-06;原「100 shards anchor」comment 係 mis-citation 已修)
+      # Expected future referrers:
+      # - design/gdd/character-screen.md  (#22 — shard balance UI;craft/upgrade sink → v0.2)
+      # - design/gdd/inventory-ui.md  (#23 — shard balance display + bulk-salvage yield + Forge locked-hook)
+    stackable: true
+    category: currency
+    added: 2026-06-06
+    revised: ""
+    notes: "Single salvage currency (#17 D7, Pass 1 A1)。Faucet = salvage_yield(rarity) [COMMON 100, rationale 自立]。**MVP sink = 0 (salvage-only;banked currency + #23 Forge locked-hook)** — MVP loot-sink MANDATE 對象係 item sink (salvage),滿足。int64 無 cap by design;#23 display contract 千位分隔。Stockpile projection (Hardcore ≈4k-5.5k/週) = v0.2 Forge 定價 binding input (Q-5)。Shard sink (craft/upgrade/cosmetic re-roll) 全 v0.2。"
 
 # Example:
 #
@@ -769,8 +784,7 @@ formulas:
     source: design/gdd/loot-drop-system.md
     referenced_by:
       - design/gdd/loot-drop-system.md
-      # Expected future referrers:
-      # - design/gdd/equipment-inventory.md  (#17 — item_type enum + gear_gap_state input contract)
+      - design/gdd/equipment-inventory.md  # #17 — item_type enum binding (ItemType 5-member incl CONSUMABLE; D1)
     variables:
       - rarity_tier            # enum RarityTier
       - gear_gap_state         # Dictionary[Slot, bool] — slot has starter gear
@@ -791,8 +805,8 @@ formulas:
     source: design/gdd/loot-drop-system.md
     referenced_by:
       - design/gdd/loot-drop-system.md
+      - design/gdd/equipment-inventory.md  # #17 — class_tag enum binding (D2; cosmetic forced NEUTRAL)
       # Expected future referrers:
-      # - design/gdd/equipment-inventory.md  (#17 — class_tag enum binding)
       # - design/gdd/workout-state-tracker.md  (#9 — dominant_class source; bidirectional sync flag for next-revision)
     variables:
       - item_type               # enum ItemType (CONSUMABLE/COSMETIC → return NEUTRAL)
@@ -826,6 +840,114 @@ formulas:
           downgrade `excess` LEGENDARY→EPIC, then EPIC→RARE until ≤10%
     notes: "Formula E3 — projection for QA + balance tuning。3 baseline profiles: Hardcore (ws=0.92, 5 workouts, 7 PR, 30d) / Average (ws=0.65, 4 workouts, 1 PR, 7d) / Casual (ws=0.35, 2 workouts, 0 PR, 0d)。CF-E3: EPIC+ ≤ 10% across all profiles post-clamp (FR-1 anti-pillar gate)。Hardcore profile triggers soft-clamp (LEGENDARY→EPIC) to maintain ceiling。AC-14 verifies post-clamp Monte Carlo distribution。"
     added: 2026-05-28
+    revised: ""
+
+  # ─── #17 Equipment & Inventory (added 2026-06-06; Pass 1 /design-review revision 2026-06-06: A1 salvage-only / A2 derived-keys-only / A3 mailbox auto-salvage) ───
+  - name: loadout_score
+    status: active
+    source: design/gdd/equipment-inventory.md
+    referenced_by:
+      - design/gdd/equipment-inventory.md
+    variables:
+      - effective_aggregate  # Formula 4 clamp 後嘅 3-functional-slot aggregate (4 derived key only, D8)
+      - STAT_WEIGHT          # {ATTACK_POWER 1.0, MAX_HP 0.25, MOVE_SPEED 0.6, CRIT_CHANCE 400} — per-key scale
+    output_range: "[0, ~170] @ MVP table (max 169) / [0, ~565] @ per-key contract ceilings; golden vector 3×LEGENDARY 新號 = 163 (AC-18)"
+    expression: "Σ over (key, delta) in effective_aggregate: STAT_WEIGHT[key] × delta; swap iff score(swap後) > score(現役)"
+    notes: "Formula 1 (Pass 1 重寫,前名 contribution_score) — auto-equip 比較鍵 (Rule 6)。loadout-level marginal + clamp-aware (封 ATK-capped 時 swap 走 HP 裝變弱 trap)。empty-slot baseline=0;score≤0 永不 equip;COSMETIC manual-only。tie-break rarity↓ → acquired_at↑ → item_id↑ (EC-12)。AC-12/14/18/19。"
+    added: 2026-06-06
+    revised: 2026-06-06
+
+  - name: salvage_yield
+    status: active
+    source: design/gdd/equipment-inventory.md
+    referenced_by:
+      - design/gdd/equipment-inventory.md
+      - design/gdd/loot-drop-system.md   # #15 EC-38 cosmetic dupe auto-convert = salvage_yield(rarity) (G-3 回填 2026-06-06)
+    variables:
+      - rarity             # enum RarityTier {COMMON..LEGENDARY}
+      - SHARD_BASE         # 100 (rationale 自立 — Pass 1 修正: #15 EC-38 嘅 100 係 LEGENDARY cosmetic dupe rate,唔係 COMMON anchor)
+      - RARITY_SHARD_MULT  # [1.0, 1.5, 2.5, 4.5, 8.0]
+    output_range: [100, 800]   # @ default knobs (floori; knob extremes 另計)
+    expression: "salvage_yield(rarity) = floori(SHARD_BASE × RARITY_SHARD_MULT[rarity])"
+    notes: "Formula 2 — salvage → forge_shard faucet (Rule 9)。COMMON 100 / UNCOMMON 150 / RARE 250 / EPIC 450 / LEGENDARY 800。單一 salvage 價值軌:manual salvage + bulk + mailbox auto-salvage (A3, Rule 4) + #15 EC-38 cosmetic dupe auto-convert (G-3 回填) 全用此 formula。AC-24/25。"
+    added: 2026-06-06
+    revised: 2026-06-06
+
+  - name: craft_cost
+    status: deferred-v0.2
+    source: design/gdd/equipment-inventory.md
+    referenced_by:
+      - design/gdd/equipment-inventory.md
+    variables:
+      - tier               # enum RarityTier (UNCOMMON..LEGENDARY; COMMON 無 craft)
+      - CRAFT_BASE         # 200 (v0.2 起點 anchor)
+      - RARITY_CRAFT_MULT  # [1.0, 2.5, 7.0, 15.0]
+    output_range: [200, 3000]
+    expression: "craft_cost(tier) = floori(CRAFT_BASE × RARITY_CRAFT_MULT[tier])"
+    notes: "**DEFERRED v0.2 Forge (Pass 1 A1)** — craft 唔入 MVP。v0.2 binding 約束 (#17 § v0.2): workout-derived catalyst (封 LEGENDARY 量產 4:1) + CraftReceipt type (封 no-receipt LEGENDARY 撞 F-12) + INV-E1 ∀tier craft_cost > salvage_yield (config assertion; SHARD_BASE=200 喺 safe range 內已可 infinite pump) + 用 MVP stockpile telemetry 重定價 (Q-5)。"
+    added: 2026-06-06
+    revised: 2026-06-06
+
+  - name: upgrade_cost
+    status: deferred-v0.2
+    source: design/gdd/equipment-inventory.md
+    referenced_by:
+      - design/gdd/equipment-inventory.md
+    variables:
+      - from_tier          # current rarity
+      - UPGRADE_DISCOUNT   # flat 0.6 RETIRED (Pass 1: 數學上錯 — base salvage value 佔 craft cost 15-30% 且隨 tier 跌); v0.2 改 per-tier dominance-neutral ≈ 1 − salvage_yield(from)/craft_cost(to) = 0.70/0.82/0.85 起點
+    output_range: TBD-v0.2
+    expression: "upgrade_cost(from) = craft_cost(from + 1) × UPGRADE_DISCOUNT[from]  # per-tier"
+    notes: "**DEFERRED v0.2 Forge (Pass 1 A1)** — upgrade 唔入 MVP。v0.2 binding: INV-E2 craft_cost(t) + upgrade_cost(t) ≥ craft_cost(t+1) (封套利) + upgrade stat 處理明寫 (保留 roll 按 tier scale) + CraftReceipt 繼承規則。"
+    added: 2026-06-06
+    revised: 2026-06-06
+
+  - name: equipment_atk_effective
+    status: active
+    source: design/gdd/equipment-inventory.md
+    referenced_by:
+      - design/gdd/equipment-inventory.md
+      # Expected future referrers:
+      # - design/gdd/stat-system.md  (#11 — gate G-2: get_attack_power_excluding_equipment() additive API)
+      # - design/gdd/combat-resolver.md  (#13 — FR-Equipment-AntiSnowball owner)
+    variables:
+      - raw_atk_contribution  # Σ ATTACK_POWER deltas over 3 functional slots (D8 derived-keys-only — 無 STR/DEX 放大分支; Rule 1 非負 guard ≥0)
+      - stat_derived_atk      # StatSystem.get_attack_power_excluding_equipment() (gate G-2 additive API; 新號 default = 28)
+      - ANTISNOWBALL_MULT     # LOCKED 3.0
+      - ANTISNOWBALL_FLOOR    # 30 (defense-in-depth; 真實 min cap = 84 @ 新號 28)
+      - EQUIPMENT_ATK_MOD_MAX # 300 (#11 contract range 上限, 非 knob)
+    output_range: [0, "min(cap, 300)"]
+    expression: "clamp(raw_atk_contribution, 0, min(max(ANTISNOWBALL_FLOOR, ANTISNOWBALL_MULT × stat_derived_atk), EQUIPMENT_ATK_MOD_MAX))"
+    notes: "Formula 4 (Pass 1 重寫) — AntiSnowball clamp (Rule 8)。enforce FR-Equipment-AntiSnowball binding。D8 下 clamp 完整攔截 (無 #11 內部放大繞過)。雙下界 clamp 0 (封負值 passthrough) + 雙上界 cap + #11 range (解原 ADVISORY-3)。push 用單一 &\"equipment_aggregate\" id,same-id atomic replace (G-2 pin)。Example: 新號 28 → cap 84;LEGENDARY weapon +90 → effective 84,badge「+84/+90」。AC-16/17。"
+    added: 2026-06-06
+    revised: 2026-06-06
+
+  - name: equipment_item_id
+    status: active
+    source: design/gdd/equipment-inventory.md
+    referenced_by:
+      - design/gdd/equipment-inventory.md
+    variables:
+      - source_transition_id  # String (#15 drop transition_id; ADR-0006 Contract 2 全域 unique)
+      - drop_index            # int (同一 transition 第幾件)
+    output_range: StringName (composite, collision-free by construction)
+    expression: "item_id = StringName(source_transition_id + \"_\" + str(drop_index))"
+    notes: "Formula 6 (Pass 1 重寫 — 去 hash():32-bit collision ≈0.26%/player/3yr = silent loot loss,且無跨 version 穩定 contract)。composite string 本身全域唯一、devtools 可讀。idempotency key (Rule 2);SALVAGED tombstone (id-only, prune 過 #15 replay horizon) 同參與 dedup。AC-07。"
+    added: 2026-06-06
+    revised: 2026-06-06
+
+  - name: equipment_stat_assignment_table
+    status: active
+    source: design/gdd/equipment-inventory.md
+    referenced_by:
+      - design/gdd/equipment-inventory.md
+    variables:
+      - item_type   # WEAPON / ARMOR / ACCESSORY
+      - rarity      # COMMON..LEGENDARY
+    output_range: "fixed lookup (per-key ≤ #11 contract range: ATK≤300 / HP≤500 / MOVE≤100 / CRIT≤0.20)"
+    expression: "WEAPON.ATK [6,12,22,45,90] / ARMOR.HP [20,35,60,100,160] / ACCESSORY.MOVE+CRIT [5/—, 8/.01, 12/.02, 18/.04, 25/.06]"
+    notes: "Pass 1 D9 — MVP item stat 來源 (data-driven .tres,零 runtime RNG,golden-vector testable)。#15 唔 roll stat (Q-OQ5 metadata 只帶 type/rarity/class_tag/receipt),#17 hydration lookup 賦值。LEGENDARY WEAPON +90 刻意 > 新號 cap 84 → AntiSnowball badge 真實觸發。v0.2 Formula 7 budget-roll framework 取代/並存。AC-01/16/18。"
+    added: 2026-06-06
     revised: ""
 
 # Example:
@@ -2427,21 +2549,19 @@ constants:
     source: design/gdd/loot-drop-system.md
     referenced_by:
       - design/gdd/loot-drop-system.md
-      # Expected future referrers:
-      # - design/gdd/equipment-inventory.md  (#17 — FR-LOOT-S3 forward constraint binding)
-    value: 60
+      - design/gdd/equipment-inventory.md  # #17 — FR-LOOT-S3 forward constraint binding; cap=120 confirmed (CI-7)
+    value: 120
     unit: slots
     added: 2026-05-28
-    revised: ""
-    notes: "Formula E4 inventory_overflow_to_mailbox boundary。DESIGN-FROZEN per FR-LOOT-S3 #17 forward constraint。Safe range [40, 100]。< 40 → 過早 overflow，frustrating UX；> 100 → inventory management 失去意義 (Pillar 3 個別 drop weight 稀釋)。AC-17 verifies boundary case (60th direct, 61st mailbox)。"
+    revised: "2026-06-06 — synced 60→120 per #15 loot-drop-system.md body (Pass 2 F-10 interim raise) + #17 equipment-inventory.md authoring confirms 120. STALENESS FLAG: #15 Formula E4 / CI-7 / AC-17 prose still cite 60 — /consistency-check to reconcile #15 internal staleness (registry now authoritative at 120 per #15 GDD body)."
+    notes: "inventory cap。#15 body 權威值 120 (Pass 2 F-10 interim raise)；舊值 60 為 pre-raise。Safe range [60, 200]。#17 MAX_INVENTORY 與此一致 (CI-7 binding)。overflow → mailbox 7d TTL。"
 
   - name: overflow_mailbox_ttl_days
     status: active
     source: design/gdd/loot-drop-system.md
     referenced_by:
       - design/gdd/loot-drop-system.md
-      # Expected future referrers:
-      # - design/gdd/equipment-inventory.md  (#17 — mailbox auto-expire window owner)
+      - design/gdd/equipment-inventory.md  # #17 — mailbox auto-expire window referrer (Rule 4 / EC-8)
     value: 7
     unit: days
     added: 2026-05-28
@@ -2492,7 +2612,7 @@ constants:
       - design/gdd/loot-drop-system.md
       # Expected future referrers:
       # - design/gdd/loot-drop-modal.md  (#21 — primary subscriber)
-      # - design/gdd/equipment-inventory.md  (#17 — receives loot_committed via Inventory.receive_loot)
+      - design/gdd/equipment-inventory.md  # #17 — receives loot_committed via Inventory.receive_loot
       # - design/gdd/telemetry.md  (#28 — subscribes all 5 signals)
     value: |
       Emits (5):
@@ -2512,6 +2632,166 @@ constants:
     added: 2026-05-28
     revised: ""
     notes: "Closed signal API per Section C Signal Contract spec。Minimal payload pattern (CI lint AC-30 enforces no full LootDrop object in params — caller must `get_drop(drop_id)` for detail)。Emit timing rules: `loot_dropped` AFTER `loot.pending` write success (5-step optimistic Step 2-3); `loot_committed` AFTER backend ACK rename。INV-8: every commit has prior dropped emit。Section C Rule 18 + INV-4 + INV-8 binding。"
+
+  # ─── #17 Equipment & Inventory — constants / enums / schemas (added 2026-06-06, CD-GDD-ALIGN APPROVED) ───
+  - name: SHARD_BASE
+    status: active
+    source: design/gdd/equipment-inventory.md
+    referenced_by:
+      - design/gdd/equipment-inventory.md
+    value: 100
+    unit: shards
+    added: 2026-06-06
+    revised: ""
+    notes: "salvage_yield COMMON baseline (Pass 1 rationale 自立 — 原「EC-38 anchor」係 mis-citation: #15 EC-38 嘅 100 係 LEGENDARY cosmetic dupe auto-convert rate;G-3 回填後 auto-convert = salvage_yield(rarity))。心理 floor: 三位數有感。Safe range [50, 200];v0.2 INV-E1 joint-validation 須過。"
+
+  - name: RARITY_SHARD_MULT
+    status: active
+    source: design/gdd/equipment-inventory.md
+    referenced_by:
+      - design/gdd/equipment-inventory.md
+    value: [1.0, 1.5, 2.5, 4.5, 8.0]
+    unit: multiplier_per_rarity_COMMON_to_LEGENDARY
+    added: 2026-06-06
+    revised: ""
+    notes: "salvage_yield curve (Formula 2)。super-linear:低 tier 量多低 yield = 穩定 faucet;高 tier 保 keep 價值。各 ±50%。"
+
+  - name: CRAFT_BASE
+    status: deferred-v0.2
+    source: design/gdd/equipment-inventory.md
+    referenced_by:
+      - design/gdd/equipment-inventory.md
+    value: 200
+    unit: shards
+    added: 2026-06-06
+    revised: ""
+    notes: "**DEFERRED v0.2 Forge (Pass 1 A1)**。craft_cost scale。v0.2 起點 anchor;重定價用 MVP stockpile telemetry (Q-5)。INV-E1 joint-validation binding。"
+
+  - name: RARITY_CRAFT_MULT
+    status: deferred-v0.2
+    source: design/gdd/equipment-inventory.md
+    referenced_by:
+      - design/gdd/equipment-inventory.md
+    value: [1.0, 2.5, 7.0, 15.0]
+    unit: multiplier_per_tier_UNCOMMON_to_LEGENDARY
+    added: 2026-06-06
+    revised: ""
+    notes: "**DEFERRED v0.2 Forge (Pass 1 A1)**。craft_cost curve 起點 anchor。COMMON 無 craft。v0.2 須連 catalyst + CraftReceipt 一齊設計 (Q-7)。"
+
+  - name: UPGRADE_DISCOUNT
+    status: deferred-v0.2
+    source: design/gdd/equipment-inventory.md
+    referenced_by:
+      - design/gdd/equipment-inventory.md
+    value: "RETIRED flat 0.6 → v0.2 per-tier [0.70, 0.82, 0.85] 起點"
+    unit: ratio_per_tier
+    added: 2026-06-06
+    revised: 2026-06-06
+    notes: "**DEFERRED v0.2 Forge (Pass 1 A1)**。flat 0.6 嘅「40% endowment」rationale 數學上錯 (base salvage value 佔 target craft cost 15-30% 且隨 tier 跌) → upgrade 全 tier strictly dominate craft。v0.2 改 per-tier dominance-neutral ≈ 1 − salvage_yield(from)/craft_cost(to),再按傾斜度調;INV-E2 binding。"
+
+  - name: STAT_WEIGHT
+    status: active
+    source: design/gdd/equipment-inventory.md
+    referenced_by:
+      - design/gdd/equipment-inventory.md
+    value: {ATTACK_POWER: 1.0, MAX_HP: 0.25, MOVE_SPEED: 0.6, CRIT_CHANCE: 400}
+    unit: weight_per_derived_stat_key
+    added: 2026-06-06
+    revised: 2026-06-06
+    notes: "loadout_score 權重 (Formula 1, Pass 1 重寫)。D8 derived-keys-only — key = #11 真實 derived stat 名 (grep-verified, 原 Q-1 resolved)。**Per-key scale safe range**: ATK [0.5,2] / HP [0.1,0.5] / MOVE [0.2,1.2] / CRIT [100,800] (CRIT delta 係 0.01 級,統一 [0,2] range 數學上冇能力 normalize)。失衡 → 某 slot 裝備永不 swap。"
+
+  - name: ANTISNOWBALL_FLOOR
+    status: active
+    source: design/gdd/equipment-inventory.md
+    referenced_by:
+      - design/gdd/equipment-inventory.md
+    value: 30
+    unit: atk
+    added: 2026-06-06
+    revised: ""
+    notes: "equipment_atk_effective cap floor (Formula 4 / EC-16)。**Pass 1 re-ground: defense-in-depth 唔係 reachable-state fix** — #11 真實新號 default 10/10/10 → stat_derived_atk=28 → min cap=84;STR=DEX=0 只可能經 #11 corruption-clamp path,FLOOR=30 係該 path 保險。Safe range [20, 50]。"
+
+  - name: ANTISNOWBALL_MULT
+    status: active
+    source: design/gdd/combat-resolver.md
+    referenced_by:
+      - design/gdd/combat-resolver.md
+      - design/gdd/equipment-inventory.md  # #17 — enforces FR-Equipment-AntiSnowball via equipment_atk_effective (Formula 4)
+    value: 3.0
+    unit: multiplier
+    added: 2026-06-06
+    revised: ""
+    notes: "LOCKED — FR-Equipment-AntiSnowball binding (combat-resolver.md L797): equipment-derived ATK ≤ 3× stat-derived ATK。**非 tuning knob**,改動 = 違反 #13 contract。Pillar 1 護欄 (裝備 = amplifier 唔係 substitute)。"
+
+  - name: ItemLifecycle
+    status: active
+    source: design/gdd/equipment-inventory.md
+    referenced_by:
+      - design/gdd/equipment-inventory.md
+    value: enum {IN_MAILBOX, IN_INVENTORY, EQUIPPED, SALVAGED}
+    unit: enum
+    added: 2026-06-06
+    revised: ""
+    notes: "EquipmentItem lifecycle state (States table)。SALVAGED = terminal + id-only tombstone (prune 過 #15 replay horizon)。IN_MAILBOX 7d TTL → **auto-salvage** (Pass 1 A3 — 價值永不蒸發;receipt 件永不 silent expire)。無 DELETED state。"
+
+  - name: EquipSlot
+    status: active
+    source: design/gdd/equipment-inventory.md
+    referenced_by:
+      - design/gdd/equipment-inventory.md
+    value: enum {WEAPON, ARMOR, ACCESSORY, COSMETIC}
+    unit: enum
+    added: 2026-06-06
+    revised: ""
+    notes: "3 functional (WEAPON/ARMOR/ACCESSORY ×1, 1:1 對 #15 functional item_type) + COSMETIC ×1 (平行,永不餵 #11,**manual-only — auto-equip 唔適用**,Pass 1)。CONSUMABLE 唔佔 slot (D1)。Rule 5。"
+
+  - name: EquipmentItem
+    status: active
+    source: design/gdd/equipment-inventory.md
+    referenced_by:
+      - design/gdd/equipment-inventory.md
+      # Expected future referrers:
+      # - design/gdd/stat-system.md  (#11 — stat_modifiers → StatModifier)
+      # - design/gdd/loot-drop-system.md  (#15 — reverse-defined from item_metadata Dictionary)
+      # - design/gdd/loot-drop-modal.md  (#21) / character-screen.md (#22) / inventory-ui.md (#23) / avatar-renderer.md (#26) / mirror-moment.md (#29)
+    value: |
+      Resource EquipmentItem:
+        item_id: StringName (Formula 6)
+        source_transition_id: String
+        item_type: ItemType {WEAPON, ARMOR, ACCESSORY, CONSUMABLE, COSMETIC}  # #15
+        rarity: RarityTier {COMMON..LEGENDARY}
+        class_tag: ClassTag {STRIKE, CONTROL, MOBILITY, NEUTRAL}  # #15
+        stat_modifiers: Dictionary{key: StringName -> delta: float}  # D8: 只准 4 derived key {ATTACK_POWER, MAX_HP, MOVE_SPEED, CRIT_CHANCE}; 值由 Stat Assignment Table 賦 (D9); cosmetic/consumable = {}
+        source_receipt: SourceReceipt (LEGENDARY 必帶, F-12; 其他 nullable)
+        provenance_text: String  # 全 tier lightweight provenance「拾於 6月3日・腿日」(Pass 1, derive 自 acquired_at + class_tag)
+        is_cosmetic: bool
+        lifecycle_state: ItemLifecycle
+        is_locked: bool  # item-level (Pass 1 統一 — 唔係 slot-level); auto-equip skip + salvage/bulk/auto-salvage 免疫
+        acquired_at_unix: int
+        slot_affinity: EquipSlot
+    unit: schema
+    added: 2026-06-06
+    revised: 2026-06-06
+    notes: "Typed schema reverse-defined from #15 item_metadata: Dictionary (Q-OQ5;metadata 只帶 type/rarity/class_tag/receipt — stat 由 #17 table assign, D9)。SerializableResource dict envelope (Contract 3;.tres→user:// FORBIDDEN)。Hydration + validation 只跑 drop path (EC-2 scope);失敗 → EC-1 rollback。Rule 1。"
+
+  - name: SourceReceipt
+    status: active
+    source: design/gdd/equipment-inventory.md
+    referenced_by:
+      - design/gdd/equipment-inventory.md
+      # Expected future referrers:
+      # - design/gdd/mirror-moment.md  (#29 — ceremony narrative payload)
+      # - design/gdd/character-screen.md  (#22 — hover/inspect display)
+    value: |
+      Resource SourceReceipt:
+        workout_date_unix: int
+        pr_snapshot: Dictionary{exercise_id: StringName -> one_rm_kg: float}
+        volume_snapshot: float  # = #9 total_volume_aggregation output
+        signature_text: String  # 預渲染「鍛造自 180kg × 5」(#26 ledger voice)
+    unit: schema
+    added: 2026-06-06
+    revised: ""
+    notes: "F-12 — LEGENDARY drop 必帶 (EC-2 rollback if missing = anti-fabrication, Pillar 1;scope = drop-hydration only)。供 #29 ceremony + #22 hover。v0.2 Forge 引入 CraftReceipt type 做 crafted/upgraded 系 (Pass 1 Q-7 binding)。"
 # ──────────────────────────────────────────────────────────────────────────────
 # BUILD PINS — asset SHA-256 digests that CI lints compare against on-disk files.
 # These prevent silent formula-constant tampering post-build (ADR-0005 no-hot-swap).
