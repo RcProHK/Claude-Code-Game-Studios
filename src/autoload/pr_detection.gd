@@ -49,8 +49,8 @@ var _wst_handler: Callable = Callable()       ## seam ⑦ #9 G-PR-2 handler (sto
 ## seam ⑤ — telemetry append-log (#15/#17 verbatim pattern; future #28 forwarding).
 var _telemetry_log: Array[Dictionary] = []
 
-## pr.state envelope working copy (story 003 owns the full schema + round-trip).
-var _state_data: Dictionary = {}
+## pr.state envelope (Story 003 — single key, PrState SerializableResource).
+var _pr_state: PrState = PrState.new()
 
 
 func _ready() -> void:
@@ -100,8 +100,22 @@ func _load_state() -> void:
 		return
 	var raw: Variant = _persistence.read("pr.state")
 	if raw is Dictionary:
-		_state_data = raw
-	# Full envelope validation/round-trip + stale-candidates discard = story 003.
+		_pr_state = PrState.from_dict(raw)
+	# Rule 8a: stale candidates (mid-workout crash leftovers) are discarded at
+	# boot — the establishment window reopens, which can never fake a PR (INV-PR-1).
+	_pr_state.candidates.clear()
+
+
+## Persist the envelope (Rule 6.6 — one write per PR, flush=true on anchor
+## moments). On failure: keep in-memory state (signed-consistent with any stat
+## already applied) + telemetry; next boot reconciles via server / re-establishes.
+func _persist_state(flush: bool) -> bool:
+	if _persistence == null:
+		return false
+	var ok: bool = _persistence.write("pr.state", _pr_state.to_dict(), flush)
+	if not ok:
+		_emit_telemetry("pr.persist_failed", {"flush": flush})
+	return ok
 
 
 func _wire_consumers() -> void:
@@ -132,9 +146,11 @@ func _on_set_logged(_exercise_id: String, _reps: int, _weight: float) -> void:
 	pass  # Story 004 (eligibility) + 005 (judgment pipeline).
 
 
-## #2 workout_started — summary clear + workout_seq increment (story 010 / 003).
+## #2 workout_started — workout_seq increment (D8 discard deadline clock);
+## summary clear lands in story 010.
 func _on_workout_started() -> void:
-	pass  # Story 010 (summary clear) + 003 (workout_seq).
+	_pr_state.workout_seq += 1
+	# Story 010: session summary clear (next-workout-started semantics).
 
 
 ## #2 workout_completed — establishment-window commit (story 006).

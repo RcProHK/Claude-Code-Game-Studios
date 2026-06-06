@@ -1,7 +1,7 @@
 # Story 003: `pr.state` envelope persistence + round-trip
 
 > **Epic**: PR Detection & Avatar Progression (#18)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-06 — 5 tests;combined 1866/1865/0 fail)
 > **Layer**: Feature
 > **Type**: Integration
 > **Estimate**: M
