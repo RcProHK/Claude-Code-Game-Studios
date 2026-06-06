@@ -295,7 +295,7 @@ Game 喺 workout 期間 BACKGROUND 存在，唔搶 lift 注意力。任何要求
 ### Open Questions
 - **Q1**: GymSys 同 game 嘅 deployment topology 點接？(Same backend / 並行 service / Embed iframe?) — 由 Vertical Slice 階段嘅 ADR 解決
 - **Q2**: Loot rarity 公式具體 weight 點分配？— 由 systems-designer + balance-check 喺 design phase 確定
-- **Q3**: PR detection — 真 1RM PR 觸發稀有 drop 要 server-side 判定，邊度比較 historical max？— 由 GymSys API extension ADR 處理
+- **Q3**: ✅ **RESOLVED by ADR-0011**(2026-06-06):PR detection topology = facts server-authoritative(set 數據 + historical baseline 全部 GymSys server data)+ derivation client-side deterministic + contract-pinned(server baseline contract:formula parity / validation / ratchet / timing — ADR-0011 §D-2)。原文「server-side 判定」嘅原意(判定唔可以建基於 client 可捏造 inputs)以此滿足;historical max 比較用 G-PR-1 baseline API(隨 #2 polling state response 落地)。詳見 `docs/architecture/adr-0011-pr-detection-topology.md` + #18 pr-detection.md。(原文:PR detection — 真 1RM PR 觸發稀有 drop 要 server-side 判定,邊度比較 historical max?— 由 GymSys API extension ADR 處理)
 - **Q4**: 「鏡像時刻」每週解鎖嘅 visible change 規則點定？(訓練 frequency? Volume? PR count?) — 由 systems-designer 設計
 
 ---
