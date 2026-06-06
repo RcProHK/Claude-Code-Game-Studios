@@ -357,7 +357,9 @@ func is_expired(anchor_unix: int, ttl_seconds: int, anchor_monotonic_ms: int = 0
 - **#8 Streak System** (Not Started) — 必須引用 `IPersistence.read/write` + `is_expired()` helper for daily-window check + Rule 12 namespace convention adoption。
 - **#9 Workout State Tracker** (Not Started) — 一般 indirect via GSM；若 direct PersistenceLayer access 需要 namespace prefix `wst.*` per Rule 12。
 - **#28 Telemetry** (Not Started) — 必須引用 6 generic signals (`write_completed / flush_completed / delete_completed / migration_step_completed / critical_save_failed / corrupt_save_recovered`) for MVP gate IDB fence measurement。
-- **#10 / #11 / #12 / #15 / #16 / #17 / #18 / #19 / #33** (Not Started) — 全部 indirect via GSM expected；若 direct access 需要 namespace prefix per Rule 12。
+- **#10 / #11 / #12 / #15 / #16 / #17 / #33** — 若 direct access 需要 namespace prefix per Rule 12。
+- **#18 PR Detection**(APPROVED 2026-06-06;G-PR-6 executed)— direct access,owns **`pr.*` namespace**(單一 key `pr.state` SerializableResource envelope;PR 確認 `flush=true`)。VALID_NAMESPACES 已加 `"pr."`(2026-06-06,#18 story 002)。
+- **#19 Zone System**(APPROVED 2026-06-06;G-Z-3 pending #19 story 002)— direct access,owns **`zone.*` namespace**(單一 key `zone.state` envelope;unlock `flush=true`)。
 
 **Provisional lock note**: 全部 cross-system contracts (IPersistence interface, key schema, signal signatures) 喺 reciprocal GDDs 未寫前 unilaterally locked from this side. Defer to reciprocal-GDD authoring; revisit at `/review-all-gdds` pass.
 

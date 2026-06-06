@@ -1,7 +1,7 @@
 # Story 002: Autoload 骨架 + wiring gates(G-PR-3 / G-PR-6 / CI whitelist)
 
 > **Epic**: PR Detection & Avatar Progression (#18)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-06 — combined gate 1861/1860/0 fail + 53/53 CI lints;**bonus**:修復 pre-existing phantom-pass `test_rule6_zero_input.gd` — #33 2-arg ctor 後 silently parse-fail 自 06-04,重寫用 canonical fake pattern 復活 5 tests)
 > **Layer**: Feature
 > **Type**: Logic
 > **Estimate**: M

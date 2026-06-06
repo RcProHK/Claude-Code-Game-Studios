@@ -73,6 +73,13 @@ AudioManager="*res://src/autoload/audio_manager.gd"
 ; (pos 9) both boot earlier; the system is pure-pull (Rule 2), caches nothing.
 AttentionBudget="*res://src/autoload/attention_budget.gd"
 
+; PR Detection (#18 — ADR-0008 G-PR-3: tail append. Predecessor constraints
+; #2 ≺ #10 ≺ StatSystem ≺ {AbilitySystem, WST} ≺ PrDetection all boot earlier;
+; reverse-wires its own pr_breakthrough into AbilitySystem._on_pr_breakthrough
+; (G-PR-4) + the #9 G-PR-2 handler in _ready(). Caller path LOCKED by
+; check_stat_mutation_callers.gd (ADR-0011 §D-4). #28 Telemetry stays last.)
+PrDetection="*res://src/autoload/pr_detection.gd"
+
 [display]
 
 window/size/viewport_width=1280

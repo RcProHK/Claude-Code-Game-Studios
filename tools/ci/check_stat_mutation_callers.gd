@@ -32,7 +32,7 @@ const FORBIDDEN_PATTERN: String = "StatSystem\\.apply_stat_delta\\("
 const WHITELISTED_FILES := [
 	"res://src/autoload/stat_system.gd",
 	"res://src/core/workout_state_tracker.gd",
-	"res://src/feature/pr_detection.gd",
+	"res://src/autoload/pr_detection.gd",
 	"res://src/feature/equipment_inventory.gd",
 ]
 
