@@ -1,6 +1,6 @@
 # Loot Drop Modal (#21)
 
-> **Status**: Revised(Pass 1 fix pass 2026-06-06 — pending fresh-session `/design-review` Pass 2)
+> **Status**: ✅ **APPROVED 2026-06-06(Pass 3 — CD spot-check;三 pass 收斂:Pass 1 MAJOR → fix pass → Pass 2 3-verifier + targeted fix → Pass 3 APPROVED)**
 > **Author**: frank + design-system pipeline(full review mode — creative-director / game-designer / ux-designer / godot-specialist / systems-designer / art-director / qa-lead 七 specialist 諮詢)
 > **Review Pass 1 (2026-06-06)**: MAJOR REVISION NEEDED(7 adversarial specialists + CD synthesis;~25 BLOCKING / 8 clusters)— 全部 inline 修正本 pass。**CD 裁決 D1-D5 binding**:D1 S3 = 唯一 commit point + pre-S3 force-close = cancel+re-reveal(推翻原 auto-collect blend)/ D2 freeze-as-hold(`ceremony_freeze` 錨 `focal_completed`,#7 零 change,orbit drift cut from MVP)/ D4 catch-up stream aggregated cue + sustained duck / D5 two-stage 保留 + F5 clamp。詳見 design/gdd/reviews/loot-drop-modal-review-log.md
 > **Creative Director Review (CD-GDD-ALIGN)**: REVISED 2026-06-06 — verdict CONCERNS(C-1 folded RARE+ grid identity + C-2 overflow commit point,doc-only)→ 全部 inline 修正;5 個申報 tension 位全 ACCEPT;validation criteria:AC-80/82 sign-off + `re_reveal_count(tier)` EPIC+ 空房率 + FT-3 skip rate
@@ -256,7 +256,7 @@ RARE+ 溢出 identity 保證(CD-GDD-ALIGN C-1):ceremony-overflow 嘅 RARE+ 件�
   獨立 cell 顯示(icon + rarity text label 齊,P-06 list-display rule);「+N」badge 只准
   aggregate sub-RARE / MAX_STREAM_BEATS 溢出件 — RARE+ 永不 collapse 入數字(P3「不知不覺發生」禁令)
 Overflow commit point(CD-GDD-ALIGN C-2):ceremony-overflow 件喺 grid entry 時 batch commit
-  (逐件 receive_loot + modal_dismissed,#17 batch debounce 語意 — 同 Rule 7 catch-up 條款一致)
+  (逐件 receive_loot + modal_dismissed,G-LM-10 batch seam 語意 — 同 Rule 7 catch-up 條款一致)
 ```
 
 **Variables:**

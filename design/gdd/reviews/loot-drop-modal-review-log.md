@@ -73,3 +73,25 @@ Prior verdict resolved: Pass 1 8 clusters — **7/8 FIXED, cluster 6 PARTIAL**
 
 ### 殘餘狀態
 Blocking items: 0 | 全部 Pass 2 發現屬 localized(零 structural);gates G-LM-1..10 + G-flag-1..4。**Pending: CD spot-check final verdict。**
+
+---
+
+## Review — 2026-06-06 — Verdict: ✅ APPROVED(Pass 3 — CD spot-check,opus)
+Scope signal: XL(11 deps、6 formulas、10 gates + 4 G-flags、ADR-0001 revision、4 erratum、94 ACs/23 gated)
+Specialists: creative-director(verification-first grep spot-check)
+Blocking items: 0 | Advisory: 1(F3 L259 wording residue — 已即場修)
+Prior verdict resolved: Yes — Pass 1 MAJOR + Pass 2 4 BLOCKING 全清
+
+### Summary
+CD 獨立 grep 驗證 Pass 2 四個 targeted fix 全 PASS(F2 px 閉合 endpoint 重算 sum==W_bar ✓ / F1 S2a-S2b 14 處單一讀法 ✓ / G-LM-10 四處重錨 + `inventory_system.gd` ground truth 親自 grep ✓ / G-LM-4 ⑧ + AC-37b gated + `loot_drop.gd:39-86` 零 outcome 載體證實 ✓)。D1-D5 零漂移 — D2 freeze-as-hold「唔單止保留,仲變成 flashbulb fantasy 嘅字面機制載體」。Pillar 3/2/1 經兩輪修訂「企得仲穩過初稿」。先例對齊 #17/#18/#19 Pass 3 收線:0 phantom、0 new orphan。
+
+### Epic 開波注意事項(CD binding 建議)
+1. `/ux-design loot-drop-modal` 先行(GDD UX Flag pin)
+2. Doc-only gates 最先:G-LM-1(layer topology,係 G-LM-2/AC-4/75/87 前置)→ G-LM-5 → G-LM-7
+3. Critical path = G-LM-4(#15 reverse-wire 連 GSM wiring + ⑧ marker + erratum)
+4. Parallel tracks:G-LM-3(#6 ledger 第二大)/ G-LM-10(#17 batch seam,細)/ G-LM-8+9(#4 audio);G-LM-2 排 G-LM-1 後;G-LM-6 獨立細 story
+5. #21-side:coordinator + FSM + F1/F5 timing core 先(大部分 unit AC ungated 可即測)
+6. Story-readiness:G-LM-2 無獨立 AC key / gate-tag 準則唔好漂移 / AC-21 lint grep owner file / OQ-5 G-flag grep 任一唔對齊 escalate CD
+
+### Validation criteria
+AC-80/82 lead sign-off + `re_reveal_count(tier)` EPIC+ >5% over 首 100 RARE+ reveals 重開 D1 + FT-3 skip rate + `catchup_truncated` 發生率。
