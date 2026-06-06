@@ -18,23 +18,16 @@ const TABLE_PATH: String = "res://assets/data/equipment/stat_assignment_table.tr
 const FIXED_NOW: int = 1764547300
 
 var _sut
-var _mock_stat: MockStat
+var _mock_stat: MockInventoryStat
 
 
-class MockStat extends RefCounted:
-	var sda: float = 28.0
-	var pushes: Array[Dictionary] = []
-
-	func get_attack_power_excluding_equipment() -> float:
-		return sda
-
-	func apply_equipment_modifier(equipment_id: StringName, modifier) -> void:
-		pushes.append({"id": equipment_id, "deltas": modifier.deltas.duplicate()})
 
 
 func before_each() -> void:
-	_mock_stat = MockStat.new()
+	_mock_stat = MockInventoryStat.new()
 	_sut = InventorySystem.new()
+	_sut._persistence = MockPersistenceLayer.new()
+	_sut._gsm = MockInventoryGSM.new()
 	_sut._stat_table = load(TABLE_PATH)
 	_sut._stat_system = _mock_stat
 	_sut._now_unix_provider = func() -> int: return FIXED_NOW
@@ -64,7 +57,7 @@ func _make_item(id_suffix: String, item_type: int, rarity: int,
 func test_salvage_rare_credits_250_shards() -> void:
 	# Arrange
 	var item: EquipmentItem = _make_item("r", LootEnums.ItemType.ARMOR,
-		LootEnums.RarityTier.RARE, { &"MAX_HP": 60.0 })
+		LootEnums.RarityTier.RARE, { &"max_hp": 60.0 })
 
 	# Act
 	var result: Dictionary = _sut.salvage(item.item_id)
@@ -83,10 +76,10 @@ func test_salvage_rare_credits_250_shards() -> void:
 func test_equipped_salvage_batches_then_pushes_final_aggregate_once() -> void:
 	# Arrange — EPIC weapon equipped + COMMON weapon banked (backfill candidate)
 	var equipped: EquipmentItem = _make_item("e", LootEnums.ItemType.WEAPON,
-		LootEnums.RarityTier.EPIC, { &"ATTACK_POWER": 45.0 })
+		LootEnums.RarityTier.EPIC, { &"attack_power": 45.0 })
 	_sut._swap_into_slot(EquipmentEnums.EquipSlot.WEAPON, equipped)
 	var backfill: EquipmentItem = _make_item("b", LootEnums.ItemType.WEAPON,
-		LootEnums.RarityTier.COMMON, { &"ATTACK_POWER": 6.0 })
+		LootEnums.RarityTier.COMMON, { &"attack_power": 6.0 })
 
 	# Act
 	var result: Dictionary = _sut.salvage(equipped.item_id)
@@ -100,13 +93,13 @@ func test_equipped_salvage_batches_then_pushes_final_aggregate_once() -> void:
 	# (backfill included) — proving the push ran after all mutations.
 	assert_eq(_mock_stat.pushes.size(), 1)
 	assert_almost_eq(
-		_mock_stat.pushes[0]["deltas"][&"ATTACK_POWER"], 6.0, 0.0001)
+		_mock_stat.pushes[0]["deltas"][&"attack_power"], 6.0, 0.0001)
 
 
 func test_non_equipped_salvage_does_not_push() -> void:
 	# Arrange — banked item only (loadout untouched)
 	var item: EquipmentItem = _make_item("n", LootEnums.ItemType.ARMOR,
-		LootEnums.RarityTier.COMMON, { &"MAX_HP": 20.0 })
+		LootEnums.RarityTier.COMMON, { &"max_hp": 20.0 })
 
 	# Act
 	_sut.salvage(item.item_id)
@@ -121,7 +114,7 @@ func test_non_equipped_salvage_does_not_push() -> void:
 func test_salvage_locked_item_refused() -> void:
 	# Arrange
 	var locked: EquipmentItem = _make_item("l", LootEnums.ItemType.ARMOR,
-		LootEnums.RarityTier.EPIC, { &"MAX_HP": 100.0 }, true)
+		LootEnums.RarityTier.EPIC, { &"max_hp": 100.0 }, true)
 
 	# Act
 	var result: Dictionary = _sut.salvage(locked.item_id)
@@ -146,11 +139,11 @@ func test_bulk_salvage_common_takes_unlocked_keeps_locked() -> void:
 	# Arrange — 5 unlocked + 1 locked + 1 unlocked-with-receipt (all COMMON)
 	for i: int in 5:
 		_make_item("u%d" % i, LootEnums.ItemType.ARMOR,
-			LootEnums.RarityTier.COMMON, { &"MAX_HP": 20.0 })
+			LootEnums.RarityTier.COMMON, { &"max_hp": 20.0 })
 	var locked: EquipmentItem = _make_item("lk", LootEnums.ItemType.ARMOR,
-		LootEnums.RarityTier.COMMON, { &"MAX_HP": 20.0 }, true)
+		LootEnums.RarityTier.COMMON, { &"max_hp": 20.0 }, true)
 	_make_item("rc", LootEnums.ItemType.ARMOR,
-		LootEnums.RarityTier.COMMON, { &"MAX_HP": 20.0 }, false, true)
+		LootEnums.RarityTier.COMMON, { &"max_hp": 20.0 }, false, true)
 
 	# Act — preview first (no mutation), then execute
 	var preview: Dictionary = _sut.bulk_salvage_preview(LootEnums.RarityTier.COMMON)
@@ -177,12 +170,12 @@ func test_bulk_salvage_empty_range_is_noop() -> void:
 func test_bulk_salvage_with_equipped_item_pushes_once() -> void:
 	# Arrange — equipped COMMON + 2 banked COMMON
 	var equipped: EquipmentItem = _make_item("e", LootEnums.ItemType.WEAPON,
-		LootEnums.RarityTier.COMMON, { &"ATTACK_POWER": 6.0 })
+		LootEnums.RarityTier.COMMON, { &"attack_power": 6.0 })
 	_sut._swap_into_slot(EquipmentEnums.EquipSlot.WEAPON, equipped)
 	_make_item("b1", LootEnums.ItemType.ARMOR,
-		LootEnums.RarityTier.COMMON, { &"MAX_HP": 20.0 })
+		LootEnums.RarityTier.COMMON, { &"max_hp": 20.0 })
 	_make_item("b2", LootEnums.ItemType.ARMOR,
-		LootEnums.RarityTier.COMMON, { &"MAX_HP": 20.0 })
+		LootEnums.RarityTier.COMMON, { &"max_hp": 20.0 })
 
 	# Act
 	var result: Dictionary = _sut.bulk_salvage(LootEnums.RarityTier.COMMON)

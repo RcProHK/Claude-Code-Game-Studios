@@ -82,7 +82,7 @@ func test_excluding_equipment_unaffected_by_equipment_modifier() -> void:
 	# Arrange — apply the #17 aggregate modifier (the exact pollution vector)
 	_boot()
 	var modifier = StatSystem.StatModifier.new()
-	modifier.deltas = { &"ATTACK_POWER": 50.0, &"MAX_HP": 160.0 }
+	modifier.deltas = { &"attack_power": 50.0, &"max_hp": 160.0 }
 	_sut.apply_equipment_modifier(&"equipment_aggregate", modifier)
 
 	# Act
@@ -112,5 +112,5 @@ func test_excluding_equipment_matches_get_stat_when_no_equipment() -> void:
 	# Act / Assert
 	assert_almost_eq(
 		_sut.get_attack_power_excluding_equipment(),
-		_sut.get_stat(&"ATTACK_POWER"),
+		_sut.get_stat(&"attack_power"),
 		0.0001)

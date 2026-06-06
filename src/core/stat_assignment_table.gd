@@ -44,13 +44,13 @@ const CRIT_CONTRACT_MAX: float = 0.20
 func lookup(item_type: LootEnums.ItemType, rarity: LootEnums.RarityTier) -> Dictionary:
 	match item_type:
 		LootEnums.ItemType.WEAPON:
-			return { &"ATTACK_POWER": float(weapon_atk[rarity]) }
+			return { &"attack_power": float(weapon_atk[rarity]) }
 		LootEnums.ItemType.ARMOR:
-			return { &"MAX_HP": float(armor_hp[rarity]) }
+			return { &"max_hp": float(armor_hp[rarity]) }
 		LootEnums.ItemType.ACCESSORY:
-			var mods: Dictionary = { &"MOVE_SPEED": float(accessory_move[rarity]) }
+			var mods: Dictionary = { &"move_speed": float(accessory_move[rarity]) }
 			if accessory_crit[rarity] > 0.0:
-				mods[&"CRIT_CHANCE"] = accessory_crit[rarity]
+				mods[&"crit_chance"] = accessory_crit[rarity]
 			return mods
 		_:
 			return {}

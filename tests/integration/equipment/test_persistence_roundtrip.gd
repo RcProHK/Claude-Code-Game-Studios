@@ -22,7 +22,7 @@ const FIXED_NOW: int = 1764547300
 
 var _mock_persistence: MockPersistenceLayer
 var _mock_stat: MockStat
-var _mock_gsm: MockGSM
+var _mock_gsm: MockInventoryGSM
 var _write_log: Array = []
 
 
@@ -40,20 +40,10 @@ class MockStat extends RefCounted:
 		pushes.append({"id": equipment_id, "deltas": modifier.deltas.duplicate()})
 
 
-class MockGSM extends RefCounted:
-	var handler: Callable = Callable()
-
-	func connect_for_initial_state(callable: Callable) -> void:
-		handler = callable
-
-	func deliver(state: StringName) -> void:
-		handler.call(&"", state, null)
-
-
 func before_each() -> void:
 	_mock_persistence = MockPersistenceLayer.new()
 	_mock_stat = MockStat.new()
-	_mock_gsm = MockGSM.new()
+	_mock_gsm = MockInventoryGSM.new()
 	_write_log = []
 	_mock_persistence.attach_write_spy(func(entry: Dictionary) -> void:
 		_write_log.append(entry))
@@ -145,7 +135,7 @@ func test_full_state_round_trips_through_boot() -> void:
 	# Act — session 2 boots off the same persistence store
 	_mock_stat.pushes.clear()
 	var sut2 = _make_sut()
-	_mock_gsm.deliver(&"gameplay")  # initial non-suspended delivery
+	_mock_gsm.deliver_gameplay()  # initial non-suspended delivery
 	await get_tree().process_frame  # deferred boot push (Contract 5 one-shot)
 
 	# Assert — items / lock / receipt / provenance / acquired_at / shards / loadout
@@ -162,7 +152,7 @@ func test_full_state_round_trips_through_boot() -> void:
 	assert_true(sut2._tombstones.has(&"tid_rt_D-2"))
 	# #11 received the boot replay aggregate (clamped LEGENDARY: 84)
 	assert_eq(_mock_stat.pushes.size(), 1)
-	assert_almost_eq(_mock_stat.pushes[0]["deltas"][&"ATTACK_POWER"], 84.0, 0.0001)
+	assert_almost_eq(_mock_stat.pushes[0]["deltas"][&"attack_power"], 84.0, 0.0001)
 
 
 func test_empty_store_boots_clean() -> void:

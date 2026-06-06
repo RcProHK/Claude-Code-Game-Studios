@@ -422,17 +422,26 @@ func _persistence_write_pending_queue() -> void:
 # ── GSM lifecycle (Rule 15 — Story 015) ────────────────────────────────────────
 
 
-## Contract 6 handler (3-arg callv layout). Suspension gates intake; leaving
-## suspension (or the initial non-suspended delivery) drains the queue and
-## fires the pending boot/retry push — both DEFERRED one frame (Contract 5
-## ONE_SHOT idiom) to clear #11's Reconciling single-frame reject window.
-func _on_gsm_state_changed(_previous: StringName, new_state: StringName, _payload: Variant = null) -> void:
-	_suspended = String(new_state) == "suspended"
+## GSM script ref for the GameState enum (the autoload itself stays an untyped
+## seam; the real signal is typed `state_changed(GameState, GameState, payload)`
+## — int enum args, NOT StringName).
+const _GSMScript = preload("res://src/autoload/game_state_machine.gd")
+
+
+## Contract 6 handler (3-arg callv layout, GameState int args). Suspension gates
+## intake; leaving suspension (or the initial non-suspended delivery) drains the
+## queue and fires the pending boot/retry push — both DEFERRED one frame
+## (Contract 5 ONE_SHOT idiom) to clear #11's Reconciling reject window.
+func _on_gsm_state_changed(_previous: int, new_state: int, _payload: Variant = null) -> void:
+	_suspended = new_state == _GSMScript.GameState.SUSPENDED
 	if _suspended:
 		return
 	if not _pending_queue.is_empty():
+		# The drain ends with an unconditional aggregate push — it absorbs any
+		# pending boot-replay/retry push (single-push dedup, AC-29/AC-30).
+		_pending_stat_push = false
 		_defer_one_shot(_drain_pending_queue)
-	if _pending_stat_push:
+	elif _pending_stat_push:
 		_pending_stat_push = false
 		_defer_one_shot(_push_aggregate)
 
@@ -447,12 +456,12 @@ func _drain_pending_queue() -> void:
 		if record_dict is Dictionary:
 			receive_loot(LootDrop.from_dict(record_dict))
 	_batch_depth -= 1
-	if _batch_push_pending:
-		_batch_push_pending = false
-		_push_aggregate()
-	if _batch_flush_pending:
-		_batch_flush_pending = false
-		_flush_state()
+	_batch_push_pending = false
+	_batch_flush_pending = false
+	# Unconditional: the drain owns the post-resume aggregate (covers the boot
+	# replay / rejection retry the handler folded into this drain).
+	_push_aggregate()
+	_flush_state()
 	_persistence_write_pending_queue()
 
 
@@ -827,10 +836,15 @@ func _stat_derived_atk() -> float:
 ## the AntiSnowball clamp telemetry when the cap actually bound (EC-16 — never
 ## silent: #22 shows the "+84 / +90 受真身上限約束" badge off the same data).
 func _push_aggregate() -> void:
+	# Batch contexts coalesce: N receives in a drain/boot ⇒ one end-of-batch
+	# push (EC-22 / AC-29 — same gate as _mark_dirty_and_flush).
+	if _batch_depth > 0:
+		_batch_push_pending = true
+		return
 	var raw: Dictionary = _compute_raw_aggregate()
 	var effective: Dictionary = EquipmentClampCalc.clamp_aggregate(raw, _stat_derived_atk())
-	var raw_atk: float = float(raw.get(&"ATTACK_POWER", 0.0))
-	var effective_atk: float = float(effective.get(&"ATTACK_POWER", 0.0))
+	var raw_atk: float = float(raw.get(&"attack_power", 0.0))
+	var effective_atk: float = float(effective.get(&"attack_power", 0.0))
 	if raw_atk > effective_atk:
 		_emit_telemetry("equipment.antisnowball.clamp", {
 			"raw_atk": raw_atk, "effective_atk": effective_atk,
@@ -849,8 +863,8 @@ func get_aggregate_raw_and_effective() -> Dictionary:
 	var raw: Dictionary = _compute_raw_aggregate()
 	var effective: Dictionary = _compute_effective_aggregate()
 	return {
-		"raw": float(raw.get(&"ATTACK_POWER", 0.0)),
-		"effective": float(effective.get(&"ATTACK_POWER", 0.0)),
+		"raw": float(raw.get(&"attack_power", 0.0)),
+		"effective": float(effective.get(&"attack_power", 0.0)),
 	}
 
 
@@ -1075,11 +1089,15 @@ func get_telemetry(event_name: String) -> Array[Dictionary]:
 # ── Read API (UI data surface) ─────────────────────────────────────────────────
 
 
-## Count of items in IN_INVENTORY state (cap accounting excludes mailbox — Rule 3).
+## Count of owned non-mailbox items (IN_INVENTORY + EQUIPPED — Rule 3: the cap
+## counts everything the player holds EXCEPT mailbox parking; an unequip must
+## never burst the cap).
 func get_inventory_count() -> int:
 	var count: int = 0
 	for item_id: StringName in _items:
-		if _items[item_id].lifecycle_state == EquipmentEnums.ItemLifecycle.IN_INVENTORY:
+		var state: int = _items[item_id].lifecycle_state
+		if state == EquipmentEnums.ItemLifecycle.IN_INVENTORY \
+				or state == EquipmentEnums.ItemLifecycle.EQUIPPED:
 			count += 1
 	return count
 

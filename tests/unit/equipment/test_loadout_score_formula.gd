@@ -14,10 +14,10 @@ extends GutTest
 func test_golden_vector_three_legendary_fresh_account_is_163() -> void:
 	# Arrange — post-clamp effective aggregate (cap 84 binds the L weapon's 90)
 	var effective: Dictionary = {
-		&"ATTACK_POWER": 84.0,
-		&"MAX_HP": 160.0,
-		&"MOVE_SPEED": 25.0,
-		&"CRIT_CHANCE": 0.06,
+		&"attack_power": 84.0,
+		&"max_hp": 160.0,
+		&"move_speed": 25.0,
+		&"crit_chance": 0.06,
 	}
 
 	# Act
@@ -35,7 +35,7 @@ func test_empty_aggregate_scores_zero() -> void:
 func test_single_crit_key_normalizes_via_400_weight() -> void:
 	# 0.01-scale CRIT delta needs the 400 weight to compete (per-key scales).
 	assert_almost_eq(
-		LoadoutScoreCalc.loadout_score({ &"CRIT_CHANCE": 0.06 }), 24.0, 0.0001)
+		LoadoutScoreCalc.loadout_score({ &"crit_chance": 0.06 }), 24.0, 0.0001)
 
 
 func test_unknown_key_scores_zero() -> void:
@@ -45,7 +45,7 @@ func test_unknown_key_scores_zero() -> void:
 
 func test_injected_zero_weight_silences_a_key() -> void:
 	# Knob behaviour: weights are injectable (data-driven).
-	var weights: Dictionary = { &"ATTACK_POWER": 0.0, &"MAX_HP": 0.25 }
+	var weights: Dictionary = { &"attack_power": 0.0, &"max_hp": 0.25 }
 	var score: float = LoadoutScoreCalc.loadout_score(
-		{ &"ATTACK_POWER": 90.0, &"MAX_HP": 100.0 }, weights)
+		{ &"attack_power": 90.0, &"max_hp": 100.0 }, weights)
 	assert_almost_eq(score, 25.0, 0.0001)

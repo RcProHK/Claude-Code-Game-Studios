@@ -23,6 +23,9 @@ var _sut
 
 func before_each() -> void:
 	_sut = InventorySystem.new()
+	_sut._persistence = MockPersistenceLayer.new()
+	_sut._gsm = MockInventoryGSM.new()
+	_sut._stat_system = MockInventoryStat.new()
 	_sut._now_unix_provider = func() -> int: return FIXED_NOW
 	_sut._server_unix_provider = func() -> int: return FIXED_NOW  # sane by default
 	add_child_autofree(_sut)

@@ -30,7 +30,7 @@ func _make_full_item() -> EquipmentItem:
 	item.item_type = LootEnums.ItemType.WEAPON
 	item.rarity = LootEnums.RarityTier.LEGENDARY
 	item.class_tag = LootEnums.ClassTag.STRIKE
-	item.stat_modifiers = { &"ATTACK_POWER": 90.0 }
+	item.stat_modifiers = { &"attack_power": 90.0 }
 	item.source_receipt = receipt
 	item.provenance_text = "拾於 12月1日・推日"
 	item.is_cosmetic = false
@@ -167,10 +167,10 @@ func test_equip_slot_sentinel_none_is_last() -> void:
 func test_allowed_stat_keys_are_the_four_derived_keys() -> void:
 	# D8 derived-keys-only contract surface.
 	assert_eq(EquipmentItem.ALLOWED_STAT_KEYS.size(), 4)
-	assert_has(EquipmentItem.ALLOWED_STAT_KEYS, &"ATTACK_POWER")
-	assert_has(EquipmentItem.ALLOWED_STAT_KEYS, &"MAX_HP")
-	assert_has(EquipmentItem.ALLOWED_STAT_KEYS, &"MOVE_SPEED")
-	assert_has(EquipmentItem.ALLOWED_STAT_KEYS, &"CRIT_CHANCE")
+	assert_has(EquipmentItem.ALLOWED_STAT_KEYS, &"attack_power")
+	assert_has(EquipmentItem.ALLOWED_STAT_KEYS, &"max_hp")
+	assert_has(EquipmentItem.ALLOWED_STAT_KEYS, &"move_speed")
+	assert_has(EquipmentItem.ALLOWED_STAT_KEYS, &"crit_chance")
 
 
 # ─── StatAssignmentTable (D9) ──────────────────────────────────────────────────
@@ -185,7 +185,7 @@ func test_stat_table_weapon_legendary_lookup_returns_atk_90() -> void:
 		LootEnums.ItemType.WEAPON, LootEnums.RarityTier.LEGENDARY)
 
 	# Assert — golden cell (deliberately > fresh-account cap 84)
-	assert_eq(mods, { &"ATTACK_POWER": 90.0 })
+	assert_eq(mods, { &"attack_power": 90.0 })
 
 
 func test_stat_table_accessory_uncommon_lookup_returns_move_and_crit() -> void:
@@ -197,7 +197,7 @@ func test_stat_table_accessory_uncommon_lookup_returns_move_and_crit() -> void:
 		LootEnums.ItemType.ACCESSORY, LootEnums.RarityTier.UNCOMMON)
 
 	# Assert
-	assert_eq(mods, { &"MOVE_SPEED": 8.0, &"CRIT_CHANCE": 0.01 })
+	assert_eq(mods, { &"move_speed": 8.0, &"crit_chance": 0.01 })
 
 
 func test_stat_table_accessory_common_has_no_crit_key() -> void:
@@ -209,7 +209,7 @@ func test_stat_table_accessory_common_has_no_crit_key() -> void:
 		LootEnums.ItemType.ACCESSORY, LootEnums.RarityTier.COMMON)
 
 	# Assert — COMMON accessory carries no crit (0.0 cell omitted)
-	assert_eq(mods, { &"MOVE_SPEED": 5.0 })
+	assert_eq(mods, { &"move_speed": 5.0 })
 
 
 func test_stat_table_armor_common_lookup_returns_hp_20() -> void:
@@ -219,7 +219,7 @@ func test_stat_table_armor_common_lookup_returns_hp_20() -> void:
 	# Act / Assert
 	assert_eq(
 		table.lookup(LootEnums.ItemType.ARMOR, LootEnums.RarityTier.COMMON),
-		{ &"MAX_HP": 20.0 })
+		{ &"max_hp": 20.0 })
 
 
 func test_stat_table_consumable_and_cosmetic_lookup_empty() -> void:

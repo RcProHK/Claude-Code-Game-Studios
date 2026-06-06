@@ -26,10 +26,10 @@ class_name EquipmentItem extends SerializableResource
 ## The 4 derived-stat keys an item may carry (D8). Used by the final-dict guard
 ## (EC-4) and the aggregation iterator (Rule 8). StringName for cheap compare.
 const ALLOWED_STAT_KEYS: Array[StringName] = [
-	&"ATTACK_POWER",
-	&"MAX_HP",
-	&"MOVE_SPEED",
-	&"CRIT_CHANCE",
+	&"attack_power",
+	&"max_hp",
+	&"move_speed",
+	&"crit_chance",
 ]
 
 

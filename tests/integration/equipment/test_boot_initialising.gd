@@ -20,7 +20,7 @@ const FIXED_NOW: int = 1764547300
 
 var _mock_persistence: MockPersistenceLayer
 var _mock_stat: MockStat
-var _mock_gsm: MockGSM
+var _mock_gsm: MockInventoryGSM
 var _write_log: Array = []
 
 
@@ -35,15 +35,10 @@ class MockStat extends RefCounted:
 		pass
 
 
-class MockGSM extends RefCounted:
-	func connect_for_initial_state(_callable: Callable) -> void:
-		pass
-
-
 func before_each() -> void:
 	_mock_persistence = MockPersistenceLayer.new()
 	_mock_stat = MockStat.new()
-	_mock_gsm = MockGSM.new()
+	_mock_gsm = MockInventoryGSM.new()
 	_write_log = []
 	_mock_persistence.attach_write_spy(func(entry: Dictionary) -> void:
 		_write_log.append(entry))
@@ -67,7 +62,7 @@ func _item_dict(item_id: String, overrides: Dictionary = {}) -> Dictionary:
 		"item_type": "ARMOR",
 		"rarity": "COMMON",
 		"class_tag": "NEUTRAL",
-		"stat_modifiers": {"MAX_HP": 20.0},
+		"stat_modifiers": {"max_hp": 20.0},
 		"source_receipt": null,
 		"is_cosmetic": false,
 		"lifecycle_state": "IN_INVENTORY",
@@ -125,7 +120,7 @@ func test_persisted_base_stat_key_and_negative_delta_guarded() -> void:
 	# Arrange — persisted functional dict carrying STR + negative ATK
 	_mock_persistence.write("inventory.state", {
 		"items": [_item_dict("tid_boot_D-1",
-			{"stat_modifiers": {"STR": 20.0, "ATTACK_POWER": -5.0}})],
+			{"stat_modifiers": {"STR": 20.0, "attack_power": -5.0}})],
 		"shards": 0,
 	})
 
@@ -134,7 +129,7 @@ func test_persisted_base_stat_key_and_negative_delta_guarded() -> void:
 
 	# Assert — STR dropped, negative clamped, each loud (EC-4)
 	var item: EquipmentItem = sut.get_item(&"tid_boot_D-1")
-	assert_eq(item.stat_modifiers, { &"ATTACK_POWER": 0.0 })
+	assert_eq(item.stat_modifiers, { &"attack_power": 0.0 })
 	assert_eq(sut.get_telemetry("inventory.stat_key.dropped").size(), 2)
 
 
@@ -143,7 +138,7 @@ func test_persisted_cosmetic_with_stats_scrubbed() -> void:
 	_mock_persistence.write("inventory.state", {
 		"items": [_item_dict("tid_boot_D-1", {
 			"is_cosmetic": true, "visual_id": "cape",
-			"stat_modifiers": {"ATTACK_POWER": 999.0},
+			"stat_modifiers": {"attack_power": 999.0},
 		})],
 		"shards": 0,
 	})

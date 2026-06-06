@@ -19,23 +19,16 @@ const TABLE_PATH: String = "res://assets/data/equipment/stat_assignment_table.tr
 const FIXED_NOW: int = 1764547300
 
 var _sut
-var _mock_stat: MockStat
+var _mock_stat: MockInventoryStat
 
 
-class MockStat extends RefCounted:
-	var sda: float = 28.0  # fresh account default
-	var pushes: Array[Dictionary] = []
-
-	func get_attack_power_excluding_equipment() -> float:
-		return sda
-
-	func apply_equipment_modifier(equipment_id: StringName, modifier) -> void:
-		pushes.append({"id": equipment_id, "deltas": modifier.deltas.duplicate()})
 
 
 func before_each() -> void:
-	_mock_stat = MockStat.new()
+	_mock_stat = MockInventoryStat.new()
 	_sut = InventorySystem.new()
+	_sut._persistence = MockPersistenceLayer.new()
+	_sut._gsm = MockInventoryGSM.new()
 	_sut._stat_table = load(TABLE_PATH)
 	_sut._stat_system = _mock_stat
 	_sut._now_unix_provider = func() -> int: return FIXED_NOW
@@ -77,7 +70,7 @@ func _receive(item_type: String, rarity: String, drop_id: String) -> StringName:
 func test_stronger_weapon_swaps_in_previous_returns_to_inventory() -> void:
 	# Arrange — RARE (+22) equipped
 	var rare: EquipmentItem = _make_item("rare", LootEnums.ItemType.WEAPON,
-		LootEnums.RarityTier.RARE, { &"ATTACK_POWER": 22.0 })
+		LootEnums.RarityTier.RARE, { &"attack_power": 22.0 })
 	_sut._swap_into_slot(EquipmentEnums.EquipSlot.WEAPON, rare)
 
 	# Act — EPIC (+45) arrives via the live path
@@ -92,7 +85,7 @@ func test_stronger_weapon_swaps_in_previous_returns_to_inventory() -> void:
 func test_weaker_candidate_does_not_swap() -> void:
 	# Arrange — EPIC (+45) equipped
 	var epic: EquipmentItem = _make_item("epic", LootEnums.ItemType.WEAPON,
-		LootEnums.RarityTier.EPIC, { &"ATTACK_POWER": 45.0 })
+		LootEnums.RarityTier.EPIC, { &"attack_power": 45.0 })
 	_sut._swap_into_slot(EquipmentEnums.EquipSlot.WEAPON, epic)
 
 	# Act — COMMON (+6) arrives
@@ -110,7 +103,7 @@ func test_weaker_candidate_does_not_swap() -> void:
 func test_locked_equipped_item_freezes_slot() -> void:
 	# Arrange — locked COMMON equipped
 	var locked: EquipmentItem = _make_item("locked", LootEnums.ItemType.WEAPON,
-		LootEnums.RarityTier.COMMON, { &"ATTACK_POWER": 6.0 })
+		LootEnums.RarityTier.COMMON, { &"attack_power": 6.0 })
 	locked.is_locked = true
 	_sut._swap_into_slot(EquipmentEnums.EquipSlot.WEAPON, locked)
 
@@ -129,9 +122,9 @@ func test_locked_equipped_item_freezes_slot() -> void:
 func test_backfill_tie_break_prefers_older_acquired_at() -> void:
 	# Arrange — two identical-score COMMON weapons, different ages
 	_make_item("newer", LootEnums.ItemType.WEAPON, LootEnums.RarityTier.COMMON,
-		{ &"ATTACK_POWER": 6.0 }, FIXED_NOW)
+		{ &"attack_power": 6.0 }, FIXED_NOW)
 	var older: EquipmentItem = _make_item("older", LootEnums.ItemType.WEAPON,
-		LootEnums.RarityTier.COMMON, { &"ATTACK_POWER": 6.0 }, FIXED_NOW - 1000)
+		LootEnums.RarityTier.COMMON, { &"attack_power": 6.0 }, FIXED_NOW - 1000)
 
 	# Act — deterministic re-runs (AC-14: same result every time)
 	_sut._backfill_slot(EquipmentEnums.EquipSlot.WEAPON)
@@ -143,9 +136,9 @@ func test_backfill_tie_break_prefers_older_acquired_at() -> void:
 func test_backfill_tie_break_prefers_higher_rarity_first() -> void:
 	# Arrange — equal score, different rarity (fixture forces the tie)
 	_make_item("common", LootEnums.ItemType.WEAPON, LootEnums.RarityTier.COMMON,
-		{ &"ATTACK_POWER": 10.0 })
+		{ &"attack_power": 10.0 })
 	var rare: EquipmentItem = _make_item("rare", LootEnums.ItemType.WEAPON,
-		LootEnums.RarityTier.RARE, { &"ATTACK_POWER": 10.0 })
+		LootEnums.RarityTier.RARE, { &"attack_power": 10.0 })
 
 	# Act
 	_sut._backfill_slot(EquipmentEnums.EquipSlot.WEAPON)
@@ -160,7 +153,7 @@ func test_backfill_tie_break_prefers_higher_rarity_first() -> void:
 func test_positive_candidate_backfills_empty_slot() -> void:
 	# Arrange — empty WEAPON slot + one COMMON weapon banked
 	var weapon: EquipmentItem = _make_item("w", LootEnums.ItemType.WEAPON,
-		LootEnums.RarityTier.COMMON, { &"ATTACK_POWER": 6.0 })
+		LootEnums.RarityTier.COMMON, { &"attack_power": 6.0 })
 
 	# Act
 	_sut._backfill_slot(EquipmentEnums.EquipSlot.WEAPON)
@@ -191,16 +184,16 @@ func test_cosmetic_never_auto_equips() -> void:
 func test_capped_atk_candidate_does_not_displace_hp_item() -> void:
 	# Arrange — SDA 28 → cap 84. L weapon (+90 → 84 capped) + RARE armor (+60 HP).
 	var weapon: EquipmentItem = _make_item("w", LootEnums.ItemType.WEAPON,
-		LootEnums.RarityTier.LEGENDARY, { &"ATTACK_POWER": 90.0 })
+		LootEnums.RarityTier.LEGENDARY, { &"attack_power": 90.0 })
 	_sut._swap_into_slot(EquipmentEnums.EquipSlot.WEAPON, weapon)
 	var armor: EquipmentItem = _make_item("a", LootEnums.ItemType.ARMOR,
-		LootEnums.RarityTier.RARE, { &"MAX_HP": 60.0 })
+		LootEnums.RarityTier.RARE, { &"max_hp": 60.0 })
 	_sut._swap_into_slot(EquipmentEnums.EquipSlot.ARMOR, armor)
 
 	# Act — hypothetical ATK-heavy armor-slot fixture (ATK already at cap):
 	# current score = 84 + 15 = 99; with swap = clamp(90+100)=84 → 84 < 99.
 	var atk_armor: EquipmentItem = _make_item("x", LootEnums.ItemType.ARMOR,
-		LootEnums.RarityTier.LEGENDARY, { &"ATTACK_POWER": 100.0 })
+		LootEnums.RarityTier.LEGENDARY, { &"attack_power": 100.0 })
 	_sut._evaluate_auto_equip(atk_armor)
 
 	# Assert — loadout-marginal refuses the strictly-worse swap
@@ -240,10 +233,10 @@ func test_consumable_grants_but_never_triggers_auto_equip() -> void:
 func test_claim_triggers_auto_equip_for_stronger_item() -> void:
 	# Arrange — weak weapon equipped; stronger one parked in mailbox
 	var weak: EquipmentItem = _make_item("weak", LootEnums.ItemType.WEAPON,
-		LootEnums.RarityTier.COMMON, { &"ATTACK_POWER": 6.0 })
+		LootEnums.RarityTier.COMMON, { &"attack_power": 6.0 })
 	_sut._swap_into_slot(EquipmentEnums.EquipSlot.WEAPON, weak)
 	var strong: EquipmentItem = _make_item("strong", LootEnums.ItemType.WEAPON,
-		LootEnums.RarityTier.EPIC, { &"ATTACK_POWER": 45.0 })
+		LootEnums.RarityTier.EPIC, { &"attack_power": 45.0 })
 	strong.lifecycle_state = EquipmentEnums.ItemLifecycle.IN_MAILBOX
 
 	# Act

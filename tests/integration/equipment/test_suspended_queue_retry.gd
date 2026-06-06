@@ -22,7 +22,7 @@ const FIXED_NOW: int = 1764547300
 
 var _mock_persistence: MockPersistenceLayer
 var _mock_stat: MockStat
-var _mock_gsm: MockGSM
+var _mock_gsm: MockInventoryGSM
 var _write_log: Array = []
 
 
@@ -39,20 +39,10 @@ class MockStat extends RefCounted:
 		pushes.append({"id": equipment_id, "deltas": modifier.deltas.duplicate()})
 
 
-class MockGSM extends RefCounted:
-	var handler: Callable = Callable()
-
-	func connect_for_initial_state(callable: Callable) -> void:
-		handler = callable
-
-	func deliver(state: StringName) -> void:
-		handler.call(&"", state, null)
-
-
 func before_each() -> void:
 	_mock_persistence = MockPersistenceLayer.new()
 	_mock_stat = MockStat.new()
-	_mock_gsm = MockGSM.new()
+	_mock_gsm = MockInventoryGSM.new()
 	_write_log = []
 	_mock_persistence.attach_write_spy(func(entry: Dictionary) -> void:
 		_write_log.append(entry))
@@ -84,7 +74,7 @@ func _record(drop_id: String) -> LootDrop:
 func test_suspended_receives_queue_durably_then_drain_batches() -> void:
 	# Arrange — booted, then suspended
 	var sut = _make_sut()
-	_mock_gsm.deliver(&"suspended")
+	_mock_gsm.deliver_suspended()
 
 	# Act 1 — three receives while suspended (one duplicate)
 	var r1: int = sut.receive_loot(_record("D-1"))
@@ -102,7 +92,7 @@ func test_suspended_receives_queue_durably_then_drain_batches() -> void:
 	# Act 2 — resume: drain is deferred one frame (Contract 5)
 	_mock_stat.pushes.clear()
 	_write_log.clear()
-	_mock_gsm.deliver(&"gameplay")
+	_mock_gsm.deliver_gameplay()
 	await get_tree().process_frame
 	await get_tree().process_frame  # drain ran; allow its own deferred work
 
@@ -126,7 +116,7 @@ func test_suspended_at_boot_defers_push_until_ready() -> void:
 	# Arrange — persisted loadout exists; GSM initial delivery = suspended
 	var item_dict: Dictionary = {
 		"item_id": "tid_sq_D-w", "item_type": "WEAPON", "rarity": "RARE",
-		"stat_modifiers": {"ATTACK_POWER": 22.0},
+		"stat_modifiers": {"attack_power": 22.0},
 		"lifecycle_state": "EQUIPPED", "slot_affinity": "WEAPON",
 		"acquired_at_unix": FIXED_NOW,
 	}
@@ -137,19 +127,19 @@ func test_suspended_at_boot_defers_push_until_ready() -> void:
 
 	# Act 1 — boot, then the initial delivery says suspended
 	var sut = _make_sut()
-	_mock_gsm.deliver(&"suspended")
+	_mock_gsm.deliver_suspended()
 	await get_tree().process_frame
 
 	# Assert 1 — push has NOT happened (crash-recovery gate, #11 would reject)
 	assert_eq(_mock_stat.pushes.size(), 0)
 
 	# Act 2 — GSM leaves suspension
-	_mock_gsm.deliver(&"gameplay")
+	_mock_gsm.deliver_gameplay()
 	await get_tree().process_frame
 
 	# Assert 2 — exactly one deferred boot-replay push with the loadout
 	assert_eq(_mock_stat.pushes.size(), 1)
-	assert_almost_eq(_mock_stat.pushes[0]["deltas"][&"ATTACK_POWER"], 22.0, 0.0001)
+	assert_almost_eq(_mock_stat.pushes[0]["deltas"][&"attack_power"], 22.0, 0.0001)
 	assert_true(sut != null)
 
 
@@ -159,14 +149,14 @@ func test_suspended_at_boot_defers_push_until_ready() -> void:
 func test_rejected_equipment_push_retries_after_ready() -> void:
 	# Arrange — booted + gameplay
 	var sut = _make_sut()
-	_mock_gsm.deliver(&"gameplay")
+	_mock_gsm.deliver_gameplay()
 	await get_tree().process_frame
 	_mock_stat.pushes.clear()
 
 	# Act — #11 rejects an equipment mutation (Suspended/Reconciling window)
 	sut._on_stat_mutation_rejected(
-		&"ATTACK_POWER", StatSystemScript.StatSource.EQUIPMENT, 0.0, "suspended_substate")
-	_mock_gsm.deliver(&"gameplay")  # Ready (re)delivery triggers the retry
+		&"attack_power", StatSystemScript.StatSource.EQUIPMENT, 0.0, "suspended_substate")
+	_mock_gsm.deliver_gameplay()  # Ready (re)delivery triggers the retry
 	await get_tree().process_frame
 
 	# Assert — exactly one deferred re-push (flag consumed, no desync)
@@ -176,14 +166,14 @@ func test_rejected_equipment_push_retries_after_ready() -> void:
 func test_non_equipment_rejections_ignored() -> void:
 	# Arrange
 	var sut = _make_sut()
-	_mock_gsm.deliver(&"gameplay")
+	_mock_gsm.deliver_gameplay()
 	await get_tree().process_frame
 	_mock_stat.pushes.clear()
 
 	# Act — a VOLUME_TICK rejection is not ours
 	sut._on_stat_mutation_rejected(
 		&"STR", StatSystemScript.StatSource.VOLUME_TICK, 1.0, "whatever")
-	_mock_gsm.deliver(&"gameplay")
+	_mock_gsm.deliver_gameplay()
 	await get_tree().process_frame
 
 	# Assert — no retry push

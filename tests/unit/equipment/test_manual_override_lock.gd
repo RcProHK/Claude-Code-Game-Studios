@@ -16,23 +16,16 @@ const TABLE_PATH: String = "res://assets/data/equipment/stat_assignment_table.tr
 const FIXED_NOW: int = 1764547300
 
 var _sut
-var _mock_stat: MockStat
+var _mock_stat: MockInventoryStat
 
 
-class MockStat extends RefCounted:
-	var sda: float = 28.0
-	var pushes: Array[Dictionary] = []
-
-	func get_attack_power_excluding_equipment() -> float:
-		return sda
-
-	func apply_equipment_modifier(equipment_id: StringName, modifier) -> void:
-		pushes.append({"id": equipment_id, "deltas": modifier.deltas.duplicate()})
 
 
 func before_each() -> void:
-	_mock_stat = MockStat.new()
+	_mock_stat = MockInventoryStat.new()
 	_sut = InventorySystem.new()
+	_sut._persistence = MockPersistenceLayer.new()
+	_sut._gsm = MockInventoryGSM.new()
 	_sut._stat_table = load(TABLE_PATH)
 	_sut._stat_system = _mock_stat
 	_sut._now_unix_provider = func() -> int: return FIXED_NOW
@@ -59,10 +52,10 @@ func _make_item(id_suffix: String, item_type: int, rarity: int,
 func test_manual_equip_weaker_item_succeeds_with_one_push() -> void:
 	# Arrange — EPIC equipped, COMMON banked
 	var epic: EquipmentItem = _make_item("e", LootEnums.ItemType.WEAPON,
-		LootEnums.RarityTier.EPIC, { &"ATTACK_POWER": 45.0 })
+		LootEnums.RarityTier.EPIC, { &"attack_power": 45.0 })
 	_sut._swap_into_slot(EquipmentEnums.EquipSlot.WEAPON, epic)
 	var common: EquipmentItem = _make_item("c", LootEnums.ItemType.WEAPON,
-		LootEnums.RarityTier.COMMON, { &"ATTACK_POWER": 6.0 })
+		LootEnums.RarityTier.COMMON, { &"attack_power": 6.0 })
 	_mock_stat.pushes.clear()
 
 	# Act — player's call: equip the weaker one
@@ -73,15 +66,15 @@ func test_manual_equip_weaker_item_succeeds_with_one_push() -> void:
 	assert_eq(common.lifecycle_state, EquipmentEnums.ItemLifecycle.EQUIPPED)
 	assert_eq(epic.lifecycle_state, EquipmentEnums.ItemLifecycle.IN_INVENTORY)
 	assert_eq(_mock_stat.pushes.size(), 1)
-	assert_almost_eq(_mock_stat.pushes[0]["deltas"][&"ATTACK_POWER"], 6.0, 0.0001)
+	assert_almost_eq(_mock_stat.pushes[0]["deltas"][&"attack_power"], 6.0, 0.0001)
 
 
 func test_unlocked_manual_choice_displaced_by_next_auto_trigger() -> void:
 	# Arrange — manual weaker choice in place (unlocked)
 	var epic: EquipmentItem = _make_item("e", LootEnums.ItemType.WEAPON,
-		LootEnums.RarityTier.EPIC, { &"ATTACK_POWER": 45.0 })
+		LootEnums.RarityTier.EPIC, { &"attack_power": 45.0 })
 	var common: EquipmentItem = _make_item("c", LootEnums.ItemType.WEAPON,
-		LootEnums.RarityTier.COMMON, { &"ATTACK_POWER": 6.0 })
+		LootEnums.RarityTier.COMMON, { &"attack_power": 6.0 })
 	_sut.equip(common.item_id, EquipmentEnums.EquipSlot.WEAPON)
 
 	# Act — any auto-equip evaluation runs (e.g. the banked EPIC re-evaluated)
@@ -95,9 +88,9 @@ func test_unlocked_manual_choice_displaced_by_next_auto_trigger() -> void:
 func test_locked_manual_choice_survives_auto_trigger() -> void:
 	# Arrange — manual weaker choice, then locked
 	var epic: EquipmentItem = _make_item("e", LootEnums.ItemType.WEAPON,
-		LootEnums.RarityTier.EPIC, { &"ATTACK_POWER": 45.0 })
+		LootEnums.RarityTier.EPIC, { &"attack_power": 45.0 })
 	var common: EquipmentItem = _make_item("c", LootEnums.ItemType.WEAPON,
-		LootEnums.RarityTier.COMMON, { &"ATTACK_POWER": 6.0 })
+		LootEnums.RarityTier.COMMON, { &"attack_power": 6.0 })
 	_sut.equip(common.item_id, EquipmentEnums.EquipSlot.WEAPON)
 	_sut.set_lock(common.item_id, true)
 
@@ -114,7 +107,7 @@ func test_locked_manual_choice_survives_auto_trigger() -> void:
 func test_unequip_returns_item_to_inventory_with_push() -> void:
 	# Arrange
 	var weapon: EquipmentItem = _make_item("w", LootEnums.ItemType.WEAPON,
-		LootEnums.RarityTier.RARE, { &"ATTACK_POWER": 22.0 })
+		LootEnums.RarityTier.RARE, { &"attack_power": 22.0 })
 	_sut._swap_into_slot(EquipmentEnums.EquipSlot.WEAPON, weapon)
 	_mock_stat.pushes.clear()
 
@@ -141,7 +134,7 @@ func test_unequip_empty_slot_errors() -> void:
 func test_equip_type_mismatch_refused_zero_mutation() -> void:
 	# Arrange — weapon into the ARMOR slot
 	var weapon: EquipmentItem = _make_item("w", LootEnums.ItemType.WEAPON,
-		LootEnums.RarityTier.RARE, { &"ATTACK_POWER": 22.0 })
+		LootEnums.RarityTier.RARE, { &"attack_power": 22.0 })
 
 	# Act
 	var result: Dictionary = _sut.equip(weapon.item_id, EquipmentEnums.EquipSlot.ARMOR)
@@ -156,7 +149,7 @@ func test_equip_type_mismatch_refused_zero_mutation() -> void:
 func test_equip_mailbox_item_requires_claim_first() -> void:
 	# Arrange
 	var item: EquipmentItem = _make_item("m", LootEnums.ItemType.WEAPON,
-		LootEnums.RarityTier.RARE, { &"ATTACK_POWER": 22.0 })
+		LootEnums.RarityTier.RARE, { &"attack_power": 22.0 })
 	item.lifecycle_state = EquipmentEnums.ItemLifecycle.IN_MAILBOX
 
 	# Act / Assert

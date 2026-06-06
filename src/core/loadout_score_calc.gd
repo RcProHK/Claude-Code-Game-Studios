@@ -19,10 +19,10 @@ class_name LoadoutScoreCalc
 ## Formula 1 weights — ATK-equivalent per unit delta (GDD Tuning Knobs; per-key
 ## safe ranges: ATK [0.5,2] / HP [0.1,0.5] / MOVE [0.2,1.2] / CRIT [100,800]).
 const STAT_WEIGHT: Dictionary = {
-	&"ATTACK_POWER": 1.0,
-	&"MAX_HP": 0.25,
-	&"MOVE_SPEED": 0.6,
-	&"CRIT_CHANCE": 400.0,
+	&"attack_power": 1.0,
+	&"max_hp": 0.25,
+	&"move_speed": 0.6,
+	&"crit_chance": 400.0,
 }
 
 

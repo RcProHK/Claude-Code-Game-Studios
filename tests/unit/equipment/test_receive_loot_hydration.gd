@@ -25,6 +25,9 @@ var _sut
 
 func before_each() -> void:
 	_sut = InventorySystem.new()
+	_sut._persistence = MockPersistenceLayer.new()
+	_sut._gsm = MockInventoryGSM.new()
+	_sut._stat_system = MockInventoryStat.new()
 	_sut._stat_table = load(TABLE_PATH)
 	_sut._now_unix_provider = func() -> int: return FIXED_NOW
 	add_child_autofree(_sut)
@@ -67,10 +70,12 @@ func test_receive_valid_weapon_returns_ok_and_grants_item() -> void:
 	assert_not_null(item)
 	assert_eq(item.item_type, LootEnums.ItemType.WEAPON)
 	assert_eq(item.rarity, LootEnums.RarityTier.RARE)
-	assert_eq(item.lifecycle_state, EquipmentEnums.ItemLifecycle.IN_INVENTORY)
+	# Granted with room -> entered inventory, then the empty WEAPON slot
+	# auto-equipped it immediately (Rule 6 trigger: receive_loot 後).
+	assert_eq(item.lifecycle_state, EquipmentEnums.ItemLifecycle.EQUIPPED)
 	assert_eq(item.slot_affinity, EquipmentEnums.EquipSlot.WEAPON)
 	# D9: stats come from the table cell (WEAPON × RARE = +22 ATK)
-	assert_eq(item.stat_modifiers, { &"ATTACK_POWER": 22.0 })
+	assert_eq(item.stat_modifiers, { &"attack_power": 22.0 })
 	assert_eq(item.acquired_at_unix, FIXED_NOW)
 
 
@@ -134,7 +139,7 @@ func test_receive_legendary_with_receipt_grants_ok() -> void:
 	var item: EquipmentItem = _sut.get_item(&"1764547200123_7_combat_lootdrop_D-1000-42")
 	assert_true(item.has_receipt())
 	assert_eq(item.source_receipt.signature_text, "鍛造自 180kg × 5")
-	assert_eq(item.stat_modifiers, { &"ATTACK_POWER": 90.0 })
+	assert_eq(item.stat_modifiers, { &"attack_power": 90.0 })
 
 
 func test_receive_common_without_receipt_grants_ok_with_null_receipt() -> void:
@@ -165,7 +170,7 @@ func test_receive_unknown_rarity_floors_to_common_no_rollback() -> void:
 	assert_eq(result, EquipmentEnums.ReceiveResult.OK)
 	var item: EquipmentItem = _sut.get_item(&"1764547200123_7_combat_lootdrop_D-1000-42")
 	assert_eq(item.rarity, LootEnums.RarityTier.COMMON)
-	assert_eq(item.stat_modifiers, { &"MAX_HP": 20.0 })
+	assert_eq(item.stat_modifiers, { &"max_hp": 20.0 })
 
 
 # ─── AC-35: unknown item_type → rollback ───────────────────────────────────────
@@ -190,14 +195,14 @@ func test_receive_unknown_item_type_rolls_back() -> void:
 func test_receive_metadata_stat_keys_are_ignored_with_telemetry() -> void:
 	# Arrange — injected metadata stats must NOT override the table (D9)
 	var record: LootDrop = _make_record("WEAPON", "COMMON")
-	record.item_metadata["stat_modifiers"] = {"ATTACK_POWER": 999.0, "STR": 50.0}
+	record.item_metadata["stat_modifiers"] = {"attack_power": 999.0, "STR": 50.0}
 
 	# Act
 	_sut.receive_loot(record)
 
 	# Assert — table value wins; detection telemetry fired
 	var item: EquipmentItem = _sut.get_item(&"1764547200123_7_combat_lootdrop_D-1000-42")
-	assert_eq(item.stat_modifiers, { &"ATTACK_POWER": 6.0 })
+	assert_eq(item.stat_modifiers, { &"attack_power": 6.0 })
 	assert_eq(_sut.get_telemetry("inventory.stat_key.dropped").size(), 1)
 
 
@@ -245,8 +250,8 @@ func test_guard_stat_dict_drops_base_keys_and_clamps_negatives() -> void:
 
 	# Act — STR is a base key (D8 forbidden); negative ATK clamps to 0
 	var out: Dictionary = InventorySystem.guard_stat_dict(
-		{"STR": 20.0, "ATTACK_POWER": -5.0, "MAX_HP": 35.0}, sink)
+		{"STR": 20.0, "attack_power": -5.0, "max_hp": 35.0}, sink)
 
 	# Assert
-	assert_eq(out, { &"ATTACK_POWER": 0.0, &"MAX_HP": 35.0 })
+	assert_eq(out, { &"attack_power": 0.0, &"max_hp": 35.0 })
 	assert_eq(sink.size(), 2)  # one drop + one clamp, both loud

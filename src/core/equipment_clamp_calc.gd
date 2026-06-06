@@ -43,16 +43,16 @@ static func clamp_aggregate(raw: Dictionary, stat_derived_atk: float) -> Diction
 	for key: Variant in raw:
 		out[key] = float(raw[key])
 
-	if out.has(&"ATTACK_POWER"):
-		out[&"ATTACK_POWER"] = clampf(
-			out[&"ATTACK_POWER"], 0.0,
+	if out.has(&"attack_power"):
+		out[&"attack_power"] = clampf(
+			out[&"attack_power"], 0.0,
 			minf(atk_cap(stat_derived_atk), EQUIPMENT_ATK_MOD_MAX))
-	if out.has(&"MAX_HP"):
-		out[&"MAX_HP"] = clampf(out[&"MAX_HP"], 0.0, EQUIPMENT_HP_MOD_MAX)
-	if out.has(&"MOVE_SPEED"):
-		out[&"MOVE_SPEED"] = clampf(out[&"MOVE_SPEED"], 0.0, EQUIPMENT_MOVE_MOD_MAX)
-	if out.has(&"CRIT_CHANCE"):
-		out[&"CRIT_CHANCE"] = clampf(out[&"CRIT_CHANCE"], 0.0, EQUIPMENT_CRIT_MOD_MAX)
+	if out.has(&"max_hp"):
+		out[&"max_hp"] = clampf(out[&"max_hp"], 0.0, EQUIPMENT_HP_MOD_MAX)
+	if out.has(&"move_speed"):
+		out[&"move_speed"] = clampf(out[&"move_speed"], 0.0, EQUIPMENT_MOVE_MOD_MAX)
+	if out.has(&"crit_chance"):
+		out[&"crit_chance"] = clampf(out[&"crit_chance"], 0.0, EQUIPMENT_CRIT_MOD_MAX)
 	return out
 
 

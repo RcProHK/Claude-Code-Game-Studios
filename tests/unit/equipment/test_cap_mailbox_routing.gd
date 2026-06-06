@@ -19,6 +19,9 @@ var _sut
 
 func before_each() -> void:
 	_sut = InventorySystem.new()
+	_sut._persistence = MockPersistenceLayer.new()
+	_sut._gsm = MockInventoryGSM.new()
+	_sut._stat_system = MockInventoryStat.new()
 	_sut._stat_table = load(TABLE_PATH)
 	_sut._now_unix_provider = func() -> int: return FIXED_NOW
 	add_child_autofree(_sut)
@@ -93,10 +96,10 @@ func test_claim_succeeds_with_room() -> void:
 	# Act
 	var result: Dictionary = _sut.claim(mailbox_id)
 
-	# Assert
+	# Assert — claimed in, then the empty ARMOR slot auto-equipped it (AC-41)
 	assert_true(result["ok"])
 	assert_eq(_sut.get_item(mailbox_id).lifecycle_state,
-		EquipmentEnums.ItemLifecycle.IN_INVENTORY)
+		EquipmentEnums.ItemLifecycle.EQUIPPED)
 	assert_eq(_sut.get_inventory_count(), 120)
 
 

@@ -31,6 +31,9 @@ class ReentrantMockStat extends RefCounted:
 	var reentry_results: Array = []
 	var pushes: int = 0
 
+	func is_boot_completed() -> bool:
+		return true
+
 	func get_attack_power_excluding_equipment() -> float:
 		return 28.0
 
@@ -44,6 +47,8 @@ class ReentrantMockStat extends RefCounted:
 func before_each() -> void:
 	_mock_stat = ReentrantMockStat.new()
 	_sut = InventorySystem.new()
+	_sut._persistence = MockPersistenceLayer.new()
+	_sut._gsm = MockInventoryGSM.new()
 	_sut._stat_table = load(TABLE_PATH)
 	_sut._stat_system = _mock_stat
 	_sut._now_unix_provider = func() -> int: return FIXED_NOW
@@ -69,8 +74,8 @@ func _make_banked_item(id_suffix: String, mods: Dictionary) -> EquipmentItem:
 
 func test_reentrant_mutation_during_push_is_blocked_and_deferred() -> void:
 	# Arrange — equip will push; the hostile mock re-enters salvage(victim)
-	var weapon: EquipmentItem = _make_banked_item("w", { &"ATTACK_POWER": 22.0 })
-	var victim: EquipmentItem = _make_banked_item("v", { &"ATTACK_POWER": 6.0 })
+	var weapon: EquipmentItem = _make_banked_item("w", { &"attack_power": 22.0 })
+	var victim: EquipmentItem = _make_banked_item("v", { &"attack_power": 6.0 })
 	_mock_stat.reentry_target = victim.item_id
 
 	# Act — the equip's push triggers the synchronous re-entry
@@ -94,7 +99,7 @@ func test_reentrant_mutation_during_push_is_blocked_and_deferred() -> void:
 
 func test_guard_window_extends_through_the_push() -> void:
 	# Arrange — guard must still be up DURING apply_equipment_modifier
-	var weapon: EquipmentItem = _make_banked_item("w", { &"ATTACK_POWER": 22.0 })
+	var weapon: EquipmentItem = _make_banked_item("w", { &"attack_power": 22.0 })
 	var probe: Array = []
 	_sut._stat_system = ProbingStat.new(_sut, probe)
 
@@ -113,6 +118,9 @@ class ProbingStat extends RefCounted:
 		_sut_ref = sut_ref
 		_probe = probe
 
+	func is_boot_completed() -> bool:
+		return true
+
 	func get_attack_power_excluding_equipment() -> float:
 		return 28.0
 
@@ -122,8 +130,8 @@ class ProbingStat extends RefCounted:
 
 func test_sequential_mutations_do_not_trip_the_guard() -> void:
 	# Arrange
-	var a: EquipmentItem = _make_banked_item("a", { &"ATTACK_POWER": 22.0 })
-	var b: EquipmentItem = _make_banked_item("b", { &"ATTACK_POWER": 6.0 })
+	var a: EquipmentItem = _make_banked_item("a", { &"attack_power": 22.0 })
+	var b: EquipmentItem = _make_banked_item("b", { &"attack_power": 6.0 })
 
 	# Act — back-to-back (non-nested) mutations are normal
 	var r1: Dictionary = _sut.salvage(a.item_id)
