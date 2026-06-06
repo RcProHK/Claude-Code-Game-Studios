@@ -43,6 +43,7 @@ var attack_count: int = 0
 var _last_emitted_pattern_id: StringName = &""
 var _spawned_emitters: Array[GPUParticles2D] = []
 var _ai_state: int = EnemyDirector.EnemyAIState.SPAWNING  # Rule 15 (#14 enemy AI state)
+var _spawn_origin: Vector2 = Vector2.ZERO  # captured at _ready (Rule 14 SPAWN_RELATIVE anchor)
 
 const CLEANUP_TIMEOUT_MS: int = 3000  # Rule 11 bfcache-safe wall-clock deadline
 
@@ -54,6 +55,7 @@ func _ready() -> void:
 	assert(player_stat_snapshot != null, "BossInstance MUST have a frozen snapshot before _ready")
 	assert(has_node("AnimationPlayer"), "BossInstance scene tree contract: $AnimationPlayer required")
 	assert(has_node("CollisionShape2D"), "BossInstance scene tree contract: $CollisionShape2D required")
+	_spawn_origin = global_position  # Rule 14 — spawn_pos anchor for SPAWN_RELATIVE clamping
 	# Formula 1 computed once per spawn (CF-3 caching) — base_hp from template,
 	# attack_power + workout_duration from the frozen BossSpawnContext.
 	max_hp = BossFormulas.compute_max_hp(
@@ -102,6 +104,32 @@ func _enter_state(new_state: int) -> void:
 func _persist_fight_anchor() -> void:
 	PersistenceLayer.write("boss.transition_id", transition_id)
 	PersistenceLayer.write("boss.fight_timestamp", Time.get_unix_time_from_system())
+
+
+## Rule 14 — constrain a desired world-space position to the arena bounds per the
+## template's ArenaConstraintMode. Component-wise clamp around the relevant anchor:
+##   * WORLD_ABSOLUTE — clamp to ±arena_constraint_px around world origin (fixed arena)
+##   * SPAWN_RELATIVE — clamp within ±arena_constraint_px of the spawn origin (default)
+##   * AVATAR_LEASH   — clamp within ±arena_constraint_px of the avatar (leash-chase)
+## Constraint values are world-space px at zoom 1.0 (unaffected by reveal zoom /
+## SubViewport oversample — world position, not screen).
+##
+## @param desired    The position the AI wants to move to.
+## @param avatar_pos The avatar's world position (only used by AVATAR_LEASH).
+## @return           The clamped position (never exits the arena bounds).
+func clamp_position(desired: Vector2, avatar_pos: Vector2) -> Vector2:
+	var ext: Vector2 = boss_template.arena_constraint_px if boss_template != null else Vector2(300, 200)
+	var anchor: Vector2
+	match (boss_template.arena_constraint_mode if boss_template != null else BossTemplate.ArenaConstraintMode.SPAWN_RELATIVE):
+		BossTemplate.ArenaConstraintMode.WORLD_ABSOLUTE:
+			anchor = Vector2.ZERO
+		BossTemplate.ArenaConstraintMode.AVATAR_LEASH:
+			anchor = avatar_pos
+		_:  # SPAWN_RELATIVE (default)
+			anchor = _spawn_origin
+	return Vector2(
+		clampf(desired.x, anchor.x - ext.x, anchor.x + ext.x),
+		clampf(desired.y, anchor.y - ext.y, anchor.y + ext.y))
 
 
 ## Self-filtered enemy_killed handler. Param TYPED EnemyKilledPayload (file-level

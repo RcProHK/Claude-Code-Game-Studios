@@ -1,12 +1,14 @@
 # Story 014: Spawn position + arena constraint
 
 > **Epic**: Boss System
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Feature
 > **Type**: Logic
 > **Estimate**: S
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-06
+
+**Completion Notes (2026-06-06)**: `BossInstance.clamp_position(desired, avatar_pos) -> Vector2` + `_spawn_origin` field (captured at `_ready`) + `tests/unit/boss_system/test_spawn_position_bounded.gd` (6 tests; combined 269scr/1763/1762pass/0fail/1pending). AC-14: all 3 ArenaConstraintMode (WORLD_ABSOLUTE around origin / SPAWN_RELATIVE around spawn / AVATAR_LEASH around avatar — component-wise clamp to ±arena_constraint_px). AC-15 confirm (_ai_state = EnemyDirector.EnemyAIState). World-space px (zoom-independent per Rule 14). The pure clamp function is what AC-14 tests; the per-frame pursue loop that calls it is gameplay-AI movement (beyond this AC).
 
 ## Context
 

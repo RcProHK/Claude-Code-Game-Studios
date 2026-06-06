@@ -81,7 +81,7 @@ This epic is complete when:
 | 011 | enemy_killed → DYING self-filtered wiring | Integration | ✅ Complete | ADR-0009 | 002, 007 |
 | 012 | Boss cleanup + bfcache DD#1 exact-restore | Integration | Ready | ADR-0003 | 011, 002 |
 | 013 | Avatar-downed auto-recover + grace window | Logic | Ready | N/A (Pillar-2 behavior) | 004 |
-| 014 | Spawn position + arena constraint | Logic | Ready | ADR-0006 | 002, 007 |
+| 014 | Spawn position + arena constraint | Logic | ✅ Complete | ADR-0006 | 002, 007 |
 | 015 | Loot-tier combine + CI tooling + playtest gates | Integration | Ready (sub-items deferred) | ADR-0005 | 001, 011 |
 
 **Implementation order**: 001 → 002 → 003 → {004, 005, 006} → 007 → {008, 009, 010, 011} → 012 → 013 → 014 → 015. Story 015 sub-items (8 CI-tooling lints → followup-08; playtest AC-29/30/35/39 → external; AC-23 → #15) are deferred/blocked, not on the critical path.
