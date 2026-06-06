@@ -1,7 +1,7 @@
 # Story 007: Soft-confirm D8(pending / corroborate / discard)+ INV-PR-2
 
 > **Epic**: PR Detection & Avatar Progression (#18)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-06 — gate green:combined 1889/1888,0 fail)
 > **Layer**: Feature
 > **Type**: Logic
 > **Estimate**: M-L

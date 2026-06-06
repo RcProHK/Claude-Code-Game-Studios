@@ -1,7 +1,7 @@
 # Story 013: #12 reverse-wire integration
 
 > **Epic**: PR Detection & Avatar Progression (#18)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-06 — gate green:combined 1913/1912,0 fail)
 > **Layer**: Feature
 > **Type**: Integration
 > **Estimate**: S

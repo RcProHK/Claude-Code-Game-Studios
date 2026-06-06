@@ -1,7 +1,7 @@
 # Story 011: Emit gate + one-slot buffer + GSM 靜默
 
 > **Epic**: PR Detection & Avatar Progression (#18)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-06 — gate green:combined 1909/1908,0 fail)
 > **Layer**: Feature
 > **Type**: Logic
 > **Estimate**: S

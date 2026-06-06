@@ -1,7 +1,7 @@
 # Story 008: Server baseline reconcile(validation / floor / fail-closed)
 
 > **Epic**: PR Detection & Avatar Progression (#18)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-06 — gate green:combined 1896/1895,0 fail)
 > **Layer**: Feature
 > **Type**: Logic
 > **Estimate**: M

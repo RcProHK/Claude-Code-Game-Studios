@@ -1,7 +1,7 @@
 # Story 014: G-PR-2 — #9 additive(handler + getter + daily)+ count 鏈
 
 > **Epic**: PR Detection & Avatar Progression (#18)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-06 — gate green:combined 1913/1912,0 fail)
 > **Layer**: Feature(cross-epic touch — #9 Core)
 > **Type**: Integration
 > **Estimate**: M

@@ -1,7 +1,7 @@
 # Story 010: Session summary(Formula 5)+ lifetime counters + milestone
 
 > **Epic**: PR Detection & Avatar Progression (#18)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-06 — gate green:combined 1905/1904,0 fail)
 > **Layer**: Feature
 > **Type**: Logic
 > **Estimate**: M

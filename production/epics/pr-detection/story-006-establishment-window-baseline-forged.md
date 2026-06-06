@@ -1,7 +1,7 @@
 # Story 006: Establishment window(INV-PR-1)+ Baseline Forged
 
 > **Epic**: PR Detection & Avatar Progression (#18)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-06 — gate green:combined 1882/1881,0 fail)
 > **Layer**: Feature
 > **Type**: Logic
 > **Estimate**: M

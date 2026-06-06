@@ -1,7 +1,7 @@
 # Story 009: Stat 生效 path(all-or-nothing / cap short-circuit)
 
 > **Epic**: PR Detection & Avatar Progression (#18)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-06 — gate green:b7de4a1,0 fail)
 > **Layer**: Feature
 > **Type**: Logic
 > **Estimate**: S

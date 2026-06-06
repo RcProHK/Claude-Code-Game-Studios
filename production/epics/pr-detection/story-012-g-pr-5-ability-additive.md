@@ -1,7 +1,7 @@
 # Story 012: G-PR-5 — #12 additive 四件套(cross-epic)
 
 > **Epic**: PR Detection & Avatar Progression (#18)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-06 — gate green:ability suite green,0 fail)
 > **Layer**: Feature(cross-epic touch — #12 Core)
 > **Type**: Logic
 > **Estimate**: S-M

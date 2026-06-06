@@ -1,7 +1,7 @@
 # Story 005: 判定 pipeline core(confirm / replay / floor / 連續 PR)
 
 > **Epic**: PR Detection & Avatar Progression (#18)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-06 — gate green:combined 1879/1878,0 fail)
 > **Layer**: Feature
 > **Type**: Logic
 > **Estimate**: M
