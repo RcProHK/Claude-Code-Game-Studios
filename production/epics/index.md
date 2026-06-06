@@ -1,6 +1,6 @@
 # Epics Index
 
-Last Updated: 2026-06-04
+Last Updated: 2026-06-05 (+ #16 Boss System — first Feature-layer epic, GDD Pass 11 APPROVED + STRUCTURAL FREEZE lifted)
 Engine: Godot 4.6 (Web Export, Compatibility Renderer)
 Created by: /create-epics Foundation + Core (16 systems); #10 Exercise→Class Mapping promoted Placeholder→Ready 2026-06-02; #4 Audio Manager promoted Placeholder→Ready 2026-06-02 (GDD Approved Pass 6 + ADR-0008 Accepted); **#20 Gym-Mode HUD (first Presentation epic) created 2026-06-03** (GDD R8 APPROVED + UX spec APPROVED); **#33 Attention Budget promoted Placeholder→Ready 2026-06-04** (GDD Approved re-review pass 2 + ADR-0006/0008 Accepted)
 
@@ -40,6 +40,12 @@ Created by: /create-epics Foundation + Core (16 systems); #10 Exercise→Class M
 | [Exercise → Class Mapping](exercise-class-mapping/EPIC.md) | Core | #10 | exercise-class-mapping.md ✅ Approved 2026-06-02 | **5 stories** (001 ✅ Complete CI-green, 002-005 Ready) | **In progress 1/5** — 001 done CI-green 2026-06-02; ADR-0007/0008/0003 Accepted; 2 cross-system close-gates (Q5 #9 patch + entities.yaml 7-member) |
 | [Attention Budget & Interaction Policy](attention-budget-policy/EPIC.md) | Core | #33 | attention-budget-policy.md ✅ Approved 2026-06-04 (pass 3) | **6/6 Complete** | **✅ IMPLEMENTED** — 6/6 stories CI-green 2026-06-04 (attention-budget 93/93; combined 1685/0 fail). Hybrid + B1 sentinel + LOOT_DROP ceremony lock + CI lint (GSM owner-exempt). Deferred: AC-06→#20, AC-15/18b→#8/#28; Story 001 AC-21 assert-fires test-debt. ★ Pillar 2 PRIMARY |
 
+## Feature Layer
+
+| Epic | Layer | System # | GDD | Stories | Status |
+|------|-------|----------|-----|---------|--------|
+| [Boss System](boss-system/EPIC.md) | Feature | #16 | boss-system.md ✅ APPROVED 2026-06-05 (Pass 11 — STRUCTURAL FREEZE lifted) | **15 stories** (9 Logic, 6 Integration; Ready) | **Ready** — first Feature epic. Governing ADR-0005/0006/0001 (MED) / 0003/0007/0009; **18/18 TR traced**; 54 ACs. `spawn_boss` invoked by #14 EnemyDirector (Ready, 24 stories). Loot-side AC-23 → #15; CI-tooling ACs (AC-12/16/33/36/41e) → followup-08. Pillar 3 PRIMARY climax. |
+
 ## Presentation Layer
 
 | Epic | Layer | System # | GDD | Stories | Status |
@@ -52,8 +58,8 @@ Created by: /create-epics Foundation + Core (16 systems); #10 Exercise→Class M
 
 | Metric | Count |
 |--------|-------|
-| Total epics | 17 (16 Foundation+Core + 1 Presentation) |
-| Ready (GDD Approved + ADR-0006 Accepted) | 17 |
+| Total epics | 18 (16 Foundation+Core + 1 Feature + 1 Presentation) |
+| Ready (GDD Approved + ADR-0006 Accepted) | 18 |
 | Blocked (ADR Proposed — stories auto-blocked) | 1 (#2 GymSys — ADR-0002/0004 transport VS-gated) |
 | Placeholder (no GDD) | 0 — #33 AttentionBudget GDD Approved 2026-06-04, epic now Ready |
 | Pending GDD approval | 1 (#15 LootDrop — Pass 3 required) |
