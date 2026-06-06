@@ -1,7 +1,7 @@
 # Story 013: Persistence round-trip + save 粒度 + Private Mode degrade
 
 > **Epic**: Equipment & Inventory (#17)
-> **Status**: Implemented (pending CI verification)
+> **Status**: Complete ✅ (CI-green, merged main PR #21 b7ded42 2026-06-06)
 > **Layer**: Feature
 > **Type**: Integration
 > **Estimate**: M (~3h)

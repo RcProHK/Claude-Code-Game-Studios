@@ -3,8 +3,10 @@
 > **Layer**: Feature
 > **GDD**: design/gdd/equipment-inventory.md(✅ APPROVED 2026-06-06 Pass 3 — 3-pass same-day convergence,零 phantom 零 new orphan)
 > **Architecture Module**: `InventorySystem` autoload(ADR-0008 constraint 8:`StatSystem ≺ InventorySystem ≺ LootDropSystem`;insertion rule = WorkoutStateTracker 同 LootDropSystem 之間)
-> **Status**: Ready
-> **Stories**: 16 created 2026-06-06(13 Logic + 3 Integration)— see table below
+> **Status**: ✅ **COMPLETE 16/16 — CI-green, merged main PR #21(b7ded42)2026-06-06**
+> **Stories**: 16/16 Complete(13 Logic + 3 Integration;42/42 GDD ACs;~108 tests;combined gate 281 scripts / 1844 tests / 1843 pass / 0 fail / 1 pre-existing pending;全 tools/ci/*.gd lints PASS)
+> **Local-gate lessons**(commit d533086):#11 StatId 值係 lowercase StringName(Q-1 reprise — 驗 enum 要驗到 value 層)· unit test 必須 inject 全部 seams(real-autoload state leak)· batch gate 要 push+flush 對稱 · GSM typed signal 係 int GameState args
+> **Deferred(非 #17-core)**:AC-32b VS-tier Private Mode playtest(ADR-0003 gate)· G-7 #2 server-time wiring(grace fallback 已 safe)· G-8 #3 namespace 表一行 · #21/#22/#23 UI surfaces(Presentation tier)
 > **Producer gate (PR-EPIC)**: REALISTIC(degraded inline assessment 2026-06-06 — subagent spawning blocked by 1M-context credits;單 epic 結構同 boss-system 15-story 先例相若,估 14-16 stories;A1 salvage-only 已大幅減 scope)
 
 ## Overview

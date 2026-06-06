@@ -1,7 +1,7 @@
 # Story 016: Re-entrancy guard + CI lint + autoload 登記
 
 > **Epic**: Equipment & Inventory (#17)
-> **Status**: Implemented (pending CI verification)
+> **Status**: Complete ✅ (CI-green, merged main PR #21 b7ded42 2026-06-06)
 > **Layer**: Feature
 > **Type**: Logic
 > **Estimate**: S (~2.5h)

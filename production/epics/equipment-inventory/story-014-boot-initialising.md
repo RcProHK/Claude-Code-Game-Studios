@@ -1,7 +1,7 @@
 # Story 014: Boot INITIALISING 8 步
 
 > **Epic**: Equipment & Inventory (#17)
-> **Status**: Implemented (pending CI verification)
+> **Status**: Complete ✅ (CI-green, merged main PR #21 b7ded42 2026-06-06)
 > **Layer**: Feature
 > **Type**: Integration
 > **Estimate**: M (~4h)

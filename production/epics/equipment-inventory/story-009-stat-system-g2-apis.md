@@ -1,7 +1,7 @@
 # Story 009: #11 G-2 additive APIs(cross-epic)
 
 > **Epic**: Equipment & Inventory (#17)
-> **Status**: Implemented (pending CI verification)
+> **Status**: Complete ✅ (CI-green, merged main PR #21 b7ded42 2026-06-06)
 > **Layer**: Core(cross-epic touch — 改 #11 Stat System)
 > **Type**: Logic
 > **Estimate**: S (~1.5h)

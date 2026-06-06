@@ -45,7 +45,7 @@ Created by: /create-epics Foundation + Core (16 systems); #10 Exercise→Class M
 | Epic | Layer | System # | GDD | Stories | Status |
 |------|-------|----------|-----|---------|--------|
 | [Boss System](boss-system/EPIC.md) | Feature | #16 | boss-system.md ✅ APPROVED 2026-06-05 (Pass 11 — STRUCTURAL FREEZE lifted) | **15 stories** (9 Logic, 6 Integration; Ready) | **✅ MERGED** — 15/15 implemented + CI-green, merged main PR #19 (5d03ad7) 2026-06-06. Pillar 3 PRIMARY climax. |
-| [Equipment & Inventory](equipment-inventory/EPIC.md) | Feature | #17 | equipment-inventory.md ✅ APPROVED 2026-06-06 (Pass 3 — 3-pass same-day, 零 phantom) | **16 stories** (13 Logic, 3 Integration; all Ready; 42/42 ACs covered) | **Ready** — InventorySystem autoload (ADR-0008 constraint 8: Stat ≺ Inventory ≺ LootDrop)。Salvage-only MVP (craft/upgrade → v0.2 Forge); derived-keys-only; 42 ACs + 8 test seams; upstream gates G-1~G-4 已落 spec。1 cross-epic story (#11 G-2 API impl)。PR-EPIC: REALISTIC (degraded inline — spawn blocked by 1M credits 2026-06-06)。Soft gates G-5/G-7/G-8 epic-time。Pillar 3 歸宿 + Pillar 1 AntiSnowball 護欄 |
+| [Equipment & Inventory](equipment-inventory/EPIC.md) | Feature | #17 | equipment-inventory.md ✅ APPROVED 2026-06-06 (Pass 3 — 3-pass same-day, 零 phantom) | **16/16 Complete** ✅ (13 Logic, 3 Integration; 42/42 ACs) | **✅ MERGED** — CI-green, merged main PR #21 (b7ded42) 2026-06-06。Same-day full pipeline: GDD 3-pass APPROVED → epic → 16 stories → implemented → local combined gate green (1843/1844) → CI green → merged。InventorySystem autoload live (Stat ≺ Inventory ≺ LootDrop)。Salvage-only MVP; derived-keys-only; #11 G-2 APIs shipped。Deferred: AC-32b VS-tier / G-7 / G-8 / UI tiers。Pillar 3 歸宿 + Pillar 1 AntiSnowball 護欄 |
 
 ## Presentation Layer
 
