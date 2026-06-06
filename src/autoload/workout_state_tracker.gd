@@ -1102,3 +1102,43 @@ func _change_phase(to: WorkoutPhase) -> void:
 	# Story 008: persist phase on every transition. flush=false — use PL's normal flush timer
 	# (W2 fix: flush=true on every transition caused N flush cycles in EC-06 force-flush chain).
 	_persist_key("wst.current_workout.phase", int(to))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# #18 G-PR-2 additive (pr-detection/story-014, 2026-06-06)
+# ═══════════════════════════════════════════════════════════════════════════
+
+## Daily PR count (#18 G-PR-2 — D6: #18 detects, #9 counts). #18 reverse-wires
+## its pr_breakthrough signal into this handler at ITS _ready() (same direction
+## as the #12 wiring — WST boots earlier and never subscribes forward). #15
+## reads get_pr_count_today() as the loot pr_factor input (loot-drop-system.md
+## L293 shipped spec — closes that deferred read surface).
+## Daily window = UTC date (deterministic, mirrors the #17 receipt-date pin);
+## in-memory only — a mid-day reload under-counts toward zero, the
+## anti-fabrication-safe direction (deliberate, documented here).
+var _pr_count_today: int = 0
+var _pr_count_date: String = ""
+var _pr_date_provider: Callable = Callable()  ## tests inject; default = UTC today
+
+
+## #18 pr_breakthrough handler (G-PR-2) — increments the daily counter.
+func _on_pr_breakthrough(_stat_id: StringName, _magnitude: float) -> void:
+	var today: String = _pr_today()
+	if today != _pr_count_date:
+		_pr_count_date = today
+		_pr_count_today = 0
+	_pr_count_today += 1
+
+
+## #15 pr_factor read surface (G-PR-2). Stale-date reads answer 0 — the day
+## rolled over with no PR yet.
+func get_pr_count_today() -> int:
+	if _pr_today() != _pr_count_date:
+		return 0
+	return _pr_count_today
+
+
+func _pr_today() -> String:
+	if _pr_date_provider.is_valid():
+		return str(_pr_date_provider.call())
+	return Time.get_date_string_from_unix_time(int(Time.get_unix_time_from_system()))
