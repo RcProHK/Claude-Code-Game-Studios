@@ -1,2 +1,3 @@
 - [Art Bible structure](art_bible_structure.md) — Mirror Hero art-bible at design/art/art-bible.md; key principles + tokens AD must enforce
 - [#20 Gym-Mode HUD visual contract](project_gym_mode_hud_visual.md) — Pillar 2 PRIMARY owner; Glance Dispatch + Silent Witness fantasy; visual constraints locked
+- [Rarity hex adjudication](project_rarity_hex_adjudication.md) — canonical hex = art bible §4.B (P-06 set); #15 GDD 用咗 Material 色欠 erratum; timing canonical = #15

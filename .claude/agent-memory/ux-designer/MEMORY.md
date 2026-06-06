@@ -1,2 +1,3 @@
 - [Gym-Mode HUD UX review](project_gym_mode_hud_ux_review.md) — #20 R5 adversarial review: 5 BLOCKING UX defects, "claim-without-verifiable-target" pattern
 - [Glance protocol stats gate](feedback_glance_protocol_stats.md) — Wilson CI lower-bound + small N is infeasible; check sample-size feasibility before binding a playtest gate
+- [Loot Modal UX positions](project_loot_modal_ux_positions.md) — #21 consultation: no auto-dismiss, two-stage tap, commit-at-tap, ≤1200ms budget table, breakdown-bar target catch

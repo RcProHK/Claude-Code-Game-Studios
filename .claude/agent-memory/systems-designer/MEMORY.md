@@ -1,2 +1,5 @@
 - [#10 Exercise→Class Mapping review](project_exercise_class_mapping_review.md) — 4 BLOCKING defects 2026-06-02; MovementPattern undefined + conflicts registered {PUSH,PULL,LEG} (entities.yaml:376)
 - [#17 Equipment Pass 2 review](project_equipment_inventory_pass2_review.md) — NEEDS REVISION 2026-06-06; Pass 1 5/5 FIXED; 2 NEW BLOCKING (D9-leftover AC cluster + tombstone 30d<37d); G-1/G-3 已套用 #15
+- [#18 PR Detection Pass 2 review](project_pr_detection_pass2_review.md) — 2026-06-06: B1-B8 7 FIXED+B7 PARTIAL; 0 phantom; 4 NEW BLOCKING (AC-30 矛盾/ratchet 缺 D8/D-2.2 下界/stale-magnitude 破 INV-PR-2)
+- [#19 Zone Pass 2 review](project_zone_system_pass2_review.md) — 2026-06-06: exit bar 12/12 + P1-P6 FIXED; 3 NEW BLOCKING (cite 錯 Rule 7→3/9; epoch full-resync 破 dedup→`<=` guard; EC-7 漏 queue rollback)
+- [#21 Loot Modal consult](project_loot_modal_21_consult.md) — 2026-06-06 F1-F6+EC-M1..20; 🔴 ceremony_freeze 0.4 vs MAX_PAUSE_SEC 0.12; FAILED_ROLLBACK defer ambiguity; LEG=1200ms equality
