@@ -85,9 +85,25 @@ var _session_floor: Dictionary = {}
 ## substate exit; INV-PR-1's "trusted" definition + the import-reveal one-shot).
 var _server_sync_completed: bool = false
 
+## Session PR summary (Formula 5, Story 010) — per exercise, the max-magnitude
+## CONFIRMED set's full tuple {weight_kg, reps, e1rm_kg, magnitude} (all four
+## fields from the SAME set — the #17 receipt's「鍛造自 180kg × 5」needs the raw
+## pair; e1rm_kg is named honestly as an estimate). Cleared on the NEXT
+## workout_started (clearing on workout_completed = subscriber-order race with
+## the #15/#17 receipt readers).
+var _session_summary: Dictionary = {}
+
+## True between #2 workout_started and workout_completed — EC-13 late/retro sets
+## still judge honestly (stat applies) but never enter the summary.
+var _workout_active: bool = false
+
+## Milestone thresholds (Story 010 — data-driven, PROVISIONAL; EC-12 validated).
+var _milestone_config: PrMilestoneConfig = null
+
 
 func _ready() -> void:
 	_resolve_default_seams()
+	_load_milestone_config()
 	# AC-27 binding order: load local state BEFORE subscribing the #2 stream.
 	_load_state()
 	_wire_consumers()
@@ -334,22 +350,78 @@ func _open_pending(exercise_id: String, e1rm_raw: float, weight: float, reps: in
 	_persist_state(false)  # pending survives crashes; non-anchor write
 
 
-## Story 010 — session PR summary (Formula 5 max-magnitude tuple).
-func _record_confirmed_pr(_exercise_id: String, _weight: float, _reps: int,
-		_e1rm: float, _magnitude: float) -> void:
-	pass  # Story 010.
+## Formula 5 (Story 010) — session summary (max-magnitude tuple, same-set fields)
+## + Rule 9 milestone crossing check (crossing-only — boot loads never re-emit
+## because emission only ever happens on this increment path).
+func _record_confirmed_pr(exercise_id: String, weight: float, reps: int,
+		e1rm: float, magnitude: float) -> void:
+	if _workout_active:
+		var existing: Dictionary = _session_summary.get(exercise_id, {})
+		if existing.is_empty() or magnitude > float(existing.get("magnitude", 0.0)):
+			_session_summary[exercise_id] = {
+				"weight_kg": weight, "reps": reps,
+				"e1rm_kg": e1rm, "magnitude": magnitude,
+			}
+	else:
+		# EC-13: late/retro-logged set — the PR itself stands (honest), but the
+		# summary window is gone; receipts never mis-attribute it.
+		_emit_telemetry("pr.late_set", {"exercise_id": exercise_id})
+	# Rule 9 — milestone crossing (lifetime_count was incremented by the caller).
+	if _milestone_config != null and _pr_state.lifetime_count in _milestone_config.thresholds:
+		pr_milestone_reached.emit(_pr_state.lifetime_count)
+		_emit_telemetry("pr.milestone_reached", {"count": _pr_state.lifetime_count})
 
 
-## #2 workout_started — workout_seq increment (D8 discard deadline clock);
-## summary clear lands in story 010.
+## Formula 5 read surface — #15/#17 receipt chain + #20 end-of-workout recap.
+## Survives the whole post-workout window (cleared on the NEXT workout_started).
+func get_session_pr_summary() -> Dictionary:
+	return _session_summary.duplicate(true)
+
+
+## Read-only baseline surface (#22 v0.2).
+func get_baselines() -> Dictionary:
+	return _pr_state.baselines.duplicate()
+
+
+## EC-12 (Story 010) — config gate: strictly ascending positive ints.
+## Validation-function form (raw assert is invisible to headless GUT — #18 AC-20).
+func validate_milestone_config(config: PrMilestoneConfig) -> bool:
+	if config == null or config.thresholds.is_empty():
+		push_error("[PrDetection] milestone config missing/empty (EC-12)")
+		return false
+	var prev: int = 0
+	for t: int in config.thresholds:
+		if t <= prev:
+			push_error("[PrDetection] milestone thresholds must be strictly ascending positive ints (EC-12): %s" % [config.thresholds])
+			return false
+		prev = t
+	return true
+
+
+func _load_milestone_config() -> void:
+	if _milestone_config == null:
+		var path := "res://assets/data/pr_milestone_config.tres"
+		if ResourceLoader.exists(path):
+			_milestone_config = load(path)
+	if _milestone_config == null:
+		_milestone_config = PrMilestoneConfig.new()  # code defaults (PROVISIONAL)
+	if not validate_milestone_config(_milestone_config):
+		_emit_telemetry("pr.milestone_config_invalid", {})
+		_milestone_config = null  # fail loud + milestone axis disabled
+
+
+## #2 workout_started — workout_seq increment (D8 discard deadline clock) +
+## session summary clear (Formula 5 next-workout-started semantics, Story 010).
 func _on_workout_started() -> void:
 	_pr_state.workout_seq += 1
-	# Story 010: session summary clear (next-workout-started semantics).
+	_session_summary.clear()
+	_workout_active = true
 
 
 ## #2 workout_completed — establishment-window commit (Formula 4, Story 006)
 ## + D8 pending discard deadline (story 007).
 func _on_workout_completed(_completed_at: int) -> void:
+	_workout_active = false
 	var established: Array = []
 	for exercise_id: Variant in _pr_state.candidates:
 		var e1rm: float = _pr_state.candidates[exercise_id]

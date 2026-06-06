@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="PrMilestoneConfig" load_steps=2 format=3 uid="uid://prmilestone18a"]
+
+[ext_resource type="Script" uid="uid://cmu75q7dtcxdl" path="res://src/core/pr_milestone_config.gd" id="1_prml"]
+
+[resource]
+script = ExtResource("1_prml")
+thresholds = Array[int]([10, 25, 50, 100])
