@@ -1,12 +1,15 @@
 # Story 015: Loot-tier combine contract + CI tooling + playtest gates
 
 > **Epic**: Boss System
-> **Status**: Ready (loot combine) / Blocked sub-items (CI tooling → followup-08; playtest → external)
+> **Status**: Complete (core) — deferred sub-items remain (CI tooling → followup-08; playtest → external; AC-23 → #15)
 > **Layer**: Feature
 > **Type**: Integration
 > **Estimate**: M (split — see Out of Scope for deferred sub-items)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-06
+
+**Completion Notes (2026-06-06)**: `BossFormulas.resolve_boss_loot_tier(loot_guarantee_min_tier, adr005_rolled_tier) -> int` (max-combine contract #15 consumes) + `tests/unit/boss_system/test_loot_guarantee_flag.gd` (5 tests) + `design/gdd/boss-system-never-traceability.md` (AC-40 matrix, 13/13 NEVERs → ACs). combined 270scr/1768/1767pass/0fail/1pending. AC-09 (final default loot floor RARE=2), combine (floor wins when roll lower, roll wins when higher), INV-8 (final floor RARE ≥ mini ceiling RARE, joint-equal valid — distributional gradient).
+- **DEFERRED (still remaining, per the story's Out of Scope)**: 8 CI-tooling lints (BOSS-AC-followup-08: check_boss_no_persist / check_boss_nevers / check_boss_template_validity / check_boss_formulas_purity / check_boss_snapshot_caching / check_boss_scene_tree_contract / check_boss_parent_identity_transform / check_boss_direct_instantiate) — these promote the ADVISORY static ACs (AC-12/16/33/36/41e) to BLOCKING; playtest/manual ACs (AC-29a/c/d, AC-30, AC-35, AC-39 — external evidence, VS/MVP-gate); AC-23 (loot chain → #15 implementation). These are followup-08/external/cross-epic, not #16-core code.
 
 ## Context
 

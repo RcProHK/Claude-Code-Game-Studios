@@ -206,3 +206,18 @@ const MAX_RITUAL_INTENSITY: float = 1.0
 ## @return                    Clamped caller multiplier in [MIN, MAX] (<= 1.0 < #5's 1.5).
 static func compute_ritual_intensity(template_intensity: float) -> float:
 	return clampf(template_intensity, MIN_RITUAL_INTENSITY, MAX_RITUAL_INTENSITY)
+
+
+## Rule 9 boss-loot tier combine contract (Story 015, ADR-0005).
+##
+## The boss GUARANTEES at least `loot_guarantee_min_tier` (RARE for final); the
+## ADR-0005 rolled tier (volume×PR×streak) can roll HIGHER, never lower. Both are
+## `LootEnums.RarityTier` ORDINALS (COMMON=0 … LEGENDARY=4), so `maxi()` means
+##「guarantee the floor, but let ADR-0005 exceed it」. #15 LootDrop consumes this
+## exact combine on a boss enemy_killed.
+##
+## @param loot_guarantee_min_tier  BossTemplate.loot_guarantee_min_tier ordinal (RARE=2 final).
+## @param adr005_rolled_tier       ADR-0005 workout_score → rolled tier ordinal.
+## @return                         final tier ordinal = max(rolled, floor).
+static func resolve_boss_loot_tier(loot_guarantee_min_tier: int, adr005_rolled_tier: int) -> int:
+	return maxi(adr005_rolled_tier, loot_guarantee_min_tier)
