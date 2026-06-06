@@ -2543,8 +2543,8 @@ constants:
     source: design/gdd/loot-drop-system.md
     referenced_by:
       - design/gdd/loot-drop-system.md
+      - design/gdd/loot-drop-modal.md   # #21 actualized 2026-06-06 — modal subscribes loot_dropped (已 per-cap gated); cap-hit 走 loot_micro_ack toast path (Rule 9)
       # Expected future referrers:
-      # - design/gdd/loot-drop-modal.md  (#21 — must respect Rule 6 cap; modal subscribes loot_dropped which already gates per cap)
       # - design/gdd/telemetry.md        (#28 — loot_ceremony_capped event consumer)
     value: 6
     unit: count_per_workout_session
@@ -2835,6 +2835,122 @@ constants:
     added: 2026-06-06
     revised: ""
     notes: "F-12 — LEGENDARY drop 必帶 (EC-2 rollback if missing = anti-fabrication, Pillar 1;scope = drop-hydration only)。供 #29 ceremony + #22 hover。v0.2 Forge 引入 CraftReceipt type 做 crafted/upgraded 系 (Pass 1 Q-7 binding)。"
+
+  # ─── GDD #21 Loot Drop Modal constants (Designed 2026-06-06, CD-GDD-ALIGN REVISED) ───
+
+  - name: attention_ceiling_ms
+    status: active
+    source: design/gdd/loot-drop-system.md
+    referenced_by:
+      - design/gdd/loot-drop-system.md
+      - design/gdd/loot-drop-modal.md   # F1 hard assert: T_block(tier) ≤ ceiling, CI/data-load assert 非 runtime clamp
+    value: 1200
+    unit: ms
+    added: 2026-06-06
+    revised: ""
+    notes: "#15 Pillar 2 per-ceremony perceived attention ceiling(LEGENDARY 0.8 hold + 0.4 time-stop = 1.2s equality touch)。#21 F1 assert 必須用 ≤(LEGENDARY equality 可達;< 即不可達 binding — satisfiability 教訓)。Saturation 2.0s recovery 屬 ambient 唔計入。LOCKED。"
+
+  - name: catch_up_threshold
+    status: active
+    source: design/gdd/loot-drop-system.md
+    referenced_by:
+      - design/gdd/loot-drop-system.md
+      - design/gdd/loot-drop-modal.md   # Rule 10 CATCHUP_PROMPT boundary (pending==5 即觸發, AC-26)
+    value: 5
+    unit: pending_drops
+    added: 2026-06-06
+    revised: ""
+    notes: "#15 Formula 6 sequential vs summary banner switch。Safe range [3,10](#15 Tuning Knobs)。INV(#15):≥ CEREMONY_CAP/2 防 UX 不一致。補登記 — #15 approved 時漏咗入 registry。"
+
+  - name: ceremony_freeze_max_sec
+    status: active
+    source: design/gdd/loot-drop-modal.md
+    referenced_by:
+      - design/gdd/loot-drop-modal.md
+      # G-LM-3 落地後 source 轉 screen-effects-system.md(#6 amendment own 呢個 ceiling)
+    value: 0.4
+    unit: seconds
+    added: 2026-06-06
+    revised: ""
+    notes: "G-LM-3:#6 新 ceremony_freeze(duration) API 嘅獨立 ceiling — 唔受 MAX_PAUSE_SEC=0.12 管(hit pause ceiling 理由係無 anchor freeze 似 hang;ceremony 期間 ModalLayer ALWAYS + burst 做 anchor)。= #15 ladder 最大 time-stop(LEGENDARY 0.4s)。共用 freeze ledger,max-remaining merge。"
+
+  - name: loot_modal_d_entry_ms
+    status: active
+    source: design/gdd/loot-drop-modal.md
+    referenced_by:
+      - design/gdd/loot-drop-modal.md
+    value: "150/200/300/380/450 (C/U/R/E/L)"
+    unit: ms_per_tier
+    added: 2026-06-06
+    revised: ""
+    notes: "F1 S1 entry ladder。Per-tier 受 C1 約束:D_entry ≤ D_timestop + D_hold(S1 同 S2 concurrent — overlap 係 1200ms ceiling satisfiability 必要條件,唔准改成 additive)。"
+
+  - name: k_ceremony_max
+    status: active
+    source: design/gdd/loot-drop-modal.md
+    referenced_by:
+      - design/gdd/loot-drop-modal.md
+    value: 5
+    unit: ceremonies_per_catchup
+    added: 2026-06-06
+    revised: ""
+    notes: "F3 catch-up full-ceremony cap(tier 降序 top-K 揀選)。Safe range [3,8]。溢出 RARE+ 必須 grid 獨立 cell(CD-GDD-ALIGN C-1 — 「+N」collapse 只准 sub-RARE)。同 #15 ceremony_cap(per-workout emit cap)唔同層。"
+
+  - name: max_stream_beats
+    status: active
+    source: design/gdd/loot-drop-modal.md
+    referenced_by:
+      - design/gdd/loot-drop-modal.md
+    value: 40
+    unit: beats
+    added: 2026-06-06
+    revised: ""
+    notes: "F3 catch-up sub-RARE stream cap,溢出折入 grid「+N」。同 k_ceremony_max + inter_reveal_gap 共同 enforce T_machine provable bound(default 組合 = 14.3s)。Safe range [20,80]。"
+
+  - name: breakdown_min_delta_px
+    status: active
+    source: design/gdd/loot-drop-modal.md
+    referenced_by:
+      - design/gdd/loot-drop-modal.md
+    value: 8
+    unit: px
+    added: 2026-06-06
+    revised: ""
+    notes: "F2 workout 段最少凸出 RNG 段(UX locked)。W_bar ≥ 120 下對 legal input provably 永不觸發(臨界寬 88px)— runtime clause 係 corrupt-input 防線,CI assert legal grid naive ≥8px。INV-M2:RARE+ workout 段嚴格大過 RNG 段(數學保證)。"
+
+  - name: loot_modal_w_bar_min
+    status: active
+    source: design/gdd/loot-drop-modal.md
+    referenced_by:
+      - design/gdd/loot-drop-modal.md
+    value: 120
+    unit: px
+    added: 2026-06-06
+    revised: ""
+    notes: "F2 breakdown bar 最少寬;< 120 切 stacked text-only variant(% label mandatory,零 info loss)。Safe range [88,160] — 88 係 8px delta 臨界。"
+
+  - name: dismiss_debounce_sec
+    status: active
+    source: design/gdd/loot-drop-modal.md
+    referenced_by:
+      - design/gdd/loot-drop-modal.md
+    value: 0.25
+    unit: seconds
+    added: 2026-06-06
+    revised: ""
+    notes: "Two-stage tap 嘅 stage 間 lockout(fast-complete → 最早 dismiss)。防 mash 盲拆 terminal frame。Safe range [0.15,0.4]。"
+
+  - name: inter_reveal_gap_sec
+    status: active
+    source: design/gdd/loot-drop-modal.md
+    referenced_by:
+      - design/gdd/loot-drop-modal.md
+    value: 0.3
+    unit: seconds
+    added: 2026-06-06
+    revised: ""
+    notes: "Intra-queue 件距。實際 gap = max(呢個, focal 剩餘)(EC-M9 — 連續 EPIC+ 等 focal_completed,watchdog 1.5s)。Safe range [0.2,0.8]。"
+
 # ──────────────────────────────────────────────────────────────────────────────
 # BUILD PINS — asset SHA-256 digests that CI lints compare against on-disk files.
 # These prevent silent formula-constant tampering post-build (ADR-0005 no-hot-swap).
