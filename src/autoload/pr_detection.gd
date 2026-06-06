@@ -76,6 +76,15 @@ var _telemetry_log: Array[Dictionary] = []
 ## pr.state envelope (Story 003 — single key, PrState SerializableResource).
 var _pr_state: PrState = PrState.new()
 
+## D2 session-confirmed floor (Story 008) — e1rms confirmed THIS session; a
+## stale server snapshot may never pull a baseline below these (the catch-up
+## replay would re-judge the same PR → double-count race, EC-7b). In-memory only.
+var _session_floor: Dictionary = {}
+
+## True after the first successful server baseline sync this boot (BASELINE_SYNCING
+## substate exit; INV-PR-1's "trusted" definition + the import-reveal one-shot).
+var _server_sync_completed: bool = false
+
 
 func _ready() -> void:
 	_resolve_default_seams()
@@ -243,8 +252,9 @@ func _confirm_pr(exercise_id: String, weight: float, reps: int, new_e1rm: float,
 		if not ok:
 			return  # EC-3: abort the whole event — baseline untouched, replay re-judges.
 
-	# 6.4 — baseline ratchets to the raw e1rm.
+	# 6.4 — baseline ratchets to the raw e1rm (+ D2 session floor, Story 008).
 	_pr_state.baselines[exercise_id] = new_e1rm
+	_session_floor[exercise_id] = new_e1rm
 	# 6.5 — counters + session summary (summary lands in story 010).
 	_pr_state.lifetime_count += 1
 	_pr_state.lifetime_pr_score += magnitude
@@ -380,6 +390,59 @@ func _discard_expired_pending() -> void:
 ## (game_state_machine.gd:158), untyped here per the DI-seam discipline.
 func _on_gsm_state_changed(_from_state: int, _to_state: int, _payload) -> void:
 	pass  # Story 011 (Rule 6.7 one-slot buffer flush on leave-SUSPENDED).
+
+
+## ADR-0011 §D-2 client half (Story 008) — server baselines ride the #2 polling
+## state response (G-PR-1; never a separate request). Called by the #2 client
+## when the response carries the baseline field; tests drive it directly
+## (capture-and-release seam ②).
+##
+## Reconcile rules (D2): per-entry validation → reject invalid (keep local);
+## server wins the PRE-session truth — but a session-confirmed PR e1rm is a
+## FLOOR the reconcile may never pull below (EC-7b double-count race).
+func apply_server_baselines(server_baselines: Dictionary) -> void:
+	var adopted: int = 0
+	for key: Variant in server_baselines:
+		var exercise_id: String = str(key)
+		var raw: Variant = server_baselines[key]
+		# §D-2.2 per-entry validation — the near-zero lower bound is WEIGHT_SANITY_MIN
+		# (0 → ÷0 fake-max-PR; 0.5 → tiny-baseline sibling); the upper bound mirrors
+		# the client formula ceiling without hardcoding (knob coupling).
+		var valid: bool = (raw is float or raw is int)
+		var value: float = float(raw) if valid else 0.0
+		if valid:
+			valid = is_finite(value) \
+				and value >= WEIGHT_SANITY_MIN \
+				and value <= WEIGHT_SANITY_MAX * (1.0 + float(PRDeltaCalc.REP_CAP) / PRDeltaCalc.E1RM_DIVISOR)
+		if not valid:
+			_emit_telemetry("pr.baseline_invalid", {"exercise_id": exercise_id, "value": raw})
+			continue
+		var new_baseline: float = value
+		if _session_floor.has(exercise_id):
+			var floor_value: float = _session_floor[exercise_id]
+			if value != floor_value:
+				_emit_telemetry("pr.baseline_conflict", {
+					"exercise_id": exercise_id, "server": value, "floor": floor_value})
+			new_baseline = maxf(value, floor_value)  # EC-7b: never pull below the floor
+		# Formula 4 window termination: an in-window candidate is superseded —
+		# keep the HIGHER of the two ratchet heights (never lose height; the lost
+		# celebration is a deliberate, narrow-reachability accept).
+		if _pr_state.candidates.has(exercise_id):
+			var candidate: float = _pr_state.candidates[exercise_id]
+			if candidate > new_baseline:
+				_emit_telemetry("pr.candidate_supersession", {
+					"exercise_id": exercise_id, "candidate": candidate, "server": new_baseline})
+				new_baseline = candidate
+			_pr_state.candidates.erase(exercise_id)
+		_pr_state.baselines[exercise_id] = new_baseline
+		adopted += 1
+	var first_sync: bool = not _server_sync_completed
+	_server_sync_completed = true
+	if adopted > 0:
+		_persist_state(false)
+		if first_sync:
+			# Rule 11 — veteran import reveal hook ("你嘅真實力量已鍛入").
+			baseline_import_completed.emit(adopted)
 
 
 func _emit_telemetry(event: String, data: Dictionary) -> void:
