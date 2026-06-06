@@ -99,6 +99,37 @@ var _pending_stat_push: bool = false
 ## Telemetry ring (test assertion surface + future #28 forwarding — #15 pattern).
 var _telemetry_log: Array[Dictionary] = []
 
+## GSM-suspended flag (Rule 15): receive_loot queues durably while true.
+var _suspended: bool = false
+
+## Durable SUSPENDED intake queue (serialized LootDrop dicts). Mirrored to the
+## `inventory.pending_queue` key on every enqueue — a browser discarding the
+## suspended tab loses nothing (Pass 3 no-loss pin). #17-owned namespace
+## (never touches #15's `loot.*` sole-writer surface).
+var _pending_queue: Array = []
+
+## Batch depth (Rule 15 burst batching): while > 0, _push_aggregate and
+## _mark_dirty_and_flush coalesce into single end-of-batch operations
+## (N receives ⇒ one push + one write, EC-22 / AC-29).
+var _batch_depth: int = 0
+var _batch_push_pending: bool = false
+var _batch_flush_pending: bool = false
+
+
+# ── Persistence keys (ADR-0003 `inventory.*` namespace) ────────────────────────
+
+## Whole-state envelope under ONE key — a flush is exactly one IPersistence
+## write (AC-31/AC-40 assert call counts; ADR-0003 full-file rewrite means
+## key-splitting buys nothing).
+const PERSIST_KEY_STATE: String = "inventory.state"
+
+## Durable SUSPENDED queue (separate key — written on enqueue, not per action).
+const PERSIST_KEY_PENDING_QUEUE: String = "inventory.pending_queue"
+
+## #15-owned recovery namespace (EC-48 / L297 exception): #17 boot-drains then
+## clears it — AFTER the inventory.state flush (no-loss ordering, Rule 14).
+const PERSIST_KEY_RECOVERY: String = "loot.pending.recovery"
+
 
 ## Day-label map for provenance_text derivation (class_tag → 訓練日 label).
 const _DAY_LABELS: Dictionary = {
@@ -119,8 +150,24 @@ const _DAY_LABELS: Dictionary = {
 ## D9: stat_modifiers are assigned from the StatAssignmentTable — `item_metadata`
 ## stat keys are NEVER read (detection-only telemetry; table is authoritative).
 func receive_loot(record: LootDrop) -> EquipmentEnums.ReceiveResult:
-	# TODO Story 015: SUSPENDED check → durable queue → return QUEUED_SUSPENDED.
+	# Rule 15 (Story 015): suspended intake parks durably and returns — drained
+	# FIFO one frame after GSM leaves suspension.
+	if _suspended:
+		_pending_queue.append(record.to_dict())
+		_persistence_write_pending_queue()
+		return EquipmentEnums.ReceiveResult.QUEUED_SUSPENDED
 
+	# EC-15 (Story 016): re-entrant mutation defers to the next frame.
+	if _mutating:
+		_reentrancy_defer(func() -> void: receive_loot(record))
+		return EquipmentEnums.ReceiveResult.FAILED_ROLLBACK
+	_mutating = true
+	var result: EquipmentEnums.ReceiveResult = _receive_loot_body(record)
+	_mutating = false
+	return result
+
+
+func _receive_loot_body(record: LootDrop) -> EquipmentEnums.ReceiveResult:
 	# Validation order per GDD Rule 1 bullets.
 	if record.transition_id.is_empty():
 		return _fail_rollback("missing_source_transition_id", record)
@@ -160,7 +207,19 @@ func receive_loot(record: LootDrop) -> EquipmentEnums.ReceiveResult:
 	if _items.has(item_id) or _tombstones.has(item_id):
 		return EquipmentEnums.ReceiveResult.DUPLICATE_NOOP
 
-	# TODO Story 012: cosmetic dupe visual_id detection → CONVERTED_DUPE.
+	# Rule 11 (Story 012): cosmetic dupe — visual id already owned (any state) ⇒
+	# auto-convert at salvage_yield(rarity) (single value track, #15 EC-38 / G-3),
+	# never granted twice. Tombstoned so a replay of the convert is also a no-op.
+	if item_type == LootEnums.ItemType.COSMETIC \
+			and _owns_cosmetic_visual(String(record.item_metadata.get("visual_id", ""))):
+		_forge_shards += salvage_yield(rarity)
+		register_tombstone(item_id)
+		_emit_telemetry("inventory.cosmetic.dupe_converted", {
+			"item_id": String(item_id),
+			"visual_id": String(record.item_metadata.get("visual_id", "")),
+			"shards": salvage_yield(rarity),
+		})
+		return EquipmentEnums.ReceiveResult.CONVERTED_DUPE
 
 	var now: int = int(_now_unix_provider.call())
 	var item: EquipmentItem = EquipmentItem.new()
@@ -193,8 +252,408 @@ func receive_loot(record: LootDrop) -> EquipmentEnums.ReceiveResult:
 
 	if item.lifecycle_state == EquipmentEnums.ItemLifecycle.IN_INVENTORY:
 		_evaluate_auto_equip(item)
-	# TODO Story 013: dirty mark + per-action flush.
+	_mark_dirty_and_flush()
 	return EquipmentEnums.ReceiveResult.OK
+
+
+# ── Boot (Rule 14, 8 steps — Story 014) ────────────────────────────────────────
+
+
+## Boot reconciliation. Synchronous — NO await (Contract 4: StatSystem's
+## boot_completed fired BEFORE this node entered the tree; the G-2 sync getter
+## is the assert, ADR-0008 constraint 8 ordering is the guarantee).
+func _ready() -> void:
+	if _persistence == null:
+		_persistence = PersistenceLayer
+	if _stat_system == null:
+		_stat_system = StatSystem
+	if _gsm == null:
+		_gsm = GameStateMachine
+	if _stat_table == null:
+		_stat_table = load("res://assets/data/equipment/stat_assignment_table.tres")
+
+	# Config gates (design-by-contract): table cells within #11 contract ranges
+	# + salvage curve monotonic (Story 010 invariant).
+	_stat_table._validate()
+	assert_salvage_curve_monotonic()
+	# Step 0 — ADR-0008 ordering assert (NEVER await boot_completed).
+	assert(_stat_system.is_boot_completed(),
+		"InventorySystem booted before StatSystem — ADR-0008 constraint 8 violated")
+
+	_boot_load()
+	# Rejection retry wiring (EC-14): filter source == EQUIPMENT (#17 is the
+	# only equipment caller; multi-key stat_id semantics pinned at epic w/ #11).
+	if _stat_system.has_signal("stat_mutation_rejected"):
+		_stat_system.stat_mutation_rejected.connect(_on_stat_mutation_rejected)
+
+
+## Rule 14 steps 1-8. Push deliberately does NOT happen here — step 7 hands it
+## to the GSM handler (Contract 6 initial delivery, next frame) via the single
+## dedup flag, which also covers Suspended-at-boot crash recovery (AC-30).
+func _boot_load() -> void:
+	# Steps 1-3 — load + hydrate (persisted-trust + shape guard) + shard guard.
+	var state: Variant = _persistence.read(PERSIST_KEY_STATE)
+	if state is Dictionary:
+		_load_state_dict(state)
+
+	var now: int = int(_now_unix_provider.call())
+	# Step 2b — tombstone prune (Story 003; replay horizon 37d).
+	_tombstones = prune_tombstones(_tombstones, now)
+	# Step 4 — mailbox TTL sweep (Story 005; A3 auto-salvage + grace).
+	sweep_mailbox()
+
+	# Step 5 — drain #15 recovery namespace + our own durable suspended queue
+	# (batch: one push-pending + one flush at step 8, EC-22).
+	var drained_recovery: bool = false
+	_batch_depth += 1
+	var recovery: Variant = _persistence.read(PERSIST_KEY_RECOVERY)
+	if recovery is Array and not recovery.is_empty():
+		for record_dict: Variant in recovery:
+			if record_dict is Dictionary:
+				receive_loot(LootDrop.from_dict(record_dict))
+		drained_recovery = true
+	var queued: Variant = _persistence.read(PERSIST_KEY_PENDING_QUEUE)
+	if queued is Array and not queued.is_empty():
+		for record_dict: Variant in queued:
+			if record_dict is Dictionary:
+				receive_loot(LootDrop.from_dict(record_dict))
+	_batch_depth -= 1
+	_batch_push_pending = false   # boot push is owned by step 7's flag instead
+	_batch_flush_pending = false  # boot flush is step 8's single write below
+
+	# Step 6 — loadout aggregate is COMPUTED lazily by the push; no push here
+	# (single push owner = step 7 — Pass 3 fix, no double-push/dip).
+	# Step 7 — GSM subscription (Contract 6; 3-arg callv layout, no .bind()).
+	_pending_stat_push = true
+	_gsm.connect_for_initial_state(_on_gsm_state_changed)
+
+	# Step 8 — boot flush (ONE write) THEN recovery/queue clears (no-loss order:
+	# a crash after flush but before clear only causes a harmless double-drain).
+	_flush_state()
+	if drained_recovery:
+		_persistence.write(PERSIST_KEY_RECOVERY, [])
+	if not _pending_queue.is_empty() or queued is Array and not (queued as Array).is_empty():
+		_pending_queue.clear()
+		_persistence.write(PERSIST_KEY_PENDING_QUEUE, [])
+
+
+## Steps 1-3 detail: hydrate items (schema-shape guard — a corrupt entry is
+## discarded LOUDLY, the rest load), re-run the final-dict guard + cosmetic
+## scrub (EC-4/EC-5: persisted dicts are the real corruption vector; the
+## drop-provenance validation does NOT re-run — EC-2 scope, persisted trust),
+## clamp an illegal shard balance to 0 (EC-20).
+func _load_state_dict(state: Dictionary) -> void:
+	var items_raw: Variant = state.get("items", [])
+	if items_raw is Array:
+		for entry: Variant in items_raw:
+			if not entry is Dictionary:
+				_emit_telemetry("inventory.item.schema_corrupt", {"severity": "CRITICAL"})
+				continue
+			var item: EquipmentItem = EquipmentItem.from_dict(entry)
+			if String(item.item_id).is_empty():
+				_emit_telemetry("inventory.item.schema_corrupt", {"severity": "CRITICAL"})
+				continue
+			if item.is_cosmetic and not item.stat_modifiers.is_empty():
+				item.stat_modifiers = {}
+				_emit_telemetry("inventory.stat_key.dropped",
+					{"reason": "cosmetic_scrub_boot", "item_id": String(item.item_id)})
+			else:
+				item.stat_modifiers = guard_stat_dict(item.stat_modifiers, _telemetry_log)
+			_items[item.item_id] = item
+
+	var shards_raw: Variant = state.get("shards", 0)
+	if (shards_raw is int or shards_raw is float) and int(shards_raw) >= 0:
+		_forge_shards = int(shards_raw)
+	else:
+		_forge_shards = 0
+		_emit_telemetry("inventory.shard.balance_corrupted", {"severity": "CRITICAL"})
+
+	var loadout_raw: Variant = state.get("loadout", {})
+	if loadout_raw is Dictionary:
+		for slot_name: Variant in loadout_raw:
+			var slot: int = EquipmentEnums.EquipSlot.get(String(slot_name), -1)
+			if slot != -1 and _loadout.has(slot):
+				_loadout[slot] = StringName(String(loadout_raw[slot_name]))
+
+	var tombstones_raw: Variant = state.get("tombstones", {})
+	if tombstones_raw is Dictionary:
+		for id_str: Variant in tombstones_raw:
+			_tombstones[StringName(String(id_str))] = int(tombstones_raw[id_str])
+
+
+# ── Persistence flush (Rule 13 — Story 013) ────────────────────────────────────
+
+
+## Per-action flush: ONE IPersistence write for the whole state (items + shards
+## + loadout + tombstones under PERSIST_KEY_STATE). Batched contexts coalesce.
+func _mark_dirty_and_flush() -> void:
+	if _batch_depth > 0:
+		_batch_flush_pending = true
+		return
+	_flush_state()
+
+
+func _flush_state() -> void:
+	if _persistence == null:
+		return
+	var items_out: Array = []
+	for item_id: StringName in _items:
+		items_out.append(_items[item_id].to_dict())
+	var loadout_out: Dictionary = {}
+	for slot: int in _loadout:
+		loadout_out[EquipmentEnums.EquipSlot.find_key(slot)] = String(_loadout[slot])
+	var tombstones_out: Dictionary = {}
+	for item_id: StringName in _tombstones:
+		tombstones_out[String(item_id)] = _tombstones[item_id]
+	_persistence.write(PERSIST_KEY_STATE, {
+		"schema_version": 1,
+		"items": items_out,
+		"shards": _forge_shards,
+		"loadout": loadout_out,
+		"tombstones": tombstones_out,
+	})
+
+
+func _persistence_write_pending_queue() -> void:
+	if _persistence != null:
+		_persistence.write(PERSIST_KEY_PENDING_QUEUE, _pending_queue.duplicate())
+
+
+# ── GSM lifecycle (Rule 15 — Story 015) ────────────────────────────────────────
+
+
+## Contract 6 handler (3-arg callv layout). Suspension gates intake; leaving
+## suspension (or the initial non-suspended delivery) drains the queue and
+## fires the pending boot/retry push — both DEFERRED one frame (Contract 5
+## ONE_SHOT idiom) to clear #11's Reconciling single-frame reject window.
+func _on_gsm_state_changed(_previous: StringName, new_state: StringName, _payload: Variant = null) -> void:
+	_suspended = String(new_state) == "suspended"
+	if _suspended:
+		return
+	if not _pending_queue.is_empty():
+		_defer_one_shot(_drain_pending_queue)
+	if _pending_stat_push:
+		_pending_stat_push = false
+		_defer_one_shot(_push_aggregate)
+
+
+## FIFO drain of the durable suspended queue — batch semantics: N records ⇒
+## one push + one flush (EC-22/AC-29), then the durable mirror clears.
+func _drain_pending_queue() -> void:
+	var queue: Array = _pending_queue.duplicate()
+	_pending_queue.clear()
+	_batch_depth += 1
+	for record_dict: Variant in queue:
+		if record_dict is Dictionary:
+			receive_loot(LootDrop.from_dict(record_dict))
+	_batch_depth -= 1
+	if _batch_push_pending:
+		_batch_push_pending = false
+		_push_aggregate()
+	if _batch_flush_pending:
+		_batch_flush_pending = false
+		_flush_state()
+	_persistence_write_pending_queue()
+
+
+## EC-14: a rejected equipment push is never fire-and-forget — flag and retry
+## after GSM Ready (loadout and #11 must never desync). Source-filtered:
+## #17 is the only EQUIPMENT caller.
+func _on_stat_mutation_rejected(_stat_id: StringName, source: int, _delta: float, _reason: String) -> void:
+	if source != _StatSystemScript.StatSource.EQUIPMENT:
+		return
+	_pending_stat_push = true
+
+
+## Contract 5 preferred idiom (process_frame ONE_SHOT; call_deferred flagged).
+func _defer_one_shot(callable: Callable) -> void:
+	if is_inside_tree():
+		get_tree().process_frame.connect(callable, CONNECT_ONE_SHOT)
+	else:
+		callable.call()
+
+
+## EC-15 (Story 016): re-entrant mutation attempt — loud error + deferred retry.
+func _reentrancy_defer(retry: Callable) -> void:
+	push_error("[InventorySystem] re-entrant mutation blocked (EC-15) — deferred one frame")
+	_emit_telemetry("inventory.reentrancy.blocked", {})
+	_defer_one_shot(retry)
+
+
+# ── Cosmetic dupe detection (Rule 11 — Story 012) ──────────────────────────────
+
+
+## True when a live cosmetic item with this visual id is already owned (any
+## lifecycle state). Empty visual id never matches (functional items).
+func _owns_cosmetic_visual(visual_id: String) -> bool:
+	if visual_id.is_empty():
+		return false
+	for item_id: StringName in _items:
+		var item: EquipmentItem = _items[item_id]
+		if item.is_cosmetic and item.visual_id == visual_id:
+			return true
+	return false
+
+
+# ── Salvage (Rule 9 — Story 010) ───────────────────────────────────────────────
+
+
+## Manual salvage — single batch transaction (Pass 3 ordering): ALL in-memory
+## mutations (unequip + SALVAGED + shard credit + tombstone + backfill) complete
+## first, then ONE final-aggregate #11 push, then one persist write (Story 013).
+## Locked items refuse (Rule 7); EQUIPPED items auto-unequip inside the batch
+## (EC-13). Returns {ok, shards} or {ok: false, error}.
+func salvage(item_id: StringName) -> Dictionary:
+	if _mutating:
+		_reentrancy_defer(func() -> void: salvage(item_id))
+		return {"ok": false, "error": "deferred_reentrancy"}
+	var item: EquipmentItem = _items.get(item_id, null)
+	if item == null or item.lifecycle_state == EquipmentEnums.ItemLifecycle.SALVAGED:
+		return {"ok": false, "error": "not_found"}
+	if item.is_locked:
+		return {"ok": false, "error": "locked"}
+	_mutating = true
+
+	var was_equipped: bool = \
+		item.lifecycle_state == EquipmentEnums.ItemLifecycle.EQUIPPED
+	var slot: int = item.slot_affinity
+
+	# Batch (in-memory, single commit unit — EC-19):
+	if was_equipped:
+		_loadout[slot] = &""
+	var yield_shards: int = salvage_yield(item.rarity)
+	_forge_shards += yield_shards
+	_items.erase(item_id)
+	register_tombstone(item_id)
+	if was_equipped:
+		_backfill_slot(slot)  # Rule 6 trigger: salvage-induced unequip
+
+	# Push LAST (Rule 6 discipline) — only loadout changes need a re-push.
+	if was_equipped:
+		_push_aggregate()
+	_mutating = false
+	_mark_dirty_and_flush()  # one write for the whole transaction (EC-19)
+	return {"ok": true, "shards": yield_shards}
+
+
+## Bulk-salvage every UNLOCKED item of `rarity` (locked absolutely excluded —
+## no bypass parameter, Rule 9). One transaction: one push at most, one write.
+## Mailbox + inventory + equipped items of the rarity are all in range
+## (equipped unlock-state items unequip inside the batch).
+func bulk_salvage(rarity: int) -> Dictionary:
+	if _mutating:
+		_reentrancy_defer(func() -> void: bulk_salvage(rarity))
+		return {"ok": false, "error": "deferred_reentrancy"}
+	_mutating = true
+	var to_salvage: Array[EquipmentItem] = []
+	for item_id: StringName in _items:
+		var item: EquipmentItem = _items[item_id]
+		if item.rarity != rarity or item.is_locked:
+			continue
+		if item.lifecycle_state == EquipmentEnums.ItemLifecycle.SALVAGED:
+			continue
+		to_salvage.append(item)
+
+	var total_shards: int = 0
+	var touched_loadout: bool = false
+	var emptied_slots: Array[int] = []
+	for item: EquipmentItem in to_salvage:
+		if item.lifecycle_state == EquipmentEnums.ItemLifecycle.EQUIPPED:
+			_loadout[item.slot_affinity] = &""
+			touched_loadout = true
+			emptied_slots.append(item.slot_affinity)
+		total_shards += salvage_yield(item.rarity)
+		_items.erase(item.item_id)
+		register_tombstone(item.item_id)
+	_forge_shards += total_shards
+	for slot: int in emptied_slots:
+		_backfill_slot(slot)
+	if touched_loadout:
+		_push_aggregate()
+	_mutating = false
+	_mark_dirty_and_flush()  # one write for the whole bulk transaction
+	return {"ok": true, "count": to_salvage.size(), "shards": total_shards}
+
+
+## Preview for the #23 confirm dialog (Pass 3 ownership: #17 provides the
+## counts, #23 renders the receipt warning). No mutation.
+func bulk_salvage_preview(rarity: int) -> Dictionary:
+	var count: int = 0
+	var total_shards: int = 0
+	var receipt_count: int = 0
+	for item_id: StringName in _items:
+		var item: EquipmentItem = _items[item_id]
+		if item.rarity != rarity or item.is_locked:
+			continue
+		count += 1
+		total_shards += salvage_yield(item.rarity)
+		if item.has_receipt():
+			receipt_count += 1
+	return {"count": count, "yield": total_shards, "receipt_count": receipt_count}
+
+
+## Economy config assertion (Story 010): salvage curve must stay monotonic —
+## per-tier ±50% knob ranges can otherwise invert tiers (rarer salvages for
+## less = player-visible absurdity). Boot calls this (Story 014); design-by-
+## contract assert pattern (LootRarityConfig precedent).
+static func assert_salvage_curve_monotonic() -> void:
+	for tier: int in range(RARITY_SHARD_MULT.size() - 1):
+		assert(salvage_yield(tier + 1) > salvage_yield(tier),
+			"salvage_yield must be strictly increasing across tiers (INV: monotonic)")
+
+
+# ── Manual override (Rule 7 — Story 011) ───────────────────────────────────────
+
+
+## Manual equip (#22 command sink). NOT score-gated — the player may equip a
+## weaker item (their avatar, their call). BUT an unlocked manual choice will be
+## displaced by the next auto-equip trigger (by design: lock IS the "respect my
+## choice" mechanism — #22 must surface the lock affordance, forward flag).
+func equip(item_id: StringName, slot: int) -> Dictionary:
+	var item: EquipmentItem = _items.get(item_id, null)
+	if item == null or item.lifecycle_state == EquipmentEnums.ItemLifecycle.SALVAGED:
+		return {"ok": false, "error": "not_found"}
+	if item.lifecycle_state == EquipmentEnums.ItemLifecycle.IN_MAILBOX:
+		return {"ok": false, "error": "in_mailbox_claim_first"}
+	if item.slot_affinity != slot:
+		return {"ok": false, "error": "slot_type_mismatch"}
+	if _mutating:
+		_reentrancy_defer(func() -> void: equip(item_id, slot))
+		return {"ok": false, "error": "deferred_reentrancy"}
+	_mutating = true
+	_swap_into_slot(slot, item)
+	_push_aggregate()
+	_mutating = false
+	_mark_dirty_and_flush()
+	return {"ok": true}
+
+
+## Manual unequip (#22 command sink): occupant → IN_INVENTORY + re-push.
+func unequip(slot: int) -> Dictionary:
+	var current: EquipmentItem = _equipped_item_in_slot(slot)
+	if current == null:
+		return {"ok": false, "error": "slot_empty"}
+	if _mutating:
+		_reentrancy_defer(func() -> void: unequip(slot))
+		return {"ok": false, "error": "deferred_reentrancy"}
+	_mutating = true
+	current.lifecycle_state = EquipmentEnums.ItemLifecycle.IN_INVENTORY
+	_loadout[slot] = &""
+	_push_aggregate()
+	_mutating = false
+	_mark_dirty_and_flush()
+	return {"ok": true}
+
+
+## Item-level lock (Pass 1 unified — NOT slot-level). Locked items freeze their
+## slot against auto-equip and are immune to every salvage path. Persisted.
+func set_lock(item_id: StringName, locked: bool) -> Dictionary:
+	var item: EquipmentItem = _items.get(item_id, null)
+	if item == null:
+		return {"ok": false, "error": "not_found"}
+	item.is_locked = locked
+	_mark_dirty_and_flush()
+	return {"ok": true}
 
 
 # ── Mailbox claim (Rule 3 / EC-10 — Story 004) ─────────────────────────────────
@@ -212,9 +671,14 @@ func claim(item_id: StringName) -> Dictionary:
 	var inventory_count: int = get_inventory_count()
 	if inventory_count >= MAX_INVENTORY:
 		return {"ok": false, "shortfall": inventory_count - MAX_INVENTORY + 1}
+	if _mutating:
+		_reentrancy_defer(func() -> void: claim(item_id))
+		return {"ok": false, "shortfall": 0, "error": "deferred_reentrancy"}
+	_mutating = true
 	item.lifecycle_state = EquipmentEnums.ItemLifecycle.IN_INVENTORY
 	_evaluate_auto_equip(item)
-	# TODO Story 013: dirty mark + per-action flush.
+	_mutating = false
+	_mark_dirty_and_flush()
 	return {"ok": true, "shortfall": 0}
 
 
@@ -376,7 +840,8 @@ func _push_aggregate() -> void:
 	var modifier = _StatSystemScript.StatModifier.new()
 	modifier.deltas = effective
 	_stat_system.apply_equipment_modifier(&"equipment_aggregate", modifier)
-	# TODO Story 015: stat_mutation_rejected subscription → _pending_stat_push retry.
+	# Rejection retry: _on_stat_mutation_rejected (wired in _ready, Story 015)
+	# flags _pending_stat_push; the GSM Ready handler re-pushes deferred.
 
 
 ## #22 badge data contract (EC-16 / AC-38): current raw vs effective ATK.
