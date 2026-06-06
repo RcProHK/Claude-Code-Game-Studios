@@ -1,6 +1,6 @@
 # Epics Index
 
-Last Updated: 2026-06-05 (+ #16 Boss System — first Feature-layer epic, GDD Pass 11 APPROVED + STRUCTURAL FREEZE lifted)
+Last Updated: 2026-06-06 (+ #17 Equipment & Inventory — second Feature-layer epic, GDD APPROVED Pass 3 same-day convergence; #16 status → MERGED PR #19)
 Engine: Godot 4.6 (Web Export, Compatibility Renderer)
 Created by: /create-epics Foundation + Core (16 systems); #10 Exercise→Class Mapping promoted Placeholder→Ready 2026-06-02; #4 Audio Manager promoted Placeholder→Ready 2026-06-02 (GDD Approved Pass 6 + ADR-0008 Accepted); **#20 Gym-Mode HUD (first Presentation epic) created 2026-06-03** (GDD R8 APPROVED + UX spec APPROVED); **#33 Attention Budget promoted Placeholder→Ready 2026-06-04** (GDD Approved re-review pass 2 + ADR-0006/0008 Accepted)
 
@@ -44,7 +44,8 @@ Created by: /create-epics Foundation + Core (16 systems); #10 Exercise→Class M
 
 | Epic | Layer | System # | GDD | Stories | Status |
 |------|-------|----------|-----|---------|--------|
-| [Boss System](boss-system/EPIC.md) | Feature | #16 | boss-system.md ✅ APPROVED 2026-06-05 (Pass 11 — STRUCTURAL FREEZE lifted) | **15 stories** (9 Logic, 6 Integration; Ready) | **Ready** — first Feature epic. Governing ADR-0005/0006/0001 (MED) / 0003/0007/0009; **18/18 TR traced**; 54 ACs. `spawn_boss` invoked by #14 EnemyDirector (Ready, 24 stories). Loot-side AC-23 → #15; CI-tooling ACs (AC-12/16/33/36/41e) → followup-08. Pillar 3 PRIMARY climax. |
+| [Boss System](boss-system/EPIC.md) | Feature | #16 | boss-system.md ✅ APPROVED 2026-06-05 (Pass 11 — STRUCTURAL FREEZE lifted) | **15 stories** (9 Logic, 6 Integration; Ready) | **✅ MERGED** — 15/15 implemented + CI-green, merged main PR #19 (5d03ad7) 2026-06-06. Pillar 3 PRIMARY climax. |
+| [Equipment & Inventory](equipment-inventory/EPIC.md) | Feature | #17 | equipment-inventory.md ✅ APPROVED 2026-06-06 (Pass 3 — 3-pass same-day, 零 phantom) | **16 stories** (13 Logic, 3 Integration; all Ready; 42/42 ACs covered) | **Ready** — InventorySystem autoload (ADR-0008 constraint 8: Stat ≺ Inventory ≺ LootDrop)。Salvage-only MVP (craft/upgrade → v0.2 Forge); derived-keys-only; 42 ACs + 8 test seams; upstream gates G-1~G-4 已落 spec。1 cross-epic story (#11 G-2 API impl)。PR-EPIC: REALISTIC (degraded inline — spawn blocked by 1M credits 2026-06-06)。Soft gates G-5/G-7/G-8 epic-time。Pillar 3 歸宿 + Pillar 1 AntiSnowball 護欄 |
 
 ## Presentation Layer
 
@@ -58,7 +59,7 @@ Created by: /create-epics Foundation + Core (16 systems); #10 Exercise→Class M
 
 | Metric | Count |
 |--------|-------|
-| Total epics | 18 (16 Foundation+Core + 1 Feature + 1 Presentation) |
+| Total epics | 19 (16 Foundation+Core + 2 Feature + 1 Presentation) |
 | Ready (GDD Approved + ADR-0006 Accepted) | 18 |
 | Blocked (ADR Proposed — stories auto-blocked) | 1 (#2 GymSys — ADR-0002/0004 transport VS-gated) |
 | Placeholder (no GDD) | 0 — #33 AttentionBudget GDD Approved 2026-06-04, epic now Ready |

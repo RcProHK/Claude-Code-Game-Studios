@@ -1,0 +1,3 @@
+- [Audio Manager priority-steal boundary](reference_audio_manager_priority_steal.md) — #4 Rule 3 只保護 high vs lower;same-priority 仍 steal 最舊,mid 唔絕對安全
+- [Resolved-Q ref sweep](feedback_resolved_ref_sweep.md) — Q 改 RESOLVED 後須 sweep Dependencies/BLOCKED/QA-flag 引用;殘留「sprint 前須確認」= stale(#20 R6 教訓)
+- [Forward-contract consumer stub](feedback_forward_contract_consumer_stub.md) — forward-contract 推遲 co-design 若改變 consumer 實作形狀,consumer GDD 須留 conditional stub,否則不可實作=BLOCKING(#20 R7 Q-OQ1)

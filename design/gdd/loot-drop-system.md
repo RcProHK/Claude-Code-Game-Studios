@@ -294,7 +294,7 @@ RNG 嘅 0.25 weight 唔係決定「你今日好唔好彩」，係決定「你今
 | **#14 EnemyDirector** | #14 → #15 | #14 (signal) | `enemy_killed(transition_id, faction, tier)` — #15 只 react 當 tier 屬 mini-boss bucket（per FR-2 binding） |
 | **#16 Boss System** | #16 → #15 | #16 (signal) | `boss_killed(transition_id, boss_id, tier)` — #15 apply Rule 5 final-boss floor |
 | **#8 Streak System** | #15 → #8 (read) | #8 (getter) | #15 read `get_streak_buff_multiplier()` 作 streak_factor input |
-| **#3 PersistenceLayer** | #15 ↔ #3 | #3 (namespace) | #15 = `loot.*` namespace sole writer。Schema: `loot.pending.<drop_id>`, `loot.committed.<canonical_id>`, `loot.daily_token_used.<utc_date>` |
+| **#3 PersistenceLayer** | #15 ↔ #3 | #3 (namespace) | #15 = `loot.*` namespace sole writer。Schema: `loot.pending.<drop_id>`, `loot.committed.<canonical_id>`, `loot.daily_token_used.<utc_date>`。**Exception(#17 G-fix 2026-06-06)**:`loot.pending.recovery` 由 #15 write(EC-48),#17 boot drain 後 read+clear(#17 Rule 14 step 5;clear 必須喺 `inventory.*` persist 之後 — 次序 pin 喺 #17) |
 | **#2 GymSys Backend Client** | #15 ↔ #2 | #2 (HTTP) | `POST /api/game/loot`（persist authoritative drop）、`GET /api/game/loot/pending`（resume）、`POST /api/game/loot/claim-daily`（daily token gate） |
 | **#21 Loot Drop Modal** | #15 → #21 | #15 (signal) | `loot_dropped(drop_id, rarity_tier, item_type, transition_id)` — minimal payload；詳細經 `get_drop()` 攞。#21 emit back `modal_dismissed(transition_id)` → #15 advance queue |
 | **#17 Equipment & Inventory** | #15 → #17 | #17 (handoff API) | Modal dismissed 後，#15 call `Inventory.receive_loot(loot_drop_record)`；handoff contract = `item_metadata: Dictionary` (Q-OQ5) |
@@ -762,7 +762,7 @@ inventory_overflow_to_mailbox(current_inventory_size) =
 
 | Symbol | Value | Description |
 |--------|-------|-------------|
-| `MAX_INVENTORY` | 60 | per FR-LOOT-S3 |
+| `MAX_INVENTORY` | 120 | per FR-LOOT-S3(Pass 2 F-10 raise 60→120;**#17 G-1 sweep 2026-06-06 修字對齊 knob 表**) |
 | `OVERFLOW_MAILBOX_TTL_DAYS` | 7 | mailbox auto-expire |
 | `result` | enum OverflowMode | {DIRECT_INVENTORY, MAILBOX_OVERFLOW} |
 
@@ -791,7 +791,7 @@ inventory_overflow_to_mailbox(current_inventory_size) =
 | CI-4 | Formula 5 `backend_pending` Set MUST 來自 GymSys `/api/game/loot/pending` (ADR-0002 differential cursor) | ADR-0002 |
 | CI-5 | Formula 2 `workout_id` MUST match GymSys session claim token (ADR-0002 X-Session-Token) | ADR-0002 |
 | CI-6 | Formula E1/E2 `rng_roll_2`/`rng_roll_3` MUST seed deterministically from `hash(transition_id + suffix)` — Pillar 1 replay safety preserved | ADR-0005 determinism |
-| CI-7 | Formula E4 `MAX_INVENTORY=60` MUST match #17 Equipment & Inventory cap (FR-LOOT-S3 binding) | #17 forward constraint |
+| CI-7 | Formula E4 `MAX_INVENTORY=120` MUST match #17 Equipment & Inventory cap (FR-LOOT-S3 binding;**#17 G-1 sweep:原文 60 係 Pass 2 raise 漏改,#17 = 120 confirmed**) | #17 forward constraint |
 
 ---
 
@@ -858,7 +858,7 @@ inventory_overflow_to_mailbox(current_inventory_size) =
 - **EC-35 (MEDIUM)** — **If `dominant_class` returns NULL (player class data 未 sync)**: Formula E2 fallback → uniform 1/N weighting across 所有 class affinity buckets。
 - **EC-36 (LOW)** — **If `gear_gap_state` empty (全 starter gear)**: 所有 weapon/armor slot ×1.5 boost，cosmetic ×1.0 (Formula E1 weighted selection 偏 functional)。
 - **EC-37 (MEDIUM)** — **If player inventory 全 cosmetic (0 functional gear)**: 強制 next 3 drops `item_type ∈ {weapon, armor, accessory}`，bypass weighted RNG，telemetry `loot.bootstrap.functional_pity`。
-- **EC-38 (MEDIUM)** — **If LEGENDARY drop rolled item_type = cosmetic 但 player 已 unlock 全部 cosmetic slots**: re-roll item_type **一次** (保留 tier)；仍然 cosmetic → grant duplicate + auto-convert to 100 shards (per #17 mailbox rule, [OPEN: #17 GDD authoring 時 confirm shard rate])。
+- **EC-38 (MEDIUM)** — **If LEGENDARY drop rolled item_type = cosmetic 但 player 已 unlock 全部 cosmetic slots**: re-roll item_type **一次** (保留 tier)；仍然 cosmetic → grant duplicate + auto-convert to **`salvage_yield(rarity)` shards(LEGENDARY → 800;#17 G-3 RESOLVED 2026-06-06 — 統一單一 salvage 價值軌,原 100 同 manual salvage 800 有 8× player-visible 矛盾)**(per #17 Rule 11)。
 
 ### 8. Anti-Fabrication / Server Authority
 
@@ -875,8 +875,8 @@ inventory_overflow_to_mailbox(current_inventory_size) =
 
 ### 10. Inventory / Mailbox
 
-- **EC-46 (MEDIUM)** — **If inventory 剛好 60 (Formula E4 boundary)**: 第 60 個 drop 直入 inventory (slot 60)；第 61 個去 mailbox 7d hold。
-- **EC-47 (HIGH)** — **If mailbox 已 100 (overflow of overflow)**: reject mailbox insert，drop 進入 `loot.orphan_queue` (max 50)，UI persistent banner「{n} 個獎勵待處理 — 整理背包」+ telemetry `loot.mailbox.full`。**Auto-resolved**: orphan_queue 滿 (>50) → oldest evict + telemetry `loot.orphan.evicted` (Pillar 3 best-effort vs unbounded memory tradeoff)。
+- **EC-46 (MEDIUM)** — **If inventory 剛好 120 (Formula E4 boundary;#17 G-1 sweep 60→120)**: 第 120 個 drop 直入 inventory (slot 120)；第 121 個去 mailbox 7d hold(#17 A3:expire = auto-salvage,唔係刪除)。
+- **EC-47 (HIGH)** — **If mailbox 已達 `MAILBOX_HARD_CAP`=180 (overflow of overflow;#17 G-1b fix 2026-06-06:stale 100→180 + policy defer)**: **主路徑 defer to #17 Rule 4/EC-9** — 最舊非-receipt mailbox item auto-salvage 騰位(價值永不蒸發,#17 A3 binding),insert 照成功;UI banner「{n} 個獎勵待處理 — 整理背包」+ telemetry `loot.mailbox.full` 保留。**Fallback only**(#17 EC-9 極端 case:全 mailbox receipt-bearing 無 evictable):reject insert → `loot.orphan_queue` (max 50),oldest evict + telemetry `loot.orphan.evicted`。原 reject-first path 同 #17 auto-salvage policy 衝突,已 superseded。
 - **EC-48 (CRITICAL)** — **If `Inventory.receive_loot()` throws** (e.g., #17 inventory system bug): rollback drop 去 `loot.pending.recovery` namespace，emit `loot.inventory.grant_fail` CRITICAL，UI 顯示「獎勵已保留，下次開啟自動補發」。Pillar 3 no loss。
 
 ---
@@ -955,7 +955,7 @@ inventory_overflow_to_mailbox(current_inventory_size) =
 | `W_OFF_CLASS` | **0.075** | [0.05, 0.15] | TUNABLE | Formula E2 each off-class weight。CF-E2: W_DOMINANT + W_NEUTRAL + 2×W_OFF_CLASS = 1.0 |
 | `MAX_INVENTORY` (**Pass 2 F-10 interim raise**) | **120** | [60, 200] | DESIGN-FROZEN | Formula E4 boundary。Pass 2 raised 60→120 per economy-designer C1 (Hardcore 30 drops/week × 60 = 14-day fill with MVP 5 items = duplicate flood). Long-term: #17 Equipment & Inventory cross-system fix (auto-convert duplicates / stash tier). Aligns #17 FR-LOOT-S3 forward constraint (revise #17 to 120 when authored) |
 | `OVERFLOW_MAILBOX_TTL_DAYS` | **7** | [3, 14] | TUNABLE | Mailbox auto-expire window。<3 → player 冇足夠時間整理 inventory；>14 → mailbox 變第二 inventory |
-| `MAILBOX_HARD_CAP` | **100** | [50, 200] | TUNABLE | Mailbox max entries before orphan_queue overflow (EC-47)。<50 → 大量積壓直接 lost；>200 → memory drift |
+| `MAILBOX_HARD_CAP` | **180** | [150, 250] | TUNABLE | Mailbox max entries before orphan_queue overflow (EC-47)。**#17 G-1 fix 2026-06-06:100 → 180** — Pass 2 raise MAX_INVENTORY 60→120 後 100 < 120 違反 INV-G3(config-load assertion 會 boot fail);180 = 1.5× MAX_INVENTORY(本 GDD cross-knob 建議 §4)。Range 下界須 > MAX_INVENTORY |
 | `ORPHAN_QUEUE_CAP` | **50** | [25, 100] | TUNABLE | EC-47 last-resort queue cap，oldest-evict pattern |
 | `BACKEND_ACK_TIMEOUT_S` | **60** | [30, 180] | TUNABLE | EC-18 ACK wait window before pending stays + polling retry |
 | `BACKEND_ORPHAN_ALERT_HOURS` | **72** | [24, 168] | TUNABLE | EC-18 orphan classification threshold |
@@ -1137,7 +1137,7 @@ All particle counts 受 ADR-0001 Web Export budget cap 200 active particles 限�
 | **AC-14** | **GIVEN** Hardcore profile (avg ws=0.92, 5 workouts, 7 PR, 30d streak) **WHEN** `expected_weekly_rarity_distribution` Monte Carlo n=10,000 run **THEN** post-clamp EPIC+ percentage ≤ 10.0% (CF-E3 invariant); soft-clamp downgrade order verified LEGENDARY→EPIC→RARE strict | Formula E3 + CF-E3 + FR-1 anti-pillar | unit | BLOCKING | `tests/unit/loot/test_e3_anti_pillar_soft_clamp.gd` |
 | **AC-15** | **GIVEN** RARE drop, weapon slot starter, dominant=STRIKE, rng_roll_2=0.42 **WHEN** `item_type_weighted_selection` evaluated **THEN** Σ weights == 1.0 (within 1e-6); cumulative distribution lands rng_roll_2 in ARMOR band (0.341..0.568) → outcome == ARMOR | Formula E1 worked example + CF-E1 + CI-6 | unit | BLOCKING | `tests/unit/loot/test_item_type_weighted_selection.gd` |
 | **AC-16** | **GIVEN** weapon + dominant=STRIKE + rng_roll_3=0.78 **WHEN** `class_affinity_resolution` evaluated **THEN** Σ weights == 1.0 (0.65+0.20+0.075+0.075); outcome == NEUTRAL (rng_roll_3 in 0.650..0.850 band); deterministic for same seed | Formula E2 worked example + CF-E2 + CI-6 | unit | BLOCKING | `tests/unit/loot/test_class_affinity_resolution.gd` |
-| **AC-17** | **GIVEN** inventory size = 60 (Formula E4 boundary) **WHEN** new drop arrives **THEN** drop occupies slot 60 (DIRECT_INVENTORY); subsequent 61st drop routes to MAILBOX_OVERFLOW with 7-day TTL | Formula E4 + EC-46 + CI-7 | unit | BLOCKING | `tests/unit/loot/test_inventory_overflow_boundary.gd` |
+| **AC-17** | **GIVEN** inventory size = 120 (Formula E4 boundary;#17 G-1 sweep 60→120) **WHEN** new drop arrives **THEN** drop occupies slot 120 (DIRECT_INVENTORY); subsequent 121st drop routes to MAILBOX_OVERFLOW with 7-day TTL | Formula E4 + EC-46 + CI-7 | unit | BLOCKING | `tests/unit/loot/test_inventory_overflow_boundary.gd` |
 | **AC-18** | **GIVEN** 8 pending unrevealed drops (catch-up scenario) **WHEN** `catch_up_threshold_compression` evaluated **THEN** result == SUMMARY_BANNER_THEN_BURST; banner copy「您有 8 個未拆 loot」rendered; individual reveals skip in favor of single tap-to-burst sequence | Formula 6 + Rule 15 + EC-28 | integration | BLOCKING | `tests/integration/loot/test_catchup_summary_banner.gd` |
 | **AC-19** | **GIVEN** 3 pending drops missed across 3 days **WHEN** session boot reconcile complete **THEN** result == SEQUENTIAL_REVEAL; 3 modals shown in trigger-timestamp ASC order; no summary banner | Formula 6 sequential path + Rule 15 | integration | BLOCKING | `tests/integration/loot/test_catchup_sequential.gd` |
 | **AC-20** | **GIVEN** same `transition_id = "T-feedface"` **WHEN** `_generate_loot_internal` called twice with identical inputs **THEN** both calls return byte-identical `LootDrop.rarity_tier` + `item_type` + `class_tag` (replay safety) | Rule 10 + EC-31 + CI-6 | unit | BLOCKING | `tests/unit/loot/test_deterministic_rng_replay.gd` |

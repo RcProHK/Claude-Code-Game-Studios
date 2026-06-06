@@ -44,6 +44,13 @@ AbilitySystem="*res://src/autoload/ability_system.gd"
 StreakSystem="*res://src/autoload/streak_system.gd"
 WorkoutStateTracker="*res://src/autoload/workout_state_tracker.gd"
 
+; Equipment & Inventory (#17 — ADR-0008 binding constraint 8:
+; StatSystem ≺ InventorySystem ≺ LootDropSystem. Boot replay asserts
+; StatSystem.is_boot_completed() (G-2 sync getter, NEVER awaits the signal —
+; Contract 4); #15 calls Inventory.receive_loot at runtime/catch-up so the
+; second half of the constraint is binding, not positional coincidence)
+InventorySystem="*res://src/autoload/inventory_system.gd"
+
 ; Combat orchestration (LootDrop MUST boot before EnemyDirector per #13 EC-43 + Rule 9)
 LootDropSystem="*res://src/autoload/loot_drop_system.gd"
 EnemyDirector="*res://src/autoload/enemy_director.gd"

@@ -285,6 +285,7 @@ func _ready() -> void:
 	_gsm.connect_for_initial_state(_on_gsm_state_changed)
 
 	_substate = Substate.READY
+	_boot_completed = true
 	# AC-22: emitted AFTER the GSM subscription is wired.
 	boot_completed.emit()
 
@@ -465,6 +466,42 @@ func connect_for_initial_state(callable: Callable) -> void:
 
 	# Connect for all future real mutations (stat_changed 5-arg layout).
 	stat_changed.connect(callable)
+
+
+## Backing flag for is_boot_completed() — set true in _ready() just before
+## boot_completed.emit().
+var _boot_completed: bool = false
+
+
+## True once _ready() boot reconciliation has completed (#17 G-2 additive API,
+## stat-system.md L228 / 2026-06-06 amendment).
+##
+## WHY a sync getter (vs awaiting the boot_completed signal): per ADR-0006
+## Contract 4 sequential boot, any autoload positioned AFTER StatSystem enters
+## the tree after this signal has already fired — `await boot_completed` from
+## #17 InventorySystem would hang forever. Later-booting systems assert this
+## getter instead (their ADR-0008 position already guarantees it is true).
+## Usage: `assert(StatSystem.is_boot_completed())` at the top of a dependent boot.
+func is_boot_completed() -> bool:
+	return _boot_completed
+
+
+## ATTACK_POWER with the equipment modifier layer EXCLUDED (#17 G-2 additive
+## API, stat-system.md L267 / 2026-06-06 amendment). O(1), side-effect-free —
+## computed from the `_base` dict directly, never via the modifier table, so an
+## applied `&"equipment_aggregate"` modifier does not pollute the result.
+##
+## Single source of truth for the AntiSnowball cap base (FR-Equipment-AntiSnowball:
+## equipment ATK ≤ 3 × this value): #17 MUST call this instead of re-deriving
+## `ATK_BASE + STR×ATK_PER_STR + DEX×ATK_PER_DEX` inline (knob-drift hazard).
+## Fresh-account default (STR=DEX=10 @ default knobs) = 28.0.
+## Usage: `var cap := maxf(30.0, 3.0 * StatSystem.get_attack_power_excluding_equipment())`
+func get_attack_power_excluding_equipment() -> float:
+	return (
+		ATK_BASE
+		+ _base[StatId.STR] * ATK_PER_STR
+		+ _base[StatId.DEX] * ATK_PER_DEX
+	)
 
 
 ## Read API (Rule 1 / AC-01). O(1), side-effect-free.
