@@ -4,7 +4,7 @@
 > **GDD**: design/gdd/zone-system.md(✅ APPROVED 2026-06-06 Pass 3 — 同日三 pass 收斂,0 phantom)
 > **Architecture Module**: `ZoneSystem` autoload @ `src/autoload/zone_system.gd`(G-Z-1:constraint `PersistenceLayer ≺ WST ≺ ZoneSystem`,append 鏈尾 PrDetection 之後;#28 仍最尾)+ `ZoneRegistry.tres` data asset(`Array[ZoneDef]`,**editor-saved** — typed-array-of-script-class 手寫易 silent null;3 個新 class_name 要 `--import` 刷 class cache 先 GUT 跑得)
 > **Status**: Ready
-> **Stories**: Not yet created — run `/create-stories zone-system`
+> **Stories**: **8 created**(6 Logic + 2 Integration;全 Ready;AC coverage 12/12)— QL-STORY-READY degraded inline ADEQUATE(GDD ACs qa-lead Pass 2 verified:10 PASS / 2 WEAK 已修)
 > **Producer gate (PR-EPIC)**: REALISTIC(degraded inline assessment 2026-06-06 — spawning blocked,#17/#18 同款處理;薄容器 scope S-M,est. 8-10 stories;G-Z-1 同 #18 G-PR-3 **共用一次 ADR-0008 amendment**(一個 story 做兩個 insertion);AC-08 typed `Array[StringName]` JSON round-trip 係 codebase 首例 — test risk 已喺 AC spec 內 pin)
 
 ## Overview
@@ -46,6 +46,21 @@ This epic is complete when:
 - `ZoneSystem` autoload 登記 + `ZoneRegistry.tres` editor-saved + class cache import step 喺 CI 確認
 - `zone.` namespace 註冊(G-Z-3)落地
 
+## Stories
+
+| # | Story | Type | Status | Primary ADR | ACs |
+|---|-------|------|--------|-------------|-----|
+| 001 | ZoneDef / Registry resources + validation | Logic | Ready | ADR-0007 | 07 |
+| 002 | Autoload 骨架 + boot + gates(G-Z-1/G-Z-3) | Logic | Ready | ADR-0008 | 01/12 |
+| 003 | `zone.state` envelope + round-trip | Integration | Ready | ADR-0006 C3 | 04/08 |
+| 004 | Training-day count(dedup + monotone guard) | Logic | Ready | ADR-0002 | 06/03d |
+| 005 | Unlock 評估 + write-then-emit + rollback | Logic | Ready | ADR-0003 | 02/03/10 |
+| 006 | Boot sweep recovery | Logic | Ready | ADR-0003 | 05 |
+| 007 | Ceremony queue + drain | Logic | Ready | ADR-0009 | 11 |
+| 008 | #14 data face(zero-churn 三件套) | Integration | Ready | N/A(data contract) | 09abc |
+
+**建議實作順序**:001 → 002 → 003 → 004 → 005 → 006 → 007 → 008。G-Z-1 同 #18 story 002 共用 ADR-0008 amendment(邊個先行邊個做)。
+
 ## Next Step
 
-Run `/create-stories zone-system` to break this epic into implementable stories.
+Run `/story-readiness production/epics/zone-system/story-001-zone-registry-resources.md` then `/dev-story` to begin implementation.
