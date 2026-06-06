@@ -50,6 +50,10 @@ const CORROBORATION_RATIO: float = 0.95     ## D8 corroboration tolerance — kn
 ## #11 StatSource ordinal for PR (stat_system.gd StatSource.PR_BREAKTHROUGH == 0).
 const _STAT_SOURCE_PR: int = 0
 
+## GSM GameState.SUSPENDED ordinal (game_state_machine.gd:80-89 — enum has no
+## READY; #12 EC-16's "GSM Ready" loose wording reads as "not SUSPENDED").
+const _GSM_SUSPENDED: int = 8
+
 ## D4 class → base-stat routing (#17 Q-1 lesson: StatId VALUES are lowercase
 ## StringNames — the enum constant names are uppercase, the values are not).
 ## Keys are AbilityClass ordinals (ability_system.gd:49 {STRIKE, CONTROL, MOBILITY, UNKNOWN}).
@@ -99,6 +103,12 @@ var _workout_active: bool = false
 
 ## Milestone thresholds (Story 010 — data-driven, PROVISIONAL; EC-12 validated).
 var _milestone_config: PrMilestoneConfig = null
+
+## Rule 6.7 one-slot pending-emit buffer (Story 011) — the ONLY #18 state beyond
+## the envelope. On the δ==0 short-circuit path this gate is LOAD-BEARING (the
+## #11 suspended check in 6.3 never ran). Keep-latest overwrite in the SUSPENDED
+## sliver (narrow reachability + self-healing: #12 unlocks are threshold-based).
+var _pending_emit: Array = []
 
 
 func _ready() -> void:
@@ -277,8 +287,8 @@ func _confirm_pr(exercise_id: String, weight: float, reps: int, new_e1rm: float,
 	_record_confirmed_pr(exercise_id, weight, reps, new_e1rm, magnitude)
 	# 6.6 — single flush for the whole event (anchor moment).
 	_persist_state(true)
-	# 6.7 — emit (gate + one-slot buffer = story 011) + telemetry.
-	pr_breakthrough.emit(stat_id, magnitude)
+	# 6.7 — emit gate (#12 EC-16; one-slot buffer flushes on leave-SUSPENDED).
+	_emit_pr_breakthrough(stat_id, magnitude)
 	_emit_telemetry("pr.detected", {
 		"exercise_id": exercise_id, "magnitude": magnitude,
 		"stat_id": String(stat_id), "delta": delta})
@@ -456,12 +466,29 @@ func _discard_expired_pending() -> void:
 		_persist_state(false)
 
 
-## GSM listener — telemetry-silent (Rule 10); pending-emit buffer flush = story 011.
+## Rule 6.7 emit gate (Story 011) — pr_breakthrough only leaves while GSM is
+## not SUSPENDED; otherwise the one-slot buffer holds it (keep-latest).
+## #12-boot half of the gate: structural (G-PR-3 tail boot — AbilitySystem's
+## _ready emits boot_completed synchronously before #18 ever boots); the
+## is_boot_completed() getter (G-PR-5) is the assert surface, never awaited.
+func _emit_pr_breakthrough(stat_id: StringName, magnitude: float) -> void:
+	if _gsm != null and _gsm.has_method("get_current_state") \
+			and int(_gsm.get_current_state()) == _GSM_SUSPENDED:
+		_pending_emit = [stat_id, magnitude]  # keep-latest overwrite
+		return
+	pr_breakthrough.emit(stat_id, magnitude)
+
+
+## GSM listener — telemetry-silent (Rule 10); the ONLY active behaviour is the
+## Rule 6.7 buffer flush on leave-SUSPENDED.
 ## Signature matches GSM `state_changed(from_state: GameState, to_state: GameState,
 ## payload: StateTransitionPayload)` — third arg is the typed payload OBJECT
 ## (game_state_machine.gd:158), untyped here per the DI-seam discipline.
-func _on_gsm_state_changed(_from_state: int, _to_state: int, _payload) -> void:
-	pass  # Story 011 (Rule 6.7 one-slot buffer flush on leave-SUSPENDED).
+func _on_gsm_state_changed(_from_state: int, to_state: int, _payload) -> void:
+	if to_state != _GSM_SUSPENDED and not _pending_emit.is_empty():
+		var buffered: Array = _pending_emit
+		_pending_emit = []
+		pr_breakthrough.emit(buffered[0], buffered[1])
 
 
 ## ADR-0011 §D-2 client half (Story 008) — server baselines ride the #2 polling
