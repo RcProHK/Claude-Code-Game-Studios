@@ -94,10 +94,28 @@ func test_initial_delivery_unlocks_nothing() -> void:
 	assert_eq(_sut.get_unlocked_abilities().size(), 0, "Rule 6: the initial snapshot does not unlock")
 
 
-func test_pr_source_through_path_b_unlocks() -> void:
-	# Act — a PR_BREAKTHROUGH-sourced stat_changed (the live Path A route) unlocks via Path B.
+func test_pr_source_is_excluded_from_path_b() -> void:
+	# G-PR-5 INVERSION (#18 story 012, 2026-06-06): PR_BREAKTHROUGH-sourced
+	# stat_changed must NOT unlock via Path B — the authoritative PR route is
+	# Path A (_on_pr_breakthrough, reverse-wired by #18). The old assertion
+	# ("the live Path A route unlocks via Path B") was the double-path bug.
+	# Act
 	_sut._on_stat_changed(&"dex", 5.0, 15.0, SRC_PR, false)
 
-	# Assert — DEX → CONTROL T1.
+	# Assert — Path B stays silent for source==PR_BREAKTHROUGH.
+	assert_false(_sut.get_ability_state(_sut.AbilityId.CONTROL_TIER_1_PARRY)["unlocked"],
+		"G-PR-5: PR-sourced stat_changed must NOT unlock via Path B (double-path)")
+
+	# Positive control — the same gain through Path A DOES unlock (provenance + flush).
+	# Path A reads the CURRENT stat from _stat_system (the magnitude only triggers).
+	_sut._stat_system = _StatStub.new()
+	_sut._on_pr_breakthrough(&"dex", 0.0833)
 	assert_true(_sut.get_ability_state(_sut.AbilityId.CONTROL_TIER_1_PARRY)["unlocked"],
-		"Rule 6: a PR-sourced DEX change unlocks the CONTROL class")
+		"Path A (_on_pr_breakthrough) is the authoritative PR unlock route")
+
+
+## Minimal stat stub for the Path A positive control (DEX 15 clears CONTROL T1).
+class _StatStub:
+	extends RefCounted
+	func get_stat(_stat_id: StringName) -> float:
+		return 15.0

@@ -17,7 +17,10 @@ extends GutTest
 const AbilitySystem := preload("res://src/autoload/ability_system.gd")
 
 # StatSystem StatSource ordinals (the taxonomy _on_stat_changed receives).
-const SRC_PR := 0
+# G-PR-5 (2026-06-06): PR-sourced stat_changed is now EXCLUDED from Path B, so
+# the arrange steps below unlock via VOLUME_TICK (1) — the legitimate Path B
+# route. The relock-on-drop semantics under test are source-agnostic.
+const SRC_VOLUME := 1
 const SRC_EQUIPMENT := 2
 
 var _sut
@@ -44,7 +47,7 @@ func after_each() -> void:
 
 func test_equipment_stat_drop_does_not_relock_unlocked_ability() -> void:
 	# Arrange — STRIKE_TIER_2 unlocked at STR=50 (clears T1+T2).
-	_sut._on_stat_changed(&"str", 5.0, 50.0, SRC_PR, false)
+	_sut._on_stat_changed(&"str", 5.0, 50.0, SRC_VOLUME, false)
 	assert_true(_sut.get_ability_state(_sut.AbilityId.STRIKE_TIER_2_HOOK)["unlocked"],
 		"precondition: STRIKE_TIER_2 unlocked at STR=50")
 
@@ -62,7 +65,7 @@ func test_equipment_stat_drop_does_not_relock_unlocked_ability() -> void:
 
 func test_stat_drop_does_not_call_persistence_delete() -> void:
 	# Arrange — unlock STRIKE_TIER_1, then spy on deletes.
-	_sut._on_stat_changed(&"str", 5.0, 10.0, SRC_PR, false)
+	_sut._on_stat_changed(&"str", 5.0, 10.0, SRC_VOLUME, false)
 	var delete_log: Array = []
 	_mock_persistence.attach_delete_spy(delete_log.append)
 

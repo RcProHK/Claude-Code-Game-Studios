@@ -871,9 +871,16 @@ func _on_stat_changed(
 	# EQUIPMENT (StatSource ordinal 2) never unlocks an ability (Rule 6 — transient gear).
 	if source == 2:
 		return
-	# Only real earned stat gains (PR_BREAKTHROUGH=0, VOLUME_TICK=1) drive threshold unlocks.
+	# G-PR-5 (#18 story 012, 2026-06-06): PR_BREAKTHROUGH (0) is EXCLUDED from Path B —
+	# #18 reverse-wires its pr_breakthrough signal into _on_pr_breakthrough (the
+	# authoritative Path A). Letting the SYNCHRONOUS stat_changed emission race ahead
+	# here would unlock under STAT_THRESHOLD provenance (deferred flush — 100ms crash
+	# window) and turn the PR_BREAKTHROUGH provenance into dead code (double-path).
+	if source == 0:
+		return
+	# Only real earned VOLUME_TICK (1) gains drive Path B threshold unlocks.
 	# DEBUG_OVERRIDE(3) and the INITIAL_STATE(4) sentinel burst are excluded.
-	if source != 0 and source != 1:
+	if source != 1:
 		return
 	# Non-class-bearing stat (derived stat / unknown) — nothing to unlock.
 	if not _STAT_TO_CLASS.has(stat_id):
@@ -881,23 +888,33 @@ func _on_stat_changed(
 	_evaluate_unlock_tiers(stat_id, new_value, UnlockSource.STAT_THRESHOLD)
 
 
-## Path A handler (Story 004 / AC-10) — PR-breakthrough unlock. PUBLIC seam reserved for the future
-## #18 PR system to connect to; _ready() does NOT wire it in Batch B because StatSystem exposes no
-## pr_breakthrough signal yet (the live Path A unlock currently arrives through _on_stat_changed
-## with a PR_BREAKTHROUGH-sourced stat_changed). Kept as a stable, tested entry point so #18 can
-## connect without an AbilitySystem change.
+## Path A handler (Story 004 / AC-10) — PR-breakthrough unlock. PUBLIC seam: #18 PrDetection
+## reverse-wires its own pr_breakthrough signal into this handler at its _ready() (G-PR-4 —
+## #18 boots later in the chain; emitter-side connect is the project discipline). Since
+## G-PR-5 (2026-06-06) this is the ONLY route for PR-sourced unlocks — _on_stat_changed
+## skips source==PR_BREAKTHROUGH so the provenance + immediate-flush guarantee live here.
 ##
-## `magnitude` is the PR delta that triggered the breakthrough; a NaN or negative magnitude is a
-## malformed event (a PR is always a positive gain) — push_error and reject without unlocking. On a
-## valid event the CURRENT stat value (read from the Stat System) is what gates the tiers, not the
-## magnitude, so a big PR that crosses several thresholds unlocks every cleared tier via
-## _evaluate_unlock_tiers under the PR_BREAKTHROUGH provenance (which flushes immediately, AC-13).
+## `magnitude` is the relative PR magnitude ratio ((new_e1rm − best)/best, clamped to
+## [0, 2.0]) — NOT the stat delta (G-PR-5 comment fix; #18 GDD Formula 2). A NaN or negative
+## magnitude is a malformed event (a PR is always a positive gain) — push_error and reject
+## without unlocking. On a valid event the CURRENT stat value (read from the Stat System) is
+## what gates the tiers, not the magnitude, so a big PR that crosses several thresholds
+## unlocks every cleared tier via _evaluate_unlock_tiers under the PR_BREAKTHROUGH
+## provenance (which flushes immediately, AC-13).
 func _on_pr_breakthrough(stat_id: StringName, magnitude: float) -> void:
 	if is_nan(magnitude) or magnitude < 0.0:
 		push_error("[AbilitySystem] _on_pr_breakthrough: invalid magnitude %s for '%s' (AC-10)" % [magnitude, stat_id])
 		return
 	var current_value: float = float(_stat_system.get_stat(stat_id))
 	_evaluate_unlock_tiers(stat_id, current_value, UnlockSource.PR_BREAKTHROUGH)
+
+
+## G-PR-5 (#18 story 012) — synchronous boot getter, mirror of the #11 G-2 precedent.
+## #18's AC-30 emit-gate asserts against this instead of awaiting boot_completed
+## (the signal fires DURING the boot sequence — awaiting it post-boot hangs forever,
+## ADR-0006 Contract 4 trap; see the project.godot StatSystem comment).
+func is_boot_completed() -> bool:
+	return _substate != Substate.INITIALISING
 
 
 # ============================================================================
