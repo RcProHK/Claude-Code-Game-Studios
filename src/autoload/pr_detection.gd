@@ -40,6 +40,16 @@ enum SystemState { INITIALISING, READY }
 const WEIGHT_SANITY_MAX: float = 500.0
 const WEIGHT_SANITY_MIN: float = 1.0
 
+## Formula 2 knobs (GDD Tuning Knobs).
+const MIN_PR_MAGNITUDE: float = 0.01        ## noise floor (1%) — knob [0.005, 0.05]
+const MAGNITUDE_EPS: float = 1e-9           ## float-boundary guard (const, not a knob)
+const MAGNITUDE_CLAMP: float = 2.0          ## #11 Formula 2 input range upper bound
+const SUSPECT_PR_MAGNITUDE: float = 0.30    ## D8 soft-confirm threshold — knob [0.15, 0.5]
+const CORROBORATION_RATIO: float = 0.95     ## D8 corroboration tolerance — knob [0.85, 1.0]
+
+## #11 StatSource ordinal for PR (stat_system.gd StatSource.PR_BREAKTHROUGH == 0).
+const _STAT_SOURCE_PR: int = 0
+
 ## D4 class → base-stat routing (#17 Q-1 lesson: StatId VALUES are lowercase
 ## StringNames — the enum constant names are uppercase, the values are not).
 ## Keys are AbilityClass ordinals (ability_system.gd:49 {STRIKE, CONTROL, MOBILITY, UNKNOWN}).
@@ -184,9 +194,95 @@ func _eligibility_stat_id(exercise_id: String, reps: int, weight: float) -> Stri
 	return _CLASS_TO_STAT[ability_class]
 
 
-## Judgment pipeline (Rules 4-7) — Story 005/006/007.
-func _judge_set(_exercise_id: String, _reps: int, _weight: float, _stat_id: StringName) -> void:
-	pass  # Story 005 (judgment) / 006 (establishment window) / 007 (soft-confirm).
+## Judgment pipeline (Rules 4-7, Story 005). D8 corroboration check runs FIRST
+## when a pending exists (story 007); no trusted baseline → establishment window
+## (story 006); otherwise Formula 2 judgment → confirm (Rule 6).
+func _judge_set(exercise_id: String, reps: int, weight: float, stat_id: StringName) -> void:
+	var new_e1rm: float = PRDeltaCalc.e1rm(weight, reps)
+
+	# D8 pipeline order: corroboration check BEFORE this set's own judgment (007).
+	_check_pending_corroboration(exercise_id, new_e1rm, stat_id)
+
+	# Rule 4 — no trusted baseline → INV-PR-1 establishment window (006), zero PR.
+	if not _pr_state.baselines.has(exercise_id):
+		_establishment_update(exercise_id, new_e1rm)
+		return
+
+	# Rule 5 — Formula 2 judgment against the trusted baseline.
+	var best: float = _pr_state.baselines[exercise_id]
+	var raw_magnitude: float = (new_e1rm - best) / best
+	if raw_magnitude < MIN_PR_MAGNITUDE - MAGNITUDE_EPS:
+		return  # not a PR (noise floor; epsilon guards the exact-1% boundary — AC-24)
+
+	var magnitude: float = raw_magnitude
+	if magnitude > MAGNITUDE_CLAMP:
+		magnitude = MAGNITUDE_CLAMP
+		_emit_telemetry("pr.magnitude_anomaly", {
+			"exercise_id": exercise_id, "raw_magnitude": raw_magnitude})
+
+	if raw_magnitude > SUSPECT_PR_MAGNITUDE:
+		# D8 soft-confirm — typo-grade jump held pending corroboration (007).
+		_open_pending(exercise_id, new_e1rm, weight, reps)
+		return
+
+	_confirm_pr(exercise_id, weight, reps, new_e1rm, magnitude, stat_id)
+
+
+## Rule 6 — PR 生效, binding order; EC-3 all-or-nothing on apply failure.
+func _confirm_pr(exercise_id: String, weight: float, reps: int, new_e1rm: float,
+		magnitude: float, stat_id: StringName) -> void:
+	# 6.2-6.3 — delta via shared calc; cap short-circuit (δ==0 skips the #11 call
+	# but the recognition chain below still runs — Rule 6.3 / AC-13).
+	var current_stat: float = 0.0
+	if _stat_system != null:
+		current_stat = float(_stat_system.get_stat(stat_id))
+	var delta: float = PRDeltaCalc.compute(current_stat, magnitude)
+	if delta > 0.0:
+		var ok: bool = _stat_system != null and _stat_system.apply_stat_delta(
+			stat_id, _STAT_SOURCE_PR, delta)
+		if not ok:
+			return  # EC-3: abort the whole event — baseline untouched, replay re-judges.
+
+	# 6.4 — baseline ratchets to the raw e1rm.
+	_pr_state.baselines[exercise_id] = new_e1rm
+	# 6.5 — counters + session summary (summary lands in story 010).
+	_pr_state.lifetime_count += 1
+	_pr_state.lifetime_pr_score += magnitude
+	_record_confirmed_pr(exercise_id, weight, reps, new_e1rm, magnitude)
+	# 6.6 — single flush for the whole event (anchor moment).
+	_persist_state(true)
+	# 6.7 — emit (gate + one-slot buffer = story 011) + telemetry.
+	pr_breakthrough.emit(stat_id, magnitude)
+	_emit_telemetry("pr.detected", {
+		"exercise_id": exercise_id, "magnitude": magnitude,
+		"stat_id": String(stat_id), "delta": delta})
+
+
+## Story 006 — Formula 4 establishment window (candidates only, zero PR).
+func _establishment_update(_exercise_id: String, _new_e1rm: float) -> void:
+	pass  # Story 006.
+
+
+## Story 007 — D8 pending corroboration check (runs before this set's judgment).
+func _check_pending_corroboration(_exercise_id: String, _new_e1rm: float,
+		_stat_id: StringName) -> void:
+	pass  # Story 007.
+
+
+## Story 007 — D8 open/keep-highest pending.
+func _open_pending(exercise_id: String, e1rm_raw: float, weight: float, reps: int) -> void:
+	# Minimal hold so suspect jumps never confirm immediately (full D8 in 007).
+	_pr_state.pending[exercise_id] = {
+		"e1rm_raw": e1rm_raw, "weight": weight, "reps": reps,
+		"opened_seq": _pr_state.workout_seq,
+	}
+	_emit_telemetry("pr.pending_opened", {"exercise_id": exercise_id, "e1rm_raw": e1rm_raw})
+
+
+## Story 010 — session PR summary (Formula 5 max-magnitude tuple).
+func _record_confirmed_pr(_exercise_id: String, _weight: float, _reps: int,
+		_e1rm: float, _magnitude: float) -> void:
+	pass  # Story 010.
 
 
 ## #2 workout_started — workout_seq increment (D8 discard deadline clock);
