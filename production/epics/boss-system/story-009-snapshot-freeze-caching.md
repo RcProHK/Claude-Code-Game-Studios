@@ -1,12 +1,14 @@
 # Story 009: Snapshot freeze caching (CF-3)
 
 > **Epic**: Boss System
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Feature
 > **Type**: Logic
 > **Estimate**: S
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-06
+
+**Completion Notes (2026-06-06)**: `tests/unit/boss_system/test_snapshot_freeze_cf3.gd` (4 tests; combined 268scr/1757/1756pass/0fail/1pending). CF-3 is **architecturally satisfied** by the Story-002/003 design — BossInstance holds the frozen `BossSpawnContext`, computes `max_hp` ONCE at `_ready`, and `BossFormulas` are pure (no autoload access). Tests: AC-05 (max_hp derived from frozen ctx = 1631), AC-22/CI-1/CI-2 (`is_same` snapshot identity — the single source both formulas read), AC-36 (mutating the ctx after `_ready` does NOT change the cached max_hp), CF-3 static-grep (`boss_instance.gd` has 0 `StatSystem.get_*` live queries). The CI-lint part (`check_boss_snapshot_caching.gd`) is deferred to Story 015 / followup-08 (ADVISORY). No source change.
 
 ## Context
 
