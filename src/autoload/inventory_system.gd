@@ -41,6 +41,15 @@ const CLOCK_SANITY_TOLERANCE_SEC: int = 3600
 ## from older sources; backend lootdrop_cache retention matches per Contract 15).
 const TOMBSTONE_PRUNE_DAYS: int = 37
 
+## Formula 2 — salvage baseline (COMMON). Rationale self-standing (Pass 1: the
+## old "EC-38 anchor" was a mis-citation); three digits = psychologically felt.
+const SHARD_BASE: int = 100
+
+## Formula 2 — per-tier multiplier [COMMON..LEGENDARY]. Super-linear: low tiers
+## are the steady faucet, high tiers keep their keep-value. MONOTONIC BINDING:
+## salvage_yield(t+1) > salvage_yield(t) — asserted at boot (Story 010/014).
+const RARITY_SHARD_MULT: Array[float] = [1.0, 1.5, 2.5, 4.5, 8.0]
+
 
 # ── DI seams (untyped — typed Node fails compile-time member check) ────────────
 
@@ -69,6 +78,23 @@ var _forge_shards: int = 0
 
 ## D9 stat lookup (injected in tests; loaded from res:// at boot — Story 014).
 var _stat_table: StatAssignmentTable = null
+
+## Equip loadout: EquipSlot → item_id (&"" = empty). COSMETIC slot is part of
+## the loadout but NEVER aggregated (Rule 8 structural exclusion).
+var _loadout: Dictionary = {
+	EquipmentEnums.EquipSlot.WEAPON: &"",
+	EquipmentEnums.EquipSlot.ARMOR: &"",
+	EquipmentEnums.EquipSlot.ACCESSORY: &"",
+	EquipmentEnums.EquipSlot.COSMETIC: &"",
+}
+
+## Re-entrancy guard (Rule 6 / EC-15 — Story 016 wires push_error+defer; the
+## flag exists from Story 006 so the mutation discipline is structural).
+var _mutating: bool = false
+
+## Pending push dedup flag (Rule 14 step 7 + EC-14 — set when a push must be
+## retried after GSM Ready; boot pending-replay and rejection retry share it).
+var _pending_stat_push: bool = false
 
 ## Telemetry ring (test assertion surface + future #28 forwarding — #15 pattern).
 var _telemetry_log: Array[Dictionary] = []
@@ -151,14 +177,313 @@ func receive_loot(record: LootDrop) -> EquipmentEnums.ReceiveResult:
 	# D9: table-authoritative stat assignment (guards run on the FINAL dict).
 	item.stat_modifiers = _guarded_stat_assign(item_type, rarity)
 	item.provenance_text = _derive_provenance(now, class_tag)
-	# TODO Story 004: cap routing (≥120 → IN_MAILBOX). Story 002 scope: direct grant.
-	item.lifecycle_state = EquipmentEnums.ItemLifecycle.IN_INVENTORY
+	# Rule 3 (Story 004): cap routing — inventory full (≥120) parks the item in
+	# the mailbox (7d TTL → auto-salvage, Story 005). Cap count excludes mailbox.
+	if get_inventory_count() >= MAX_INVENTORY:
+		item.lifecycle_state = EquipmentEnums.ItemLifecycle.IN_MAILBOX
+	else:
+		item.lifecycle_state = EquipmentEnums.ItemLifecycle.IN_INVENTORY
 
 	_items[item_id] = item
 
-	# TODO Story 006: auto-equip-if-better evaluation (trigger: receive_loot).
+	# Rule 4 (Story 005): mailbox capacity — evict-oldest (FIFO, receipt-immune)
+	# the moment the hard cap is crossed; value never evaporates (auto-salvage).
+	if item.lifecycle_state == EquipmentEnums.ItemLifecycle.IN_MAILBOX:
+		_enforce_mailbox_hard_cap()
+
+	if item.lifecycle_state == EquipmentEnums.ItemLifecycle.IN_INVENTORY:
+		_evaluate_auto_equip(item)
 	# TODO Story 013: dirty mark + per-action flush.
 	return EquipmentEnums.ReceiveResult.OK
+
+
+# ── Mailbox claim (Rule 3 / EC-10 — Story 004) ─────────────────────────────────
+
+
+## Claim a mailbox item into the inventory. Blocked while the inventory is full
+## (EC-10 — claim never over-admits): returns {ok: false, shortfall: N} where N
+## is the number of slots the player must free (#23 surfaces "先騰 N 個位" +
+## bulk-salvage shortcut). On success the item enters IN_INVENTORY and an
+## auto-equip evaluation runs (Rule 6 trigger set: claim 後).
+func claim(item_id: StringName) -> Dictionary:
+	var item: EquipmentItem = _items.get(item_id, null)
+	if item == null or item.lifecycle_state != EquipmentEnums.ItemLifecycle.IN_MAILBOX:
+		return {"ok": false, "shortfall": 0, "error": "not_in_mailbox"}
+	var inventory_count: int = get_inventory_count()
+	if inventory_count >= MAX_INVENTORY:
+		return {"ok": false, "shortfall": inventory_count - MAX_INVENTORY + 1}
+	item.lifecycle_state = EquipmentEnums.ItemLifecycle.IN_INVENTORY
+	_evaluate_auto_equip(item)
+	# TODO Story 013: dirty mark + per-action flush.
+	return {"ok": true, "shortfall": 0}
+
+
+# ── Auto-equip-if-better (Rule 6 — Story 006) ──────────────────────────────────
+
+
+## Evaluate one candidate against the current loadout (trigger set: receive_loot
+## 後 / claim 後 / salvage-induced backfill 經 _backfill_slot).
+##
+## Comparison key = LOADOUT-LEVEL MARGINAL (clamp-aware, Formula 1+4): the swap
+## happens iff the post-clamp loadout score with the candidate is STRICTLY
+## greater than the current one — never swaps an HP item away for capped ATK.
+## COSMETIC is manual-only (Rule 5); CONSUMABLE has no slot (D1); locked
+## equipped items freeze their slot (Rule 7).
+##
+## Mutation discipline (Rule 6 BINDING): all in-memory mutations complete BEFORE
+## the single #11 push — _push_aggregate() is always the last step.
+func _evaluate_auto_equip(item: EquipmentItem) -> void:
+	if item.is_cosmetic:
+		return  # manual-only — the algorithm never overrides the player's look
+	if item.slot_affinity == EquipmentEnums.EquipSlot.NONE \
+			or item.slot_affinity == EquipmentEnums.EquipSlot.COSMETIC:
+		return  # CONSUMABLE (or mis-tagged cosmetic) never auto-equips
+	if item.lifecycle_state != EquipmentEnums.ItemLifecycle.IN_INVENTORY:
+		return
+	var slot: int = item.slot_affinity
+	var current: EquipmentItem = _equipped_item_in_slot(slot)
+	if current != null and current.is_locked:
+		return  # Rule 7: lock always wins
+	var current_score: float = LoadoutScoreCalc.loadout_score(_compute_effective_aggregate())
+	var candidate_score: float = LoadoutScoreCalc.loadout_score(
+		_effective_aggregate_with(slot, item))
+	if candidate_score > current_score:
+		_swap_into_slot(slot, item)
+		_push_aggregate()
+
+
+## Backfill an emptied functional slot (Rule 6 trigger: salvage-induced unequip).
+## Picks the best unlocked IN_INVENTORY candidate by loadout-marginal score with
+## the deterministic tie-break (rarity ↓ → acquired_at ↑ → item_id ↑). Positive
+## marginal only (empty baseline contributes 0 — any positive candidate wins).
+## In-memory only — the caller (salvage batch, Story 010) owns the single push.
+func _backfill_slot(slot: int) -> void:
+	var best: EquipmentItem = null
+	for item_id: StringName in _items:
+		var item: EquipmentItem = _items[item_id]
+		if item.lifecycle_state != EquipmentEnums.ItemLifecycle.IN_INVENTORY:
+			continue
+		if item.slot_affinity != slot or item.is_cosmetic or item.is_locked:
+			continue
+		if best == null or _candidate_beats(slot, item, best):
+			best = item
+	if best == null:
+		return
+	var with_best: float = LoadoutScoreCalc.loadout_score(
+		_effective_aggregate_with(slot, best))
+	var without: float = LoadoutScoreCalc.loadout_score(_compute_effective_aggregate())
+	if with_best > without:
+		_swap_into_slot(slot, best)
+
+
+## Deterministic candidate ordering (AC-14): loadout-marginal score ↓ →
+## rarity ↓ → acquired_at_unix ↑ (older kept, less churn) → item_id ↑.
+func _candidate_beats(slot: int, a: EquipmentItem, b: EquipmentItem) -> bool:
+	var score_a: float = LoadoutScoreCalc.loadout_score(_effective_aggregate_with(slot, a))
+	var score_b: float = LoadoutScoreCalc.loadout_score(_effective_aggregate_with(slot, b))
+	if score_a != score_b:
+		return score_a > score_b
+	if a.rarity != b.rarity:
+		return a.rarity > b.rarity
+	if a.acquired_at_unix != b.acquired_at_unix:
+		return a.acquired_at_unix < b.acquired_at_unix
+	return String(a.item_id) < String(b.item_id)
+
+
+## In-memory swap: previous occupant → IN_INVENTORY, candidate → EQUIPPED.
+## NEVER pushes #11 itself (mutation discipline — push is the caller's last step).
+func _swap_into_slot(slot: int, item: EquipmentItem) -> void:
+	var previous: EquipmentItem = _equipped_item_in_slot(slot)
+	if previous != null:
+		previous.lifecycle_state = EquipmentEnums.ItemLifecycle.IN_INVENTORY
+	item.lifecycle_state = EquipmentEnums.ItemLifecycle.EQUIPPED
+	_loadout[slot] = item.item_id
+
+
+func _equipped_item_in_slot(slot: int) -> EquipmentItem:
+	var item_id: StringName = _loadout.get(slot, &"")
+	if item_id == &"":
+		return null
+	return _items.get(item_id, null)
+
+
+# ── Aggregation + AntiSnowball + #11 push (Rule 8 — Story 008) ─────────────────
+
+## StatSystem script ref for the nested StatModifier class (production path; the
+## _stat_system seam itself stays untyped for test mocks).
+const _StatSystemScript = preload("res://src/autoload/stat_system.gd")
+
+
+## Sum the 3 FUNCTIONAL slots' stat_modifiers into a raw aggregate. COSMETIC is
+## structurally excluded — the iterator never visits it, so even a scrub-escaped
+## stat dict cannot feed combat (Rule 8 last line of defense / AC-22).
+func _compute_raw_aggregate() -> Dictionary:
+	var raw: Dictionary = {}
+	for slot: int in [EquipmentEnums.EquipSlot.WEAPON,
+			EquipmentEnums.EquipSlot.ARMOR, EquipmentEnums.EquipSlot.ACCESSORY]:
+		var item: EquipmentItem = _equipped_item_in_slot(slot)
+		if item == null:
+			continue
+		for key: Variant in item.stat_modifiers:
+			raw[key] = float(raw.get(key, 0.0)) + float(item.stat_modifiers[key])
+	return raw
+
+
+## Formula 4 over the current loadout: raw aggregate → AntiSnowball + per-key
+## contract clamp. SDA comes from the G-2 API (single source of truth — inline
+## re-derivation is FORBIDDEN, knob-drift hazard).
+func _compute_effective_aggregate() -> Dictionary:
+	return EquipmentClampCalc.clamp_aggregate(
+		_compute_raw_aggregate(), _stat_derived_atk())
+
+
+## Hypothetical effective aggregate with `item` occupying `slot` (the loadout
+## itself is NOT mutated — used by the marginal comparison, Rule 6).
+func _effective_aggregate_with(slot: int, item: EquipmentItem) -> Dictionary:
+	var raw: Dictionary = {}
+	for other_slot: int in [EquipmentEnums.EquipSlot.WEAPON,
+			EquipmentEnums.EquipSlot.ARMOR, EquipmentEnums.EquipSlot.ACCESSORY]:
+		var occupant: EquipmentItem = item if other_slot == slot \
+			else _equipped_item_in_slot(other_slot)
+		if occupant == null:
+			continue
+		for key: Variant in occupant.stat_modifiers:
+			raw[key] = float(raw.get(key, 0.0)) + float(occupant.stat_modifiers[key])
+	return EquipmentClampCalc.clamp_aggregate(raw, _stat_derived_atk())
+
+
+func _stat_derived_atk() -> float:
+	return float(_stat_system.get_attack_power_excluding_equipment()) \
+		if _stat_system != null else 0.0
+
+
+## Push the clamped aggregate to #11 as ONE synthetic-id modifier. Same-id
+## re-apply = atomic replace (#11 EC-17 pin, G-2 RESOLVED — no remove+apply dip).
+## ALWAYS the last step of any mutation operation (Rule 6 discipline). Emits
+## the AntiSnowball clamp telemetry when the cap actually bound (EC-16 — never
+## silent: #22 shows the "+84 / +90 受真身上限約束" badge off the same data).
+func _push_aggregate() -> void:
+	var raw: Dictionary = _compute_raw_aggregate()
+	var effective: Dictionary = EquipmentClampCalc.clamp_aggregate(raw, _stat_derived_atk())
+	var raw_atk: float = float(raw.get(&"ATTACK_POWER", 0.0))
+	var effective_atk: float = float(effective.get(&"ATTACK_POWER", 0.0))
+	if raw_atk > effective_atk:
+		_emit_telemetry("equipment.antisnowball.clamp", {
+			"raw_atk": raw_atk, "effective_atk": effective_atk,
+		})
+	if _stat_system == null:
+		return
+	var modifier = _StatSystemScript.StatModifier.new()
+	modifier.deltas = effective
+	_stat_system.apply_equipment_modifier(&"equipment_aggregate", modifier)
+	# TODO Story 015: stat_mutation_rejected subscription → _pending_stat_push retry.
+
+
+## #22 badge data contract (EC-16 / AC-38): current raw vs effective ATK.
+func get_aggregate_raw_and_effective() -> Dictionary:
+	var raw: Dictionary = _compute_raw_aggregate()
+	var effective: Dictionary = _compute_effective_aggregate()
+	return {
+		"raw": float(raw.get(&"ATTACK_POWER", 0.0)),
+		"effective": float(effective.get(&"ATTACK_POWER", 0.0)),
+	}
+
+
+# ── Formula 2 + auto-salvage (Rule 4/9 — Story 005) ────────────────────────────
+
+
+## Formula 2 — salvage_yield(rarity) = floori(SHARD_BASE × RARITY_SHARD_MULT).
+## Defaults: COMMON 100 / UNCOMMON 150 / RARE 250 / EPIC 450 / LEGENDARY 800.
+## Single salvage value track: manual salvage, bulk, mailbox auto-salvage AND
+## the #15 EC-38 cosmetic-dupe auto-convert all use THIS function (G-3).
+static func salvage_yield(rarity: int) -> int:
+	return floori(SHARD_BASE * RARITY_SHARD_MULT[rarity])
+
+
+## Convert an item to shards in place (auto paths: mailbox TTL / hard-cap evict).
+## Value never evaporates (A3): shards credited, tombstone registered, loud
+## telemetry. NOT the manual salvage path (that is Story 010's transaction).
+func _auto_salvage(item: EquipmentItem, telemetry_event: String) -> void:
+	_forge_shards += salvage_yield(item.rarity)
+	_items.erase(item.item_id)
+	register_tombstone(item.item_id)
+	_emit_telemetry(telemetry_event, {
+		"item_id": String(item.item_id),
+		"rarity": LootEnums.RarityTier.find_key(item.rarity),
+		"shards": salvage_yield(item.rarity),
+	})
+
+
+# ── Mailbox sweep + hard cap (Rule 4 — Story 005) ──────────────────────────────
+
+
+## Boot-time TTL sweep (Rule 14 step 4 wires this): mailbox items older than
+## OVERFLOW_MAILBOX_TTL_DAYS auto-salvage. A3 BINDING: receipt-bearing items are
+## immune — they never silently expire. Cross-session time basis: wall-clock +
+## server sanity; offline or drift beyond tolerance ⇒ grace (sweep skipped,
+## retried next boot — misjudgement risk degraded to "early salvage" by A3).
+func sweep_mailbox() -> void:
+	var now: int = int(_now_unix_provider.call())
+	if not _server_clock_sane(now):
+		return  # grace — prefer not expiring
+	var ttl_sec: int = OVERFLOW_MAILBOX_TTL_DAYS * 86400
+	for item_id: StringName in _items.keys():
+		var item: EquipmentItem = _items[item_id]
+		if item.lifecycle_state != EquipmentEnums.ItemLifecycle.IN_MAILBOX:
+			continue
+		if item.has_receipt():
+			continue  # A3: never silently expire
+		if now - item.acquired_at_unix > ttl_sec:
+			_auto_salvage(item, "inventory.mailbox.auto_salvaged")
+
+
+## Server-clock sanity (G-7 seam). Invalid/empty provider or null return =
+## offline ⇒ NOT sane ⇒ grace. Drift beyond CLOCK_SANITY_TOLERANCE_SEC ⇒ grace.
+func _server_clock_sane(now_unix: int) -> bool:
+	if not _server_unix_provider.is_valid():
+		return false
+	var server_now: Variant = _server_unix_provider.call()
+	if server_now == null:
+		return false
+	return absi(int(server_now) - now_unix) <= CLOCK_SANITY_TOLERANCE_SEC
+
+
+## Hard-cap enforcement (EC-9): while the mailbox exceeds MAILBOX_HARD_CAP the
+## OLDEST (min acquired_at_unix — FIFO, not LRU) non-receipt item auto-salvages.
+## All-receipt fallback (defense-in-depth; unreachable for ~300 weeks at 0.6
+## LEGENDARY/week): soft-admit over cap + loud telemetry alert.
+func _enforce_mailbox_hard_cap() -> void:
+	while _mailbox_count() > MAILBOX_HARD_CAP:
+		var oldest: EquipmentItem = _oldest_evictable_mailbox_item()
+		if oldest == null:
+			_emit_telemetry("inventory.mailbox.all_receipt_soft_admit", {
+				"mailbox_count": _mailbox_count(),
+			})
+			return
+		_auto_salvage(oldest, "inventory.mailbox.auto_salvaged")
+
+
+func _mailbox_count() -> int:
+	var count: int = 0
+	for item_id: StringName in _items:
+		if _items[item_id].lifecycle_state == EquipmentEnums.ItemLifecycle.IN_MAILBOX:
+			count += 1
+	return count
+
+
+## Oldest non-receipt mailbox item (receipt-bearing skipped — A3), or null when
+## every mailbox item carries a receipt.
+func _oldest_evictable_mailbox_item() -> EquipmentItem:
+	var oldest: EquipmentItem = null
+	for item_id: StringName in _items:
+		var item: EquipmentItem = _items[item_id]
+		if item.lifecycle_state != EquipmentEnums.ItemLifecycle.IN_MAILBOX:
+			continue
+		if item.has_receipt():
+			continue
+		if oldest == null or item.acquired_at_unix < oldest.acquired_at_unix:
+			oldest = item
+	return oldest
 
 
 # ── Tombstone lifecycle (Rule 2 — Story 003) ───────────────────────────────────
