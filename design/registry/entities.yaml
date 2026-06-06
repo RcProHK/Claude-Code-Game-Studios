@@ -105,6 +105,49 @@ items:
     revised: ""
     notes: "Single salvage currency (#17 D7, Pass 1 A1)。Faucet = salvage_yield(rarity) [COMMON 100, rationale 自立]。**MVP sink = 0 (salvage-only;banked currency + #23 Forge locked-hook)** — MVP loot-sink MANDATE 對象係 item sink (salvage),滿足。int64 無 cap by design;#23 display contract 千位分隔。Stockpile projection (Hardcore ≈4k-5.5k/週) = v0.2 Forge 定價 binding input (Q-5)。Shard sink (craft/upgrade/cosmetic re-roll) 全 v0.2。"
 
+  # ─── #18 PR Detection & Avatar Progression (added 2026-06-06, Designed — pending /design-review) ───
+  - name: e1rm_epley
+    status: active
+    source: design/gdd/pr-detection.md
+    referenced_by:
+      - design/gdd/pr-detection.md
+    variables:
+      - weight          # float (0, 500] kg (WEIGHT_SANITY_MAX)
+      - reps            # int [1, REP_CAP=12] (>12 not a PR candidate)
+      - E1RM_DIVISOR    # 30.0 LOCKED (Epley definition — not a knob)
+    output_range: "(0, ~700]"
+    expression: "e1rm = weight × (1 + reps / 30.0)"
+    notes: "#18 Formula 1 — estimated 1RM (Epley)。rep PR 同 weight PR 統一落同一把尺。Golden: e1rm(60,5)=70.0 / e1rm(65,3)=71.5。AC-11。"
+    added: 2026-06-06
+    revised: ""
+
+  - name: pr_magnitude_detection
+    status: active
+    source: design/gdd/pr-detection.md
+    referenced_by:
+      - design/gdd/pr-detection.md
+      - design/gdd/stat-system.md   # #11 Formula 2 input (pr_magnitude [0, 2.0])
+    variables:
+      - new_e1rm          # Formula 1 output
+      - best_e1rm         # baseline (server-sourced ground truth, D2; cold-start Rule 4)
+      - MIN_PR_MAGNITUDE  # 0.01 knob [0.005, 0.05] — noise floor
+    output_range: [0.0, 2.0]
+    expression: "pr_magnitude = clamp((new_e1rm − best_e1rm) / best_e1rm, 0, 2.0); is_pr = m >= MIN_PR_MAGNITUDE"
+    notes: "#18 Formula 2 — Q-N3 RESOLVED: client derivation over server-sourced inputs (set data + baseline 都係 GymSys server data,公式 deterministic — 等效 server-validated,滿足 #12 FR-2)。Idempotency 靠 baseline monotonicity (D5 — PR 後 baseline 即升,replay 自然 no-op)。AC-01/02/06/07。"
+    added: 2026-06-06
+    revised: ""
+
+  - name: PR_MILESTONE_THRESHOLDS
+    status: active
+    source: design/gdd/pr-detection.md
+    referenced_by:
+      - design/gdd/pr-detection.md
+    value: [10, 25, 50, 100]
+    unit: lifetime_pr_count_ascending
+    added: 2026-06-06
+    revised: ""
+    notes: "#18 Rule 9 milestone hooks (data-driven PRMilestoneConfig.tres;EC-12 ascending assert)。MVP 無 consumer — forward hooks → #19 zone unlock / v0.2 cosmetic。"
+
 # Example:
 #
 # items:
@@ -363,7 +406,7 @@ formulas:
       - design/gdd/loot-drop-system.md          # #15 — APPROVED 2026-05-28 primary consumer; Formula 1 apply_tier_ceiling_floor wraps this output with source-event clamp (mini-boss ceiling RARE, final boss floor UNCOMMON, zero-workout forced COMMON); AC-01/AC-02/AC-05 verify Pillar 1 architectural floor proof
       # Expected future referrers:
       # - design/gdd/streak-system.md             (#8 — provides streak_count input)
-      # - design/gdd/pr-detection.md              (#18 — provides pr_breakthrough_count input)
+      - design/gdd/pr-detection.md              (#18 — provides pr_breakthrough_count input)
     variables:
       - workout_score                # float [0.0, 1.0] — clamp(volume_factor × pr_factor × streak_factor, 0, 1)
       - rng_roll                     # float [0.0, 1.0] — RandomNumberGenerator seeded on hash(transition_id)
@@ -403,7 +446,7 @@ formulas:
     referenced_by:
       - design/gdd/stat-system.md
       # Expected future referrers:
-      # - design/gdd/pr-detection.md  (#18 — caller of apply_stat_delta with PR_BREAKTHROUGH source)
+      - design/gdd/pr-detection.md  (#18 — caller of apply_stat_delta with PR_BREAKTHROUGH source)
       # - docs/architecture/adr-0005-loot-rarity-formula.md  (retune gate — PR_BASE cross-validation with WORKOUT_WEIGHT=0.75)
     variables:
       - PR_BASE                    # float [1.0, 20.0], default 6.0 (knob; PROVISIONAL — ADR-005 retune candidate)
@@ -505,7 +548,7 @@ formulas:
     referenced_by:
       - design/gdd/ability-system.md
       # Expected future referrers:
-      # - design/gdd/pr-detection.md (#18 — emits pr_breakthrough that triggers Path A unlock evaluation)
+      - design/gdd/pr-detection.md (#18 — emits pr_breakthrough that triggers Path A unlock evaluation)
       # - design/gdd/character-screen.md (#22 — displays "next tier threshold" progress)
       # - design/gdd/skill-tree.md (#30 v0.2 — tree node unlock gates)
     variables:
@@ -1314,7 +1357,7 @@ constants:
       - design/gdd/gymsys-backend-client.md
       - design/gdd/workout-state-tracker.md          # #9 — APPROVED 2026-05-27 consumer of all 7 workout signals (workout_started / set_logged / rest_started / rest_ended / workout_completed / poll_failed / poll_recovered) per Section C Rule 1
       # Expected future referrers (consumers of these signals):
-      # - design/gdd/pr-detection.md                (#18 — set_logged)
+      - design/gdd/pr-detection.md                (#18 — set_logged)
       # - design/gdd/login-ui.md                    (#24 — auth_required, session_invalidated)
       # - design/gdd/telemetry.md                   (#28 — 13 main signals + 7 dev-only)
     value: |
@@ -1659,7 +1702,7 @@ constants:
     referenced_by:
       - design/gdd/stat-system.md
       - design/gdd/workout-state-tracker.md # #9 — APPROVED 2026-05-27 caller of apply_stat_delta with VOLUME_TICK source per Section C Rule 6; uses source_key (client-derived idempotency) NOT transition_id (B-1 fix 2026-05-27); buffer-while-not-ready caller contract pending #11 GDD next-revision
-      # - design/gdd/pr-detection.md          (#18 — PR_BREAKTHROUGH caller)
+      - design/gdd/pr-detection.md          (#18 — PR_BREAKTHROUGH caller)
       # - design/gdd/equipment-inventory.md   (#17 — EQUIPMENT modifier path)
     value: "PR_BREAKTHROUGH | VOLUME_TICK | EQUIPMENT | DEBUG_OVERRIDE | INITIAL_STATE"
     unit: enum_value_set
@@ -1730,7 +1773,7 @@ constants:
       # - design/gdd/character-screen.md (#22)
       # - design/gdd/avatar-renderer.md (#26 — cast animation trigger)
       # - design/gdd/skill-tree.md (#30 v0.2)
-      # - design/gdd/pr-detection.md (#18 — unlock_ability caller)
+      - design/gdd/pr-detection.md (#18 — unlock_ability caller)
     value: "STRIKE_TIER_1_JAB | STRIKE_TIER_2_HOOK | STRIKE_TIER_3_OVERHAND | CONTROL_TIER_1_PARRY | CONTROL_TIER_2_HOOK_PULL | CONTROL_TIER_3_GRAPPLE | MOBILITY_TIER_1_DASH | MOBILITY_TIER_2_LEAP | MOBILITY_TIER_3_GROUND_POUND"
     unit: enum_value_set
     added: 2026-05-27
@@ -1768,7 +1811,7 @@ constants:
     referenced_by:
       - design/gdd/ability-system.md
       # Expected future referrers:
-      # - design/gdd/pr-detection.md (#18 — PR_BREAKTHROUGH caller)
+      - design/gdd/pr-detection.md (#18 — PR_BREAKTHROUGH caller)
       # - design/gdd/stat-system.md (#11 — STAT_THRESHOLD internal Path B)
     value: "PR_BREAKTHROUGH | STAT_THRESHOLD | INITIAL_STATE"
     unit: enum_value_set
