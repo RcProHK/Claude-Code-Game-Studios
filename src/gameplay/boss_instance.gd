@@ -41,11 +41,18 @@ var current_hp: int = 0
 var max_hp: int = 0
 var attack_count: int = 0
 var _last_emitted_pattern_id: StringName = &""
-var _spawned_emitters: Array[GPUParticles2D] = []
+var _spawned_emitters: Array[ParticleHandle] = []        # Rule 11 cleanup tracking (boss-owned
+                                                         # particles; empty in MVP — reveal is
+                                                         # BossRevealCoordinator, attack VFX is #25)
 var _ai_state: int = EnemyDirector.EnemyAIState.SPAWNING  # Rule 15 (#14 enemy AI state)
 var _spawn_origin: Vector2 = Vector2.ZERO  # captured at _ready (Rule 14 SPAWN_RELATIVE anchor)
 
-const CLEANUP_TIMEOUT_MS: int = 3000  # Rule 11 bfcache-safe wall-clock deadline
+const CLEANUP_TIMEOUT_MS: int = 3000       # Rule 11 bfcache-safe wall-clock death-cleanup deadline
+const BOSS_HP_PERSIST_TTL_SEC: int = 7200  # Rule 12 DD#1 Q3 — stale persisted-HP age cutoff
+
+# Injectable clocks (Followup #17 IClock) — default real Time; mocked in tests.
+var _now_ms_provider: Callable = Callable(Time, "get_ticks_msec")
+var _now_unix_provider: Callable = Callable(Time, "get_unix_time_from_system")
 
 
 ## SINGLE canonical _ready (Pass 7 merge). Pillar 1: BossInstance MUST be
@@ -103,7 +110,7 @@ func _enter_state(new_state: int) -> void:
 ## whitelisted `boss.*` persist callsite.
 func _persist_fight_anchor() -> void:
 	PersistenceLayer.write("boss.transition_id", transition_id)
-	PersistenceLayer.write("boss.fight_timestamp", Time.get_unix_time_from_system())
+	PersistenceLayer.write("boss.fight_timestamp", int(_now_unix_provider.call()))
 
 
 ## Rule 14 — constrain a desired world-space position to the arena bounds per the
@@ -141,28 +148,78 @@ func _on_enemy_killed_self_listen(payload: EnemyKilledPayload) -> void:
 	_enter_state(EnemyDirector.EnemyAIState.DYING)
 
 
-## Death + free (Story 012 expands to the full death-anim + wall-clock cleanup).
-## Minimal scaffold: idempotent cleanup then queue_free.
+## Death animation then free (Story 012 — full Rule 11 GP2/GP4). Plays "death",
+## waits for `animation_finished` OR a wall-clock deadline (bfcache-safe: Time
+## advances even while process frames are frozen), then cleans up + deletes the
+## DD#1 record + queue_free. `is_instance_valid` guards before AND after every await.
 func _play_death_and_free() -> void:
-	if not is_instance_valid(self) or not is_inside_tree():
+	if not is_instance_valid(self):
+		return
+	if not is_inside_tree():
 		_cleanup_resources()
+		_delete_persist_record()
+		return
+	var anim := $AnimationPlayer as AnimationPlayer
+	if anim.has_animation("death"):
+		anim.play("death")
+		var deadline_ms: int = int(_now_ms_provider.call()) + CLEANUP_TIMEOUT_MS
+		var anim_done: Array = [false]  # boxed so the lambda can mutate it
+		var on_finished := func(_a: StringName) -> void: anim_done[0] = true
+		anim.animation_finished.connect(on_finished, CONNECT_ONE_SHOT)
+		# Poll — yields each frame; exits on completion OR wall-clock deadline (GP4).
+		while not anim_done[0] and int(_now_ms_provider.call()) < deadline_ms:
+			await get_tree().process_frame
+			if not is_instance_valid(self):
+				return  # freed during await (GP2)
+		if is_instance_valid(anim) and anim.animation_finished.is_connected(on_finished):
+			anim.animation_finished.disconnect(on_finished)
+	if not is_instance_valid(self):
 		return
 	_cleanup_resources()
+	_delete_persist_record()
 	queue_free()
 
 
-## Idempotent resource release (GP6) — clears the set after release so a bfcache
-## resume re-entry double-call is safe.
+## Idempotent resource release (GP6) — stops any boss-owned particle handles
+## (#5's pool auto-expires; we only stop early on death) and clears the set after,
+## so a bfcache resume re-entry double-call is safe.
 func _cleanup_resources() -> void:
-	for emitter in _spawned_emitters:
-		if is_instance_valid(emitter):
-			ParticleSystemWrapper.release(emitter)
+	for handle in _spawned_emitters:
+		if handle != null and handle.alive():
+			handle.stop()
 	_spawned_emitters.clear()
 
 
-## Bfcache resume defensive cleanup (Story 012 expands to the full DD#1 exact-restore).
+## DD#1 — delete the ephemeral mid-fight record (boss.* namespace) on death /
+## cleanup / stale-resume, so no stale HP leaks across workouts.
+func _delete_persist_record() -> void:
+	PersistenceLayer.delete("boss.current_hp")
+	PersistenceLayer.delete("boss.transition_id")
+	PersistenceLayer.delete("boss.fight_timestamp")
+
+
+## Bfcache resume — DD#1 exact-restore (Rule 12 + EC-17 + AC-42/27a/46). Reads the
+## persisted ephemeral record + delegates to the testable branch logic. (The
+## PRE_SPAWN-freeze branch (d) — boss shouldn't exist — is handled at the #14
+## BossAnchor layer; an existing BossInstance only does branches a/b/c.)
 func _on_resume_detected() -> void:
-	_cleanup_resources()
+	_cleanup_resources()  # idempotent — clear any orphaned handles first (GP6)
+	var restored_hp: Variant = PersistenceLayer.read("boss.current_hp")
+	var restored_tid: Variant = PersistenceLayer.read("boss.transition_id")
+	var restored_ts: Variant = PersistenceLayer.read("boss.fight_timestamp")
+	_restore_from_bfcache(restored_hp, restored_tid, restored_ts, int(_now_unix_provider.call()))
+
+
+## DD#1 restore branch logic (extracted for testability — AC-42 a/b/c + AC-46 TTL).
+##   (a)/(b) fresh record + matching tid -> exact restore (0 -> DYING idempotent via _set_current_hp)
+##   (c)     no record / tid mismatch / stale (Δ > TTL) -> restore max_hp + delete the stale record
+func _restore_from_bfcache(restored_hp: Variant, restored_tid: Variant, restored_ts: Variant, now_ts: int) -> void:
+	var is_stale: bool = (restored_ts == null) or (now_ts - int(restored_ts) > BOSS_HP_PERSIST_TTL_SEC)
+	if restored_hp != null and String(restored_tid) == transition_id and not is_stale:
+		_set_current_hp(int(restored_hp))  # exact restore; HP==0 -> DYING (idempotent)
+	else:
+		_set_current_hp(max_hp)            # treat as fresh
+		_delete_persist_record()
 
 
 ## Web Export multi-hook resume coverage (Rule 11 A2.1). NOTIFICATION_APPLICATION_RESUMED

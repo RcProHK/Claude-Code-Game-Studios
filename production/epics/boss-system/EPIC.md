@@ -79,7 +79,7 @@ This epic is complete when:
 | 009 | Snapshot freeze caching (CF-3) | Logic | ✅ Complete | ADR-0006 | 007, 003/004 |
 | 010 | Reveal ritual dispatch (Camera-leading) | Integration | ✅ Complete (subscription wiring → #14) | ADR-0001 | 007, 006 |
 | 011 | enemy_killed → DYING self-filtered wiring | Integration | ✅ Complete | ADR-0009 | 002, 007 |
-| 012 | Boss cleanup + bfcache DD#1 exact-restore | Integration | Ready | ADR-0003 | 011, 002 |
+| 012 | Boss cleanup + bfcache DD#1 exact-restore | Integration | ✅ Complete | ADR-0003 | 011, 002 |
 | 013 | Avatar-downed auto-recover + grace window | Logic | Ready | N/A (Pillar-2 behavior) | 004 |
 | 014 | Spawn position + arena constraint | Logic | ✅ Complete | ADR-0006 | 002, 007 |
 | 015 | Loot-tier combine + CI tooling + playtest gates | Integration | ✅ Complete (core; CI-tooling/playtest/AC-23 deferred) | ADR-0005 | 001, 011 |

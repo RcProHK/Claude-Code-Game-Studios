@@ -1,12 +1,16 @@
 # Story 012: Boss cleanup + bfcache DD#1 exact-restore
 
 > **Epic**: Boss System
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Feature
 > **Type**: Integration
 > **Estimate**: L
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-06
+
+**Completion Notes (2026-06-06)**: refined the Story-002 BossInstance scaffold to full death/bfcache + `tests/integration/boss_system/test_bfcache_cleanup.gd` (8 tests; combined 272scr/1783/1782pass/0fail/1pending). `_play_death_and_free` (play "death" + wall-clock poll loop with injectable `_now_ms_provider` + is_instance_valid guards + `_delete_persist_record` + queue_free), `_restore_from_bfcache` (extracted for testability — AC-42 a/b/c + AC-46 TTL via injectable `_now_unix_provider`), `_delete_persist_record`. AC-11 (cleanup+free), AC-38 (wall-clock deadline when anim never finishes), AC-42/27a (exact-restore a / HP-0→DYING b / mismatch+null→max_hp c), AC-46 (Δ==TTL fresh / Δ>TTL stale).
+- **#5 API FIX**: `ParticleSystemWrapper.release(emitter)` **does NOT exist** (auto-pool); `_spawned_emitters` type `GPUParticles2D`→`ParticleHandle`, `_cleanup_resources` now `handle.stop()` (ParticleHandle.stop, src/core/particle_handle.gd). In MVP `_spawned_emitters` is empty (reveal=coordinator, attack VFX=#25) so it was dead code — corrected the design anyway.
+- Injectable clock seams = Followup #17 IClock. Branch (d) PRE_SPAWN-freeze is #14 BossAnchor-layer (an existing instance does a/b/c only).
 
 ## Context
 
