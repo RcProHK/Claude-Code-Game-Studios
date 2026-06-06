@@ -35,6 +35,20 @@ signal pr_milestone_reached(count: int)
 
 enum SystemState { INITIALISING, READY }
 
+## Rule 2 input sanity bounds (GDD Tuning Knobs — world record ~500kg; the MIN
+## kills the tiny-baseline seed: cable/band glitch weights never enter the pipeline).
+const WEIGHT_SANITY_MAX: float = 500.0
+const WEIGHT_SANITY_MIN: float = 1.0
+
+## D4 class → base-stat routing (#17 Q-1 lesson: StatId VALUES are lowercase
+## StringNames — the enum constant names are uppercase, the values are not).
+## Keys are AbilityClass ordinals (ability_system.gd:49 {STRIKE, CONTROL, MOBILITY, UNKNOWN}).
+const _CLASS_TO_STAT: Dictionary = {
+	0: &"str",  # STRIKE
+	1: &"dex",  # CONTROL
+	2: &"vit",  # MOBILITY
+}
+
 var _system_state: int = SystemState.INITIALISING
 
 # --- DI seams (untyped — typed autoload seams fail compile-time member checks) ---
@@ -141,9 +155,38 @@ func _subscribe_sources() -> void:
 		_gsm.connect_for_initial_state(_on_gsm_state_changed)
 
 
-## #2 set_logged handler — judgment pipeline lands in stories 004/005.
-func _on_set_logged(_exercise_id: String, _reps: int, _weight: float) -> void:
-	pass  # Story 004 (eligibility) + 005 (judgment pipeline).
+## #2 set_logged handler — Rule 2 eligibility gate (Story 004) → judgment (Story 005).
+func _on_set_logged(exercise_id: String, reps: int, weight: float) -> void:
+	var stat_id: StringName = _eligibility_stat_id(exercise_id, reps, weight)
+	if stat_id == &"":
+		return  # gate already emitted the skip telemetry — zero side effects.
+	_judge_set(exercise_id, reps, weight, stat_id)
+
+
+## Rule 2 — ordered eligibility checks; returns the routed base StatId, or &""
+## on skip (telemetry emitted here; NO side effects on skip — EC-1/EC-6).
+## NOTE: high reps are NOT a skip condition (D7 — clamp happens in Formula 1).
+func _eligibility_stat_id(exercise_id: String, reps: int, weight: float) -> StringName:
+	if reps < 1 or weight <= 0.0:
+		_emit_telemetry("pr.input_invalid", {"exercise_id": exercise_id, "reps": reps, "weight": weight})
+		return &""
+	if weight > WEIGHT_SANITY_MAX or weight < WEIGHT_SANITY_MIN:
+		_emit_telemetry("pr.input_invalid", {"exercise_id": exercise_id, "weight": weight})
+		return &""
+	if _class_mapping == null:
+		_emit_telemetry("pr.unknown_exercise", {"exercise_id": exercise_id, "reason": "no_mapping"})
+		return &""
+	var ability_class: int = _class_mapping.get_class_for_exercise(StringName(exercise_id))
+	if not _CLASS_TO_STAT.has(ability_class):
+		# UNKNOWN (or out-of-range) — Pillar 1 cardio gate (EC-1, #11 L39 binding).
+		_emit_telemetry("pr.unknown_exercise", {"exercise_id": exercise_id})
+		return &""
+	return _CLASS_TO_STAT[ability_class]
+
+
+## Judgment pipeline (Rules 4-7) — Story 005/006/007.
+func _judge_set(_exercise_id: String, _reps: int, _weight: float, _stat_id: StringName) -> void:
+	pass  # Story 005 (judgment) / 006 (establishment window) / 007 (soft-confirm).
 
 
 ## #2 workout_started — workout_seq increment (D8 discard deadline clock);
