@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="ZoneRegistryData" load_steps=5 format=3 uid="uid://zoneregistry19"]
+
+[ext_resource type="Script" uid="uid://dckrl8ttddfke" path="res://src/core/zone_registry_data.gd" id="1_zreg"]
+[ext_resource type="Script" uid="uid://d3vpbdx1fi1xy" path="res://src/core/zone_def.gd" id="2_zdef"]
+[ext_resource type="Script" uid="uid://nj45e4u5kxg5" path="res://src/core/zone_unlock_condition.gd" id="3_zcond"]
+
+[sub_resource type="Resource" id="Resource_cond0"]
+script = ExtResource("3_zcond")
+kind = 0
+threshold = 0
+
+[sub_resource type="Resource" id="Resource_zone0"]
+script = ExtResource("2_zdef")
+zone_id = &"zone_verdant_forest"
+display_name = "翠林島"
+background_scene_path = "res://assets/art/environments/verdant_forest/Background.tscn"
+wave_archetype_pool = Array[StringName]([])
+boss_pool = Array[StringName]([])
+world_palette_id = &"palette_verdant_desat30"
+unlock_condition = SubResource("Resource_cond0")
+
+[resource]
+script = ExtResource("1_zreg")
+zones = Array[ExtResource("2_zdef")]([SubResource("Resource_zone0")])

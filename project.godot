@@ -80,6 +80,13 @@ AttentionBudget="*res://src/autoload/attention_budget.gd"
 ; check_stat_mutation_callers.gd (ADR-0011 §D-4). #28 Telemetry stays last.)
 PrDetection="*res://src/autoload/pr_detection.gd"
 
+; Zone System (#19 — ADR-0008 G-Z-1: tail append. Predecessor constraints
+; PersistenceLayer ≺ WST ≺ ZoneSystem both boot earlier; plain late-boot
+; consumer connect to WST workout_completed_forwarded (no reverse-wire —
+; emitter boots first). NO EnemyDirector constraint (#14 MVP zero zone
+; touchpoints; the v0.2 G-Z-2 read is workout-start runtime). #28 stays last.)
+ZoneSystem="*res://src/autoload/zone_system.gd"
+
 [display]
 
 window/size/viewport_width=1280
