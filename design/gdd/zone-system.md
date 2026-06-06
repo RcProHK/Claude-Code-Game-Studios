@@ -1,6 +1,6 @@
 # Zone System
 
-> **Status**: In Design — Revised(Pass 1 MAJOR REVISION NEEDED 2026-06-06 → revision 同日,按 CD P1-P6 裁決重寫;pending fresh re-review)
+> **Status**: ✅ **APPROVED**(2026-06-06,Pass 3 — 同日三 pass 收斂:Pass 1 MAJOR [5 specialists + CD,P1-P6 軸重裁] → 全文 revision [12/12 exit bar] → Pass 2 fresh 3-verifier [0 phantom,6 one-line fixes] → Pass 3 + CD grep spot-check APPROVED)
 > **Author**: frank + agents(原稿 degraded inline 2026-06-06;review 歷程見 `design/gdd/reviews/zone-system-review-log.md`)
 > **Last Updated**: 2026-06-06
 > **Implements Pillar**: Pillar 5 (Mirror Moment — supporting:zone unlock 係 weekly progression markers 之一,#8 L46)· Pillar 1 (supporting:unlock 條件只能係真實訓練 milestones)

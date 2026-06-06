@@ -1,5 +1,20 @@
 # Zone System (#19) — Review Log
 
+## Review — 2026-06-06 — Pass 3 — Verdict: ✅ APPROVED
+Scope signal: S-M(epic)
+Specialists: creative-director(grep spot-check,照 #17/#18 Pass 3 先例)
+Blocking items: 0 | Non-blocking notes: 2(AC-08 test 應行 fresh PersistenceLayer 真 load path 唔好自 call parse_string;`last_counted_date` 初始 `""` 自然滿足 guard — implementation comment 一行)
+Summary: Pass 2 嘅 6 one-line BLOCKING 逐項 grep ground-truth 驗證 FIXED(#8 Rule 7 L285-293 cite 三中 / `<=` monotone guard + txn-E vector + ADR-0002 L60 確認 / rollback 兩 append + count keep / unix ms ÷1000 + UTC 邊界 fixture / AC-08 fresh-load + typed Array rebuild / drain-persist + over-deliver accepted)。Advisory 4/4 落齊;exit-bar token sweep 全 0;ISO 字典序 claim 數學正確;P1-P6 完好;#18 sync 實際 5 處全一致;EG-4 file 實存。**Epic creation UNBLOCKED → /create-epics zone-system。**
+Epic 方向(CD):scope S-M;核心 = ZoneRegistry.tres(editor-saved)+ Rule 2/3/5 pipeline + boot sweep + 12 ACs(4 seams);G-Z-3 + G-Z-1(同 G-PR-3 一齊)跟第一批 story。
+Prior verdict resolved: Yes(Pass 2 6 BLOCKING 全 FIXED)
+
+## Review — 2026-06-06 — Pass 2 — Verdict: TARGETED(6 one-line BLOCKING)— fresh 3-verifier
+Scope signal: M
+Specialists: systems-designer + qa-lead + godot-specialist(fresh context)
+Blocking: 6 | 結果: Pass 1 全 FIXED;12/12 exit bar;**0 phantom**;qa lane PASS(12 ACs:10 PASS / 2 WEAK / 0 FAIL)
+Summary: 6 targeted — #8 cite 編號精確化(verifier disagreement,ground truth:Rule 7 code block 正係 write-then-emit+erase rollback,標題係 milestone — cite 改 L285-293 雙引)/ `==`→`<=` monotone date guard(ADR-0002 L60 epoch full-resync 重派 → count 全史 double 漏洞)/ rollback 漏 ceremony_pending(desync + duplicate queue)/ completed_at 係 unix **ms**(WST L68 — 唔 pin 會令 per-day cap 靜默失效)/ AC-08 同 instance cache read = JSON coercion 零 exercise phantom-pass(typed Array[StringName] rebuild 係 codebase 首例)/ drain 後 persist path 冇 cover。Advisory:Rule 4 assert 字眼 / AC-04 vectors / AC-12 functional / EC-5 unreachable note / zone.unlocked assert / straddle bound note。
+Prior verdict resolved: Yes(Pass 1 12 BLOCKING 全 FIXED + exit bar 12/12)
+
 ## Review — 2026-06-06 — Pass 1 — Verdict: MAJOR REVISION NEEDED
 Scope signal: M(P1+P2 軸重裁後;表面係 L)
 Specialists: game-designer, systems-designer, economy-designer, qa-lead, godot-specialist + creative-director (senior)
