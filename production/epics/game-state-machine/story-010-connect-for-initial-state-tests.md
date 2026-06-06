@@ -1,12 +1,14 @@
 # Story 010: connect_for_initial_state — Verification Tests
 
 > **Epic**: GameStateMachine
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Foundation
 > **Type**: Logic
 > **Estimate**: S (1 hour)
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-06
+
+**Completion Notes (2026-06-06)**: documentation story — verified the already-shipped implementation. `tests/unit/state_machine/test_connect_for_initial_state.gd` (proper `test_` prefix, GUT-collected) has 5 tests covering AC-30a (skip-stale) + AC-gsm-sentinel-1 (source_event marker / self-loop) + the 3 other scenarios; all pass in the combined gate (1788 pass / 0 fail). CI lint `tools/ci/check_connect_for_initial_state_bind.gd` (AC-gsm-bind-ci) runs `--headless -s` and **exits 0** on the clean codebase. Removed a stale untracked orphan `connect_for_initial_state_test.gd.uid` (the old `_test.gd`-suffix phantom file's leftover; the real file was already renamed to the `test_` prefix). All 3 ACs satisfied.
 
 ## Context
 

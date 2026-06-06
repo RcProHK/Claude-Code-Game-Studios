@@ -1,12 +1,14 @@
 # Story 017: bfcache Fast-Resume Spike (HIGH Risk Q-A3)
 
 > **Epic**: GameStateMachine
-> **Status**: Ready
+> **Status**: Ready — ⚠️ EXTERNAL (real-browser manual spike; NOT headless-codeable)
 > **Layer**: Foundation
 > **Type**: Integration
 > **Estimate**: L (4+ hours) — spike/research story
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-06
+
+**Triage note (2026-06-06)**: this is a **real-browser manual spike** — all 3 ACs are SPIKE/manual (bfcache only fires in an actual browser via `pageshow.persisted`; JavaScriptBridge + DevTools timing; headless CANNOT test it). The story itself mandates Q-A3 browser verification BEFORE implementing ("outcome may invalidate implementation approach"). So this is **external-gated** (like the playtest stories) — it needs the user to run a Web Export build in Chrome/Safari and document `production/qa/evidence/bfcache-resume-spike-evidence.md`. Not implementable in a headless CI/dev session. Left Ready; flagged EXTERNAL.
 
 ## Context
 
