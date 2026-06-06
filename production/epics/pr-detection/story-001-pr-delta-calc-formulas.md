@@ -1,7 +1,7 @@
 # Story 001: PRDeltaCalc shared static + Formula 1 e1rm goldens
 
 > **Epic**: PR Detection & Avatar Progression (#18)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-06 — 9/9 tests;combined gate 1853/1852/0 fail)
 > **Layer**: Feature
 > **Type**: Logic
 > **Estimate**: S
@@ -43,7 +43,7 @@ GDD AC-11 / AC-12 / AC-13(sample set)/ AC-05 formula goldens — GWT 直接照 G
 ## Test Evidence
 
 **Required**:`tests/unit/pr_detection/test_pr_delta_calc.gd` — must pass。
-**Status**: [ ] Not yet created
+**Status**: [x] `tests/unit/pr_detection/test_pr_delta_calc.gd` — 9/9 pass(combined gate green)
 
 ## Dependencies
 
