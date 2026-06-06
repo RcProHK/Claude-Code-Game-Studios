@@ -1,6 +1,6 @@
 # Epics Index
 
-Last Updated: 2026-06-06 (+ #17 Equipment & Inventory — second Feature-layer epic, GDD APPROVED Pass 3 same-day convergence; #16 status → MERGED PR #19)
+Last Updated: 2026-06-06 (+ #18 PR Detection + #19 Zone System — Feature layer 全齊 4 epics; 兩份 GDD 同日三 pass APPROVED + ADR-0011; PR-EPIC ×2 degraded inline REALISTIC)
 Engine: Godot 4.6 (Web Export, Compatibility Renderer)
 Created by: /create-epics Foundation + Core (16 systems); #10 Exercise→Class Mapping promoted Placeholder→Ready 2026-06-02; #4 Audio Manager promoted Placeholder→Ready 2026-06-02 (GDD Approved Pass 6 + ADR-0008 Accepted); **#20 Gym-Mode HUD (first Presentation epic) created 2026-06-03** (GDD R8 APPROVED + UX spec APPROVED); **#33 Attention Budget promoted Placeholder→Ready 2026-06-04** (GDD Approved re-review pass 2 + ADR-0006/0008 Accepted)
 
@@ -46,6 +46,8 @@ Created by: /create-epics Foundation + Core (16 systems); #10 Exercise→Class M
 |------|-------|----------|-----|---------|--------|
 | [Boss System](boss-system/EPIC.md) | Feature | #16 | boss-system.md ✅ APPROVED 2026-06-05 (Pass 11 — STRUCTURAL FREEZE lifted) | **15 stories** (9 Logic, 6 Integration; Ready) | **✅ MERGED** — 15/15 implemented + CI-green, merged main PR #19 (5d03ad7) 2026-06-06. Pillar 3 PRIMARY climax. |
 | [Equipment & Inventory](equipment-inventory/EPIC.md) | Feature | #17 | equipment-inventory.md ✅ APPROVED 2026-06-06 (Pass 3 — 3-pass same-day, 零 phantom) | **16/16 Complete** ✅ (13 Logic, 3 Integration; 42/42 ACs) | **✅ MERGED** — CI-green, merged main PR #21 (b7ded42) 2026-06-06。Same-day full pipeline: GDD 3-pass APPROVED → epic → 16 stories → implemented → local combined gate green (1843/1844) → CI green → merged。InventorySystem autoload live (Stat ≺ Inventory ≺ LootDrop)。Salvage-only MVP; derived-keys-only; #11 G-2 APIs shipped。Deferred: AC-32b VS-tier / G-7 / G-8 / UI tiers。Pillar 3 歸宿 + Pillar 1 AntiSnowball 護欄 |
+| [PR Detection & Avatar Progression](pr-detection/EPIC.md) | Feature | #18 | pr-detection.md ✅ APPROVED 2026-06-06 (Pass 3 — 同日三 pass, 0 phantom) + **ADR-0011** | Not yet created — est. 13-15 | **Ready** — PR-EPIC REALISTIC (degraded inline)。INV-PR-1/2 invariants; D7 rep-clamp; D8 soft-confirm; `pr.state` envelope。Cross-epic: G-PR-5 (#12 四件套, 先於 integration story) / G-PR-2 (#9, AC-22 BLOCKED-ON) / G-PR-6 (#3 namespace) / G-PR-3+CI whitelist (wiring story)。G-PR-1 = EXTERNAL (GymSys backend; INV-PR-1 fail-closed 令 client 可先 ship)。★ Pillar 1 PRIMARY 入口 |
+| [Zone System](zone-system/EPIC.md) | Feature | #19 | zone-system.md ✅ APPROVED 2026-06-06 (Pass 3 — 同日三 pass, 0 phantom) | Not yet created — est. 8-10 | **Ready** — PR-EPIC REALISTIC (degraded inline)。薄容器 S-M:training-day count (monotone `<=` guard) + `zone.state` envelope + boot sweep + ceremony_pending queue + lateral loot contract。G-Z-1 同 G-PR-3 共用 ADR-0008 amendment story;G-Z-3 (#3 namespace) 同 G-PR-6 共用 lint 面;AC-08 typed-array round-trip = codebase 首例。EG-4 (#8 streak reachability) 獨立 track 唔 block |
 
 ## Presentation Layer
 
