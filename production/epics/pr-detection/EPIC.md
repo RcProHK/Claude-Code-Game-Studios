@@ -4,7 +4,7 @@
 > **GDD**: design/gdd/pr-detection.md(✅ APPROVED 2026-06-06 Pass 3 — 同日三 pass 收斂,0 phantom)
 > **Architecture Module**: `PrDetection` autoload @ `src/autoload/pr_detection.gd`(ADR-0011 §D-4 — `src/feature/` 係 phantom path;G-PR-3:append 鏈尾 AttentionBudget 之後,constraint `#2 ≺ #10 ≺ StatSystem ≺ {AbilitySystem, WST} ≺ PrDetection`)+ shared static `PRDeltaCalc` @ `src/core/pr_delta_calc.gd`(D3 — 讀 #11 Formula 2 config 常數,單一 source)
 > **Status**: Ready
-> **Stories**: Not yet created — run `/create-stories pr-detection`
+> **Stories**: **15 created**(12 Logic + 3 Integration;14 Ready + 015 Blocked-EXTERNAL;AC coverage 31/31)— QL-STORY-READY degraded inline ADEQUATE(GDD ACs 啱啱經 qa-lead Pass 2/3 逐條 verify,GWT + pinned vectors,等同 qa-plan import)
 > **Producer gate (PR-EPIC)**: REALISTIC(degraded inline assessment 2026-06-06 — subagent spawning blocked by 1M-context credits,#17 同款處理;單 epic 正確 [一 autoload + 一 shared calc];est. 13-15 stories 對標 #17 42ACs→16;G-PR-5 story 必須先於 #12 integration story;G-PR-1 EXTERNAL posture safe — INV-PR-1 fail-closed 令 client 冇 backend 都 ship 得)
 
 ## Overview
@@ -47,6 +47,28 @@ This epic is complete when:
 - `PrDetection` autoload 登記 `project.godot`(G-PR-3 amendment)+ CI whitelist amend 落地
 - 16 telemetry events 齊(append-log pattern,#15/#17 verbatim)
 
+## Stories
+
+| # | Story | Type | Status | Primary ADR | ACs |
+|---|-------|------|--------|-------------|-----|
+| 001 | PRDeltaCalc + Formula 1 goldens | Logic | Ready | ADR-0005(D3) | 11/12/05f/13c |
+| 002 | Autoload 骨架 + wiring gates(G-PR-3/G-PR-6/CI whitelist) | Logic | Ready | ADR-0008/0011 | 27 |
+| 003 | `pr.state` envelope + round-trip | Integration | Ready | ADR-0006 C3 | 17/26 |
+| 004 | Eligibility gate + class routing | Logic | Ready | ADR-0011 | 04/09/25 |
+| 005 | 判定 pipeline core | Logic | Ready | ADR-0011 | 01/02/06/10/24/05p |
+| 006 | Establishment window INV-PR-1 + Baseline Forged | Logic | Ready | ADR-0011 | 03/28 |
+| 007 | Soft-confirm D8 + INV-PR-2 property | Logic | Ready | ADR-0011 | 07/29/31 |
+| 008 | Server baseline reconcile | Logic | Ready | ADR-0011 §D-2 | 14/15/16/23 |
+| 009 | Stat 生效 path | Logic | Ready | ADR-0006 | 08/13s |
+| 010 | Summary + counters + milestone | Logic | Ready | ADR-0009 | 18/19/20 |
+| 011 | Emit gate + buffer + GSM | Logic | Ready | ADR-0006 C6 | 30 |
+| 012 | **G-PR-5** #12 additive 四件套 | Logic | Ready | ADR-0006 | supports 21 |
+| 013 | #12 reverse-wire integration | Integration | Ready | ADR-0011 | 21 |
+| 014 | **G-PR-2** #9 additive + count 鏈 | Integration | Ready | ADR-0009 | 22 |
+| 015 | **G-PR-1** GymSys backend(EXTERNAL) | Integration | **Blocked** | ADR-0011 §D-2 | live 驗證 |
+
+**建議實作順序**:001 → 002 → 003 → 004 → 005 → 012 → 006 → 007 → 008 → 009 → 010 → 011 → 013 → 014;015 external wave。**012 必須先於 013**(double-path)。
+
 ## Next Step
 
-Run `/create-stories pr-detection` to break this epic into implementable stories.
+Run `/story-readiness production/epics/pr-detection/story-001-pr-delta-calc-formulas.md` then `/dev-story` to begin implementation.
