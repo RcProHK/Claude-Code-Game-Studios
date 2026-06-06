@@ -201,7 +201,7 @@ func _judge_set(exercise_id: String, reps: int, weight: float, stat_id: StringNa
 	var new_e1rm: float = PRDeltaCalc.e1rm(weight, reps)
 
 	# D8 pipeline order: corroboration check BEFORE this set's own judgment (007).
-	_check_pending_corroboration(exercise_id, new_e1rm, stat_id)
+	_check_pending_corroboration(exercise_id, new_e1rm, stat_id, weight, reps)
 
 	# Rule 4 — no trusted baseline → INV-PR-1 establishment window (006), zero PR.
 	if not _pr_state.baselines.has(exercise_id):
@@ -269,20 +269,59 @@ func _establishment_update(exercise_id: String, new_e1rm: float) -> void:
 		_persist_state(false)  # non-anchor write; commit flushes at workout_completed
 
 
-## Story 007 — D8 pending corroboration check (runs before this set's judgment).
-func _check_pending_corroboration(_exercise_id: String, _new_e1rm: float,
-		_stat_id: StringName) -> void:
-	pass  # Story 007.
+## D8 (Story 007) — pending corroboration check; runs BEFORE this set's own
+## judgment. A corroborating set (e1rm ≥ pending × ratio) commits the pending PR
+## with a COMMIT-TIME magnitude recompute against the CURRENT baseline — the
+## stored magnitude may be stale (interleaved smaller PRs raised the baseline)
+## and committing it as-stored would break the INV-PR-2 upper bound (AC-29).
+func _check_pending_corroboration(exercise_id: String, new_e1rm: float,
+		stat_id: StringName, corroborating_weight: float = 0.0,
+		corroborating_reps: int = 0) -> void:
+	if not _pr_state.pending.has(exercise_id):
+		return
+	var entry: Dictionary = _pr_state.pending[exercise_id]
+	var pending_raw: float = float(entry["e1rm_raw"])
+	if new_e1rm < pending_raw * CORROBORATION_RATIO:
+		return  # not corroborating — the deadline (_discard_expired_pending) handles expiry
+	_pr_state.pending.erase(exercise_id)
+	if not _pr_state.baselines.has(exercise_id):
+		return  # defensive — a suspect requires a baseline to have existed
+	var best: float = _pr_state.baselines[exercise_id]
+	var recomputed: float = (pending_raw - best) / best
+	if recomputed < MIN_PR_MAGNITUDE - MAGNITUDE_EPS:
+		# Interleaved progress superseded the pending claim — nothing left to credit.
+		_emit_telemetry("pr.pending_discarded", {
+			"exercise_id": exercise_id, "reason": "superseded"})
+		return
+	var magnitude: float = minf(recomputed, MAGNITUDE_CLAMP)
+	# EC-15 audit trail: record the corroborating set (replay self-corroboration
+	# residual is accepted — server-truth self-heals corrected typos).
+	_emit_telemetry("pr.pending_corroborated", {
+		"exercise_id": exercise_id, "pending_e1rm": pending_raw,
+		"corroborating_weight": corroborating_weight,
+		"corroborating_reps": corroborating_reps})
+	# Commit with the PENDING set's raw tuple (summary shows the real PR set);
+	# baseline rises to the pending RAW e1rm (corroborated = real — no poison).
+	_confirm_pr(exercise_id, float(entry["weight"]), int(entry["reps"]),
+		pending_raw, magnitude, stat_id)
 
 
-## Story 007 — D8 open/keep-highest pending.
+## D8 (Story 007) — open / keep-highest replace.
 func _open_pending(exercise_id: String, e1rm_raw: float, weight: float, reps: int) -> void:
-	# Minimal hold so suspect jumps never confirm immediately (full D8 in 007).
+	if _pr_state.pending.has(exercise_id):
+		var existing: Dictionary = _pr_state.pending[exercise_id]
+		if e1rm_raw <= float(existing["e1rm_raw"]):
+			return  # keep-highest — the bigger claim keeps the higher corroboration bar
+		_emit_telemetry("pr.pending_replaced", {
+			"exercise_id": exercise_id, "old": existing["e1rm_raw"], "new": e1rm_raw})
+	else:
+		_emit_telemetry("pr.pending_opened", {
+			"exercise_id": exercise_id, "e1rm_raw": e1rm_raw})
 	_pr_state.pending[exercise_id] = {
 		"e1rm_raw": e1rm_raw, "weight": weight, "reps": reps,
 		"opened_seq": _pr_state.workout_seq,
 	}
-	_emit_telemetry("pr.pending_opened", {"exercise_id": exercise_id, "e1rm_raw": e1rm_raw})
+	_persist_state(false)  # pending survives crashes; non-anchor write
 
 
 ## Story 010 — session PR summary (Formula 5 max-magnitude tuple).
@@ -318,9 +357,21 @@ func _on_workout_completed(_completed_at: int) -> void:
 	_discard_expired_pending()
 
 
-## Story 007 — D8 discard deadline (pending older than its opening workout).
+## D8 (Story 007) — discard deadline: a pending that survives past the END of
+## the workout AFTER the one that opened it (current_seq > opened_seq at
+## workout_completed) is dropped — no corroboration arrived. GymSys-corrected
+## typos never redeliver, so this also self-heals fixed entry mistakes.
 func _discard_expired_pending() -> void:
-	pass  # Story 007.
+	var expired: Array = []
+	for exercise_id: Variant in _pr_state.pending:
+		if _pr_state.workout_seq > int(_pr_state.pending[exercise_id]["opened_seq"]):
+			expired.append(exercise_id)
+	for exercise_id: Variant in expired:
+		_pr_state.pending.erase(exercise_id)
+		_emit_telemetry("pr.pending_discarded", {
+			"exercise_id": String(exercise_id), "reason": "deadline"})
+	if not expired.is_empty():
+		_persist_state(false)
 
 
 ## GSM listener — telemetry-silent (Rule 10); pending-emit buffer flush = story 011.
