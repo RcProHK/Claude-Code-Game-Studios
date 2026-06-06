@@ -1,6 +1,21 @@
 # PR Detection & Avatar Progression (#18) — Review Log
 
-## Review — 2026-06-06 — Verdict: MAJOR REVISION NEEDED
+## Review — 2026-06-06 — Pass 3 — Verdict: ✅ APPROVED
+Scope signal: L
+Specialists: creative-director(grep spot-check,照 #17 Pass 3 先例)
+Blocking items: 0 | Recommended: 0(2 trivial errata 已 same-session 收:seam ⑤「ring」字眼 + buffer keep-latest 注)
+Summary: Pass 2 嘅 6 targeted BLOCKING 逐項 grep 確認 FIXED(NEW-1 buffer 三處一致 + load-bearing 注 / NEW-2 ADR §D-2.3 D8 ratchet 語意 / NEW-3 WEIGHT_SANITY_MIN 下界 + 公式上界 + AC-23 六 vectors / NEW-5 D8 pipeline + commit-time magnitude 重計 + AC-29 數驗過 / G-PR-3 chain 同 project.godot:42-45 一字不差 / AC-01..31 零 gap)。8 項 RECOMMENDED 抽驗全中(to_dict 先例 citation 字字準確 / workout_seq / telemetry 16 events / G-PR-5 test 反轉 grep 實證 / G-PR-6 lint 未 shipped / Formula 4 max() / zone L14-L39-L43-L64 / G-PR-4 pin)。Cross-GDD citation 終驗 0 phantom、0 方向讀反;Position A–F 零漂移;數值 spot-check 全部驗算正確。三 pass 收斂軌跡:16 clusters → 6 targeted → 0。**Epic creation UNBLOCKED → /create-epics pr-detection。**
+Epic 方向提示(CD):story 1 綑綁三件 wiring(CI whitelist + G-PR-3 ADR-0008 amendment + G-PR-6 namespace);G-PR-5 四件套獨立 story(skip source==0 / test_unlock_path_b_multi_tier.gd:98-99 反轉 / is_boot_completed() getter / L890 comment);AC-22 標 BLOCKED-ON G-PR-2;G-PR-1 = GymSys backend 外部 story(offline grace 唔 block epic)。
+Prior verdict resolved: Yes(Pass 2 6 BLOCKING 全 FIXED)
+
+## Review — 2026-06-06 — Pass 2 — Verdict: TARGETED REVISION(fresh 3-verifier)
+Scope signal: L
+Specialists: systems-designer + qa-lead + godot-specialist(fresh context,verify Pass 1 fixes + 捕 revision 自引)
+Blocking items: 6 | Recommended: ~10 | 結果: Pass 1 全 16 clusters 確認 FIXED;citation 0 phantom(project 首次 fix pass 全 clean — 唔觸發 freeze)
+Summary: 6 targeted BLOCKING — NEW-1 AC-30/Rule 6.7/Rule 10 三向矛盾(+short-circuit path 令 gate load-bearing);NEW-2 ADR §D-2.3 server ratchet 缺 D8 corroboration 語意(typo 經 server 軸重現壓制);NEW-3 §D-2.2 下界 >0 留 near-zero hole(÷0 sibling);NEW-5 D8 pipeline 未 pin + stale-magnitude commit 破 INV-PR-2 upper bound(worked example 實證)→ commit-time 重計;G-PR-3 chain `WST ≺ AbilitySystem` 同 project.godot + ADR-0008 相反(Pass 1 review log 自己寫錯指示,revision 忠實執行 — Pass 1 漏 grep);AC-29 numbering gap。RECOMMENDED:to_dict boundary / workout_seq / telemetry String+append-log / G-PR-5 test 反轉 scope / G-PR-6 lint 未 shipped / Formula 4 candidate 棄用 lose 真突破 / INV-PR-2 lower bound qualify / 75.833 precision / AC-23 第五 vector / pr.persist_failed / GSM 無 READY enum 注。三 verifier 一致:Pass 3 = quick verifier-grep 級,唔使 full re-review。
+Prior verdict resolved: Yes(Pass 1 16 BLOCKING 全 FIXED + exit bar 0-phantom 達成)
+
+## Review — 2026-06-06 — Pass 1 — Verdict: MAJOR REVISION NEEDED
 Scope signal: L
 Specialists: game-designer, systems-designer, economy-designer, qa-lead, godot-specialist + creative-director (senior synthesis)
 Blocking items: 16 clusters | Recommended: ~10 | Nice-to-have: ~8

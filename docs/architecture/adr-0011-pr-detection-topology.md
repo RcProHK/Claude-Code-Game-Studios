@@ -59,8 +59,8 @@ Q3 嘅「server-side 判定」原意係「判定唔可以建基於 client 可捏
 GymSys 後端提供 per-exercise historical best e1RM。Contract:
 
 1. **Formula parity** — server 端 e1RM 必須用**同一條 Epley**(`e1rm = weight × (1 + min(reps, 12) / 30.0)`,divisor 30.0 float,`effective_reps = min(reps, REP_CAP=12)` clamp,**無 reps=1 特判**)。兩邊唔同尺 = 系統性 phantom/suppressed PR。
-2. **Value validation(client-side,reconcile 時 per-entry)** — server 回嘅每個 entry 必須過 `is_finite(v) and v > 0.0 and v <= WEIGHT_SANITY_MAX × 1.4`,唔過 → **reject 該 entry(保留 local)** + `pr.baseline_invalid` telemetry。Server 回 0 → ÷0 → INF → clamp 2.0 = 保證假 max PR;負數 = 該 exercise PR 永久 silent 死 — 兩個 degenerate 都由呢條 if 擋。
-3. **Ratchet 語意** — server baseline 必須係「**confirmed-PR ratchet 嘅 server 鏡像**」(同 client 同一條只喺 confirmed PR 先升嘅尺),**唔係 raw max e1RM over all sets**。否則 sub-floor 進步(microloading <1%)會被 server raw max 不斷吸收 → 誠實 microloader 一世零 PR(Pillar 1 正面違反)。實作上 server 可以 lazily 由 set 歷史推導,但推導規則必須 = client 判定規則(同一 noise floor 語意)。
+2. **Value validation(client-side,reconcile 時 per-entry)** — server 回嘅每個 entry 必須過 `is_finite(v) and v >= WEIGHT_SANITY_MIN and v <= WEIGHT_SANITY_MAX × (1 + REP_CAP / 30.0)`(下界係 **WEIGHT_SANITY_MIN(1.0kg)唔係 0** — near-zero entry 係 ÷0 嘅 sibling degenerate:tiny baseline → 正常 set clamp-2.0 假 max PR,且 soft-confirm corroboration 對細 absolute 值 trivially pass 救唔到;上界用公式唔 hardcode,免 REP_CAP knob coupling),唔過 → **reject 該 entry(保留 local)** + `pr.baseline_invalid` telemetry。Server 回 0/near-zero → ÷0/tiny → clamp 2.0 = 保證假 max PR;負數 = 該 exercise PR 永久 silent 死 — 全部由呢條 if 擋。
+3. **Ratchet 語意** — server baseline 必須係「**confirmed-PR ratchet 嘅 server 鏡像**」(同 client 同一條只喺 confirmed PR 先升嘅尺),**唔係 raw max e1RM over all sets**。否則 sub-floor 進步(microloading <1%)會被 server raw max 不斷吸收 → 誠實 microloader 一世零 PR(Pillar 1 正面違反)。實作上 server 可以 lazily 由 set 歷史推導,但推導規則必須 = client 判定規則(同一 noise floor 語意,**包埋 D8 corroboration 語意**:suspect-magnitude 跳升(> SUSPECT_PR_MAGNITUDE)只喺有後續 corroborating set(e1rm ≥ ratio)先入 ratchet — 否則 typo set 經 server 軸直入 baseline,下一 boot 覆寫後玩家所有真 PR 永久壓制,client 端 D8 防線被 server 路徑繞過;server 端 = 同一 algorithm 嘅 sequential scan + pending slot,實作平)。
 4. **Sync timing** — baseline 隨 **#2 polling state response 加 field** 落地(唔開獨立 endpoint / round-trip)。咁 baseline 必然先於(或同於)catch-up replay set 到達 → 結構性消除「replay set 搶先建假 fresh baseline」race。
 
 **Reconcile 規則(D2-floor,修正 #18 原 D2)**:server 贏 **pre-session 真相**;但本 session 內已 confirmed PR 嘅 e1RM 係 **floor** — reconcile 唔可以將 baseline 拉低過任何 session-confirmed 值(否則 #2 catch-up replay 重判同一 PR → stat double-count)。
@@ -78,7 +78,7 @@ GymSys 後端提供 per-exercise historical best e1RM。Contract:
 
 ### D-4:Caller path 修正 + CI lint amendment
 
-#18 autoload = **`src/autoload/pr_detection.gd`**(全部 17 個 shipped autoload 所在地;`src/feature/` 唔存在 — #11 GDD 嘅「檔名 LOCKED」係 phantom constraint)。`tools/ci/check_stat_mutation_callers.gd` whitelist 喺 #18 epic 第一個 story 內 amend(`res://src/feature/pr_detection.gd` → `res://src/autoload/pr_detection.gd`)— owner-exempt 修 lint 有先例(PR #12)。同時 escalate lead-programmer:該 lint whitelist 另有 2/4 條 stale(`src/core/workout_state_tracker.gd` / `src/feature/equipment_inventory.gd`)且 regex `StatSystem\.apply_stat_delta\(` literal 被 DI 慣例(`_stat_system.apply_stat_delta(`)繞過 = vacuous lint — 修 regex + whitelist 屬獨立 CI-tooling story,唔 block #18。
+#18 autoload = **`src/autoload/pr_detection.gd`**(全部 18 個 shipped autoload 所在地;`src/feature/` 唔存在 — #11 GDD 嘅「檔名 LOCKED」係 phantom constraint)。`tools/ci/check_stat_mutation_callers.gd` whitelist 喺 #18 epic 第一個 story 內 amend(`res://src/feature/pr_detection.gd` → `res://src/autoload/pr_detection.gd`)— owner-exempt 修 lint 有先例(PR #12)。同時 escalate lead-programmer:該 lint whitelist 另有 2/4 條 stale(`src/core/workout_state_tracker.gd` / `src/feature/equipment_inventory.gd`)且 regex `StatSystem\.apply_stat_delta\(` literal 被 DI 慣例(`_stat_system.apply_stat_delta(`)繞過 = vacuous lint — 修 regex + whitelist 屬獨立 CI-tooling story,唔 block #18。
 
 ## Consequences
 
