@@ -1,12 +1,14 @@
 # Story 011: enemy_killed → DYING self-filtered wiring
 
 > **Epic**: Boss System
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Feature
 > **Type**: Integration
 > **Estimate**: S
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-06
+
+**Completion Notes (2026-06-06)**: `tests/unit/boss_system/test_enemy_killed_to_dying.gd` (5 tests; combined 267scr/1753/1752pass/0fail/1pending). The `_on_enemy_killed_self_listen(payload: EnemyKilledPayload)` handler + `_enter_state(DYING)` idempotency were already wired in `boss_instance.gd` (Story 002 scaffold) — Story 011 finalizes + comprehensively tests them: AC-11b (own id→DYING / other id→ignored / double-fire idempotent), AC-08 (exact transition_id equality filter, not prefix), EC-24 (HP→0 then enemy_killed = single DYING). Off-tree bosses so DYING→`_play_death_and_free` does cleanup-only (no queue_free), keeping the node assertable. Mock payload = real `EnemyKilledPayload.new()` (file-level class_name) with transition_id set. No source change (the 002 handler was correct).
 
 ## Context
 
