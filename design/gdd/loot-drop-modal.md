@@ -87,11 +87,11 @@
    - **One-modal-at-a-time**:reveal 行緊時新 `loot_dropped` 嚟 → no-op(doorbell 語意,Rule 2)— 唔開第二個 modal。
 
 7. **Handoff 時機(D1 commit-point invariant — INV-M3)** —
-   - **INV-M3(S3 = 唯一 commit point)**:`InventorySystem.receive_loot(drop)` 喺 **S3 到達時** call(唔係 tap 時),且 **S3 係 sequential reveal 唯一嘅 banking + dequeue commit point** — S3 未到 = 件嘢未離開 #15 reveal queue(零 emit、零 bank);S3 到咗 = banked + 可 dequeue。#21 係 shipped `receive_loot()` 嘅唯一 caller(現時零 caller — epic wire;CI lint 見 AC-21 owner-exempt 條款)。咁樣 tap 純粹係 ceremonial(撳快門),玩家永遠唔 tap 都唔丟 item;#17 duplicate no-op + batch debounce(#17 EC-22/AC-29)兜底。
+   - **INV-M3(S3 = 唯一 commit point)**:`InventorySystem.receive_loot(drop)` 喺 **S3 到達時** call(唔係 tap 時),且 **S3 係 sequential reveal 唯一嘅 banking + dequeue commit point** — S3 未到 = 件嘢未離開 #15 reveal queue(零 emit、零 bank);S3 到咗 = banked + 可 dequeue。#21 係 shipped `receive_loot()` 嘅唯一 caller(現時零 caller — epic wire;CI lint 見 AC-21 owner-exempt 條款)。咁樣 tap 純粹係 ceremonial(撳快門),玩家永遠唔 tap 都唔丟 item;#17 duplicate no-op 兜底(batch coalescing 見下文 G-LM-10)。
    - **Pre-S3 force-close = cancel + re-reveal(D1,推翻原「唔做 re-reveal」blend)**:原論證(「15s ≫ ceremony 全長,S3 必先於 force-close」)唔成立 — 15s 係 entry gate 唔係 suppression window,`rest_ended` event-driven 可以喺 S0-S2 fire。Pre-S3 force-close:cancel(行 INV-M1 出口)、**唔 emit `modal_dismissed`**、件留 #15 queue、GSM `loot_reveal_pending` 保持 true(GSM L127 retry 語意 — **同 shipped GSM contract 完全對齊**)→ 下次 safe state **re-reveal**。哲學:未撳快門 = 張相從未影過,re-reveal untapped item 係誠實;auto-collect untapped 先係假快門。**Re-reveal 只限 pre-S3(未 banked)件;已 banked(post-S3)item 永不 re-reveal**(嗰個先係 anti-flashbulb)。
    - **`FAILED_ROLLBACK` recovery chain(Pass 1 修正 — #17 EC-1 鏈唔可以斷)**:#17 EC-1 設計係 caller catch `FAILED_ROLLBACK` 後寫 `loot.pending.recovery`(#15 sole-writer namespace)。#21 係 stateless presentation 唔寫 persistence → S3 `receive_loot` 回 `FAILED_ROLLBACK` 時 #21 call **#15 `report_receive_failure(drop_id)`**(G-LM-4 新增 handler,#15 寫自己 recovery namespace)— boot-drain eventual grant 鏈保全;user-visible 行為照 EC-M14(零 delta + 照 dismiss)。
    - **Queue dequeue**:`modal_dismissed` 喺 tap dismiss / post-S3 stash-exit 時 emit(Rule 6/8);pre-S3 cancel 路徑零 emit(上文)。
-   - **Catch-up batch commit point = stream-end(或 force-close 嗰刻,whichever first)**(Pass 1 修正 — 原「per-beat commit」對 shipped #17 one-frame debounce 唔可滿足:beats 隔 0.15s ≈ 9 frames → 40 件 = 40 次 full persist):stream beats 只 display 唔 commit;stream 完成(或 force-close 中斷)嗰刻,已 display 嘅 beats 喺**單一 frame 連發** `receive_loot` + `modal_dismissed` → #17 one-frame ONE_SHOT debounce 啱用,aggregate/push/persist 各一次;未 display beats 留 pending。RARE+ ceremonies 照 INV-M3 per-item S3 commit(件數 ≤ K=5,persist 次數有界)。Grid overflow 件(C-2)入 grid entry 嗰 frame 同款 batch。
+   - **Catch-up batch commit point = stream-end(或 force-close 嗰刻,whichever first)**(Pass 1 修正 — 原「per-beat commit」= 40 件 40 次 full persist):stream beats 只 display 唔 commit;stream 完成(或 force-close 中斷)嗰刻,已 display 嘅 beats 用 **#17 public batch seam(G-LM-10)**包住連發 `receive_loot` + `modal_dismissed` → aggregate/push/persist 各一次;未 display beats 留 pending。**Pass 2 修正:shipped #17 嘅 `_batch_depth` coalescing 係 internal-only(boot/suspended drain 專用,`inventory_system.gd:308/320/454/458` — 零 public API;external caller 連發 N call = N 次 full persist `inventory_system.gd:389-393`)— 所以 batch seam 本身係新 gate,唔係現成機制。** RARE+ ceremonies 照 INV-M3 per-item S3 commit(件數 ≤ K=5,persist 次數有界)。Grid overflow 件(C-2)同款 batch seam。
 
 8. **Force-close(GSM force-transition while modal open)— D1 pre/post-S3 split** — 玩家唔望 mon、新 set 開始等外部 transition 發生時:
    - **Pre-S3(S0-S2)**:**cancel + re-reveal path** — ≤1 frame cancel(行 INV-M1 出口,同 rollback-cancel 同 shape)、**唔 emit `modal_dismissed`**、件留 #15 queue、`loot_reveal_pending` 保持 true → 下次 safe state GSM retry re-reveal(Rule 7)。無 toast(件未 banked,冇嘢 acknowledge)。
@@ -112,12 +112,12 @@
     - **RARE+ 留最尾,ascending rarity,各自 full ceremony + tap**(peak-end rule:sequence 以最好嗰件收尾)。
     - **收尾 summary grid**:全部 N 件 rarity-sorted 一屏(「相辦/contact sheet」)— closure + screenshot-worthy(FT-1 對齊)。
     - **中途可退出**(Pillar 2 never-trap):常駐「稍後再拆」affordance(角落,≥48px,**獨立 Control 喺 scrim z-order 之上,input 優先食 tap**(Pass 1 修正 — 原文冇 input policy,同「全屏 scrim」食 tap 矛盾);ceremony S2 行緊時 tap affordance = 當前件 fast-complete → S3 commit → stash 收埋,剩餘留 Pending — exit 永遠唔丟件)。**Commit 語意(對齊 Rule 7)**:RARE+ ceremonies per-item commit @ S3(INV-M3);stream beats display-only,stream-end / force-close / exit 嗰刻單一 frame batch commit 已 display 件;未 display 原封留 Pending,banner 下次以更新咗嘅 N 重現,零懲罰。
-    - **15s window truncation(Pass 1 明文)**:worst-case catch-up(14.3s 機器時間 + taps)可以俾 `rest_ended` force-close 斬,而 peak-end ordering 令被斬嘅係最高 tier — **accepted limitation**:per-item/batch commit 保證零 loss,未 reveal RARE+ 原封留 Pending,下次 catch-up 以同一 peak-end 結構重現(peak 冇消失,只係延期);telemetry `catchup_truncated(remaining, reason)` 量度發生率,rate 高就重訪(縮 K / RARE+ 提前)。
+    - **15s window truncation(Pass 1 明文)**:worst-case catch-up(15.8s 機器時間 + taps)可以俾 `rest_ended` force-close 斬,而 peak-end ordering 令被斬嘅係最高 tier — **accepted limitation**:per-item/batch commit 保證零 loss,未 reveal RARE+ 原封留 Pending,下次 catch-up 以同一 peak-end 結構重現(peak 冇消失,只係延期);telemetry `catchup_truncated(remaining, reason)` 量度發生率,rate 高就重訪(縮 K / RARE+ 提前)。
 
 11. **Rollback 處理(`loot_rollback`)** —
     - **Pre-S3(S0–S2)**收到 rollback(該 drop_id):≤1 frame cancel、**必須 restore timescale**、無 terminal frame、無 toast、**唔 emit `modal_dismissed`**(#15 rollback path 自己處理 queue,emit 會 double-advance)。
     - **S3(post-banking)收到 rollback:顯示層 no-op**(Pass 1 修正 — S3 時 `receive_loot` 已 fire、content 已被見:cancel = 字面 show-then-revoke,違自己第 4 bullet;item 已 grant,revoke 屬 #15/#17 post-grant reconciliation path,#21 唔演)— modal 照行到 dismiss,telemetry `loot_reveal.late_rollback`。同 EC-M16 stream「已過 commit point → post-grant path」同一原則。
-    - **Rollback-cancel 之後必須 re-query**(Pass 1 修正 — 原 FSM「rollback → HIDDEN」會令 GSM 永久 stuck:Rule 13 只係 entry-time check,queue 空冇人 emit terminal):cancel 完成 → `get_pending_drops()`:非空 → gap 後 ENTRY 下一件;空 → emit `modal_dismissed("", terminal=true)` 行 terminal 出口(#15 emit `loot_confirmed` → GSM exit)。
+    - **Rollback-cancel 之後必須 re-query**(Pass 1 修正 — 原 FSM「rollback → HIDDEN」會令 GSM 永久 stuck:Rule 13 只係 entry-time check,queue 空冇人 emit terminal):cancel 完成 → `get_pending_drops()`:非空 → gap 後 ENTRY 下一件;空 → emit `modal_dismissed("", terminal=true)` 行 terminal 出口(#15 emit `loot_confirmed` → GSM exit)。**in_catchup 時(Pass 2 補)**:re-query 對象係本次已揀定嘅 ceremonies 殘餘(K-cap selection 唔重新揀 — 防 cancel 觸發超 cap 補位);ceremonies 清咗 → CATCHUP_GRID(唔係 HIDDEN — grid 係本 session commit summary,照出)。
     - Queued 未 reveal 嘅 rollback:pull model 下零動作(#15 自己出 queue,下次 query 見唔到)。
     - **Timescale guaranteed-restore invariant(INV-M1)**:所有 cancel path(fast-complete / rollback / pre-S3 force-close / EC-M1 Suspended)共用單一 freeze-release 出口,release **idempotent** 且「freeze 未 issue」時係 no-op — time-stop dangling = 全 game 凍結,係 #21 最高危 failure mode。
     - **永不 show-then-revoke**:S0 burst 係 non-committal(「有嘢嚟緊」嘅閃光,未 promise 具體 item);S1 content 填充 gate 喺 #15 optimistic persist 嘅 local commit 窗口之後 — 玩家見到嘅失敗形態永遠係 deferral(「Loot 已記低,稍後再拆」),唔係 revocation(見到件 EPIC 然後收返 = Pillar 1 attribution trust 最大破壞)。
@@ -125,7 +125,7 @@
 12. **Disabled banner + banner stack** — `loot_disabled(reason)` → banner stack 顯示 #15 own 嘅 copy(「Private Mode:Loot 暫停掉落…」)。Modal active 時收到 → 現行 ceremony 行完,banner 喺 dismiss 後先出(唔 mid-ceremony 蓋 banner 偷走 euphoria);同時收到 rollback → rollback 優先。Banner stack:top edge full-width、**固定 top margin**(Pass 1:web export `get_display_safe_area()` 回 full canvas — iOS inset 要 JS bridge,唔依賴;固定 margin 兜)、**同 #20 banner 共用單一 stack region,同屏最多一條,priority:`private_mode` > 其他(audio silent-mode 等)**;**displacement 語意(Pass 1)**:被 displace 嘅 banner 喺高 priority banner 清走後 re-render(predicate 仍 true 就返嚟 — displacement ≠ #20 one-shot dismissal,防 audio banner 永鎖;#20-side suppress 接線屬 Q-OQ6 sync);**catch-up summary banner 唔屬 banner stack**(佢係 interactive CTA surface,行 CATCHUP_PROMPT state,center placement — 唔同 status banner 爭位);絕不侵 #20 L1 anchor zone;`role=status` announce 一次。
 
 13. **Empty-queue LOOT_DROP entry**(rollback race:入咗 LOOT_DROP 但 `get_pending_drops()` 空)→ #21 即 emit `modal_dismissed("", terminal=true)` → #15 emit `loot_confirmed` → GSM 推進 — 否則 stuck state(seam 全行 #15 chain,Rule 6)。
-13b. **GSM contract row 兌現狀態(Pass 1 — GSM L375 四項逐項收線)**:(a) `source_event = "deferred_reveal"` entry mode — Rule 2 GSM-driven trigger 已兌現 ✓;(b) inventory「未開封」item tap entry trigger — **defer v0.2**(未開封件已 auto-commit 唔喺 reveal queue,需要 #23 Inventory UI surface + 獨立 content-source 分支;MVP 30-日 hard-cap auto-commit 係極罕 path,deferred-ack 已 acknowledge)→ GSM erratum note + OQ-6;(c) `BossPayload.outcome == INTERRUPTED_WITH_CREDIT` → **fast-victory variant 兌現**:source attribution slot 用「快勝」variant copy + caption(UI Requirements §B slot 4),ceremony ladder 照 tier 不變(layout variant 唔係 ceremony variant);(d) `rest_ended` force-close 保留 `loot_reveal_pending = true` — Rule 8 pre-S3 branch 已兌現 ✓(post-S3 件已 banked,#15 dequeue 後 queue 空 → `loot_confirmed` 清 flag,語意一致)。
+13b. **GSM contract row 兌現狀態(Pass 1 — GSM L375 四項逐項收線)**:(a) `source_event = "deferred_reveal"` entry mode — Rule 2 GSM-driven trigger 已兌現 ✓;(b) inventory「未開封」item tap entry trigger — **defer v0.2**(未開封件已 auto-commit 唔喺 reveal queue,需要 #23 Inventory UI surface + 獨立 content-source 分支;MVP 30-日 hard-cap auto-commit 係極罕 path,deferred-ack 已 acknowledge)→ GSM erratum note + OQ-6;(c) `BossPayload.outcome == INTERRUPTED_WITH_CREDIT` → **fast-victory variant 兌現(copy 層)+ data path 歸 G-LM-4 ⑧**(Pass 2:marker 持久化先令 deferred reveal 攞得返 outcome — shipped LootDrop record 零 outcome 載體):source attribution slot 用「快勝」variant copy + caption(UI Requirements §B slot 4),ceremony ladder 照 tier 不變(layout variant 唔係 ceremony variant);(d) `rest_ended` force-close 保留 `loot_reveal_pending = true` — Rule 8 pre-S3 branch 已兌現 ✓(post-S3 件已 banked,#15 dequeue 後 queue 空 → `loot_confirmed` 清 flag,語意一致)。
 
 14. **玩家唔可以做嘅嘢**(constraints):mid-ceremony 唔可以 dismiss(只可 fast-complete — 保證 terminal frame 永遠被見到,reveal 唔 missable);唔可以 re-open 已 dismiss 嘅 reveal(dismiss-peek pattern 唔存在 — #5 EC-18 嘅 dedup 場景以唔提供 re-peek 直接消滅);唔可以喺 modal 開住時操作周邊(#33 ceremony lock);唔可以 skip audio sting(rarity backup channel)。
 
@@ -138,8 +138,8 @@
 | State | 意義 | Entry | Exit edges(全列) |
 |---|---|---|---|
 | `HIDDEN` | modal 唔 visible(pre-warmed,`visible=false`) | boot / terminal 出口 | GSM→LOOT_DROP:depth==0 → 即 terminal emit 留喺 HIDDEN(Rule 13);0<depth<threshold → ENTRY(in_catchup=false);depth≥threshold → CATCHUP_PROMPT |
-| `ENTRY` | S0 burst + S1 scale-in | reveal 開始 | S1 完成(content final)→ CEREMONY;rollback(該 drop_id)→ cancel → re-query(Rule 11:非空 → gap 後 ENTRY;空 → terminal emit → HIDDEN);pre-S3 force-close → cancel → HIDDEN(零 emit,Rule 8) |
-| `CEREMONY` | S2 ladder 行緊(hold/focal-push → freeze @ peak,D2) | ENTRY 完 | ladder 完 / tap fast-complete → STEADY;rollback → cancel → re-query 同上;pre-S3 force-close → cancel → HIDDEN(零 emit) |
+| `ENTRY` | S0 burst + S1 scale-in | reveal 開始 | S1 完成(content final)→ CEREMONY;rollback(該 drop_id)→ cancel → re-query(Rule 11:非空 → gap 後 ENTRY;空 → terminal emit → HIDDEN;**in_catchup:ceremonies 殘餘 → ENTRY / 清咗 → CATCHUP_GRID**);pre-S3 force-close → cancel → HIDDEN(零 emit,Rule 8) |
+| `CEREMONY` | S2 ladder 行緊(hold/focal-push → freeze @ peak,D2) | ENTRY 完 | ladder 完 / tap fast-complete → STEADY;rollback → cancel → re-query 同上(含 in_catchup branch);pre-S3 force-close → cancel → HIDDEN(零 emit) |
 | `STEADY` | S3 dismissable 終態(SR announce + `receive_loot` + INV-M3 commit 喺 entry 時 fire) | CEREMONY 完 | tap dismiss / post-S3 force-close(stash-exit)→ EXITING;rollback → **no-op 留 STEADY**(Rule 11 post-banking) |
 | `EXITING` | S4 exit anim(或 stash collapse) | dismiss / stash-exit | anim 完:in_catchup 且 ceremonies 剩 → gap 後 ENTRY;in_catchup 且 ceremonies 完 → CATCHUP_GRID;!in_catchup 且 queue 非空 → gap 後 ENTRY;queue 空 → terminal emit → HIDDEN。force-close 落中途 → idempotent(唔 double-emit,Rule 8) |
 | `CATCHUP_PROMPT` | summary banner 顯示中 | GSM→LOOT_DROP 且 depth ≥ threshold | tap reveal-all:sub-RARE>0 → CATCHUP_STREAM;sub-RARE==0 → ENTRY(in_catchup=true);defer / force-close → terminal emit → HIDDEN(零 commit,留 pending — EC-M7) |
@@ -164,7 +164,7 @@
 |---|---|---|---|
 | **#15 LootDrop** | #15 → #21 signal;#21 → #15 emit-back + pull + call | #15 | subscribe `loot_dropped`(doorbell)/ `loot_micro_ack` / `loot_rollback` / `loot_disabled`;pull `get_pending_drops()`(只回 FULL_CEREMONY 件,Rule 2)/ `get_drop(drop_id)`;emit `modal_dismissed(drop_id, terminal)` → #15 以 drop_id dequeue + terminal 時 emit `loot_confirmed`;call `report_receive_failure(drop_id)`(EC-1 recovery 鏈,Rule 7)(**G-LM-4** 重寫 scope:revealed/sync state 分離 + ceremony kind 持久化 + drop_id dequeue + loot_confirmed emit + recovery handler + defer retry-suppression — #15 加 handler,reverse-wire story,#18 先例) |
 | **#1 GSM** | #1 → #21(state only)| #1 | `connect_for_initial_state(state_changed)`;開 modal 唯一 trigger = → LOOT_DROP;**exit 行 #15 chain(`loot_confirmed`),#21 對 GSM zero-direct-call**(GSM AC-14 — Pass 1 seam 方向修正);Rule 13 safe states + `MIN_REVEAL_WINDOW`(entry gate)係 #1 own;L375 四項 contract 兌現狀態見 Rule 13b |
-| **#17 Equipment** | #21 → #17 call | #17 | `receive_loot(drop)` @ S3 / micro_ack / batch frame(唯一 caller — AC-21 owner-exempt lint;duplicate no-op + one-frame batch debounce #17 兜;`FAILED_ROLLBACK` → `report_receive_failure` 鏈,Rule 7)+ **#17 erratum**:doc comment「#15 calls this」→ #21(見 sync flags) |
+| **#17 Equipment** | #21 → #17 call | #17 | `receive_loot(drop)` @ S3 / micro_ack / batch seam(唯一 caller — AC-21 owner-exempt lint;duplicate no-op #17 兜;**batch coalescing 經 G-LM-10 public seam**(Pass 2:shipped `_batch_depth` internal-only,external 連發 = 逐 call persist);`FAILED_ROLLBACK` → `report_receive_failure` 鏈,Rule 7)+ **#17 erratum**:doc comment「#15 calls this」→ #21(見 sync flags) |
 | **#5 Particle** | #21 → #5 call | #5 | `play(LOOT_BURST / LOOT_RARE_BURST, reveal_anchor_pos)` per #15 tier mapping;catch-up stream 用 aggregated effect(EC-18 caller dedup);**G-LM-2**:LOOT pool nodes reparent 入 CelebrationVFXLayer + `PROCESS_MODE_ALWAYS`(現時 INHERIT — tree paused 時 burst 會 freeze,違 ladder「particle 繼續」;且 layer 0 會被 saturation 降格,違 art bible「爆裝特效全飽和」)+ **reparent 時序 = post-#21-boot handshake**(`register_celebration_layer(layer)`,idempotent — pool 喺 #5 boot 已 add_child,layer 等 #21 tail `_ready` 先存在) |
 | **#6 ScreenEffects** | #21 → #6 call | #6 | shake(現有 API,ALWAYS process freeze 期間照行);**G-LM-3 重寫 scope(Pass 1)**:① 新 `ceremony_freeze(duration)` primitive(ceiling 0.4s,**唔受 `MAX_PAUSE_SEC=0.12` 管**)② **freeze 記帳由 shipped 單一 scalar(`_pause_remaining_sec`)重構成 per-entry ledger** + ③ **新 idempotent 早收 `release(handle)` API**(INV-M1 出口 — shipped 只有自然 expiry,無早收)④ **saturation API 全新**(shipped 零 saturation 實現 — grep src/ 證實,「現有 API」係 phantom;BackBufferCopy shader uniform 通路)⑤ 繼承 Suspended/focus-resume 安全網 — #21 唔自己掂 `get_tree().paused` |
 | **#7 Camera** | #21 → #7 call + signal | #7 | EPIC/LEG `request_focal(reveal_anchor_pos, D_hold(tier), zoom(tier))` + RARE pulse(數值 data-driven 讀 #15 table,零 hardcode — Pass 1 修正);GSM==LOOT_DROP 後先 call(#7 Rule 4);subscribe `focal_completed` 做 freeze 錨點(D2 freeze-as-hold);**#7 API 零 change 維持成立**(D2 設計目標);orbit drift cut from MVP;連續 EPIC+ 間距 = `FOCAL_EXIT_MARGIN_SEC`(EC-M9) |
@@ -188,15 +188,15 @@
 `T_block(tier) = max(D_entry(tier), D_hold(tier) + D_timestop(tier))`
 
 **Constraint C1**:`D_entry(tier) ≤ D_hold(tier) + D_timestop(tier)` ∀ tier(成立時 `T_block = D_hold + D_timestop`,同 #15 一致)
-**Freeze 錨點**:EPIC/LEG = `focal_completed` signal(fallback timer T=D_hold+0.2s — #7 bug 時照 freeze,telemetry `loot_reveal.focal_anchor_fallback`);RARE/C-U = clock T=D_hold(RARE pulse 0.3s 早完,freeze 照錨 hold 結束;C/U D_timestop=0 無 freeze)。Focal entry duration 同 D_hold 同源(#15 table:EPIC 0.65s/LEG 0.8s == hold 650/800ms),budget 算術唔受 signal jitter 影響(assert 用 nominal config 數)。
+**Freeze 錨點**:EPIC/LEG = `focal_completed` signal(fallback timer T=D_hold+0.2s — #7 bug 時照 freeze,telemetry `loot_reveal.focal_fallback`);RARE/C-U = clock T=D_hold(RARE pulse 0.3s 早完,freeze 照錨 hold 結束;C/U D_timestop=0 無 freeze)。Focal entry duration 同 D_hold 同源(#15 table:EPIC 0.65s/LEG 0.8s == hold 650/800ms),budget 算術唔受 signal jitter 影響(assert 用 nominal config 數)。
 **Hard assert**:`T_block(tier) ≤ ATTENTION_CEILING_MS` ∀ tier — **CI/data-load assert,唔用 runtime clamp**(clamp 靜默壓扁 ladder);ceiling 必須係 `≤`(LEGENDARY equality touch — `<` 即不可達 binding,satisfiability 教訓)
 
 **Variables:**
 | Variable | Symbol | Type | Range | Description |
 |----------|--------|------|-------|-------------|
 | entry 時長 | D_entry | float ms | 150–450(per-tier knob,#21 own) | S1 scale-in |
-| time-stop 窗 | D_timestop | float ms | 0–400(**#15 ladder locked**) | S2a freeze |
-| hold 窗 | D_hold | float ms | 200–800(**#15 ladder locked**) | S2b hold |
+| hold 窗 | D_hold | float ms | 200–800(**#15 ladder locked**) | S2a hold/focal-push(D2) |
+| time-stop 窗 | D_timestop | float ms | 0–400(**#15 ladder locked**) | S2b freeze @ peak(D2) |
 | attention ceiling | ATTENTION_CEILING_MS | int ms | 1200(locked,#15 Pillar 2) | blocking 上限 |
 
 **Per-tier timeline(sum column = T_block):**
@@ -225,7 +225,8 @@ px_w = round(frac_w × W_bar)              px_r = W_bar − px_w
 pct_w = round_half_up(frac_w × 100)
 Honest-endpoint clamp(Pass 1 — rr=0.01 round 到 100/0 係假 claim;rr=0 嘅 100/0 先係真):
   if contrib_r > 0: pct_w = min(pct_w, 99);  if contrib_w > 0: pct_w = max(pct_w, 1)
-  px 同步:contrib_r > 0 ⇒ px_r = max(px_r, 1)
+  px 同步:contrib_r > 0 ⇒ px_r = max(px_r, 1); px_w = W_bar − px_r   ← Pass 2 閉合:clamp 後重derive px_w,
+    維持 px_w+px_r == W_bar invariant(原文漏咗呢半步,AC-42 endpoint case 會自我否證)
 pct_r = 100 − pct_w     ← 保證 sum=100
 Floor clause: if (px_w − px_r) < BREAKDOWN_MIN_DELTA_PX → px_w = ceil((W_bar+MIN_DELTA)/2)(corrupt-input 防線)
 Display gate: W_bar < W_BAR_MIN → stacked text-only variant(% label mandatory,無 info loss)
@@ -290,9 +291,9 @@ Flush gate(qa-lead gap-fix + art-director conflict 統一解 2026-06-06):
 Instance 時間結構:entry(TOAST_ENTRY_SEC)→ visible plateau(TOAST_VISIBLE_SEC)→ fade-out(TOAST_FADE_SEC)
 ```
 
-**Variables:** `TOAST_ENTRY_SEC=0.15` / `TOAST_VISIBLE_SEC=1.2`(plateau,唔包 entry/fade)· `TOAST_FADE_SEC=0.15` · `MERGE_MIN_REMAIN=0.6` · `TOAST_MAX_LIFETIME=3.0` · `FLUSH_DELAY=0.1` · N_disp ∈ 1–99+
+**Variables:** `TOAST_ENTRY_SEC=0.15` / `TOAST_VISIBLE_SEC=1.2`(plateau,唔包 entry/fade)· `TOAST_FADE_SEC=0.15` · `MERGE_MIN_REMAIN=0.6` · `TOAST_MAX_LIFETIME=3.0` · `FLUSH_DELAY=0.15`(Pass 2:對齊 §G 建議下限 — 避開 #4 set_complete/streak_chime 80-120ms stagger window)· N_disp ∈ 1–99+
 **Output Range(Pass 1 修正):** toast instance 壽命 normal ∈ [1.5, 3.15]s(min = entry 0.15 + plateau 1.2 + fade 0.15;max = cap 3.0 + fade 0.15);EC-M17 interrupt fade(0.1s)例外可 <1.5s。
-**Example:** modal 期間 3 ack → defer;terminal dismiss 後 0.1s(且 GSM safe state)出最高-tier-tint「×3」toast 配 toast tick(low/mono)。
+**Example:** modal 期間 3 ack → defer;terminal dismiss 後 0.15s(且 GSM safe state)出最高-tier-tint「×3」toast 配 toast tick(low/mono)。
 
 ### F5 — `fast_complete_snap`(two-stage tap 嘅 stage-1)
 
@@ -340,7 +341,7 @@ T_block_fast = S3_entry ∈ [D_entry + SNAP_SEC, T_block]
 - **EC-M6 — `get_drop()` 回 null(dangling drop_id)**:**If** null:skip 該件 — CRITICAL telemetry `loot_reveal.dangling_drop`,唔開 modal、唔 call `receive_loot`,`INTER_REVEAL_GAP` 後 advance;如係 terminal item → 行 terminal dismiss 出口。Placeholder modal = fabrication,禁止。
 - **EC-M7 — GSM force-close 落 catch-up 各 phase**:**If** CATCHUP_PROMPT:banner 收埋、零 commit、全部留 pending(Pass 1 補 — 原文冇 prompt phase)。**If** stream 中:**force-close 嗰刻就係 batch commit point**(Rule 7 — 已 display beats 單一 frame 連發 commit;in-flight 未 display → 留 pending)— 已 commit 唔 re-reveal。**If** ceremony 中:per-item 語意 — pre-S3 cancel 留 pending / post-S3 stash(Rule 8)。**If** grid 中:grid 係 post-commit summary → 直接收埋,零 data 影響。全 phase:terminal emit → #15 `loot_confirmed`(除 pre-S3 ceremony cancel — 嗰下唔 emit,GSM retry 語意接手)。
 - **EC-M8 — 新 drop / micro_ack 嚟喺 catch-up 中途(phase-gated append)**:**If** 新 drop:只可加入**未完**phase — sub-RARE → append stream 尾(受 `MAX_STREAM_BEATS` cap);RARE+ → 插入 ascending 序(受 `K_CEREMONY_MAX` cap;**cap 已滿 → 留 pending,唔入 grid**(Pass 1 釘:grid 係本次 session 嘅 commit summary,mid-flight 新件未 commit — 下次 catch-up 以 full ceremony 機會重現,保 C-1 identity));phase 已過 → 留 pending,exit 時 F4 flush。**Phase 唔回頭 = catch-up 保證 terminate。**
-- **EC-M9 — 連續兩件 EPIC+(focal 重入)**:**If** reveal i 嘅 focal lifecycle 仲未完(**grep ground truth(Pass 1 修正):`focal_completed` 喺 entry tween 完成嗰刻 emit(`camera_controller.gd:364-376`),之後 0.5s exit tween 期間 `_lifecycle_state` 仍係 FOCAL,re-entry 照 silent DROP;「focal 剩餘」無 public API 可查 — 原「gate 喺 focal_completed」修唔到自己想修嘅 bug**)而 i+1 `request_focal` → 第二件無聲冇 ritual。**Resolution(deterministic margin,唔靠 API)**:上一件係 EPIC+ 時 inter-reveal gap = `FOCAL_EXIT_MARGIN_SEC`(0.6,knob)— timeline 推導:exit tween 喺 freeze 期間被凍,S3 entry 起計 0.5s 完;下一件 request 最早 = S3 + S4(0.2)+ gap(0.6)= S3+0.8 > S3+0.5 ✓ margin 0.3s。Knob 值約束:**必須 ≥ #7 `FOCAL_EXIT_DURATION`(0.5)− `EXIT_ANIM_SEC` + 0.1s margin**(G-flag grep #7 const 確認,值變要重驗)。**Watchdog `FOCAL_WATCHDOG_SEC`(1.5s)留做 freeze-錨 fallback**(`focal_completed` 冇 emit → T=D_hold+0.2s 照 freeze,F1;queue 永不鎖死,telemetry `loot_reveal.focal_watchdog`)。
+- **EC-M9 — 連續兩件 EPIC+(focal 重入)**:**If** reveal i 嘅 focal lifecycle 仲未完(**grep ground truth(Pass 1 修正):`focal_completed` 喺 entry tween 完成嗰刻 emit(`camera_controller.gd:364-376`),之後 0.5s exit tween 期間 `_lifecycle_state` 仍係 FOCAL,re-entry 照 silent DROP;「focal 剩餘」無 public API 可查 — 原「gate 喺 focal_completed」修唔到自己想修嘅 bug**)而 i+1 `request_focal` → 第二件無聲冇 ritual。**Resolution(deterministic margin,唔靠 API)**:上一件係 EPIC+ 時 inter-reveal gap = `FOCAL_EXIT_MARGIN_SEC`(0.6,knob)— timeline 推導:exit tween 喺 freeze 期間被凍,S3 entry 起計 0.5s 完;下一件 request 最早 = S3 + S4(0.2)+ gap(0.6)= S3+0.8 > S3+0.5 ✓ margin 0.3s。Knob 值約束:**必須 ≥ #7 `FOCAL_EXIT_DURATION`(0.5)− `EXIT_ANIM_SEC` + 0.1s margin**(G-flag grep #7 const 確認,值變要重驗)。**Watchdog `FOCAL_WATCHDOG_SEC`(1.5s)留做 freeze-錨 fallback**(`focal_completed` 冇 emit → T=D_hold+0.2s 照 freeze,F1;queue 永不鎖死,telemetry `loot_reveal.focal_fallback` — Pass 2 統一名,同 F1/AC-60 一致)。
 - **EC-M10 — DISCONNECTED state reveal**:**If** 喺 DISCONNECTED(safe state 之一)觸發:**UX 同 connected 完全一樣,零特殊處理** — `receive_loot()` 純 local(grep 證實無 HTTP);backend sync 係 #15/ADR-0003 reconciliation own。唔顯示 sync spinner / badge — Pillar 2 唔輸出 infra 焦慮。
 - **EC-M11 — mid-modal safe→safe 轉換(如 DISCONNECTED→IDLE reconnect)**:**If** 發生:**繼續,唔 force-close** — safe set 只喺 entry 檢查;只有轉出 safe set 先觸發 stash-exit。
 - **EC-M12 — viewport resize / 手機轉向 mid-modal**:**If** resize:anchor/container 一 frame re-layout;breakdown bar 用新 W_bar 重行 F2(< W_BAR_MIN → stacked text-only variant);timer 全部 time-based 不受影響;particle 唔 replay;focal clamp #7 Story 008 已兜。
@@ -387,19 +388,20 @@ T_block_fast = S3_entry ∈ [D_entry + SNAP_SEC, T_block]
 | **#26 AvatarRenderer** | 無 API 依賴;P3 約束「avatar effects 永遠係 #21 嘅 supporting cast」(#26 GDD 已載) |
 | **#22 / #23** | P-06 rarity 語言共用(pattern 級,非 API) |
 
-### Cross-system gates(G-LM-1..9 — epic 執行;G-LM-3/4 Pass 1 重寫,G-LM-8/9 Pass 1 新增)
+### Cross-system gates(G-LM-1..10 — epic 執行;G-LM-3/4 Pass 1 重寫,G-LM-8/9 Pass 1 新增,G-LM-10 Pass 2 新增)
 
 | Gate | 內容 | 對象 |
 |------|------|------|
 | **G-LM-1** | ADR-0001 revision:topology 加 `CelebrationVFXLayer`(110, ALWAYS, follow_viewport)+ `ModalLayer`(120, ALWAYS);註明 >100 = BackBufferCopy capture 外(saturation/shake immune);cite L109 HUD knob 先例;**Pass 1 補**:① 釘實 layer 嘅 viewport residence — `follow_viewport` 只喺同 Camera2D 同一 viewport 先有意義(world content 如最終入 SubViewport,autoload layer 掛 root viewport 嘅 anchor 映射要明文)② modal 8% local blur = 第二次 framebuffer copy(Compatibility/WebGL2)— priced 入 budget 或 opacity-only fallback | ADR-0001 |
 | **G-LM-2** | #5 amendment:LOOT preset pool nodes reparent 入 CelebrationVFXLayer + per-slot `PROCESS_MODE_ALWAYS`(現時 INHERIT + layer 0 — freeze 時 burst 凍結 + 被 saturation 降格雙 bug) | #5 + `particle_system_wrapper.gd` |
 | **G-LM-3** | #6 amendment(**Pass 1 重寫 — scope 遠大過原 gate text**):① 新 `ceremony_freeze(duration)` API — `CEREMONY_FREEZE_MAX_SEC=0.4` ceiling,唔受 `MAX_PAUSE_SEC=0.12` 管 ② **freeze 記帳由 shipped 單一 scalar(`_pause_remaining_sec`,`screen_effects.gd:111`)重構成 per-entry ledger**(max-remaining merge;「只清自己 entry」要真 ledger 先有意義)③ **新 idempotent 早收 `release(handle)` API**(shipped 只有自然 expiry — INV-M1 出口而家連 API 都未存在)④ **saturation API 全新**(shipped #6 零 saturation 實現;world −60% desaturation 行 shader uniform path)⑤ 繼承 Suspended/focus-resume 安全網;⑥ stray `hit_pause` 唔可以截斷 ceremony freeze(ledger 隔離) | #6 + `screen_effects.gd` |
-| **G-LM-4** | #15 reverse-wire story(**Pass 1 重寫 — 核心 scope,唔係順帶**):① **revealed-state 同 sync-state 分離**(backend ACK 永不將 unrevealed drop 移出 reveal queue;reveal dequeue 永不 skip `loot.pending`→`loot.committed` rename — `loot_drop_system.gd:766-779` 雙語意拆解)② **ceremony kind 持久化**(FULL_CEREMONY/MICRO_ACK — `get_pending_drops()` 對 reveal flow 只回 FULL_CEREMONY)③ `modal_dismissed(drop_id, terminal)` handler(**以 drop_id dequeue**)④ terminal → emit `loot_confirmed`(GSM exit chain)⑤ 新 `report_receive_failure(drop_id)` handler(寫 `loot.pending.recovery` — #17 EC-1 鏈)⑥ defer/exit retry-suppression(同一 safe-state occupancy 唔 re-trigger banner;`_check_pending_loot_reveal()` @ gsm:446 現時零 caller,GSM-side wiring 同 story 一齊做)⑦ #4 catalog source 列 #15→#21 sync | #15 + `loot_drop_system.gd`(+ GSM wiring) |
+| **G-LM-4** | #15 reverse-wire story(**Pass 1 重寫 — 核心 scope,唔係順帶**):① **revealed-state 同 sync-state 分離**(backend ACK 永不將 unrevealed drop 移出 reveal queue;reveal dequeue 永不 skip `loot.pending`→`loot.committed` rename — `loot_drop_system.gd:766-779` 雙語意拆解)② **ceremony kind 持久化**(FULL_CEREMONY/MICRO_ACK — `get_pending_drops()` 對 reveal flow 只回 FULL_CEREMONY)③ `modal_dismissed(drop_id, terminal)` handler(**以 drop_id dequeue**)④ terminal → emit `loot_confirmed`(GSM exit chain)⑤ 新 `report_receive_failure(drop_id)` handler(寫 `loot.pending.recovery` — #17 EC-1 鏈)⑥ defer/exit retry-suppression(同一 safe-state occupancy 唔 re-trigger banner;`_check_pending_loot_reveal()` @ gsm:446 現時零 caller,GSM-side wiring 同 story 一齊做)⑦ #4 catalog source 列 #15→#21 sync ⑧ **fast-victory marker 持久化(Pass 2 新增)**:#15 grant 時讀 `BossPayload.outcome`,`INTERRUPTED_WITH_CREDIT` → 寫入 LootDrop record(field 或 pinned `item_metadata` key)— shipped record 零 outcome 載體(`loot_drop.gd:39-86`;deferred reveal 下 transition payload 早冇,唯一 durable carrier 係 record),冇佢 Rule 13b(c)/AC-37b 嘅 GIVEN 不可構造 | #15 + `loot_drop_system.gd`(+ GSM wiring) |
 | **G-LM-5** | ADR-0008 insertion:`LootRevealCoordinator` tail append 喺 ZoneSystem 後(#28 keep last);predecessor constraints:`{#15, #1(C6), #33, Camera, ScreenEffects, Particle, Audio, PlatformDetect} ≺ #21` | ADR-0008 + `project.godot` |
 | **G-LM-6** | `platform_detect.gd` **新增** `announce_aria(text)` gateway(Pass 1 措辭修正:grep 零 aria match — 唔係 stub,係未存在)(boot 時 inject hidden `aria-live` div — live region 必須 first announcement 前存在於 DOM;story 先 verify 4.6 web build 有冇 native a11y tree 防 double-announcement) | platform_detect story |
 | **G-LM-7** | `interaction-patterns.md` 更新:P-05 撤 5s auto-dismiss + ladder 數值 sync #15 + OQ-P3 close;P-06 hex 確認(ux-designer 已認領) | design/ux |
 | **G-LM-8** | **#4 catalog co-design(Pass 1 新增)**:4 新 cue 入 catalog freeze 表 + `SfxCatalog.tres` — event_id / priority / channels 齊(建議:shutter = mid/mono/no-duck「儀式錨點唔俾 combat-class 食」;contactsheet/stash/tick = low/mono;stream aggregated cue = low/單 duck handle);voice pool concurrency 重估(catch-up 包絡);audio-director sign-off;lint scope 裁決(原 OQ-4 併入) | #4 + `SfxCatalog.tres` |
 | **G-LM-9** | **#4 process-mode amendment(Pass 1 新增)**:AudioManager(或最少 SFX pool players)+ LootRevealCoordinator 本體 `PROCESS_MODE_ALWAYS` — `ceremony_freeze` 用 `get_tree().paused`,PAUSABLE audio 喺 freeze 期間 stutter(fanfare 啱起音即停 0.4s 喺 dopamine peak;AC-16 spy 結構上驗唔到 engine pause,要 property assert);註:`tools/ci/check_autoload_process_modes.gd` 未存在,whitelist lint 一併開 | #4 + `audio_manager.gd` + `project.godot` |
+| **G-LM-10** | **#17 public batch seam(Pass 2 新增)**:`begin_receive_batch()` / `end_receive_batch()`(wrap shipped internal `_batch_depth` — `inventory_system.gd:308/320/454/458` 現時 internal-only,external caller 連發 = 每 call 一次 full persist `:389-393`)— catch-up stream-end / grid-overflow 批量 commit 嘅 persist-once 保證依賴呢個 seam;#17 EC-22/AC-29 嘅 batching 語意係 internal-context-only,唔係 external coalescer(Pass 2 grep 證實) | #17 + `inventory_system.gd` |
 
 ### Epic 驗證 flags(G-flag-1..4 — 裁決成立嘅 shipped-code 前提,story-readiness 時 grep;**Pass 1 已 grep 部分,結果如下**)
 
@@ -421,9 +423,10 @@ T_block_fast = S3_entry ∈ [D_entry + SNAP_SEC, T_block]
 8. **AC-18 + EC-28 catch-up 語意 stale**:「individual reveals skip in favor of single tap-to-burst」→ #21 contact-sheet model(stream + top-K ceremonies + grid)
 9. **LEGENDARY orbit drift cut from MVP**(D2 — #7 冇 hold phase;freeze-as-hold 兌現「定格喺 peak」;v0.2 重訪)
 
-**#17 GDD/code erratum draft(2 項)**:
+**#17 GDD/code erratum draft(3 項)**:
 1. `inventory_system.gd:145` doc comment +「#15 calls this after the #21 reveal handoff (modal dismissed)」+ #17 GDD reveal handoff 定義:caller = **#21 @ S3**(INV-M3,唔係 modal dismissed 時)
 2. EC-1 recovery 鏈 locus:caller 唔直接寫 `loot.pending.recovery`(#21 stateless)— 經 #15 `report_receive_failure(drop_id)`(G-LM-4)
+3. EC-22/AC-29 batching 語意係 internal-context-only(`_batch_depth` boot/suspended drain 專用)— external caller coalescing 屬 G-LM-10 新 public seam(Pass 2)
 
 **#4 GDD erratum draft(2 項)**:
 1. Catalog source 列:`loot_fanfare_*` 觸發 caller #15 → **#21 coordinator**(EG-1 precedent)
@@ -460,8 +463,8 @@ T_block_fast = S3_entry ∈ [D_entry + SNAP_SEC, T_block]
 | `TOAST_FADE_SEC` | 0.15 | 0.1–0.3 | toast fade-out 時長(EC-M17 interrupt fade 用 0.1s 獨立值) |
 | `MERGE_MIN_REMAIN_SEC` | 0.6 | 0.3–1.0 | toast merge 最少剩餘 |
 | `TOAST_MAX_LIFETIME_SEC` | 3.0 | 2.0–5.0 | 防 ack stream 釘死 toast |
-| `FLUSH_DELAY_SEC` | 0.1 | 0–0.3 | modal close 後 deferred-ack flush 延遲 |
-| `MAX_STREAM_BEATS` | 40 | 20–80 | catch-up stream cap。**互動**:同 `K_CEREMONY_MAX` 一齊 enforce F3 provable bound(default 組合 = 14.3s) |
+| `FLUSH_DELAY_SEC` | 0.15 | 0.15–0.3(Pass 2:下限升 — 避開 #4 stagger window) | modal close 後 deferred-ack flush 延遲 |
+| `MAX_STREAM_BEATS` | 40 | 20–80 | catch-up stream cap。**互動**:同 `K_CEREMONY_MAX` + `FOCAL_EXIT_MARGIN_SEC` 一齊 enforce F3 provable bound(default 組合 = 15.8s — Pass 2 sync F3) |
 | `K_CEREMONY_MAX` | 5 | 3–8 | catch-up full ceremony cap。太低:RARE+ 折入 grid 冇 ceremony(P3 損);太高:catch-up 變 chore(P2 損) |
 | `W_BAR_MIN` | 120 | 88–160 | breakdown bar 最少寬。**88px = 8px delta 臨界**(F2)— 低過 88 floor clause 開始觸發 |
 | `BREAKDOWN_MIN_DELTA_PX` | 8 | locked(UX) | workout 段最少凸出(corrupt-input 防線) |
@@ -607,6 +610,7 @@ AC-84 加 CJK 截圖 variant(雙 font 混排 + 窄屏)。
 > **Test evidence 分流**(#20 先例):Logic/Integration = **BLOCKING**(headless GUT);Visual/Feel/UI = **ADVISORY**(screenshot/playtest + lead sign-off — 唔 pre-mergeable,唔做 merge gate)。依賴未落地 gate 嘅 AC 標 **[gated G-x]**(story-readiness 時 grep gate 狀態解封;全部 gated AC 有 #21-side 可先行斷言或 fake seam)。Evidence:unit = `tests/unit/loot_reveal/`、integration = `tests/integration/loot_reveal/`、manual = `production/qa/evidence/loot-drop-modal/`。
 > **FR-2 100ms 拆法(明文,防 epic 誤寫 BLOCKING perf test)**:headless 量唔到 wall-clock → 拆做 structural same-frame call-order(AC-8 BLOCKING)+ 真 browser frame capture(AC-9 ADVISORY)。
 > **EC-M3 ownership note**:freeze ledger max-remaining 語意由 G-LM-3 #6 amendment own — 主測試落 #6 story,AC-54 只係 #21-side integration smoke(防雙邊 own 同一斷言 drift)。
+> **Gate-tag 準則(Pass 2 pin,防 story-readiness 口徑漂移)**:AC 斷言**外部 API 嘅 shape/存在**(call signature、return、property)→ 標 [gated];AC 只斷言 **#21-side 行為**(用 fake seam 模擬外部)→ 唔標,即使用同一個 fake。例:AC-1 標(release API shape)、AC-2/52/53 唔標(純 #21 行為 over fake #6)。
 
 ### A. Invariants
 
@@ -641,7 +645,7 @@ AC-84 加 CJK 截圖 variant(雙 font 混排 + 窄屏)。
 - **AC-25**(defer + aggregate):modal active 時 3 個 `loot_micro_ack` → 零 toast 即出;close 後 `FLUSH_DELAY`(且 safe state)出**單一**「×3」toast,tint == 最高 tier。*Logic · BLOCKING*
 - **AC-26**(threshold boundary):pending==4 → sequential;pending==5(==`CATCH_UP_THRESHOLD`,讀 #15 const)→ CATCHUP_PROMPT。*Logic · BLOCKING*
 - **AC-27**(prompt defer 零動作):CATCHUP_PROMPT defer → terminal emit → HIDDEN、pending 不變、`receive_loot` 零 call、零 GSM direct call。*Logic · BLOCKING*
-- **AC-28**(catch-up 結構):F3 fixture(14C+10U+4R+1E+1L)reveal-all → sub-RARE 24 件 `C_stream` cadence 零 tap stream(#5 aggregated,call 數 << 24;**stream 期間 `loot_fanfare_*` call count == 0** — D4 negative spy);RARE+ 揀 tier-降序 top-K=5(L+E+3R)full ceremony(reveal 順序 ascending);**第 4 件 R 喺 grid 有 own cell(node assert:icon + rarity label;「+N」badge 唔適用於 RARE+ — C-1)**;overflow 件喺 grid entry 嗰 frame batch commit(C-2);**stream beats 喺 stream-end 嗰 frame 單一 batch 連發 `receive_loot`(Rule 7 — #17 persist spy == 1 次)**。*Logic · BLOCKING*
+- **AC-28**(catch-up 結構):F3 fixture(14C+10U+4R+1E+1L)reveal-all → sub-RARE 24 件 `C_stream` cadence 零 tap stream(#5 aggregated,call 數 << 24;**stream 期間 `loot_fanfare_*` call count == 0** — D4 negative spy;**stream aggregated cue call exactly-once + 單一 duck handle** — D4 positive 半邊 [gated G-LM-8]);RARE+ 揀 tier-降序 top-K=5(L+E+3R)full ceremony(reveal 順序 ascending);**第 4 件 R 喺 grid 有 own cell(node assert:icon + rarity label;「+N」badge 唔適用於 RARE+ — C-1)**;overflow 件喺 grid entry 嗰 frame batch commit(C-2);**stream beats 喺 stream-end 嗰 frame 連發 `receive_loot` + batch seam 包裹(#21-side call-frame spy:全部 call 同一 frame + begin/end 各一次;persist count 屬 AC-72)**(Pass 2 — unit AC 唔斷言 cross-system internal)。*Logic · BLOCKING(cue 半句 [gated G-LM-8];seam call [gated G-LM-10])*
 - **AC-29**(mid-exit 零懲罰):catch-up ceremonies 行到第 k 件完,tap「稍後再拆」→ 已 commit 件(stream batch + k 件 ceremony)各自已 emit `modal_dismissed` + banked;剩餘原封 pending,banner 下次以更新 N 重現。*Logic · BLOCKING(#15 dequeue side [gated G-LM-4])*
 - **AC-30**(rollback mid-reveal,×3 — Pass 1 改):**S0–S2** 任一段收 `loot_rollback`(該 drop_id)→ ≤1 frame cancel、timescale restored、無 terminal frame、無 toast、`modal_dismissed` count == 0、**cancel 後 re-query:queue 非空 → gap 後下一件 ENTRY;空 → terminal emit(GSM 唔 stuck)**。*Logic · BLOCKING*
 - **AC-30b**(S3 rollback = 顯示層 no-op — Pass 1 新增):S3 收 `loot_rollback` → modal 照留 STEADY、可正常 dismiss、telemetry `late_rollback`、零 cancel 副作用(post-banking,Rule 11)。*Logic · BLOCKING*
@@ -649,11 +653,11 @@ AC-84 加 CJK 截圖 variant(雙 font 混排 + 窄屏)。
 - **AC-32**(content source = committed store):signal payload 同 `get_drop()` 餵唔同值 → 顯示 == `get_drop()`;fill 時 null → EC-M6 skip,**永不** render placeholder。*Logic · BLOCKING*
 - **AC-33**(banner deferral + priority):modal active 時 `loot_disabled` → banner dismiss 後先出;同時收 rollback → rollback 先;stack 同屏最多 1 條且 `private_mode` > audio silent-mode。*Logic · BLOCKING*
 - **AC-34**(empty-queue entry):GSM→LOOT_DROP 但 queue 空 → 即 emit `modal_dismissed("", terminal=true)`、modal 唔開、GSM 唔 stuck(#15 chain)。*Logic · BLOCKING*
-- **AC-34b**(micro_ack banking — Pass 1 新增):`loot_micro_ack(drop_id)` 到 → `receive_loot` exactly-once + `modal_dismissed(drop_id, false)` emit(dequeue)、零 modal/UI 動作、toast 行 F4 deferral;該件唔再出現喺 `get_pending_drops()`(唔漏入 catch-up)。*Logic · BLOCKING([gated G-LM-4] dequeue 半邊)*
+- **AC-34b**(micro_ack banking — Pass 1 新增):`loot_micro_ack(drop_id)` 到 → `receive_loot` exactly-once + `modal_dismissed(drop_id, false)` emit(dequeue)、零 modal/UI 動作、toast 行 F4 deferral;該件唔再出現喺 `get_pending_drops()`(唔漏入 catch-up);**variant(Pass 2):`receive_loot` 回 `FAILED_ROLLBACK` → `report_receive_failure` call exactly-once(Rule 9 鏈,同 AC-65 S3 path 同款)**。*Logic · BLOCKING([gated G-LM-4] dequeue + report 半邊)*
 - **AC-35**(Rule 14 mapping):① mid-ceremony 唔可 dismiss → AC-11;② 無 re-peek → AC-31/71;③ 周邊 lock 零依賴 → AC-17;④ sting 唔可 skip → AC-16。*(mapping,無獨立 evidence)*
-- **AC-36**(telemetry hooks):4 情境各觸發一次 → `ceremony_skip_attempted(tier)` / `time_to_dismiss_ms` / `stash_exit_count` / `catchup_abandoned(remaining)` 各 emit 一次正確 payload(local signal;#28 sink 唔需存在)。*Logic · BLOCKING*
+- **AC-36**(telemetry hooks,Pass 2 擴):6 情境各觸發一次 → `ceremony_skip_attempted(tier)` / `time_to_dismiss_ms`(EPIC+ <500ms case 帶 `suspicious_dismiss` flag)/ `re_reveal_count(tier)` / `stash_exit_count(tier)` / `catchup_abandoned(remaining)` / `catchup_truncated(remaining, reason)` 各 emit 一次正確 payload(local signal;#28 sink 唔需存在)。*Logic · BLOCKING*
 - **AC-37**(FSM 完整性):table-driven 行 **8-state × in_catchup flag** 每條 edge(包括 CATCHUP_STREAM、EXITING→CATCHUP_GRID、CATCHUP_GRID terminal emit、rollback re-query edges)→ transition 按表;表外 → assert/no-op 唔靜默跳。*Logic · BLOCKING*
-- **AC-37b**(fast-victory variant — GSM L375(c),Pass 1 新增):GIVEN drop 嘅 source payload 係 `BossPayload.outcome == INTERRUPTED_WITH_CREDIT`,THEN attribution slot 用「快勝」variant(fixture string assert);ceremony ladder 照 tier 不變。*Logic · BLOCKING*
+- **AC-37b**(fast-victory variant — GSM L375(c),Pass 1 新增):GIVEN drop record 帶 fast-victory marker(G-LM-4 ⑧ 持久化 — Pass 2:shipped record 零 outcome 載體,fixture 依賴 gate),THEN attribution slot 用「快勝」variant(fixture string assert);ceremony ladder 照 tier 不變。*Logic · BLOCKING [gated G-LM-4 ⑧]*
 - **AC-37c**(keyboard dismiss — Pass 1 新增):`ui_accept` 喺 S2/S3 行為 == scrim tap(fast-complete/dismiss,同一 per-stage policy);S0/S1/S4 ignore;catch-up `ui_cancel` == 「稍後再拆」。*Logic · BLOCKING*
 
 ### C. Formulas
@@ -681,9 +685,9 @@ AC-84 加 CJK 截圖 variant(雙 font 混排 + 窄屏)。
 - **AC-55**(EC-M4 matrix):motion_reduction on → `request_focal` **零 call 全 tier**、shake 0、particle ×0.5、hold/dismiss/queue 同 off 一致。*Logic · BLOCKING*
 - **AC-56**(EC-M5 coercion 同源):`rarity_tier="MYTHIC"` → `RarityTier.get(s, COMMON)` 喺 ladder lookup 前、COMMON ceremony、無 bar、telemetry;cross-check 同 fixture 餵 real #17 → 入庫 tier == 顯示 tier。*Logic + Integration · BLOCKING*
 - **AC-57**(EC-M6):`get_drop()` null → skip(無 modal / receive_loot)、CRITICAL telemetry、gap 後 advance;terminal 件 → terminal dismiss 出口。*Logic · BLOCKING*
-- **AC-58**(EC-M7 commit point):force-close 落 CATCHUP_PROMPT → 零 commit 全留 pending;落 stream 中 → **嗰刻 batch commit 已 display beats(單 frame 連發,#17 persist == 1)**,in-flight 未 display → 留 pending,已 commit 唔 re-reveal;落 grid 中 → 收埋零 data 影響。*Logic · BLOCKING*
+- **AC-58**(EC-M7 commit point):force-close 落 CATCHUP_PROMPT → 零 commit 全留 pending;落 stream 中 → **嗰刻 batch commit 已 display beats(#21-side:單 frame 連發 + batch seam 包裹)**,in-flight 未 display → 留 pending,已 commit 唔 re-reveal;落 grid 中 → 收埋零 data 影響(persist count 斷言屬 AC-72 — Pass 2)。*Logic · BLOCKING([gated G-LM-10] seam call)*
 - **AC-59**(EC-M8 phase-gate + termination):stream 中新 drop → append 規則按 phase;持續注入 → catch-up 仍 terminate(收斂 assert)。*Logic · BLOCKING*
-- **AC-60**(EC-M9 margin + watchdog):連續 2 件 EPIC+ → 件距 == `max(INTER_REVEAL_GAP_SEC, FOCAL_EXIT_MARGIN_SEC)`(deterministic,零 #7 state query — negative spy);fake #7 永不 emit `focal_completed` → fallback timer T=D_hold+0.2s 照 freeze、queue 照 advance、telemetry `focal_anchor_fallback`。*Logic · BLOCKING*
+- **AC-60**(EC-M9 margin + watchdog):連續 2 件 EPIC+ → 件距 == `max(INTER_REVEAL_GAP_SEC, FOCAL_EXIT_MARGIN_SEC)`(deterministic,零 #7 state query — negative spy);fake #7 永不 emit `focal_completed` → fallback timer T=D_hold+0.2s 照 freeze、queue 照 advance、telemetry `loot_reveal.focal_fallback`(Pass 2 統一名)。*Logic · BLOCKING*
 - **AC-61**(EC-M10):DISCONNECTED reveal 同 connected 完全一致:無 spinner/sync badge node、receive_loot 照 call。*Logic · BLOCKING*
 - **AC-62**(EC-M11):safe→safe(DISCONNECTED→IDLE)繼續無 stash-exit;→ 非 safe 先觸發。*Logic · BLOCKING*
 - **AC-63**(EC-M12):resize 令 W_bar 100 → 一 frame re-layout、stacked variant、timer 唔 reset、particle 唔 replay。*Logic · BLOCKING*
@@ -698,7 +702,7 @@ AC-84 加 CJK 截圖 variant(雙 font 混排 + 窄屏)。
 ### E. Cross-system Integration(非 isolation)
 
 - **AC-71**(#15 round-trip):real #15+#21,`loot_dropped`→reveal→dismiss→`modal_dismissed(drop_id, terminal)` → #15 以 drop_id dequeue(非 head-pop)、下次 query 唔見該件;**ordering case(Pass 1 — 雙語意防回歸):backend ACK 先到、reveal 後到 → 件仍喺 reveal queue、照 reveal、dequeue 唔 skip commit rename**。*Integration · BLOCKING [gated G-LM-4]*
-- **AC-72**(#17 full handoff):real #17,full reveal → S3 → inventory 含 item、auto-equip 唔被阻;catch-up:**stream batch 喺單一 frame 連發 + RARE+ 逐件 S3** → #17 aggregate/push/persist **per batch/件各一次**(one-frame ONE_SHOT debounce 語意 — Pass 1 改成 shipped #17 可滿足形式)。*Integration · BLOCKING(即時可執行)*
+- **AC-72**(#17 full handoff):real #17,full reveal → S3 → inventory 含 item、auto-equip 唔被阻(呢半即時可執行);catch-up:**stream batch 經 `begin/end_receive_batch` seam 連發 + RARE+ 逐件 S3** → #17 aggregate/push/persist **per batch/件各一次**(Pass 2 修正:persist-once 依賴 G-LM-10 public seam — shipped internal `_batch_depth` external caller 用唔到,Pass 1「即時可執行」claim 對 batch 半邊唔成立)。*Integration · BLOCKING(batch 半邊 [gated G-LM-10])*
 - **AC-73**(GSM full loop):real GSM + real #15,entry→reveal→terminal dismiss → `modal_dismissed(terminal)` → **#15 emit `loot_confirmed`** → GSM 離開 LOOT_DROP(#21 zero GSM direct call — spy);intra-queue 期間 state **全程不變**。*Integration · BLOCKING [gated G-LM-4(#15 emit 半邊)]*
 - **AC-74**(G-flag-1):reveal 開咗 2s(<15s)player tap dismiss → 即生效(dismiss = completion 非 interruption)。*Integration · BLOCKING [gated G-flag-1]*
 - **AC-75**(#5 freeze-immune):freeze active(tree paused)→ LOOT pool nodes parent == CelebrationVFXLayer 且 `PROCESS_MODE_ALWAYS`(property assert)。*Integration · BLOCKING [gated G-LM-1+2]*
@@ -725,14 +729,14 @@ AC-84 加 CJK 截圖 variant(雙 font 混排 + 窄屏)。
 | 類別 | 數量 | Gate |
 |---|---|---|
 | Unit Logic(headless GUT) | 71(+5 Pass 1:AC-22b/30b/34b/37b/37c) | BLOCKING |
-| Integration | 9 | BLOCKING(6 gated) |
+| Integration | 9 | BLOCKING(9 gated — Pass 2 重數:AC-72 batch 半邊入 G-LM-10 後全 gated) |
 | Static / CI / property | 3(AC-21/79/76b) | BLOCKING |
 | Manual | 10(AC-9 + F 組 9) | ADVISORY |
 | Mapping | 1(AC-35) | — |
 | **總計** | **94** | |
 
-**Coverage 自檢**:Core Rules 1–15 + 13b 全 ≥1 AC ✓;F1–F6 全 ≥1 ✓;EC-M1–M20 全 cover(M19 fold 入 AC-11/50)✓;FSM 8-state × flag ✓(AC-37);INV-M1/M2/M3 first-class ✓(AC-1/3/20+22b);D1-D5 裁決全部有 AC 兌現 ✓(D1→AC-22b/52、D2→AC-12/60、D4→AC-28、D5→AC-50)。
-**Gated 分佈(Pass 1 重數,19 條)**:G-LM-1(AC-4 部分/75/87)、G-LM-3(AC-1 release API/12 部分/54)、G-LM-4(AC-19 部分/29 部分/34b 部分/65 report/71/73)、G-LM-5(AC-79)、G-LM-6(AC-77)、G-LM-8(AC-76)、G-LM-9(AC-76b/88)、G-flag-1(AC-74)、#20 Q-OQ6(AC-78)— 全有 #21-side 先行斷言或 fake seam。
+**Coverage 自檢**:Core Rules 1–15 + 13b 全 ≥1 AC ✓;F1–F6 全 ≥1 ✓;EC-M1–M20 全 cover(M19 fold 入 AC-11/50)✓;FSM 8-state × flag ✓(AC-37);INV-M1/M2/M3 first-class ✓(AC-1/3/20+22b);D1-D5 裁決全部有 AC 兌現 ✓(D1→AC-22b/52、D2→AC-12/60、D4→AC-28 negative+positive 兩半、D5→AC-50);telemetry 6 hook 全入 AC-36 ✓。
+**Gated 分佈(Pass 2 重數,23 條)**:G-LM-1(AC-4 部分/75/87)、G-LM-3(AC-1 release API/12 部分/54)、G-LM-4(AC-19 部分/29 部分/34b 部分/37b ⑧/65 report/71/73)、G-LM-5(AC-79)、G-LM-6(AC-77)、G-LM-8(AC-76/28 cue 半句)、G-LM-9(AC-76b/88)、G-LM-10(AC-72 batch 半邊/28 seam call/58 seam call)、G-flag-1(AC-74)、#20 Q-OQ6(AC-78)— 全有 #21-side 先行斷言或 fake seam;G-LM-2 無獨立 key(AC-75/87 joint gate,story-readiness grep 要記得)。
 
 ## Open Questions
 

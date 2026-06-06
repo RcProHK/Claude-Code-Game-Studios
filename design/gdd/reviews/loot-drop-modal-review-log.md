@@ -56,3 +56,20 @@ Fantasy 同 presentation craft(F1 satisfiability、F2 provable floor、INV-M1 si
 **Net 新增物**:INV-M3、CATCHUP_STREAM state、`FOCAL_EXIT_MARGIN_SEC` knob、font 指派表(CJK Zpix 12px)、silent-mode fallback chain、retry-suppression pin、`report_receive_failure` seam、micro_ack banking path、honest-endpoint pct clamp。
 
 **NEXT**:fresh-session(/fresh-verifier-agents)Pass 2 re-review — verdict 前唔開 epic。
+
+---
+
+## Review — 2026-06-06 — Pass 2(3 fresh verifiers)— 殘留 4 BLOCKING → 即場 targeted fix
+Specialists: systems-designer(fix verification)· godot-specialist(citation sweep ×3 run,斷線 ×2,scratch-file 防護後完成)· qa-lead(AC sweep)
+Prior verdict resolved: Pass 1 8 clusters — **7/8 FIXED, cluster 6 PARTIAL**
+
+### Verifier 結果
+- **Fix verification [systems-designer]**:7/8 clusters FIXED;D1-D5 落地正確;F1/F2/F3 數學重算全對;0 new phantom。殘留 2 BLOCKING(one-line):① F2 px clamp 唔閉合(px_r=max(px_r,1) 後 px_w 冇重 derive → 違 px_w+px_r==W_bar)② F1 variable table S2a/S2b label 未跟 D2 flip。+2 R(FSM rollback in_catchup branch / FLUSH_DELAY 0.1 < §G 建議 0.15)。
+- **Citation sweep [godot-specialist]**:Batch 1 shipped code 16/16 ✓ + Batch 2 GSM GDD 8/8 ✓ 直接 grep;Batch 3-5 consolidation(全項 attribution 至 Pass 1/2 實際 grep)— **0 phantom 達標**。Scratch: production/session-state/pass2-citation-sweep.md。
+- **AC sweep [qa-lead]**:counts 全對(94 / 71-9-3-10-1 / gated 19 list 自洽);AC-15/21/22b/42/50 + fake-clock seam 真 FIXED;D1/D2/D5 AC 兌現 ✓。殘留 2 BLOCKING:① **#17「one-frame batch debounce」對 external caller 唔存在**(`_batch_depth` internal-only `inventory_system.gd:308/320/454/458`;external 連發 = 逐 call full persist `:389-393`)— AC-28/58/72 + Rule 7 誤錨 → 開 **G-LM-10**(#17 public batch seam)② **AC-37b fast-victory fixture 無 data path**(LootDrop record 零 outcome 載體 `loot_drop.gd:39-86`)→ **G-LM-4 ⑧**(marker 持久化)+ AC gated。+6 R(integration gated 數 / 14.3s stale ×2 / telemetry 縫 / micro_ack FAILED_ROLLBACK variant / gate-tag 準則 / D4 positive half)。
+
+### Targeted fix(同 session 即場執行)
+4 BLOCKING 全修:F2 px 閉合(px_w = W_bar − px_r)/ F1 table label flip / G-LM-10 新 gate + Rule 7/AC-28/58/72 重錨 + #17 erratum +1 / G-LM-4 ⑧ + AC-37b gated + Rule 13b(c) data-path 注。8 RECOMMENDED 全清:integration row 9 gated / gated 分佈重數 23 條 / 14.3→15.8 ×2 / AC-36 六 hook + suspicious_dismiss / telemetry 名統一 `loot_reveal.focal_fallback` / AC-34b FAILED_ROLLBACK variant / gate-tag 準則 pin / AC-28 D4 positive 半句 [gated G-LM-8] / FSM rollback in_catchup branch / FLUSH_DELAY 0.15。
+
+### 殘餘狀態
+Blocking items: 0 | 全部 Pass 2 發現屬 localized(零 structural);gates G-LM-1..10 + G-flag-1..4。**Pending: CD spot-check final verdict。**
