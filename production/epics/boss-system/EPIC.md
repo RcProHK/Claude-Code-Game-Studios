@@ -3,8 +3,12 @@
 > **Layer**: Feature
 > **GDD**: design/gdd/boss-system.md ✅ APPROVED 2026-06-05 (Pass 11 — STRUCTURAL FREEZE lifted)
 > **Architecture Module**: #16 Boss System (Feature layer — boss content owner + #14 EnemyDirector BossAnchor lifecycle consumer)
-> **Status**: Ready
-> **Stories**: 15 created (Ready) — implement in dependency order (001 → …)
+> **Status**: ✅ **15/15 stories Complete + CI-green (2026-06-06)** — all merged-pending on branch `docs/boss-system-16-pass6` (PR #19)
+> **Stories**: 15/15 Complete. Cross-epic/external deferrals tracked below (NOT #16-core code).
+>
+> **Implementation summary**: combined GUT gate **273 scripts / 1789 tests / 1788 pass / 0 fail / 1 pending (pre-existing AC-37)**; boss_system 104 tests. Source: `src/data/{boss_template,boss_visual_resource,attack_pattern_resource,boss_spawn_context,boss_registry}.gd` + `src/formulas/boss_formulas.gd` + `src/utils/deterministic_hash.gd` + `src/gameplay/{boss_instance,boss_system,boss_reveal_coordinator,avatar_downed_guard}.gd` + `design/gdd/boss-system-never-traceability.md`.
+>
+> **Deferred (cross-epic / external — not #16-core):** (1) **BossSystem autoload registration + boss_committed subscription wiring** → when #14 EnemyDirector wires the BossAnchor→spawn_boss call (boot-order-safe append per ADR-0008); (2) **8 CI-tooling lints** (followup-08) promote ADVISORY static ACs (AC-12/16/33/36/41e) to BLOCKING; (3) **playtest/manual ACs** (AC-29a/c/d, AC-30, AC-35, AC-39 — external evidence, VS/MVP-gate); (4) **AC-23** loot chain → #15 LootDrop implementation. (5) Minor GDD doc-fixes flagged during impl (golden-vector corrected in-GDD; StatSnapshot signature / MIN_RITUAL_INTENSITY discrepancy / ParticleSystemWrapper.play+AudioManager.play_sfx names — non-blocking doc-sync).
 
 ## Overview
 
@@ -80,7 +84,7 @@ This epic is complete when:
 | 010 | Reveal ritual dispatch (Camera-leading) | Integration | ✅ Complete (subscription wiring → #14) | ADR-0001 | 007, 006 |
 | 011 | enemy_killed → DYING self-filtered wiring | Integration | ✅ Complete | ADR-0009 | 002, 007 |
 | 012 | Boss cleanup + bfcache DD#1 exact-restore | Integration | ✅ Complete | ADR-0003 | 011, 002 |
-| 013 | Avatar-downed auto-recover + grace window | Logic | Ready | N/A (Pillar-2 behavior) | 004 |
+| 013 | Avatar-downed auto-recover + grace window | Logic | ✅ Complete | N/A (Pillar-2 behavior) | 004 |
 | 014 | Spawn position + arena constraint | Logic | ✅ Complete | ADR-0006 | 002, 007 |
 | 015 | Loot-tier combine + CI tooling + playtest gates | Integration | ✅ Complete (core; CI-tooling/playtest/AC-23 deferred) | ADR-0005 | 001, 011 |
 

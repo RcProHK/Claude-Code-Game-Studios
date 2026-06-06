@@ -1,12 +1,15 @@
 # Story 013: Avatar-downed auto-recover + grace window
 
 > **Epic**: Boss System
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Feature
 > **Type**: Logic
 > **Estimate**: S
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: (set by /dev-story)
+> **Last Updated**: 2026-06-06
+
+**Completion Notes (2026-06-06)**: `src/gameplay/avatar_downed_guard.gd` (`class_name AvatarDownedGuard extends RefCounted`) + `tests/unit/boss_system/test_avatar_downed_recover.gd` (6 tests; combined 273scr/1789/1788pass/0fail/1pending). The #16-owned enforcer of EC-25「invincible avatar during boss fight」(no avatar HP system exists yet, so #16 owns this Pillar-2 rule). AC-45: (a) NO game-over/death/retry signal exists (architectural — the class has no such API), (b) auto-recover to `max(1, round(AVATAR_RECOVER_HP_FRACTION × max_hp))` (25 at 100, 1 at degenerate max_hp=1), (c)/(d) no boss/loot coupling (architectural — `in g` checks), (e) `avatar_downed` signal (consumer forwards `boss.avatar_downed` telemetry), (f) `DOWNED_INVULN_SEC` grace window suppresses the instant re-down flicker (injectable clock test: down at t=0, suppressed at t=0.3, re-down allowed at t=0.7).
+- ADR N/A (Pillar-2 frictionless behaviour). Boss-fight wiring (feeding Formula 2 damage → guard) happens at integration time with #13/the avatar.
 
 ## Context
 
