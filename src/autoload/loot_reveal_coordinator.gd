@@ -32,6 +32,58 @@ const GSMScript := preload("res://src/autoload/game_state_machine.gd")
 const CELEBRATION_VFX_LAYER: int = 110
 const MODAL_LAYER: int = 120
 
+## Modal FSM (GDD States and Transitions — 8 states + in_catchup mode flag).
+## FSM state ≠ timeline stage: ENTRY/CEREMONY are input-policy gates; the
+## ceremony_freeze emission point is timeline-driven (T=D_hold), not edge-driven.
+enum ModalState {
+	HIDDEN,          ## not visible (pre-warmed) — terminal exits land here
+	ENTRY,           ## S0 burst + S1 scale-in
+	CEREMONY,        ## S2 ladder running (hold/focal-push → freeze @ peak, D2)
+	STEADY,          ## S3 dismissable terminal frame (banking commits here)
+	EXITING,         ## S4 exit anim (or stash collapse)
+	CATCHUP_PROMPT,  ## "您有 N 個未拆 loot" center prompt
+	CATCHUP_STREAM,  ## sub-RARE zero-tap display-only beats
+	CATCHUP_GRID,    ## contact-sheet post-commit summary
+}
+
+## Table-driven edge law (AC-37): EDGE_TABLE[state][in_catchup] = legal targets.
+## Off-table transition attempts are rejected loudly (push_error + no-op) —
+## never a silent jump. Derived 1:1 from the GDD FSM table (Pass 1 8-state fix).
+const EDGE_TABLE: Dictionary = {
+	ModalState.HIDDEN: {
+		false: [ModalState.ENTRY, ModalState.CATCHUP_PROMPT],
+		true: [],  # in_catchup auto-resets on HIDDEN entry — never true here
+	},
+	ModalState.ENTRY: {
+		false: [ModalState.CEREMONY, ModalState.ENTRY, ModalState.HIDDEN],
+		true: [ModalState.CEREMONY, ModalState.ENTRY, ModalState.CATCHUP_GRID, ModalState.HIDDEN],
+	},
+	ModalState.CEREMONY: {
+		false: [ModalState.STEADY, ModalState.ENTRY, ModalState.HIDDEN],
+		true: [ModalState.STEADY, ModalState.ENTRY, ModalState.CATCHUP_GRID, ModalState.HIDDEN],
+	},
+	ModalState.STEADY: {
+		false: [ModalState.EXITING],  # rollback @ S3 = display no-op, stays (Rule 11)
+		true: [ModalState.EXITING],
+	},
+	ModalState.EXITING: {
+		false: [ModalState.ENTRY, ModalState.HIDDEN],
+		true: [ModalState.ENTRY, ModalState.CATCHUP_GRID, ModalState.HIDDEN],
+	},
+	ModalState.CATCHUP_PROMPT: {
+		false: [ModalState.CATCHUP_STREAM, ModalState.ENTRY, ModalState.HIDDEN],
+		true: [],  # prompt is the catch-up entry point — flag not yet set
+	},
+	ModalState.CATCHUP_STREAM: {
+		false: [],
+		true: [ModalState.ENTRY, ModalState.CATCHUP_GRID, ModalState.HIDDEN],
+	},
+	ModalState.CATCHUP_GRID: {
+		false: [],
+		true: [ModalState.HIDDEN],
+	},
+}
+
 # --- DI seams (untyped — project DI discipline) ---
 var _gsm            ## seam 1: #1 GameStateMachine (default /root/GameStateMachine)
 var _loot_system    ## seam 2: #15 LootDropSystem (default /root/LootDropSystem)
@@ -41,8 +93,9 @@ var _loot_system    ## seam 2: #15 LootDropSystem (default /root/LootDropSystem)
 var _modal_layer: CanvasLayer = null
 var _celebration_vfx_layer: CanvasLayer = null
 
-## One-modal-at-a-time guard (Rule 6). Reveal flow active ⇒ doorbell no-ops.
-var _active: bool = false
+## FSM state + first-class catch-up mode flag (AC-37 asserts on the pair).
+var _state: int = ModalState.HIDDEN
+var _in_catchup: bool = false
 
 
 func _ready() -> void:
@@ -85,21 +138,40 @@ func _instantiate_layers() -> void:
 	add_child(_modal_layer)
 
 
+## Single transition law (AC-37): every state change goes through here.
+## Off-table → push_error + no-op (never silent). Returns whether it applied.
+func _transition(to_state: int) -> bool:
+	var legal: Array = (EDGE_TABLE.get(_state, {}) as Dictionary).get(_in_catchup, [])
+	if to_state not in legal:
+		push_error(
+			"LootRevealCoordinator: illegal FSM edge %s(in_catchup=%s) -> %s — off-table, rejected (AC-37)" % [
+				ModalState.find_key(_state), _in_catchup, ModalState.find_key(to_state),
+			])
+		return false
+	_state = to_state
+	if _state == ModalState.HIDDEN:
+		_in_catchup = false  # terminal exits always reset the mode flag
+		_modal_layer.visible = false
+		_celebration_vfx_layer.visible = false
+	return true
+
+
 ## Rule 2 — GSM owns "when": → LOOT_DROP is the ONLY open trigger.
 func _on_state_changed(_from_state, to_state, _payload) -> void:
 	if int(to_state) != GSMScript.GameState.LOOT_DROP:
 		return
-	if _active:
+	if _state != ModalState.HIDDEN:
 		return  # Rule 6 one-modal-at-a-time (re-entry guarded)
 	if _queue_depth() > 0:
 		_open_reveal_flow()
 	# depth == 0 → Rule 13 empty-queue terminal emit (story 010 — AC-34).
+	# depth ≥ CATCH_UP_THRESHOLD → CATCHUP_PROMPT branch (story 014 — AC-26).
 
 
 ## Rule 2 — doorbell/prep semantics ONLY. NOT an "open modal now" command:
 ## mid-set deferral is GSM Rule 13's job; #21 never builds its own wait queue.
 func _on_loot_dropped(_drop_id: String, _rarity_tier: String, _item_type: String, _transition_id: String) -> void:
-	if _active:
+	if _state != ModalState.HIDDEN:
 		return  # AC-7: no second modal, no FSM re-entry
 	if _gsm == null or not _gsm.has_method("get_current_state"):
 		return
@@ -116,15 +188,24 @@ func _queue_depth() -> int:
 	return pending.size()
 
 
-## Skeleton open (story 003 replaces this with the 8-state FSM ENTRY edge).
+## Opens the sequential reveal flow (HIDDEN → ENTRY edge).
 func _open_reveal_flow() -> void:
-	_active = true
+	if not _transition(ModalState.ENTRY):
+		return
 	_modal_layer.visible = true
 	_celebration_vfx_layer.visible = true
 
 
 func is_modal_active() -> bool:
-	return _active
+	return _state != ModalState.HIDDEN
+
+
+func get_fsm_state() -> int:
+	return _state
+
+
+func is_in_catchup() -> bool:
+	return _in_catchup
 
 
 func get_modal_layer() -> CanvasLayer:

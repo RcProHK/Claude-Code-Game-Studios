@@ -1,7 +1,7 @@
 # Story 001: Doc gates bundle(G-LM-1 + G-LM-5 doc + G-LM-7)
 
 > **Epic**: Loot Drop Modal (#21)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-07 — 3/3 ACs;commit c4580e4;G-LM-1 ② 裁決 = blur CUT from MVP/opacity-only)
 > **Layer**: Presentation
 > **Type**: Config/Data
 > **Estimate**: S

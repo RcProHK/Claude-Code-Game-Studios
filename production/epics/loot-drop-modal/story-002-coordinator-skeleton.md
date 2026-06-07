@@ -1,7 +1,7 @@
 # Story 002: Coordinator autoload 骨架 + layers + 登記 + GSM trigger
 
 > **Epic**: Loot Drop Modal (#21)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-07 — 5/5 ACs;GUT 9/9 + lint PASS;combined gate 1939/1938/0 fail;commit db8beb4)
 > **Layer**: Presentation
 > **Type**: Logic
 > **Estimate**: M

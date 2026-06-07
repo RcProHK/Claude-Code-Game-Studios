@@ -84,8 +84,8 @@ This epic is complete when:
 
 | # | Story | Type | Status | Primary ADR | ACs |
 |---|-------|------|--------|-------------|-----|
-| 001 | Doc gates bundle(G-LM-1+5doc+7) | Config/Data | Ready | ADR-0001/0008 | gate 前提 |
-| 002 | Coordinator 骨架 + layers + 登記 + GSM trigger | Logic | Ready | ADR-0006 C6 | 4,5,6,7,79 |
+| 001 | Doc gates bundle(G-LM-1+5doc+7) | Config/Data | ✅ Complete | ADR-0001/0008 | gate 前提(blur=opacity-only 裁決)|
+| 002 | Coordinator 骨架 + layers + 登記 + GSM trigger | Logic | ✅ Complete | ADR-0006 C6 | 4,5,6,7,79 |
 | 003 | FSM 8-state × in_catchup table-driven | Logic | Ready | ADR-0006 | 37 |
 | 004 | F1 timeline + motion_reduction | Logic | Ready | N/A(formula) | 38-41,55 |
 | 005 | Input policy + F5 fast-complete + keyboard | Logic | Ready | N/A | 11,15,16,50,37c |
