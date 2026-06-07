@@ -1,6 +1,6 @@
 # Epics Index
 
-Last Updated: 2026-06-06 (+ #18 PR Detection + #19 Zone System — Feature layer 全齊 4 epics; 兩份 GDD 同日三 pass APPROVED + ADR-0011; PR-EPIC ×2 degraded inline REALISTIC)
+Last Updated: 2026-06-07 (+ **#21 Loot Drop Modal — 第二個 Presentation epic**; GDD + UX spec 雙 APPROVED 2026-06-06; PR-EPIC full-mode spawn CONCERNS→adjustments 採納 [單一 epic 維持; story baseline 22–28; G-LM-3/4 拆分指令])
 Engine: Godot 4.6 (Web Export, Compatibility Renderer)
 Created by: /create-epics Foundation + Core (16 systems); #10 Exercise→Class Mapping promoted Placeholder→Ready 2026-06-02; #4 Audio Manager promoted Placeholder→Ready 2026-06-02 (GDD Approved Pass 6 + ADR-0008 Accepted); **#20 Gym-Mode HUD (first Presentation epic) created 2026-06-03** (GDD R8 APPROVED + UX spec APPROVED); **#33 Attention Budget promoted Placeholder→Ready 2026-06-04** (GDD Approved re-review pass 2 + ADR-0006/0008 Accepted)
 
@@ -54,6 +54,7 @@ Created by: /create-epics Foundation + Core (16 systems); #10 Exercise→Class M
 | Epic | Layer | System # | GDD | Stories | Status |
 |------|-------|----------|-----|---------|--------|
 | [Gym-Mode HUD](gym-mode-hud/EPIC.md) | Presentation | #20 | gym-mode-hud.md ✅ APPROVED (R8 2026-06-03) + UX spec ✅ APPROVED | **11 stories** (5 Logic, 5 Integration, 1 Visual/UI) | **Ready** — ⚠️ sprint-entry gated: AC-V-1 playtest (external, Story 011) + dep-gates (#33/#8/#2-GDD/#21/Q-OQ12) w/ fallback ACs (S5/S6/S3). Self-contained Logic 001-004/008/009 先做. Governing ADR-0001 (HIGH) + ADR-0006. ★ Pillar 2 PRIMARY owner |
+| [Loot Drop Modal](loot-drop-modal/EPIC.md) | Presentation | #21 | loot-drop-modal.md ✅ APPROVED (Pass 3 2026-06-06, 0 phantom) + UX spec ✅ APPROVED | **27 stories** (1 Config/Data, 21 Logic, 4 Integration, 1 Visual/Feel) | **Ready** — `LootRevealCoordinator` autoload (tail, G-LM-5)。94 ACs (71 unit ungated 先行; 23 gated 有 fake-seam); 10 cross-system gates G-LM-1..10 全部 epic 內 stories (CD 順序: doc-only 1/5/7 → G-LM-4 critical path → parallel 3/10/8+9); G-LM-3 拆 2 + G-LM-4 拆 2–3 (producer 指令); 4 組 upstream errata 隨 gate stories。Governing ADR-0001 (HIGH) + 0005/0006/0007/0008/0009。★ Pillar 3 signature ritual |
 
 ---
 
@@ -61,11 +62,11 @@ Created by: /create-epics Foundation + Core (16 systems); #10 Exercise→Class M
 
 | Metric | Count |
 |--------|-------|
-| Total epics | 19 (16 Foundation+Core + 2 Feature + 1 Presentation) |
-| Ready (GDD Approved + ADR-0006 Accepted) | 18 |
+| Total epics | 22 (16 Foundation+Core + 4 Feature + 2 Presentation) |
+| Ready (GDD Approved) | 21 |
 | Blocked (ADR Proposed — stories auto-blocked) | 1 (#2 GymSys — ADR-0002/0004 transport VS-gated) |
-| Placeholder (no GDD) | 0 — #33 AttentionBudget GDD Approved 2026-06-04, epic now Ready |
-| Pending GDD approval | 1 (#15 LootDrop — Pass 3 required) |
+| Placeholder (no GDD) | 0 |
+| Pending GDD approval | 0 |
 
 ---
 
