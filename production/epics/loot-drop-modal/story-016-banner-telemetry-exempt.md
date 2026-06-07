@@ -1,12 +1,12 @@
 # Story 016: Banner stack + EC-M10/M11 + telemetry hooks + #33 exempt
 
 > **Epic**: Loot Drop Modal (#21)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-07 — AC-17/33/36/61(AC-62 已喺 011 收);GUT 126/126;combined 2056/2055/0 fail;commit 05d1234)
 > **Layer**: Presentation
 > **Type**: Logic
 > **Estimate**: M
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-07
 
 ## Context
 

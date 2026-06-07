@@ -102,8 +102,16 @@ signal loot_micro_ack(drop_id: String)
 
 # ── Internal state ─────────────────────────────────────────────────────────────
 
-## drop_id → LootDrop (pending reveal queue).
+## drop_id → LootDrop — the backend-SYNC ledger (ACK erases entries here).
+## NOT the reveal queue — see _reveal_pending (#21 G-LM-4a).
 var _pending_drops: Dictionary = {}
+
+## #21 G-LM-4a (1): the REVEAL queue — FULL_CEREMONY, not-yet-revealed drops only.
+## SEPARATE from _pending_drops (the backend-SYNC ledger): a backend ACK (which
+## erases the sync entry within seconds) must NEVER evaporate an unrevealed drop
+## out of the reveal queue, and a reveal dequeue must NEVER skip the
+## loot.pending -> loot.committed rename. drop_id -> LootDrop.
+var _reveal_pending: Dictionary = {}
 
 ## transition_id → LootDrop (idempotency cache — Rule 9).
 var _drops_by_transition: Dictionary = {}
@@ -191,14 +199,19 @@ func subscribe(callback: Callable) -> void:
 		loot_dropped.connect(callback)
 
 
-## Returns a copy of all pending (unrevealed) LootDrop instances.
+## Returns a copy of all reveal-pending (FULL_CEREMONY, unrevealed) LootDrop
+## instances — the #21 reveal flow's source of truth (G-LM-4a (2): micro_ack
+## records bank via Rule 9 and never appear here).
 func get_pending_drops() -> Array:
-	return _pending_drops.values()
+	return _reveal_pending.values()
 
 
 ## Returns the LootDrop for the given drop_id, or null if not found.
+## Checks the sync ledger first, then the reveal queue — a backend-ACKed but
+## not-yet-revealed drop is only findable in the reveal queue (G-LM-4a (1)).
 func get_drop(drop_id: String) -> LootDrop:
-	return _pending_drops.get(drop_id)
+	var drop = _pending_drops.get(drop_id)
+	return drop if drop != null else _reveal_pending.get(drop_id)
 
 
 ## Returns true when the system is in Disabled state due to Private Mode.
@@ -366,6 +379,13 @@ func _generate_loot_internal(
 	var drop := LootDrop.new()
 	drop.drop_id = _generate_drop_id()
 	drop.transition_id = transition_id
+	# #21 G-LM-4a (2b): breakdown carrier — ws/rr/score persist on the record
+	# (the grant-time values otherwise evaporate; the RARE+ breakdown bar's
+	# GIVEN is unconstructable without them — story-008 discovered gap).
+	var clamped_ws: float = clampf(workout_score, 0.0, 1.0)
+	drop.item_metadata["workout_score"] = clamped_ws
+	drop.item_metadata["rng_roll"] = rng_roll
+	drop.item_metadata["rarity_score"] = _config.workout_weight * clamped_ws + _config.rng_weight * rng_roll
 	drop.rarity_tier = LootEnums.RarityTier.find_key(final_tier)
 	drop.item_type = LootEnums.ItemType.find_key(item_type)
 	drop.class_tag = LootEnums.ClassTag.find_key(class_tag)
@@ -617,6 +637,9 @@ func _process_loot_trigger(
 	var drop := _generate_loot_internal(transition_id, kind, workout_score)
 	if drop == null:
 		return
+	# #21 G-LM-4a (2): routing kind set BEFORE the Step-3 persist snapshot —
+	# the on-disk record must carry it for deferred-reveal rehydration.
+	drop.ceremony_kind = LootEnums.CeremonyDecision.find_key(ceremony)
 
 	# Step 2: OPTIMISTIC emit before any async operation (FR-2 100ms visual onset).
 	if ceremony == LootEnums.CeremonyDecision.FULL_CEREMONY:
@@ -642,8 +665,12 @@ func _process_loot_trigger(
 		_drops_by_transition.erase(drop.transition_id)  # clean idempotency cache
 		return
 
-	# Persist succeeded — drop is now in the pending queue.
+	# Persist succeeded — drop is now in the pending (sync) ledger.
 	_pending_drops[drop.drop_id] = drop
+	# #21 G-LM-4a (2): FULL_CEREMONY joins the reveal queue — micro_ack
+	# records bank instantly via Rule 9 and never enter it.
+	if ceremony == LootEnums.CeremonyDecision.FULL_CEREMONY:
+		_reveal_pending[drop.drop_id] = drop
 	_state = State.PENDING
 	_on_loot_persisted(drop)  # transition_id format validation (AC-37)
 
@@ -726,6 +753,11 @@ func _restore_pending_drops() -> void:
 			continue
 		_pending_drops[drop.drop_id] = drop
 		_drops_by_transition[drop.transition_id] = drop
+		# #21 G-LM-4a (1): only FULL_CEREMONY + not-yet-revealed records re-enter
+		# the reveal queue — a revealed-but-unsynced record stays sync-pending
+		# only (re-revealing a banked item is the anti-flashbulb).
+		if drop.ceremony_kind == "FULL_CEREMONY" and not drop.revealed:
+			_reveal_pending[drop.drop_id] = drop
 
 
 ## Migrate a pending drop dict from an older schema version to CURRENT_SCHEMA (AC-35).

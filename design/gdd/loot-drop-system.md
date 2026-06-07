@@ -1321,3 +1321,23 @@ All particle counts 受 ADR-0001 Web Export budget cap 200 active particles 限�
 **Resolution path**: ADR-0005 已有 provisional answer — `pr_factor = pr_count_today / max(1, pr_count_baseline)`，clamp [0.5, 2.0]。本 GDD 引用 ADR-0005 + flag for revisit when #18 GDD authored
 **Resolution owner**: economy-designer (formula tuning) + systems-designer (caller schema)
 **Priority**: MEDIUM
+
+---
+
+## Errata(2026-06-07 — #21 G-LM-4a 執行;source = loot-drop-modal.md Bidirectional sync flags)
+
+> 以下條款已被 #21 APPROVED GDD + shipped code supersede。本節係 binding 修正記錄 — 原文唔改動,以本節為準。
+
+1. **`#21.cancel_reveal()` call 方向** → 已被 shipped `loot_rollback` signal 取代(#21 subscribe,#15 emit)。
+2. **Visual Spec Table hex(L1031-1034 Material 套)** → canonical = art bible §4.B / P-06(`#FFFFFF`/`#6FB87A`/`#4D8FD6`/`#9B5FCC`/`#FF8C42`);本表 hex 係樣板色孤例,doc-only error。
+3. **micro_ack「0.15s toast」** → 0.15s = entrance beat(#21 F4);total visible ~1.5s(entry+plateau+fade)— 0.15s total 係 subliminal,違 Pillar 1 acknowledge。
+4. **L204「micro_ack 維持 audio sting(降一 tier)」→ 撤** — toast 一律配 toast tick(low/mono);fanfare 音色家族獨家保留俾 modal(mid-set 無畫面 fanfare 違 Pillar 2;aggregated 跨 tier sting 無解)。
+5. **Visual Spec Table「Audio Duck」列 stale** — per-tier −3..−16dB 同 shipped #4 衝突(flat −8dB、safe range −12–0、−16 出界);L1052「還原到 0dB」錯(Music base = −6dB);duck 深度/release 係 #4 own;L1054 CI duck-verify 指示一併撤。
+6. **L1082 FR-2 anchor** —「emit 後 100ms 內 visual onset」喺 deferred reveal 下不可滿足 → re-anchor 做「reveal-trigger 後 ≤100ms」(#21 stage table;AC-8 structural + AC-9 wall-clock)。
+7. **L1102「所有 RARE+ 仍各自獨立 ceremony」** → 被 #21 `K_CEREMONY_MAX=5` supersede(CD C-1:overflow RARE+ 喺 grid 有獨立 cell + rarity label 保 identity)。
+8. **AC-18 + EC-28 catch-up 語意 stale** —「individual reveals skip in favor of single tap-to-burst」→ #21 contact-sheet model(stream + top-K ceremonies + grid)。
+9. **LEGENDARY orbit drift cut from MVP**(#21 D2)— #7 冇 hold phase;freeze-as-hold 已兌現「定格喺 peak」;v0.2 重訪。
+
+**Code-side 同步(2026-06-07,#21 story-017)**:`LootDrop` 加 `ceremony_kind` + `revealed` fields;`_reveal_pending` reveal queue 同 `_pending_drops` sync ledger 分離(backend ACK 永不蒸發未 reveal 件;dequeue 永不 skip commit rename);grant 時 `workout_score`/`rng_roll`/`rarity_score` 持久化落 `item_metadata`(#21 F2 breakdown 載體)。
+
+**#4 catalog source 同步(G-LM-4 ⑦)**:`loot_fanfare_*` 觸發 caller = **#21 coordinator @ S0**(EG-1 precedent — data layer 唔 call play_sfx),唔係 #15;#4 GDD catalog source 列以此為準(#4-side erratum 隨 story-023)。

@@ -86,6 +86,24 @@ class_name LootDrop extends SerializableResource
 @export var item_metadata: Dictionary = {}
 
 
+## Ceremony routing kind this drop was granted with — "FULL_CEREMONY" /
+## "MICRO_ACK" / "NON_CEREMONY_ROUTE" (LootEnums.CeremonyDecision string name).
+## #21 G-LM-4a ②: persisted so a deferred reveal knows its routing — the
+## reveal queue carries FULL_CEREMONY records ONLY (micro_ack 件行 Rule 9
+## banking 路徑,永不漏入 catch-up 變 full ceremony). Migration default =
+## FULL_CEREMONY (the celebrate-it safe default, ADR-0007 ordinal-0 family).
+@export var ceremony_kind: String = "FULL_CEREMONY"
+
+
+## #21 G-LM-4a ①: revealed-state, SEPARATE from backend-sync state. Set true
+## when #21's modal_dismissed dequeues this drop (G-LM-4b). A revealed-but-
+## unsynced record stays in loot.pending until the backend ACK renames it —
+## the boot rehydrate must NOT re-queue it for reveal (re-revealing a banked
+## item is the anti-flashbulb). Backend ACK conversely NEVER clears an
+## unrevealed record out of the reveal queue.
+@export var revealed: bool = false
+
+
 ## Convert this record to a plain Dictionary per ADR-0006 Contract 3.
 ##
 ## `payload_type` is set via `get_script().get_global_name()` (NOT get_class(),
@@ -121,6 +139,8 @@ func to_dict() -> Dictionary:
 		"created_at_unix": created_at_unix,
 		"schema_version": schema_version,
 		"item_metadata": item_metadata,
+		"ceremony_kind": ceremony_kind,
+		"revealed": revealed,
 	}
 
 
@@ -142,4 +162,6 @@ static func from_dict(data_dict: Dictionary) -> SerializableResource:
 	drop.created_at_unix = int(data_dict.get("created_at_unix", 0))
 	drop.schema_version = int(data_dict.get("schema_version", 1))
 	drop.item_metadata = data_dict.get("item_metadata", {})
+	drop.ceremony_kind = String(data_dict.get("ceremony_kind", "FULL_CEREMONY"))
+	drop.revealed = bool(data_dict.get("revealed", false))
 	return drop
