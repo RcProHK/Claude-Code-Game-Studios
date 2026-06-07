@@ -1,12 +1,12 @@
 # Story 014: Catch-up prompt + stream + F3 + EC-M13/M18 + phase-gate termination
 
 > **Epic**: Loot Drop Modal (#21)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-07 — AC-26/27/46/47/59/64/69 + 37c ui_cancel 半;GUT 111/111;combined 2041/2040/0 fail;commit 955b586;F3 note:formula 首 gap 0.3 → worst 15.5 ≤ GDD 15.8 conservative bound)
 > **Layer**: Presentation
 > **Type**: Logic
 > **Estimate**: M
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-07
 
 ## Context
 

@@ -97,7 +97,7 @@ This epic is complete when:
 | 011 | Force-close D1 split + stash F6 | Logic | ✅ Complete | ADR-0006 | 22,22b,23,51,62 |
 | 012 | Rollback paths | Logic | ✅ Complete | N/A | 30,30b,31 + **AC-1 ×4 收線** |
 | 013 | micro_ack banking + F4 toast | Logic | ✅ Complete | ADR-0009 | 24,25,34b½,48,49,68 |
-| 014 | Catch-up prompt/stream/F3 | Logic | Ready | N/A | 26,27,46,47,59,64,69 |
+| 014 | Catch-up prompt/stream/F3 | Logic | ✅ Complete | N/A | 26,27,46,47,59,64,69,37c完 |
 | 015 | Catch-up ceremonies/grid/commit | Logic | Ready | ADR-0005(C-1) | 28½,29½,58½,67 |
 | 016 | Banner stack + telemetry + #33 exempt | Logic | Ready | ADR-0009 | 17,33,36,61,62 |
 | 017 | **G-LM-4a** #15 state 分離 + kind 持久化 + #15 errata ×9 | Logic | Ready | ADR-0003 | (#15-side) |

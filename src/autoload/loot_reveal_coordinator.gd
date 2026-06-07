@@ -196,6 +196,7 @@ var _stream_phase: String = ""           # "banner" / "beats"
 var _catchup_ceremonies: Array = []      # RARE+ drops, ascending reveal order
 var _catchup_grid_items: Array = []      # overflow (sub-RARE 「+N」-able + RARE+ own cells)
 var _catchup_phase: String = ""          # "stream" / "ceremonies" / "grid" — 唔回頭
+var _catchup_exit_pending: bool = false  # 「稍後再拆」mid-ceremony → S3 後 stash + terminal
 
 ## Deferred acknowledgement bucket (F4 — story 013 owns aggregation/flush;
 ## EC-M14 CONVERTED_DUPE shard acks land here from 009). Entry shape:
@@ -309,6 +310,8 @@ func _transition(to_state: int) -> bool:
 		_s3_entries += 1
 		_commit_current_drop()  # INV-M3 — S3 is THE banking commit point
 		# SR announcement — story 025.
+		if _catchup_exit_pending:
+			_stash_exit(false)  # 「稍後再拆」mid-ceremony: commit 完即 stash (Rule 10)
 	return true
 
 
@@ -405,7 +408,26 @@ func _on_suspended() -> void:
 
 
 ## Rule 8 — GSM force-transition while the modal is open (D1 pre/post-S3 split).
+## EC-M7 — catch-up phases each have their own commit point.
 func _on_force_close() -> void:
+	match _state:
+		ModalState.CATCHUP_PROMPT:
+			# banner 收埋、零 commit、全部留 pending — terminal emit (EC-M7).
+			modal_dismissed.emit("", true)
+			_transition(ModalState.HIDDEN)
+			return
+		ModalState.CATCHUP_STREAM:
+			# force-close 嗰刻就係 batch commit point — 已 display beats 單一
+			# frame 連發 commit;in-flight 未 display → 留 pending。
+			_commit_stream_batch()
+			modal_dismissed.emit("", true)
+			_transition(ModalState.HIDDEN)
+			return
+		ModalState.CATCHUP_GRID:
+			# grid 係 post-commit summary → 直接收埋,零 data 影響。
+			modal_dismissed.emit("", true)
+			_transition(ModalState.HIDDEN)
+			return
 	match _state:
 		ModalState.ENTRY, ModalState.CEREMONY:
 			# Pre-S3: cancel + re-reveal (D1) — 未撳快門 = 張相從未影過.
@@ -451,6 +473,12 @@ func _finish_exit_closed() -> void:
 		_emit_telemetry("stash_exit_count", {"tier": _current_tier})
 	var remaining: Array = _pull_queue()
 	modal_dismissed.emit(dismissed_id, remaining.is_empty())
+	if _catchup_exit_pending:
+		# 「稍後再拆」係玩家 exit — GSM 仍喺 LOOT_DROP,要 terminal 推進
+		# (剩餘 selected + 未 stream 件全部原封 pending,banner 下次以新 N 重現)。
+		_catchup_exit_pending = false
+		if not remaining.is_empty():
+			modal_dismissed.emit("", true)
 	_transition(ModalState.HIDDEN)
 
 
@@ -891,6 +919,10 @@ func _stream_tick(delta: float) -> void:
 		if _stream_clock_ms >= _timing_config.banner_beat_sec * 1000.0:
 			_stream_phase = "beats"
 			_stream_clock_ms = 0.0
+			# D4 — ONE aggregated cue for the whole stream (single duck handle
+			# #4-side; per-beat fanfare is FORBIDDEN — G-LM-8 registers the id).
+			if _audio != null and _audio.has_method("play_sfx"):
+				_audio.play_sfx(&"loot_stream_aggregate")
 		return
 	while _stream_clock_ms >= _timing_config.stream_beat_sec * 1000.0 \
 			and _catchup_stream_index < _catchup_stream.size():
@@ -986,7 +1018,7 @@ func _batch_commit_drops(drops: Array) -> void:
 
 
 ## 「稍後再拆」(corner affordance / ui_cancel) — Pillar 2 never-trap:
-## CATCHUP_PROMPT → defer (zero commit, all pending); mid-flow → story 015.
+## exit 永遠唔丟件 (Rule 10)。
 func _handle_catchup_exit() -> void:
 	match _state:
 		ModalState.CATCHUP_PROMPT:
@@ -999,8 +1031,19 @@ func _handle_catchup_exit() -> void:
 		ModalState.CATCHUP_GRID:
 			modal_dismissed.emit("", true)
 			_transition(ModalState.HIDDEN)
+		ModalState.ENTRY, ModalState.CEREMONY:
+			if _in_catchup:
+				# 當前件 fast-complete → S3 commit → stash 收埋;剩餘留 pending。
+				_catchup_exit_pending = true
+				if _state == ModalState.CEREMONY:
+					_fast_complete()
+				# ENTRY 段: content 未 final — 等 CEREMONY 先 snap;flag 喺 S3 接手
+		ModalState.STEADY:
+			if _in_catchup:
+				_catchup_exit_pending = true
+				_stash_exit(false)
 		_:
-			pass  # ceremonies 中嘅 exit 行為 — story 015
+			pass
 
 
 # ── micro_ack banking + F4 toast (story 013 — Rule 9 / F4 / EC-M17) ─────────
@@ -1157,6 +1200,20 @@ func _consume_id(drop_id: String) -> void:
 ## #21 NEVER emits modal_dismissed here (it would double-advance).
 func _on_loot_rollback(drop_id: String) -> void:
 	_rolled_ids.append(drop_id)
+	if _state == ModalState.CATCHUP_STREAM:
+		# EC-M16 — displayed-but-uncommitted beat: cancel, skip, aggregate −1,
+		# NEVER enters the batch; undisplayed: silently drops from the stream.
+		for i: int in range(_catchup_stream_displayed.size()):
+			if _drop_id_of(_catchup_stream_displayed[i]) == drop_id:
+				_catchup_stream_displayed.remove_at(i)
+				return
+		for i: int in range(_catchup_stream.size()):
+			if _drop_id_of(_catchup_stream[i]) == drop_id:
+				_catchup_stream.remove_at(i)
+				if i < _catchup_stream_index:
+					_catchup_stream_index -= 1
+				return
+		return  # already committed (post stream-end) → #15/#17 post-grant path
 	var is_current: bool = _drop_id_of(_current_drop) == drop_id and _state != ModalState.HIDDEN
 	if not is_current:
 		return  # AC-31 queued rollback — pull model, zero action
