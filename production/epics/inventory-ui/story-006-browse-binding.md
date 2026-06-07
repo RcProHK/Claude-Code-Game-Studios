@@ -1,12 +1,12 @@
 # Story 006: View models + browse binding(first-frame reads + filter + count/120 + 現役 badge)
 
 > **Epic**: Inventory UI (#23)
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Presentation
 > **Type**: Integration
 > **Estimate**: M
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-08
 
 ## Context
 
@@ -25,11 +25,11 @@
 
 ## Acceptance Criteria
 
-- [ ] **AC-10** *(G-IU-1)*:open 第一 frame 五 read 齊(all-inventory[含 EQUIPPED] + mailbox + count + shards + loadout)→ view models built;render 層零 live `EquipmentItem` ref(introspect)
-- [ ] **AC-11**:真 #17 混合 fixture → F3 排序 byte-identical;EQUIPPED 件照列 +「現役」badge(loadout set O(1) lookup)
-- [ ] **AC-12**:filter 切換 → view model array **object identity 不變**(零 re-read state-based);filter 0 件 / first-run(ALL+0)兩款 empty copy;section 切返 → re-read(新 object)
-- [ ] **AC-35**:「[count]/120」readout render + mutation 後更新;零 progress-bar 零變色
-- [ ] Re-read 範圍統一 = Rule 5 全套(五 read 全重讀 + rebuild)
+- [x] **AC-10** *(G-IU-1)*:open 第一 frame 五 read 齊(all-inventory[含 EQUIPPED] + mailbox + count + shards + loadout)→ view models built;render 層零 live `EquipmentItem` ref(introspect)
+- [x] **AC-11**:真 #17 混合 fixture → F3 排序 byte-identical;EQUIPPED 件照列 +「現役」badge(loadout set O(1) lookup)
+- [x] **AC-12**:filter 切換 → view model array **object identity 不變**(零 re-read state-based);filter 0 件 / first-run(ALL+0)兩款 empty copy;section 切返 → re-read(新 object)
+- [x] **AC-35**:「[count]/120」readout render + mutation 後更新;零 progress-bar 零變色
+- [x] Re-read 範圍統一 = Rule 5 全套(五 read 全重讀 + rebuild — `_reread_all()` 單一入口)
 
 ## Implementation Notes
 
@@ -52,7 +52,15 @@
 
 **Story Type**: Integration
 **Required evidence**: `tests/integration/inventory_ui/test_invui_browse.gd`
-**Status**: [ ] Not yet created
+**Status**: [x] Created — +4 tests(AC-10/11/12/35,真 #17 fixture)全 pass;combined gate CLEAN 2298/2297/0 fail(2026-06-08)
+
+## Completion Notes
+
+**Completed**: 2026-06-08
+**Criteria**: 5/5 passing
+**Deviations**: None — view model = Dictionary snapshot(欄位 copy,零 live ref — AC-10 mutate-after 證明);`CHIP_TO_SLOT` mapping 收喺 coordinator(formula 層零 enum coupling);MAX_INVENTORY referenced;shards display placeholder `str()` + TODO(story 017 G-IU-5)
+**Test Evidence**: +4 integration tests — 五 read + snapshot / F3 序 + badge / filter identity + section re-read + 兩款 empty copy / count readout mutation 更新
+**Code Review**: Complete — degraded inline APPROVED / ADEQUATE(spawn block 持續)
 
 ## Dependencies
 
