@@ -1,12 +1,12 @@
 # Story 005: Virtualized card list component(novel — 零先例 code)
 
 > **Epic**: Inventory UI (#23)
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Presentation
 > **Type**: Integration
 > **Estimate**: L
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-08
 
 ## Context
 
@@ -27,11 +27,11 @@
 
 ## Acceptance Criteria
 
-- [ ] `src/ui/inventory_ui/virtualized_card_list.gd`:**fixed row height**(`ROW_HEIGHT_PX` const — retention/receipt note 行喺 fixed card 內預留)+ pool ≤ `ceil(viewport_h / ROW_HEIGHT_PX) + 2 × POOL_BUFFER_ROWS`(knob default 2)
-- [ ] **AC-13**:120 件 fixture → instantiated row nodes ≤ pool 公式(test 讀 implementation 同一常數;P-06 card node 計,chrome 唔計)
-- [ ] Scroll 雙軌:bulk rebuild → reset 頂;單件 mutation rebuild → **保留 offset(clamped)**
-- [ ] 兩 instance 可共存(INVENTORY / MAILBOX 各自 instance,同一 class)
-- [ ] Row content 由 caller 注入(view model → card populate callback)— component 唔識 #17
+- [x] `src/ui/inventory_ui/virtualized_card_list.gd`:**fixed row height**(`ROW_HEIGHT_PX` const — retention/receipt note 行喺 fixed card 內預留)+ pool ≤ `ceil(viewport_h / ROW_HEIGHT_PX) + 2 × POOL_BUFFER_ROWS`(knob default 2)
+- [x] **AC-13**:120 件 fixture → instantiated row nodes ≤ pool 公式(test 讀 implementation 同一常數;P-06 card node 計,chrome 唔計)
+- [x] Scroll 雙軌:bulk rebuild → reset 頂;單件 mutation rebuild → **保留 offset(clamped)**
+- [x] 兩 instance 可共存(INVENTORY / MAILBOX 各自 instance,同一 class — plain script,零 singleton state)
+- [x] Row content 由 caller 注入(view model → card populate callback)— component 唔識 #17
 
 ## Implementation Notes
 
@@ -53,7 +53,15 @@
 
 **Story Type**: Integration
 **Required evidence**: `tests/integration/inventory_ui/test_invui_browse.gd`(virtualization cases)
-**Status**: [ ] Not yet created
+**Status**: [x] Created — 10 tests 全 pass;combined gate CLEAN 2294/2293/0 fail(2026-06-08)
+
+## Completion Notes
+
+**Completed**: 2026-06-08
+**Criteria**: 5/5 passing
+**Deviations**: None — `ROW_HEIGHT_PX = 96.0` 由本 story pin(GDD knob 行話「UX spec 定後 test 讀同一常數」;UX spec 只 pin「fixed height」冇數值 — 96px = 3 行文字 + retention 預留 + ≥48px touch;test 讀 implementation 同一常數兌現)。`ensure_index_visible` focus hook 已預留(story 015 接線)
+**Test Evidence**: 10 tests — AC-13 bound ×2(首屏 + scroll 到底唔增長)/ EC-14 雙軌 ×3(keep/reset/clamp)/ 邊界 ×3(0/1/<pool)/ populate window 連續 / focus hook 數學
+**Code Review**: Complete — degraded inline APPROVED / ADEQUATE(spawn block 持續)
 
 ## Dependencies
 
