@@ -106,6 +106,15 @@ var _make_room_shortfall: int = 0
 ## ITEM_INSPECT / SALVAGE_CONFIRM 對象(modal 軸對應 transient)。
 var _inspect_item_id: StringName = &""
 var _salvage_target: StringName = &""
+
+## BULK_CONFIRM receipt itemised list cap(GDD Tuning Knobs — default 8,
+## safe range 4-20;cap 咗都「+N more」總數照報 — 誠實度唔縮水)。
+const BULK_CONFIRM_RECEIPT_LIST_MAX: int = 8
+
+## BULK_CONFIRM context(row-tap 時點 snapshot — EC-01:modal 唔 live-update,
+## preview 係快照,execute 係事實)。
+var _bulk_rarity: int = -1
+var _bulk_preview: Dictionary = {}
 var _offline_banner: bool = false
 var _anim_elapsed_ms: float = 0.0
 
@@ -359,8 +368,10 @@ func _build_item_view(item_id: StringName) -> Dictionary:
 
 
 ## Section 切換(Rule 6/23 — visibility re-read:切到 / 切返都 re-read 全套)。
+## modal ≠ NONE ⇒ tabs 被 scrim 封鎖(States 表;MAKE_ROOM「自行整理」係
+## 唯一例外 — 佢本身先 set modal=NONE 再嚟)。
 func set_active_section(section: int) -> void:
-	if _state != ScreenState.OPEN:
+	if _state != ScreenState.OPEN or _modal != ModalKind.NONE:
 		return
 	_active_section = section
 	_reread_all()
@@ -707,6 +718,171 @@ func _error_toast_text(err: String) -> String:
 		"not_found": return "件物品已唔存在"
 		"in_mailbox_claim_first": return "先去信箱領取"
 		_: return "操作失敗(%s)" % err
+
+
+## ---- bulk sheets(story 011;Rules 15/16 + EC-02/03 + D5) ----
+
+## INVENTORY header「批量分解」入口 → BULK_SELECT(MAKE_ROOM 入口 (a) 同款落腳)。
+func open_bulk_select() -> void:
+	if not _command_allowed() or _modal != ModalKind.NONE:
+		return
+	_modal = ModalKind.BULK_SELECT
+	_play_sfx(&"ui_sheet_open")
+
+
+## BULK_SELECT 5 rarity rows — sheet 每次 enter 重行全 5 row preview
+## (Rule 15 pin:preview 係 free synchronous read,冇理由用舊快照)。
+func get_bulk_select_rows() -> Array:
+	var rows: Array = []
+	for rarity in 5:
+		var preview: Dictionary = _inventory.bulk_salvage_preview(rarity)
+		rows.append({
+			"rarity": rarity,
+			"count": int(preview["count"]),
+			"yield": int(preview["yield"]),
+			"receipt_count": int(preview["receipt_count"]),
+			"grayed": int(preview["count"]) == 0,  # 灰掉唔 disable tap(EC-02)
+		})
+	return rows
+
+
+## Rarity row tap — **tap 時再 re-preview 一次**,用 tap-time 數開 CONFIRM
+## (Rule 15);仍 0 → inline note(EC-02/03 分流),唔開 modal;
+## reverse drift(re-preview > 0)→ 照開 CONFIRM。
+## Return:{opened: bool, note: String}。
+func bulk_row_tap(rarity: int) -> Dictionary:
+	if not _command_allowed() or _modal != ModalKind.BULK_SELECT:
+		return {"opened": false, "note": ""}
+	var preview: Dictionary = _inventory.bulk_salvage_preview(rarity)
+	if int(preview["count"]) == 0:
+		# EC-03:owned > 0 但全 locked → locked variant(N = view-model 點算);
+		# owned == 0 → EC-02 copy。
+		var locked_n: int = _count_locked_in_range(rarity)
+		var note: String = "0 件可分解(%d 件已鎖)" % locked_n if locked_n > 0 \
+				else "呢個 tier 冇可分解嘅件"
+		return {"opened": false, "note": note}
+	_bulk_rarity = rarity
+	_bulk_preview = preview  # row-tap 快照(EC-01 — modal 唔 live-update)
+	_modal = ModalKind.BULK_CONFIRM
+	_play_sfx(&"ui_sheet_open")
+	return {"opened": true, "note": ""}
+
+
+## View-model 對該 rarity 嘅 locked count(EC-03 — bulk range = mailbox +
+## inventory + equipped;view 層點算,唔係 selection predicate duplicate)。
+func _count_locked_in_range(rarity: int) -> int:
+	var n: int = 0
+	for view: Dictionary in _inventory_view:
+		if int(view["rarity"]) == rarity and bool(view["locked"]):
+			n += 1
+	for view: Dictionary in _mailbox_view:
+		if int(view["rarity"]) == rarity and bool(view["locked"]):
+			n += 1
+	return n
+
+
+## BULK_CONFIRM view(D5 三層誠實度 + 三段結構 pin — Rule 16)。
+## 數字 = row-tap 快照(_bulk_preview);execute 用 #17 當下真值(story 012)。
+func get_bulk_confirm_view() -> Dictionary:
+	if _modal != ModalKind.BULK_CONFIRM:
+		return {}
+	var receipt_ids: Array = _bulk_preview.get("receipt_ids", [])
+	var receipt_total: int = int(_bulk_preview.get("receipt_count", 0))
+	# ① receipt 件逐件列(同毀滅名單同源 — G-IU-1;cap + 「+N more」總數照報)。
+	var receipt_lines: Array = []
+	for i in mini(receipt_ids.size(), BULK_CONFIRM_RECEIPT_LIST_MAX):
+		var item = _inventory.get_item(receipt_ids[i])
+		if item != null:
+			receipt_lines.append({
+				"item_id": receipt_ids[i],
+				"name": String(receipt_ids[i]),
+				"provenance": String(item.provenance_text),
+			})
+	var overflow: int = receipt_ids.size() - BULK_CONFIRM_RECEIPT_LIST_MAX
+	# ② conditional count breakdown(view-model 點算;有先 render,零中招唔出)。
+	var parts: Array = []
+	var m_count: int = _count_in_range_unlocked(_mailbox_view, _bulk_rarity)
+	var k_count: int = _count_equipped_unlocked(_bulk_rarity)
+	if m_count > 0:
+		parts.append("信箱 %d 件" % m_count)
+	if k_count > 0:
+		parts.append("現役 %d 件" % k_count)
+	# ③ MAKE_ROOM context warning(claim-target destruction trap 封口)。
+	var pending_warning: String = ""
+	if _make_room_pending != &"":
+		var pending = _inventory.get_item(_make_room_pending)
+		if pending != null and int(pending.rarity) == _bulk_rarity \
+				and not bool(pending.is_locked):
+			pending_warning = "⚠ 包括你想領取嗰件「%s」" % String(_make_room_pending)
+	return {
+		# fixed header(決策資訊 above-the-fold)。
+		"header": {
+			"count": int(_bulk_preview.get("count", 0)),
+			"yield": int(_bulk_preview.get("yield", 0)),
+			"receipt_total_line": "內含 %d 件收據件" % receipt_total if receipt_total > 0 else "",
+		},
+		# scrollable 中段(三層)。
+		"pending_warning": pending_warning,  # ③ 第一行
+		"receipt_lines": receipt_lines,      # ①
+		"receipt_overflow": "+%d more" % overflow if overflow > 0 else "",
+		"receipt_warning": "呢 %d 件帶收據,分解後簽名永久消失" % receipt_total \
+				if receipt_total > 0 else "",
+		"breakdown_line": "內含" + "、".join(parts) if not parts.is_empty() else "",  # ②
+		# fixed footer(cancel + confirm 永遠 on-screen;ENTER 只喺 confirm
+		# 獲 focus 先觸發 — UX spec)。
+		"default_focus": "cancel",
+	}
+
+
+func _count_in_range_unlocked(views: Array, rarity: int) -> int:
+	var n: int = 0
+	for view: Dictionary in views:
+		if int(view["rarity"]) == rarity and not bool(view["locked"]):
+			n += 1
+	return n
+
+
+func _count_equipped_unlocked(rarity: int) -> int:
+	var n: int = 0
+	for view: Dictionary in _inventory_view:
+		if int(view["rarity"]) == rarity and bool(view["equipped"]) \
+				and not bool(view["locked"]):
+			n += 1
+	return n
+
+
+## ---- modal dismiss routing(story 011;States return-target 表 + EC-07) ----
+
+## Per-modal dismiss(cancel button / scrim tap / ESC 三者等效 — 一律呢度)。
+func cancel_modal() -> void:
+	match _modal:
+		ModalKind.NONE:
+			return
+		ModalKind.SALVAGE_CONFIRM:
+			_modal = ModalKind.ITEM_INSPECT  # 逐層退(States 表)
+			_salvage_target = &""
+		ModalKind.BULK_CONFIRM:
+			_modal = ModalKind.BULK_SELECT  # 逐層退;re-enter 重行 preview(Rule 15)
+			_bulk_rarity = -1
+			_bulk_preview = {}
+		ModalKind.MAKE_ROOM:
+			make_room_dismiss()  # NONE + pending 清空(= 放棄)
+			return  # cue 喺 make_room_dismiss 內
+		_:
+			# ITEM_INSPECT / BULK_SELECT → NONE。
+			_modal = ModalKind.NONE
+			_inspect_item_id = &""
+	_play_sfx(&"ui_sheet_close")
+
+
+## ESC routing(EC-07 大原則 = #22:modal 先,screen 後)。
+## Returns true 如果今下已被 modal 食咗。
+func handle_escape() -> bool:
+	if _modal != ModalKind.NONE:
+		cancel_modal()
+		return true
+	close()
+	return false
 
 
 ## ---- toast(= #22 transient pattern;injected clock) ----
