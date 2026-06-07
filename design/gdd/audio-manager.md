@@ -359,7 +359,7 @@ Attack 用 `ATTACK_SEC` lerp 落，release（high-priority SFX `finished` 或 st
 | event_id | 來源系統 | priority（duck?） | channels | 備註 |
 |----------|---------|------------------|----------|------|
 | `ui_tap` | #20 HUD / #33 | low | mono | next-exercise tap |
-| `ui_back` / `ui_error` | #20 / #21 / #22 | low | mono | menu nav / 無效操作(#22 G-CS-9 reuse 2026-06-07)|
+| `ui_back` / `ui_error` | #20 / #21 / #22(`ui_error` 另 +#23 G-IU-3 2026-06-08;**`ui_back` #23 明文唔用** — modal 退層 = `ui_sheet_close`)| low | mono | menu nav / 無效操作(#22 G-CS-9 reuse 2026-06-07)|
 | `audio_unlock_confirm` | #4 self | **mid** | mono | **首 gesture unlock 確認 chime**（首個 real action 唔無聲後果）。**升 mid**：unlock 嗰刻同首個 BGM + 首個 workout SFX 可能撞；low priority 會即刻俾 pool 嘅其他 SFX steal → 「開聲」嗰一下反而無聲，諷刺地破壞 Rule 5 §81 design intent。mid 確保 chime 唔俾 combat SFX steal。[audio-director] Pass 4 |
 | `hit_light` / `hit_heavy` | #13/#14/#25 | low | mono | combat hit feedback（體感印章） |
 | `enemy_death` | #14 | low | mono | enemy 死 |
@@ -497,12 +497,13 @@ Attack 用 `ATTACK_SEC` lerp 落，release（high-priority SFX `finished` 或 st
 
 | event_id | 來源系統 | priority(duck?)| channels | 備註 |
 |----------|---------|------------------|----------|------|
-| `ui_charscreen_open` / `ui_charscreen_close` | #22 | low | mono | 低沉軟 thock + 紙(close = 短 reverse);**只 player-initiated** — force-close / SUSPENDED snap 零 SFX(#22 CD C1)|
-| `ui_equip_settle` | #22 | low | mono | stat tween settle 一刻「刻一下」;**dedupe locus = #22-side settle-frame coalesce**(每 command 最多 1 響,4-row 並行都係 1 — #4 stateless gateway 唔做 time-window)|
-| `ui_lock_on` / `ui_lock_off` | #22 | low | mono | 細金屬 click,on 略重 |
-| `ui_salvage_execute` | #22 | low | mono | 短 grind / 紙撕 — 唔係爆炸 |
-| `ui_sheet_open` / `ui_sheet_close` | #22 | low | mono | picker / modal 軟 slide(共用)|
+| `ui_charscreen_open` / `ui_charscreen_close` | #22 + #23(G-IU-3 reuse 2026-06-08)| low | mono | 低沉軟 thock + 紙(close = 短 reverse);**只 player-initiated** — force-close / SUSPENDED snap 零 SFX(#22 CD C1);**ledger-surface 開合 family cue(#22+#23 共用 — cue 係質感唔係 screen ID,名係 historical)**;**chaining craft constraint**:#22→#23 link path close+open back-to-back(~300ms 內)— sound-designer 確保兩響唔 mask / 唔讀成一響 |
+| `ui_equip_settle` | #22 | low | mono | stat tween settle 一刻「刻一下」;**dedupe locus = #22-side settle-frame coalesce**(每 command 最多 1 響,4-row 並行都係 1 — #4 stateless gateway 唔做 time-window);#23 **唔用**(冇 stat 面 — equip 明文 silent)|
+| `ui_lock_on` / `ui_lock_off` | #22 + #23(G-IU-3 reuse)| low | mono | 細金屬 click,on 略重 |
+| `ui_salvage_execute` | #22 + #23(G-IU-3 reuse)| low | mono | 短 grind / 紙撕 — 唔係爆炸;**transaction stamp,count-invariant(單件同 bulk 1..120 件都恰好一響 — #23 Rule 16)** |
+| `ui_sheet_open` / `ui_sheet_close` | #22 + #23(G-IU-3 reuse)| low | mono | picker / modal 軟 slide(共用;#23 全部 5 款 modal 開關 — 逐層退 = 該層一響)|
 | `ui_toggle_flip` | #22 | low | mono | P-08 toggle 細 click |
 
 **Naming 慣例裁決(#22 G-CS-9 順手,audio N5)**:UI cue canonical prefix = bare `ui_*`(`ui_tap`/`ui_back` 同源);#21 嘅 `sfx_loot_*` prefix 係 outlier(已 ship,唔改 — 記錄在案,新 cue 一律跟 `ui_*`/domain 名)。
 **Voice pool 重估(#22 包絡)**:#22 只喺 IDLE/DISCONNECTED 開(combat/workout SFX 唔並發),同時最多 ~2-3 UI cue — 8-voice pool 零 contention。
+**Voice pool 重估(#23 包絡 — G-IU-3 2026-06-08)**:#23 同款 IDLE/DISCONNECTED only(GSM whitelist = #22)、全 reuse cue low/mono、同時 ≤2-3(雙 cue link path / sheet 轉場兩響係 ceiling)— 8-voice pool 零 contention,零新 entry。

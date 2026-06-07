@@ -698,7 +698,10 @@ func unequip(slot: int) -> Dictionary:
 
 
 ## Item-level lock (Pass 1 unified — NOT slot-level). Locked items freeze their
-## slot against auto-equip and are immune to every salvage path. Persisted.
+## slot against auto-equip and are immune to MANUAL + BULK salvage paths.
+## (G-IU-3 (f) 2026-06-08 收窄: TTL sweep + hard-cap evict 唔理 is_locked —
+## 嗰兩個 path 只豁免 receipt 件;lock 擋 bulk 唔擋 sweep,#23 Rule 12 honest
+## copy 同一 ground truth。) Persisted.
 func set_lock(item_id: StringName, locked: bool) -> Dictionary:
 	var item: EquipmentItem = _items.get(item_id, null)
 	if item == null:
@@ -714,8 +717,9 @@ func set_lock(item_id: StringName, locked: bool) -> Dictionary:
 ## Claim a mailbox item into the inventory. Blocked while the inventory is full
 ## (EC-10 — claim never over-admits): returns {ok: false, shortfall: N} where N
 ## is the number of slots the player must free (#23 surfaces "先騰 N 個位" +
-## bulk-salvage shortcut). On success the item enters IN_INVENTORY and an
-## auto-equip evaluation runs (Rule 6 trigger set: claim 後).
+## bulk-salvage shortcut — SUPERSEDED note G-IU-3 (e) 2026-06-08: 已兌現,#23
+## MAKE_ROOM 入口 (a)「批量分解」→ BULK_SELECT,story 009). On success the item
+## enters IN_INVENTORY and an auto-equip evaluation runs (Rule 6 trigger set: claim 後).
 func claim(item_id: StringName) -> Dictionary:
 	var item: EquipmentItem = _items.get(item_id, null)
 	if item == null or item.lifecycle_state != EquipmentEnums.ItemLifecycle.IN_MAILBOX:

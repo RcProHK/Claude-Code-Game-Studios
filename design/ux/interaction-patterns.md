@@ -37,10 +37,10 @@ Mirror Hero 係一個 web-based gym companion RPG，設計為 background auto-pl
 | P-10 | [damage-number-popup](#p-10-damage-number-popup) | Feedback | Combat VFX (#25) | Defined |
 | P-11 | [enemy-threat-hud-bar](#p-11-enemy-threat-hud-bar) | Data Display | HUD (#20) — Boss HP | Defined |
 | P-12 | ledger-watermark-line | Data Display | Character Screen (#22) — Rule 31 | **Stub**(#22 G-CS-6 2026-06-07;full spec 留 /ux-design patterns — 行為 ground truth 喺 #22 GDD Rule 31)|
-| P-13 | three-zone-item-card | Input | Character Screen (#22) — loadout card | **Stub**(主體→inspect / 更換→picker / lock toggle;#22 Rule 22 entry map)|
-| P-14 | inline-nudge-strip | Feedback | Character Screen (#22) — lock nudge / backfill note | **Stub**(overlay 唔推 layout;inline one-tap action;#22 Rule 18)|
-| P-15 | destructive-confirm-modal | Modal | Character Screen (#22) — SALVAGE_CONFIRM | **Stub**(cancel button + scrim=cancel + default focus cancel;#22 Rule 19)|
-| P-16 | bottom-sheet-picker | Modal | Character Screen (#22) — SLOT_PICKER | **Stub**(slot-filtered + virtualized + count indicator + empty 照開;#22 Rule 17)|
+| P-13 | three-zone-item-card | Input | Character Screen (#22) — loadout card;**Inventory UI (#23) — list 變體**(G-IU-3 (d) 2026-06-08:row = 主體 tap→inspect +「領取」button[mailbox only];**冇** per-row lock — lock 喺 inspect;≥64px button + ≥8px dead gap)| **Stub**(主體→inspect / 更換→picker / lock toggle;#22 Rule 22 entry map)|
+| P-14 | inline-nudge-strip | Feedback | Character Screen (#22) — lock nudge / backfill note;**Inventory UI (#23) — make-room hint strip**(G-IU-3 (d):「已騰出空位 — 領取『[name]』」one-tap + dismiss X;#23 Rule 11)| **Stub**(overlay 唔推 layout;inline one-tap action;#22 Rule 18)|
+| P-15 | destructive-confirm-modal | Modal | Character Screen (#22) — SALVAGE_CONFIRM;**Inventory UI (#23) — SALVAGE_CONFIRM + BULK_CONFIRM 加重版**(G-IU-3 (d):fixed header + scrollable 中段 + fixed footer;D5 三層誠實度;#23 Rule 16)| **Stub**(cancel button + scrim=cancel + default focus cancel;#22 Rule 19)|
+| P-16 | bottom-sheet-picker | Modal | Character Screen (#22) — SLOT_PICKER;**Inventory UI (#23) — BULK_SELECT + MAKE_ROOM**(G-IU-3 (d):rarity rows re-preview / 雙入口 sheet;#23 Rules 11/15)| **Stub**(slot-filtered + virtualized + count indicator + empty 照開;#22 Rule 17)|
 
 ---
 
