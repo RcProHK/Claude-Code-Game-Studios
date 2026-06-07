@@ -100,6 +100,14 @@ var _timing_config: LootRevealTimingConfig = null
 ## propagation wiring lands with the a11y stories; tests drive it directly.
 var _motion_reduction: bool = false
 
+## seam 9: ADR-0005 thresholds carrier (EC-M15 tier-consistency gate reads
+## tier_thresholds — #15-owned numbers, never re-printed here).
+var _rarity_config = null
+
+## Nominal breakdown bar width in px (UI layout drives the real value;
+## EC-M12 resize updates it). W_BAR_MIN display gate lives in the formula.
+var _current_w_bar: int = 160
+
 ## Single-owner CanvasLayers (Rule 1: coordinator is the only instantiator
 ## of the >100 band — ADR-0001 #21 revision).
 var _modal_layer: CanvasLayer = null
@@ -167,6 +175,8 @@ func _ready() -> void:
 	_instantiate_layers()
 	if _timing_config == null:
 		_timing_config = LootRevealTimingConfig.new()
+	if _rarity_config == null:
+		_rarity_config = LootRarityConfig.new()  # ADR-0005 defaults
 	var config_errors: Array[String] = _timing_config.validate()
 	_config_valid = config_errors.is_empty()
 	for e: String in config_errors:
@@ -407,10 +417,42 @@ func _fill_content_slots(drop) -> void:
 		"item_icon": str(drop.item_type) if (is_record and "item_type" in drop) else "",
 		"item_name": str(drop.item_metadata.get("item_name", "")) if (is_record and "item_metadata" in drop) else "",
 		"source_attribution": str(drop.source_event_kind) if (is_record and "source_event_kind" in drop) else "",
-		"breakdown_bar": null,  # F2 geometry wiring — story 008/010
+		"breakdown_bar": _compute_breakdown_slot(drop),
 		"dismiss_cta": "影低佢",
 	}
 	_active_content_tweens = 0
+
+
+## F2 slot (RARE+ only — AC-45). ws/rr/score ride the record's pinned
+## item_metadata keys (G-LM-4a persists them at grant; absent/corrupt →
+## EC-M15 hide-the-bar path — the tier claim always wins over the bar).
+func _compute_breakdown_slot(drop) -> Variant:
+	if _current_tier < LootEnums.RarityTier.RARE:
+		return null
+	if not (drop is Object and "item_metadata" in drop):
+		return null
+	var meta: Dictionary = drop.item_metadata
+	if not (meta.has("workout_score") and meta.has("rng_roll") and meta.has("rarity_score")):
+		_emit_telemetry("loot_reveal.breakdown_mismatch", {"reason": "missing_fields"})
+		return null
+	var ws: float = float(meta["workout_score"])
+	var rr: float = float(meta["rng_roll"])
+	var score: float = float(meta["rarity_score"])
+	if not LootRevealFormulas.breakdown_visible(ws, rr, score, _current_tier, _rarity_config):
+		_emit_telemetry("loot_reveal.breakdown_mismatch", {"reason": "identity_or_tier"})
+		return null
+	var geometry: Dictionary = LootRevealFormulas.breakdown_geometry(ws, rr, score, _current_w_bar)
+	geometry["ws"] = clampf(ws, 0.0, 1.0)
+	geometry["rr"] = clampf(rr, 0.0, 1.0)
+	return geometry
+
+
+## EC-M12 — viewport resize / 手機轉向 mid-modal: single-frame re-layout of
+## the geometry ONLY. Timers are time-based (untouched); particles never replay.
+func on_viewport_resized(new_w_bar: int) -> void:
+	_current_w_bar = new_w_bar
+	if _content_slots.has("breakdown_bar") and _content_slots["breakdown_bar"] != null:
+		_content_slots["breakdown_bar"] = _compute_breakdown_slot(_current_drop)
 
 
 ## reveal_anchor_pos (Rule 4): avatar group query, viewport-center fallback.
