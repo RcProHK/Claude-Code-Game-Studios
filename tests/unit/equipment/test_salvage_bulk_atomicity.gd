@@ -51,6 +51,15 @@ func _make_item(id_suffix: String, item_type: int, rarity: int,
 	return item
 
 
+## StringName sort 唔係字典序 — set-compare 轉 String 先 sort。
+func _sorted_ids(ids: Array) -> Array[String]:
+	var out: Array[String] = []
+	for id in ids:
+		out.append(String(id))
+	out.sort()
+	return out
+
+
 # ─── AC-24: yield ──────────────────────────────────────────────────────────────
 
 
@@ -149,8 +158,14 @@ func test_bulk_salvage_common_takes_unlocked_keeps_locked() -> void:
 	var preview: Dictionary = _sut.bulk_salvage_preview(LootEnums.RarityTier.COMMON)
 	var result: Dictionary = _sut.bulk_salvage(LootEnums.RarityTier.COMMON)
 
-	# Assert — receipt-but-unlocked IS salvaged (EC-17); locked kept
-	assert_eq(preview, {"count": 6, "yield": 600, "receipt_count": 1})
+	# Assert — receipt-but-unlocked IS salvaged (EC-17); locked kept.
+	# Per-key asserts(G-IU-1 #23 story 003 加咗 additive receipt_ids key —
+	# exact-dict assert 係 incidental strictness;原 intent = 三個值)。
+	assert_eq(preview["count"], 6)
+	assert_eq(preview["yield"], 600)
+	assert_eq(preview["receipt_count"], 1)
+	assert_eq(_sorted_ids(preview["receipt_ids"]), ["tid_rc_D-0-rc"] as Array[String],
+		"G-IU-1: receipt_ids 同 loop 收集(誠實名單 = 毀滅名單)")
 	assert_eq(result["count"], 6)
 	assert_eq(result["shards"], 600)
 	assert_eq(_sut.get_forge_shards(), 600)

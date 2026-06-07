@@ -1,12 +1,12 @@
 # Story 003: G-IU-1 #17 additive 三件(enumeration getters + preview receipt_ids)
 
 > **Epic**: Inventory UI (#23)
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Presentation(對象 #17 — Feature;additive)
 > **Type**: Integration
 > **Estimate**: M
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-07
 
 ## Context
 
@@ -25,11 +25,11 @@
 
 ## Acceptance Criteria
 
-- [ ] `get_all_inventory_items() -> Array[StringName]`:**IN_INVENTORY + EQUIPPED**(口徑 = `get_inventory_count` L1128 — cap 數乜佢列乜);copy 語意;零 ordering 承諾(F3 由 #23 做)
-- [ ] `get_mailbox_items() -> Array[StringName]`:IN_MAILBOX;同上語意
-- [ ] `bulk_salvage_preview` return 加 **`receipt_ids: Array[StringName]`** key(additive — selection predicate 同 loop 內收集,唔另開 loop drift 風險)
-- [ ] #17-side unit tests:**predicate↔receipt_ids 一致性 assert**(receipt_ids ⊆ bulk range ∧ 全部 has_receipt ∧ count == receipt_count)+ getters lifecycle 口徑 tests
-- [ ] **#17 existing suite 零變紅**(parity 準則 — equipment 全 suite 重跑)
+- [x] `get_all_inventory_items() -> Array[StringName]`:**IN_INVENTORY + EQUIPPED**(口徑 = `get_inventory_count` L1128 — cap 數乜佢列乜);copy 語意;零 ordering 承諾(F3 由 #23 做)
+- [x] `get_mailbox_items() -> Array[StringName]`:IN_MAILBOX;同上語意
+- [x] `bulk_salvage_preview` return 加 **`receipt_ids: Array[StringName]`** key(additive — selection predicate 同 loop 內收集,唔另開 loop drift 風險)
+- [x] #17-side unit tests:**predicate↔receipt_ids 一致性 assert**(receipt_ids ⊆ bulk range ∧ 全部 has_receipt ∧ count == receipt_count)+ getters lifecycle 口徑 tests
+- [x] **#17 existing suite 零變紅**(parity 準則 — equipment 全 suite 重跑;見 Completion Notes deviation)
 
 ## Implementation Notes
 
@@ -50,7 +50,15 @@
 
 **Story Type**: Integration
 **Required evidence**: `tests/unit/equipment/test_giu1_getters.gd`(#17-side)— combined CI gate + equipment suite 零變紅
-**Status**: [ ] Not yet created
+**Status**: [x] Created — 8 tests 全 pass;combined gate CLEAN 2268/2267 pass/0 fail(2026-06-07)
+
+## Completion Notes
+
+**Completed**: 2026-06-07
+**Criteria**: 5/5 passing
+**Deviations**: ADVISORY — `test_salvage_bulk_atomicity.gd` L153 exact-dict assert 改 per-key(原 assert 同任何 additive key 都唔兼容 — incidental strictness;原 3-value intent 保留,加強咗 receipt_ids assert)。Lesson:`Array[StringName].sort()` 唔係字典序(比 pointer)— 首 run 2 test fail,改 String-sort helper(入咗 memory)
+**Test Evidence**: `tests/unit/equipment/test_giu1_getters.gd` — 8 tests(口徑 ×3 / empty / copy / receipt_ids 一致性 / byte-identical / 0-match)
+**Code Review**: Complete — LP-CODE-REVIEW degraded inline APPROVED(additive only,selection predicate 零改動);QL-TEST-COVERAGE degraded inline ADEQUATE(3 QA cases 全 mapped)
 
 ## Dependencies
 

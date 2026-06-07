@@ -619,10 +619,14 @@ func bulk_salvage(rarity: int) -> Dictionary:
 
 ## Preview for the #23 confirm dialog (Pass 3 ownership: #17 provides the
 ## counts, #23 renders the receipt warning). No mutation.
+## `receipt_ids` (G-IU-1 additive, #23 story 003): the receipt-bearing ids in
+## bulk range, collected INSIDE the selection loop — 誠實名單同毀滅名單同源,
+## #23 零 predicate duplicate (#23 Rule 16 ① itemised receipt list)。
 func bulk_salvage_preview(rarity: int) -> Dictionary:
 	var count: int = 0
 	var total_shards: int = 0
 	var receipt_count: int = 0
+	var receipt_ids: Array[StringName] = []
 	for item_id: StringName in _items:
 		var item: EquipmentItem = _items[item_id]
 		if item.rarity != rarity or item.is_locked:
@@ -631,7 +635,13 @@ func bulk_salvage_preview(rarity: int) -> Dictionary:
 		total_shards += salvage_yield(item.rarity)
 		if item.has_receipt():
 			receipt_count += 1
-	return {"count": count, "yield": total_shards, "receipt_count": receipt_count}
+			receipt_ids.append(item.item_id)
+	return {
+		"count": count,
+		"yield": total_shards,
+		"receipt_count": receipt_count,
+		"receipt_ids": receipt_ids,
+	}
 
 
 ## Economy config assertion (Story 010): salvage curve must stay monotonic —
@@ -1169,4 +1179,31 @@ func get_items_for_slot(slot: int) -> Array[StringName]:
 		if int(item.slot_affinity) != slot:
 			continue
 		out.append(item_id)
+	return out
+
+
+## ---- G-IU-1 additive read getters (#23 story 003;GDD inventory-ui.md Rule 5/8) ----
+
+## Full owned enumeration:IN_INVENTORY + EQUIPPED item_ids — 口徑 =
+## `get_inventory_count`(cap 數乜佢列乜;#23 Rule 5/8「倉房口徑」由 getter
+## 直接兌現,#23 唔做 loadout merge)。Copy 語意;零 ordering 承諾(F3 sort
+## 由 #23 做)。Caller: #23 INVENTORY section(Rule 5 first-frame sync read)。
+func get_all_inventory_items() -> Array[StringName]:
+	var out: Array[StringName] = []
+	for item_id: StringName in _items:
+		var state: int = _items[item_id].lifecycle_state
+		if state == EquipmentEnums.ItemLifecycle.IN_INVENTORY \
+				or state == EquipmentEnums.ItemLifecycle.EQUIPPED:
+			out.append(item_id)
+	return out
+
+
+## Mailbox enumeration:IN_MAILBOX item_ids。Copy 語意;零 ordering 承諾
+## (F2-M acquired-asc sort 由 #23 做)。
+## Caller: #23 MAILBOX section(Rule 5 sync read / Rule 10)。
+func get_mailbox_items() -> Array[StringName]:
+	var out: Array[StringName] = []
+	for item_id: StringName in _items:
+		if _items[item_id].lifecycle_state == EquipmentEnums.ItemLifecycle.IN_MAILBOX:
+			out.append(item_id)
 	return out
