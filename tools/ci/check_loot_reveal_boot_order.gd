@@ -35,9 +35,18 @@ const HARD_PREDECESSORS: Array[String] = [
 	"ZoneSystem",
 ]
 
-## Autoloads allowed to boot AFTER #21 (reserved-Last per ADR-0008).
+## Autoloads allowed to boot AFTER #21 — reserved-Last (#28) plus the
+## ADR-0008-sanctioned tail-append amendments that came after G-LM-5:
+##   - CharacterScreenCoordinator (#22 G-CS-8, ADR-0008 amendment 2026-06-07)
+##   - InventoryUICoordinator (#23 G-IU-2, ADR-0008 amendment 2026-06-07)
+## The #21 invariant this lint protects is "boots after its predecessor set"
+## (the #5 LOOT pool reparent handshake) — NOT absolute-tail; ADR-0008 is the
+## ground truth for who may follow. Update this list per ADR-0008 amendment
+## (2026-06-08 main-RED hotfix — list was stale since the #22 epic merge).
 const ALLOWED_SUCCESSORS: Array[String] = [
 	"Telemetry",
+	"CharacterScreenCoordinator",
+	"InventoryUICoordinator",
 ]
 
 
