@@ -1,7 +1,7 @@
 # Story 023: G-LM-8+9 — #4 cue catalog + process-mode amendment + CI lint
 
 > **Epic**: Loot Drop Modal (#21)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-07 — cue freeze 表(BINDING)+ SfxCatalog carrier class + process-mode + lint PASS + AC-76/76b + #4 errata ×2;**.tres 留 /asset-spec**(streamless catalog 會反轉 safe-mode);combined 2088/2087/0 fail;commit 19b3fa4)
 > **Layer**: Presentation(epic)/ 改動喺 Foundation #4
 > **Type**: Logic
 > **Estimate**: M

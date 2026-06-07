@@ -384,6 +384,39 @@ func _load_state_dict(state: Dictionary) -> void:
 # ── Persistence flush (Rule 13 — Story 013) ────────────────────────────────────
 
 
+## #21 G-LM-10 — PUBLIC batch seam (story 024). Wraps the shipped internal
+## _batch_depth coalescing (boot/suspended-drain pattern above) for external
+## callers: #21's catch-up stream-end / grid-overflow commits N records in one
+## frame — without the seam that is N full persists (the :389-393 gate fires
+## per call). begin/end pairs nest; the OUTERMOST end runs the deferred
+## aggregate-push + state-flush exactly once.
+##
+## Usage (#21 coordinator):
+##   InventorySystem.begin_receive_batch()
+##   for drop in displayed: InventorySystem.receive_loot(drop)
+##   InventorySystem.end_receive_batch()
+func begin_receive_batch() -> void:
+	_batch_depth += 1
+
+
+## Idempotent against imbalance: an unmatched end is a warned no-op (a crash
+## mid-batch may strand depth — the next begin/end pair self-heals because
+## the pending flags survive and drain on the next balanced end).
+func end_receive_batch() -> void:
+	if _batch_depth <= 0:
+		push_warning("[InventorySystem] end_receive_batch without begin — no-op (G-LM-10)")
+		return
+	_batch_depth -= 1
+	if _batch_depth > 0:
+		return  # nested — the outermost end owns the drain
+	if _batch_push_pending:
+		_batch_push_pending = false
+		_push_aggregate()
+	if _batch_flush_pending:
+		_batch_flush_pending = false
+		_flush_state()
+
+
 ## Per-action flush: ONE IPersistence write for the whole state (items + shards
 ## + loadout + tombstones under PERSIST_KEY_STATE). Batched contexts coalesce.
 func _mark_dirty_and_flush() -> void:
