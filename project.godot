@@ -106,6 +106,17 @@ LootRevealCoordinator="*res://src/autoload/loot_reveal_coordinator.gd"
 ; #28 Telemetry stays last.)
 CharacterScreenCoordinator="*res://src/autoload/character_screen_coordinator.gd"
 
+; Inventory UI Coordinator (#23 — ADR-0008 G-IU-2: tail append after
+; CharacterScreenCoordinator (convention, NOT binding — NO #22 boot-order
+; constraint: the G-IU-4 glue is a runtime one-shot call_deferred +
+; has_method guard, zero boot dependency). Predecessor constraints
+; {GSM (C6), InventorySystem, AudioManager, PlatformDetect} ≺ #23 all boot
+; earlier; CLOSED at boot = zero subscriptions (Rule 6) — subscribes on
+; open() only (GSM via connect_for_initial_state; #11/#26 never).
+; Zero persist (no #23-owned keys). Owns InventoryUILayer(61, PAUSABLE —
+; ADR-0001 #23 revision). #28 Telemetry stays last.)
+InventoryUICoordinator="*res://src/autoload/inventory_ui_coordinator.gd"
+
 [display]
 
 window/size/viewport_width=1280

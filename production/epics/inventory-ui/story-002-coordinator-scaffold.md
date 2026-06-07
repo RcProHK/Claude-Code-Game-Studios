@@ -1,12 +1,12 @@
 # Story 002: InventoryUICoordinator scaffold + FSM fork + CanvasLayer 61 + autoload 登記
 
 > **Epic**: Inventory UI (#23)
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Presentation
 > **Type**: Integration
 > **Estimate**: M
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-07
 
 ## Context
 
@@ -27,11 +27,11 @@
 
 ## Acceptance Criteria
 
-- [ ] `src/autoload/inventory_ui_coordinator.gd` 存在:thin Node,CanvasLayer(layer=61,PAUSABLE),pre-warm `visible=false`
-- [ ] FSM fork:五態 + timing knobs reuse `char_screen_timing_config.gd`(preload — 唔搬家唔 rename)+ injected clock `advance(delta_ms)` seam + ghost-callv guard(CLOSED no-op)
-- [ ] Orthogonal 軸 scaffold:`active_section` / `slot_filter` / `modal` / `make_room_pending` + clean-slate reset(open 時全 reset 含 pending — Rule 3)
-- [ ] `project.godot` 登記:tail append CharacterScreenCoordinator 後(boot-order CI 過)
-- [ ] Boot invariant:零 active subscription;public surface `can_open()` / `open()` / `close()`;DI seams(GSM / #17 untyped var injectable)
+- [x] `src/autoload/inventory_ui_coordinator.gd` 存在:thin Node,CanvasLayer(layer=61,PAUSABLE),pre-warm `visible=false`
+- [x] FSM fork:五態 + timing knobs reuse `char_screen_timing_config.gd`(preload — 唔搬家唔 rename)+ injected clock `advance(delta_ms)` seam + ghost-callv guard(CLOSED no-op)
+- [x] Orthogonal 軸 scaffold:`active_section` / `slot_filter` / `modal` / `make_room_pending` + clean-slate reset(open 時全 reset 含 pending — Rule 3)
+- [x] `project.godot` 登記:tail append CharacterScreenCoordinator 後(boot-order CI 過)
+- [x] Boot invariant:零 active subscription;public surface `can_open()` / `open()` / `close()`;DI seams(GSM / #17 untyped var injectable)
 
 ## Implementation Notes
 
@@ -53,9 +53,17 @@
 
 **Story Type**: Integration
 **Required evidence**: `tests/integration/inventory_ui/test_invui_lifecycle.gd`(scaffold cases)— combined CI gate
-**Status**: [ ] Not yet created
+**Status**: [x] Created — 13 tests 全 pass;combined gate GREEN 2260/2259 pass/0 fail(+13 精確對數,2026-06-07)
 
 ## Dependencies
 
 - Depends on: Story 001
 - Unlocks: 004/005/007(#23-side code);006 另需 003
+
+## Completion Notes
+
+**Completed**: 2026-06-07
+**Criteria**: 5/5 passing
+**Deviations**: None — FSM fork 照 #22 spec,剝走部分(persist/tweens/settings)+ divergence list 喺 FORK NOTICE header(CD binding 兌現);timing config 真實路徑 = `src/ui/character_screen/char_screen_timing_config.gd`(story 引用嘅 filename 無 path — 已確認唔搬家)
+**Test Evidence**: `tests/integration/inventory_ui/test_invui_lifecycle.gd` — 13 tests(boot shape ×2 / boot order / whitelist ×2 / clean-slate / FSM ×2 / force-close / SUSPENDED / banner / ghost / OPENING abort)
+**Code Review**: Complete — LP-CODE-REVIEW degraded inline APPROVED;QL-TEST-COVERAGE degraded inline ADEQUATE(spawn 1M-credit block 持續)
