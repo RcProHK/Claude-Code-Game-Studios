@@ -1,12 +1,12 @@
 # Story 010: Queue drain intra/terminal + EC-M6/M20 + empty-queue + content source
 
 > **Epic**: Loot Drop Modal (#21)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-07 — AC-18/19½/32/34/57/70 + AC-60 margin wiring 半;GUT 85/85;combined 2015/2014/0 fail;commit f77dc62)
 > **Layer**: Presentation
 > **Type**: Logic
 > **Estimate**: M
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-07
 
 ## Context
 

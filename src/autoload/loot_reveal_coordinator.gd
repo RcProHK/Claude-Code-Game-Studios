@@ -176,6 +176,8 @@ var _in_gap: bool = false             # gap runs INSIDE the EXITING state (no ex
 var _gap_clock_ms: float = 0.0
 var _gap_target_ms: float = 0.0
 var _last_dismissed_id: String = ""   # exclusion until #15's dequeue handler lands (018)
+var _stash_mode: bool = false         # story 011 — post-S3 force-close collapse variant
+var _force_closed_mid_exit: bool = false  # force-close landed mid-S4 → no gap-advance
 
 ## Deferred acknowledgement bucket (F4 — story 013 owns aggregation/flush;
 ## EC-M14 CONVERTED_DUPE shard acks land here from 009).
@@ -310,7 +312,9 @@ func _drop_id_of(drop) -> String:
 
 
 ## Rule 2 — GSM owns "when": → LOOT_DROP is the ONLY open trigger.
-## SUSPENDED transitions are the EC-M1 park/resume boundary.
+## SUSPENDED transitions are the EC-M1 park/resume boundary; any other
+## transition out of the reveal context is the Rule 8 force-close path —
+## EXCEPT safe→safe moves (EC-M11: the safe set is entry-time only).
 func _on_state_changed(_from_state, to_state, _payload) -> void:
 	var to_int: int = int(to_state)
 	if to_int == GSMScript.GameState.SUSPENDED:
@@ -320,7 +324,9 @@ func _on_state_changed(_from_state, to_state, _payload) -> void:
 		_on_resumed_from_suspend()
 		return  # the resume decision owns this frame; LOOT_DROP retry comes via GSM
 	if to_int != GSMScript.GameState.LOOT_DROP:
-		return
+		if _state != ModalState.HIDDEN and to_int not in GSMScript.LOOT_REVEAL_SAFE_STATES:
+			_on_force_close()
+		return  # safe→safe mid-modal continues (EC-M11 — no stash, no cancel)
 	if _state != ModalState.HIDDEN:
 		return  # Rule 6 one-modal-at-a-time (re-entry guarded)
 	if _queue_depth() > 0:
@@ -335,12 +341,71 @@ func _on_state_changed(_from_state, to_state, _payload) -> void:
 ## EC-M1 — bfcache/suspend mid-reveal: #6's Suspended override hard-cancels
 ## the freeze itself; #21 runs the INV-M1 exit (release is a no-op against
 ## the already-cleared ledger) and PARKS. Freeze state never survives here.
+## Post-S3 suspend → Rule 8 SUSPENDED clause: zero frames will render — skip
+## every animation and run the branch IMMEDIATELY (emit must not wait for resume).
 func _on_suspended() -> void:
-	if _state != ModalState.ENTRY and _state != ModalState.CEREMONY:
-		return  # post-S3 suspend → Rule 8 SUSPENDED clause (story 011)
-	_suspended_mid_reveal = true
-	_suspend_at_ms = int(_now_ms.call())
-	_release_freeze()  # idempotent — #6 already cleared its own entry
+	match _state:
+		ModalState.ENTRY, ModalState.CEREMONY:
+			_suspended_mid_reveal = true
+			_suspend_at_ms = int(_now_ms.call())
+			_release_freeze()  # idempotent — #6 already cleared its own entry
+		ModalState.STEADY:
+			_stash_exit(true)  # banked — instant emit, no anim
+		ModalState.EXITING:
+			if _in_gap:
+				_transition(ModalState.HIDDEN)  # emit already happened
+			else:
+				_finish_exit_closed()  # skip anim, emit once, close
+
+
+## Rule 8 — GSM force-transition while the modal is open (D1 pre/post-S3 split).
+func _on_force_close() -> void:
+	match _state:
+		ModalState.ENTRY, ModalState.CEREMONY:
+			# Pre-S3: cancel + re-reveal (D1) — 未撳快門 = 張相從未影過.
+			# ≤1 frame, INV-M1 exit, ZERO emit, item stays in the #15 queue,
+			# GSM's loot_reveal_pending stays true (L127 retry semantics).
+			_emit_telemetry("re_reveal_count", {"tier": _current_tier})
+			_cancel_reveal()
+		ModalState.STEADY:
+			_stash_exit(false)  # post-S3 stash-exit — Rule 8 / F6
+		ModalState.EXITING:
+			if _in_gap:
+				_transition(ModalState.HIDDEN)  # dismissed item already emitted
+			else:
+				_force_closed_mid_exit = true  # AC-23: anim finishes, single emit, no advance
+
+
+## Post-S3 stash-exit (F6): release same frame (idempotent — usually expired),
+## collapse ≤ STASH_COLLAPSE_SEC (+0.1s jitter margin budget-checked by config),
+## then emit + deferred-ack「+N」for the next safe-state flush (F4 — story 013).
+## instant=true (SUSPENDED-triggered) skips the anim entirely.
+func _stash_exit(instant: bool) -> void:
+	_release_freeze()
+	if not _transition(ModalState.EXITING):
+		return
+	_exit_emitted = false
+	_in_gap = false
+	_stash_mode = true
+	_exit_clock_ms = 0.0
+	if instant:
+		_finish_exit_closed()
+
+
+## Closes the modal entirely (GSM has left): single emit, deferred-ack for
+## stash, NO gap-advance — remaining items stay pending for the GSM retry.
+func _finish_exit_closed() -> void:
+	if _exit_emitted:
+		return  # AC-23 idempotency
+	_exit_emitted = true
+	var dismissed_id: String = _drop_id_of(_current_drop)
+	_last_dismissed_id = dismissed_id
+	if _stash_mode:
+		_deferred_acks.append({"tier": _current_tier, "reason": "stash"})
+		_emit_telemetry("stash_exit_count", {"tier": _current_tier})
+	var remaining: Array = _pull_queue()
+	modal_dismissed.emit(dismissed_id, remaining.is_empty())
+	_transition(ModalState.HIDDEN)
 
 
 ## EC-M1 resume decision (#15 threshold): delta ≤ 30s → re-enter S3 directly
@@ -443,6 +508,9 @@ func _begin_reveal(drop) -> void:
 	_suspended_mid_reveal = false
 	_banked = false
 	_pending_stash_exit = false
+	_stash_mode = false
+	_force_closed_mid_exit = false
+	_exit_emitted = false
 	_fill_content_slots(drop)
 	var anchor: Vector2 = _resolve_reveal_anchor()
 	# ── S0 frame-0: tier-colored burst (pre-attentive rarity channel) + fanfare ──
@@ -650,6 +718,8 @@ func _dismiss() -> void:
 	_exit_clock_ms = 0.0
 	_exit_emitted = false
 	_in_gap = false
+	_stash_mode = false
+	_force_closed_mid_exit = false
 
 
 ## S4 anim complete (story 010). Terminal evaluation happens HERE — drops
@@ -725,8 +795,12 @@ func _process(delta: float) -> void:
 				_end_gap()
 		else:
 			_exit_clock_ms += delta * 1000.0
-			if _exit_clock_ms >= _timing_config.exit_anim_sec * 1000.0:
-				_finish_exit()
+			var anim_sec: float = _timing_config.stash_collapse_sec if _stash_mode else _timing_config.exit_anim_sec
+			if _exit_clock_ms >= anim_sec * 1000.0:
+				if _stash_mode or _force_closed_mid_exit:
+					_finish_exit_closed()
+				else:
+					_finish_exit()
 		return
 	if _state != ModalState.ENTRY and _state != ModalState.CEREMONY:
 		return

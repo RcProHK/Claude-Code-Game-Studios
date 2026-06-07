@@ -76,6 +76,10 @@ const ATTENTION_CEILING_MS: int = 1200
 ## number, mirrored here until #15 ships a code carrier). Safe [10000, 60000].
 @export var bfcache_continue_threshold_ms: int = 30000
 
+## F6 — post-S3 stash-exit collapse anim. Safe 0.1–0.2 (Pass 1: upper bound
+## capped so collapse + 0.1s jitter margin stays ≤ the 0.3s budget).
+@export var stash_collapse_sec: float = 0.2
+
 
 ## Data-load assert (F1 + Tuning Knobs flash budget). Empty result == valid.
 func validate() -> Array[String]:
