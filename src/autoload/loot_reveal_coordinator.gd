@@ -84,9 +84,16 @@ const EDGE_TABLE: Dictionary = {
 	},
 }
 
-# --- DI seams (untyped — project DI discipline) ---
+# --- DI seams (untyped node seams — project DI discipline) ---
 var _gsm            ## seam 1: #1 GameStateMachine (default /root/GameStateMachine)
 var _loot_system    ## seam 2: #15 LootDropSystem (default /root/LootDropSystem)
+
+## seam 3: F1 per-tier timeline data (default = class defaults — GDD table).
+var _timing_config: LootRevealTimingConfig = null
+
+## seam 4: accessibility — motion_reduction matrix input (EC-M4). Settings
+## propagation wiring lands with the a11y stories; tests drive it directly.
+var _motion_reduction: bool = false
 
 ## Single-owner CanvasLayers (Rule 1: coordinator is the only instantiator
 ## of the >100 band — ADR-0001 #21 revision).
@@ -97,12 +104,31 @@ var _celebration_vfx_layer: CanvasLayer = null
 var _state: int = ModalState.HIDDEN
 var _in_catchup: bool = false
 
+## Global reveal clock (F1 unified timing model): T=0 = reveal-start
+## orchestration frame; delta-time accumulated, fake-clock testable (AC-40).
+## All three tracks key off this single clock — never additive stage timers.
+var _reveal_clock_ms: float = 0.0
+
+## Tier of the drop currently revealing (LootEnums.RarityTier ordinal).
+## Story 010 wires this from the #15 record pull; COMMON until then.
+var _current_tier: int = LootEnums.RarityTier.COMMON
+
+## Data-load assert outcome (F1) — invalid config refuses to reveal (fail
+## loud, NEVER clamp).
+var _config_valid: bool = false
+
 
 func _ready() -> void:
 	# G-LM-9 (#4 story 023 asserts via AC-76b): coordinator must keep
 	# processing while ceremony_freeze pauses the tree.
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_instantiate_layers()
+	if _timing_config == null:
+		_timing_config = LootRevealTimingConfig.new()
+	var config_errors: Array[String] = _timing_config.validate()
+	_config_valid = config_errors.is_empty()
+	for e: String in config_errors:
+		push_error("LootRevealCoordinator: timing config invalid — %s" % e)
 	if _gsm == null:
 		_gsm = get_node_or_null("/root/GameStateMachine")
 	if _loot_system == null:
@@ -190,10 +216,40 @@ func _queue_depth() -> int:
 
 ## Opens the sequential reveal flow (HIDDEN → ENTRY edge).
 func _open_reveal_flow() -> void:
+	if not _config_valid:
+		push_error("LootRevealCoordinator: reveal refused — timing config failed data-load assert (F1: no clamp)")
+		return
 	if not _transition(ModalState.ENTRY):
 		return
+	# TODO story 010: pull the head record via get_drop() and read its tier
+	# (committed store is the content source — AC-32). COMMON until then.
+	_begin_reveal(_current_tier)
 	_modal_layer.visible = true
 	_celebration_vfx_layer.visible = true
+
+
+## Anchors T=0 for this drop's choreography (F1 unified timing model).
+func _begin_reveal(tier: int) -> void:
+	_current_tier = tier
+	_reveal_clock_ms = 0.0
+
+
+func _process(delta: float) -> void:
+	if _state != ModalState.ENTRY and _state != ModalState.CEREMONY:
+		return
+	_reveal_clock_ms += delta * 1000.0
+	_advance_timeline()
+
+
+## Timeline-driven stage progression (FSM state ≠ timeline stage — these
+## edges fire off the global clock, never off additive per-stage timers).
+func _advance_timeline() -> void:
+	var t_block: int = LootRevealFormulas.t_block_ms(_timing_config, _current_tier, _motion_reduction)
+	if _state == ModalState.ENTRY and _reveal_clock_ms >= float(_timing_config.entry_ms[_current_tier]):
+		_transition(ModalState.CEREMONY)
+	if _state == ModalState.CEREMONY and _reveal_clock_ms >= float(t_block):
+		_transition(ModalState.STEADY)
+		# S3 entry side effects (receive_loot INV-M3 / SR announce) — stories 009/025.
 
 
 func is_modal_active() -> bool:
@@ -206,6 +262,10 @@ func get_fsm_state() -> int:
 
 func is_in_catchup() -> bool:
 	return _in_catchup
+
+
+func get_reveal_clock_ms() -> float:
+	return _reveal_clock_ms
 
 
 func get_modal_layer() -> CanvasLayer:
