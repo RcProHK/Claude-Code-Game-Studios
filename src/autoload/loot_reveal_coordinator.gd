@@ -27,6 +27,7 @@ extends Node
 signal modal_dismissed(drop_id: String, terminal: bool)
 
 const GSMScript := preload("res://src/autoload/game_state_machine.gd")
+const ParticleWrapperScript := preload("res://src/autoload/particle_system_wrapper.gd")
 
 ## ADR-0001 #21 revision pinned layer numbers (AC-4 asserts these match).
 const CELEBRATION_VFX_LAYER: int = 110
@@ -85,8 +86,12 @@ const EDGE_TABLE: Dictionary = {
 }
 
 # --- DI seams (untyped node seams — project DI discipline) ---
-var _gsm            ## seam 1: #1 GameStateMachine (default /root/GameStateMachine)
-var _loot_system    ## seam 2: #15 LootDropSystem (default /root/LootDropSystem)
+var _gsm             ## seam 1: #1 GameStateMachine (default /root/GameStateMachine)
+var _loot_system     ## seam 2: #15 LootDropSystem (default /root/LootDropSystem)
+var _particles       ## seam 5: #5 ParticleSystemWrapper (burst — FR-2 carrier)
+var _audio           ## seam 6: #4 AudioManager (fanfare caller = #21 — EG-1 precedent)
+var _camera          ## seam 7: #7 CameraController (request_focal + focal_completed)
+var _screen_effects  ## seam 8: #6 ScreenEffects (shake; ceremony_freeze/release/saturation — G-LM-3 shapes, fake until story 021)
 
 ## seam 3: F1 per-tier timeline data (default = class defaults — GDD table).
 var _timing_config: LootRevealTimingConfig = null
@@ -117,6 +122,22 @@ var _current_tier: int = LootEnums.RarityTier.COMMON
 ## loud, NEVER clamp).
 var _config_valid: bool = false
 
+## Drop currently revealing (committed-store pull — AC-32 hardening in 010).
+var _current_drop = null
+
+## Content slots (UX §B 1-6) — filled SYNCHRONOUSLY at reveal start (AC-10:
+## no staggered pop-in; a tired glance may land on any frame).
+var _content_slots: Dictionary = {}
+var _active_content_tweens: int = 0  # structural pin — MVP content never tweens
+
+## Freeze bookkeeping (INV-M1 single-exit skeleton — story 007 hardens).
+var _freeze_issued: bool = false
+var _freeze_handle = null
+var _skip_pending_freeze: bool = false  # fast-complete before issue ⇒ never issue (F5)
+
+## Telemetry append-log (#15/#17 verbatim pattern; #28 sink not required).
+var _telemetry_log: Array[Dictionary] = []
+
 
 func _ready() -> void:
 	# G-LM-9 (#4 story 023 asserts via AC-76b): coordinator must keep
@@ -133,6 +154,16 @@ func _ready() -> void:
 		_gsm = get_node_or_null("/root/GameStateMachine")
 	if _loot_system == null:
 		_loot_system = get_node_or_null("/root/LootDropSystem")
+	if _particles == null:
+		_particles = get_node_or_null("/root/ParticleSystemWrapper")
+	if _audio == null:
+		_audio = get_node_or_null("/root/AudioManager")
+	if _camera == null:
+		_camera = get_node_or_null("/root/CameraController")
+	if _screen_effects == null:
+		_screen_effects = get_node_or_null("/root/ScreenEffects")
+	if _camera != null and _camera.has_signal("focal_completed"):
+		_camera.focal_completed.connect(_on_focal_completed)
 	if _loot_system != null and _loot_system.has_signal("loot_dropped"):
 		_loot_system.loot_dropped.connect(_on_loot_dropped)
 	if _gsm != null and _gsm.has_method("connect_for_initial_state"):
@@ -219,19 +250,147 @@ func _open_reveal_flow() -> void:
 	if not _config_valid:
 		push_error("LootRevealCoordinator: reveal refused — timing config failed data-load assert (F1: no clamp)")
 		return
+	var drop = _peek_head_drop()
+	if drop == null:
+		return  # EC-M6 dangling-head hardening lands in story 010 (AC-57)
 	if not _transition(ModalState.ENTRY):
 		return
-	# TODO story 010: pull the head record via get_drop() and read its tier
-	# (committed store is the content source — AC-32). COMMON until then.
-	_begin_reveal(_current_tier)
+	_begin_reveal(drop)
 	_modal_layer.visible = true
 	_celebration_vfx_layer.visible = true
 
 
-## Anchors T=0 for this drop's choreography (F1 unified timing model).
-func _begin_reveal(tier: int) -> void:
-	_current_tier = tier
+## Head of the #15 reveal queue (committed store — AC-32 source of truth).
+func _peek_head_drop():
+	if _loot_system == null or not _loot_system.has_method("get_pending_drops"):
+		return null
+	var pending: Array = _loot_system.get_pending_drops()
+	if pending.is_empty():
+		return null
+	return pending[0]
+
+
+## Anchors T=0 and fires the frame-0 orchestration for this drop (F1 unified
+## timing model + Rule 4 D2 call order). S0 is a frame-0 EVENT, not a duration:
+## burst + fanfare + (RARE+) focal request all leave on THIS call stack — the
+## synchronous chain from the GSM trigger is the FR-2 structural guarantee (AC-8).
+func _begin_reveal(drop) -> void:
+	_current_drop = drop
+	_current_tier = _coerce_tier(drop)
 	_reveal_clock_ms = 0.0
+	_freeze_issued = false
+	_freeze_handle = null
+	_skip_pending_freeze = false
+	_fill_content_slots(drop)
+	var anchor: Vector2 = _resolve_reveal_anchor()
+	# ── S0 frame-0: tier-colored burst (pre-attentive rarity channel) + fanfare ──
+	if _particles != null and _particles.has_method("play"):
+		var preset: int = _burst_preset_for_tier(_current_tier)
+		var mult: float = _timing_config.particle_multiplier[_current_tier]
+		if _motion_reduction:
+			mult *= 0.5  # EC-M4 — density halves, ceremony stays
+		_particles.play(preset, anchor, mult)
+	if _audio != null and _audio.has_method("play_sfx"):
+		_audio.play_sfx(_fanfare_event_for_tier(_current_tier))
+	# ── Camera track (T=0, GSM==LOOT_DROP holds by construction — #7 Rule 4):
+	#    EPIC/LEG push-in IS S2a (focal duration == hold, D2 同源); RARE pulse. ──
+	if not _motion_reduction and _current_tier >= LootEnums.RarityTier.RARE:
+		if _camera != null and _camera.has_method("request_focal"):
+			_camera.request_focal(
+				anchor,
+				_timing_config.focal_duration_sec[_current_tier],
+				_timing_config.focal_zoom[_current_tier])
+
+
+## EC-M5 — unknown tier string coerces to COMMON BEFORE any ladder lookup
+## (#17 inventory_system.gd:180 同源 — modal tier always == banked tier).
+func _coerce_tier(drop) -> int:
+	var tier_name: String = str(drop.rarity_tier) if (drop is Object and "rarity_tier" in drop) else "COMMON"
+	var tier = LootEnums.RarityTier.get(tier_name)
+	if tier == null:
+		_emit_telemetry("loot_reveal.unknown_tier", {"raw": tier_name})
+		return LootEnums.RarityTier.COMMON
+	return tier
+
+
+func _burst_preset_for_tier(tier: int) -> int:
+	if tier >= LootEnums.RarityTier.EPIC:
+		return ParticleWrapperScript.PresetId.LOOT_RARE_BURST
+	return ParticleWrapperScript.PresetId.LOOT_BURST
+
+
+func _fanfare_event_for_tier(tier: int) -> StringName:
+	return StringName("loot_fanfare_%s" % String(LootEnums.RarityTier.find_key(tier)).to_lower())
+
+
+## All visual content slots (UX §B 1-6) fill synchronously — zero staggered
+## pop-in (AC-10). Slot 7 (SR announcement) fires at S3 (story 025).
+func _fill_content_slots(drop) -> void:
+	var is_record: bool = drop is Object
+	_content_slots = {
+		"rarity_badge": _current_tier,
+		"item_icon": str(drop.item_type) if (is_record and "item_type" in drop) else "",
+		"item_name": str(drop.item_metadata.get("item_name", "")) if (is_record and "item_metadata" in drop) else "",
+		"source_attribution": str(drop.source_event_kind) if (is_record and "source_event_kind" in drop) else "",
+		"breakdown_bar": null,  # F2 geometry wiring — story 008/010
+		"dismiss_cta": "影低佢",
+	}
+	_active_content_tweens = 0
+
+
+## reveal_anchor_pos (Rule 4): avatar group query, viewport-center fallback.
+## ADR-0001 #21 revision: layers are root-viewport screen-space — a world
+## anchor must be explicitly carried into canvas coordinates (no follow).
+func _resolve_reveal_anchor() -> Vector2:
+	var anchor_node: Node = get_tree().get_first_node_in_group(&"avatar_anchor")
+	if anchor_node is Node2D:
+		return (anchor_node as Node2D).get_global_transform_with_canvas().origin
+	var viewport: Viewport = get_viewport()
+	if viewport != null:
+		return viewport.get_visible_rect().size * 0.5
+	return Vector2.ZERO
+
+
+## D2 freeze-as-hold anchor: EPIC/LEG freeze on focal_completed (camera pinned
+## at peak zoom — the pause-bound exit tween freezes with the tree).
+func _on_focal_completed(_target_position: Vector2) -> void:
+	if _state != ModalState.CEREMONY and _state != ModalState.ENTRY:
+		return
+	if _current_tier < LootEnums.RarityTier.EPIC:
+		return  # RARE freeze anchors on the clock (T = D_hold), not the signal
+	_issue_ceremony_freeze()
+
+
+## Single issuance point for the S2b ladder tail: freeze → shake → saturation
+## (AC-12 order). Skips: motion_reduction (EC-M4), timestop==0 tiers,
+## fast-complete-before-issue (F5: freeze 未 issue ⇒ 唔 issue).
+func _issue_ceremony_freeze() -> void:
+	if _freeze_issued or _skip_pending_freeze or _motion_reduction:
+		return
+	if _timing_config.timestop_ms[_current_tier] <= 0:
+		return
+	if _screen_effects == null:
+		return
+	if _screen_effects.has_method("ceremony_freeze"):
+		_freeze_handle = _screen_effects.ceremony_freeze(
+			float(_timing_config.timestop_ms[_current_tier]) / 1000.0)
+		_freeze_issued = true
+	if _screen_effects.has_method("shake") and _timing_config.shake_intensity[_current_tier] > 0.0:
+		_screen_effects.shake(
+			_timing_config.shake_intensity[_current_tier],
+			_timing_config.shake_duration_sec[_current_tier])
+	if _screen_effects.has_method("apply_ceremony_saturation"):
+		# G-LM-3 ④ new API shape (fake seam until story 021).
+		_screen_effects.apply_ceremony_saturation(
+			_timing_config.saturation_drop, _timing_config.saturation_recovery_sec)
+
+
+func _emit_telemetry(event: String, data: Dictionary) -> void:
+	_telemetry_log.append({"event": event, "data": data})
+
+
+func get_telemetry() -> Array[Dictionary]:
+	return _telemetry_log
 
 
 func _process(delta: float) -> void:
@@ -247,6 +406,18 @@ func _advance_timeline() -> void:
 	var t_block: int = LootRevealFormulas.t_block_ms(_timing_config, _current_tier, _motion_reduction)
 	if _state == ModalState.ENTRY and _reveal_clock_ms >= float(_timing_config.entry_ms[_current_tier]):
 		_transition(ModalState.CEREMONY)
+	if _state == ModalState.CEREMONY and not _freeze_issued and not _motion_reduction:
+		var hold: float = float(_timing_config.hold_ms[_current_tier])
+		if _current_tier == LootEnums.RarityTier.RARE and _reveal_clock_ms >= hold:
+			# RARE: clock-anchored (pulse 0.3s finishes early; freeze still
+			# anchors at the END of the hold window — F1).
+			_issue_ceremony_freeze()
+		elif _current_tier >= LootEnums.RarityTier.EPIC \
+				and _reveal_clock_ms >= hold + float(_timing_config.focal_fallback_grace_ms):
+			# F1 fallback: focal_completed never arrived (#7 bug) — freeze
+			# anyway at T = D_hold + grace; the queue must never deadlock.
+			_emit_telemetry("loot_reveal.focal_fallback", {"tier": _current_tier})
+			_issue_ceremony_freeze()
 	if _state == ModalState.CEREMONY and _reveal_clock_ms >= float(t_block):
 		_transition(ModalState.STEADY)
 		# S3 entry side effects (receive_loot INV-M3 / SR announce) — stories 009/025.

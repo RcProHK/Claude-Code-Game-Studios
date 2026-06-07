@@ -18,3 +18,12 @@ extends RefCounted
 static func t_block_ms(config: LootRevealTimingConfig, tier: int, motion_reduction: bool = false) -> int:
 	var timestop: int = 0 if motion_reduction else config.timestop_ms[tier]
 	return maxi(config.entry_ms[tier], config.hold_ms[tier] + timestop)
+
+
+## EC-M9 — deterministic successor gap: previous reveal was EPIC+ ⇒ wait out
+## the #7 pause-bound focal exit tween via a fixed margin (no "focal remaining"
+## API exists — re-entry would be a silent DROP). Zero #7 state queries.
+static func successor_gap_sec(config: LootRevealTimingConfig, prev_tier: int) -> float:
+	if prev_tier >= LootEnums.RarityTier.EPIC:
+		return maxf(config.inter_reveal_gap_sec, config.focal_exit_margin_sec)
+	return config.inter_reveal_gap_sec

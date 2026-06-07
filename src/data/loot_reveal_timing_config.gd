@@ -33,6 +33,33 @@ const ATTENTION_CEILING_MS: int = 1200
 ## #7 FOCAL_EXIT_DURATION − exit_anim_sec + 0.1 — G-flag-4).
 @export var focal_exit_margin_sec: float = 0.6
 
+# ── #15 Visual Spec Table ceremony values (story 006 — #15 OWNED numbers,
+#    this resource is the single code carrier; logic never prints copies) ──
+
+## Camera zoom per tier (—/—/1.02 pulse/1.05 focal/1.08 focal).
+@export var focal_zoom: Array[float] = [1.0, 1.0, 1.02, 1.05, 1.08]
+
+## Focal duration per tier, sec. EPIC/LEG == hold (D2: push-in IS S2a, 同源);
+## RARE = its own 0.3s pulse (freeze still anchors at clock T=D_hold).
+@export var focal_duration_sec: Array[float] = [0.0, 0.0, 0.3, 0.65, 0.8]
+
+## Screen shake per tier (#6 shake(intensity, duration)): 2px/4px/6px.
+@export var shake_intensity: Array[float] = [0.0, 0.0, 2.0, 4.0, 6.0]
+@export var shake_duration_sec: Array[float] = [0.0, 0.0, 0.2, 0.35, 0.5]
+
+## Particle burst multiplier per tier (1×/1×/1.5×/2×/3× — ADR-0001 cap applies;
+## EC-M4 motion_reduction halves this at call time).
+@export var particle_multiplier: Array[float] = [1.0, 1.0, 1.5, 2.0, 3.0]
+
+## World saturation during ceremony — flat across tiers by design (#15: tier
+## differentiation comes from hold + particle density, not colour drift).
+@export var saturation_drop: float = 0.6
+@export var saturation_recovery_sec: float = 2.0
+
+## Freeze-anchor fallback grace after D_hold when focal_completed never
+## arrives (F1: fallback timer T = D_hold + 0.2s — #7 bug still freezes).
+@export var focal_fallback_grace_ms: int = 200
+
 
 ## Data-load assert (F1 + Tuning Knobs flash budget). Empty result == valid.
 func validate() -> Array[String]:

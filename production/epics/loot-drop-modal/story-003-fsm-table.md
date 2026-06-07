@@ -1,7 +1,7 @@
 # Story 003: FSM 8-state × in_catchup table-driven
 
 > **Epic**: Loot Drop Modal (#21)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-07 — AC-37 full sweep;GUT 13/13;combined 1943/1942/0 fail;commit f92a696)
 > **Layer**: Presentation
 > **Type**: Logic
 > **Estimate**: M

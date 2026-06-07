@@ -19,6 +19,13 @@ func _default_config() -> LootRevealTimingConfig:
 	return LootRevealTimingConfig.new()
 
 
+func _legendary_drop() -> LootDrop:
+	var d := LootDrop.new()
+	d.drop_id = "drop_leg"
+	d.rarity_tier = "LEGENDARY"
+	return d
+
+
 # --- AC-38: golden table + ceiling assert is `<=` (LEGENDARY equality passes) ---
 
 func test_default_config_t_block_matches_golden_table() -> void:
@@ -76,7 +83,7 @@ func test_legendary_timeline_is_concurrent_not_additive() -> void:
 	c._state = S.HIDDEN
 	c._in_catchup = false
 	assert_true(c._transition(S.ENTRY))
-	c._begin_reveal(LEGENDARY)
+	c._begin_reveal(_legendary_drop())
 	# Exact dyadic deltas — no float drift across the boundary checks.
 	c._process(0.5)   # clock 500ms ≥ entry 450 → CEREMONY (S1 done, S2 running)
 	assert_eq(c.get_fsm_state(), S.CEREMONY, "content final @ 450ms — entry overlaps S2 from T=0")
@@ -116,7 +123,7 @@ func test_motion_reduction_drives_coordinator_timeline() -> void:
 	add_child_autofree(c)
 	c._state = S.HIDDEN
 	assert_true(c._transition(S.ENTRY))
-	c._begin_reveal(LEGENDARY)
+	c._begin_reveal(_legendary_drop())
 	c._process(0.5)   # 500ms ≥ entry 450 → CEREMONY
 	c._process(0.25)  # 750ms < 800
 	assert_eq(c.get_fsm_state(), S.CEREMONY, "750ms < motion_reduction T_block 800")

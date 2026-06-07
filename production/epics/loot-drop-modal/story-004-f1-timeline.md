@@ -1,12 +1,12 @@
 # Story 004: F1 timeline budget + 統一 timing model + motion_reduction
 
 > **Epic**: Loot Drop Modal (#21)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-07 — AC-38/39/40/41;**AC-55 移交 story-006**(EC-M4 matrix assert 對象 = ladder 調用);GUT 23/23;combined 1953/1952/0 fail;commit 603ebe9)
 > **Layer**: Presentation
 > **Type**: Logic
 > **Estimate**: M
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-07
 
 ## Context
 
