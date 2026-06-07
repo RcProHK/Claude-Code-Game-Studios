@@ -144,6 +144,18 @@ var _s3_entries: int = 0               # exactly-once guard observable (AC-50 ra
 ## Burst handle of the current reveal (fast-complete stops it — natural fade).
 var _burst_handle = null
 
+## EC-M2 — freeze rejected by #6 (BOOTING/SUSPENDED not serviceable):
+## ceremony degrades to the motion_reduction-variant timeline (reveal is the
+## Pillar 3 hard guarantee; time-stop is garnish).
+var _freeze_rejected: bool = false
+
+## EC-M1 — suspend parking (freeze state NEVER survives the suspend boundary).
+var _suspended_mid_reveal: bool = false
+var _suspend_at_ms: int = 0
+
+## Injectable monotonic clock (tests drive resume deltas deterministically).
+var _now_ms: Callable = Callable(Time, "get_ticks_msec")
+
 ## Telemetry append-log (#15/#17 verbatim pattern; #28 sink not required).
 var _telemetry_log: Array[Dictionary] = []
 
@@ -227,8 +239,16 @@ func _transition(to_state: int) -> bool:
 
 
 ## Rule 2 — GSM owns "when": → LOOT_DROP is the ONLY open trigger.
+## SUSPENDED transitions are the EC-M1 park/resume boundary.
 func _on_state_changed(_from_state, to_state, _payload) -> void:
-	if int(to_state) != GSMScript.GameState.LOOT_DROP:
+	var to_int: int = int(to_state)
+	if to_int == GSMScript.GameState.SUSPENDED:
+		_on_suspended()
+		return
+	if _suspended_mid_reveal:
+		_on_resumed_from_suspend()
+		return  # the resume decision owns this frame; LOOT_DROP retry comes via GSM
+	if to_int != GSMScript.GameState.LOOT_DROP:
 		return
 	if _state != ModalState.HIDDEN:
 		return  # Rule 6 one-modal-at-a-time (re-entry guarded)
@@ -236,6 +256,43 @@ func _on_state_changed(_from_state, to_state, _payload) -> void:
 		_open_reveal_flow()
 	# depth == 0 → Rule 13 empty-queue terminal emit (story 010 — AC-34).
 	# depth ≥ CATCH_UP_THRESHOLD → CATCHUP_PROMPT branch (story 014 — AC-26).
+
+
+## EC-M1 — bfcache/suspend mid-reveal: #6's Suspended override hard-cancels
+## the freeze itself; #21 runs the INV-M1 exit (release is a no-op against
+## the already-cleared ledger) and PARKS. Freeze state never survives here.
+func _on_suspended() -> void:
+	if _state != ModalState.ENTRY and _state != ModalState.CEREMONY:
+		return  # post-S3 suspend → Rule 8 SUSPENDED clause (story 011)
+	_suspended_mid_reveal = true
+	_suspend_at_ms = int(_now_ms.call())
+	_release_freeze()  # idempotent — #6 already cleared its own entry
+
+
+## EC-M1 resume decision (#15 threshold): delta ≤ 30s → re-enter S3 directly
+## (content is final; S3 entry fires its commit exactly once; freeze is NEVER
+## re-issued). > 30s → pre-S3 cancel semantics (D1: not banked, zero emit,
+## item stays pending — re-reveal is honest).
+func _on_resumed_from_suspend() -> void:
+	_suspended_mid_reveal = false
+	var delta: int = int(_now_ms.call()) - _suspend_at_ms
+	if delta <= _timing_config.bfcache_continue_threshold_ms:
+		_skip_pending_freeze = true  # 嚴禁 re-issue ceremony_freeze
+		if _state == ModalState.ENTRY:
+			_transition(ModalState.CEREMONY)
+		if _state == ModalState.CEREMONY:
+			_transition(ModalState.STEADY)
+	else:
+		_cancel_reveal()
+
+
+## INV-M1 shared cancel exit — rollback (012) / pre-S3 force-close (011) /
+## EC-M1 long-suspend all route through HERE: single release call-site,
+## zero modal_dismissed emit, item stays in the #15 queue.
+func _cancel_reveal() -> void:
+	_release_freeze()
+	_fast_complete_active = false
+	_transition(ModalState.HIDDEN)
 
 
 ## Rule 2 — doorbell/prep semantics ONLY. NOT an "open modal now" command:
@@ -297,6 +354,8 @@ func _begin_reveal(drop) -> void:
 	_fast_complete_active = false
 	_s3_entry_target_ms = -1.0
 	_burst_handle = null
+	_freeze_rejected = false
+	_suspended_mid_reveal = false
 	_fill_content_slots(drop)
 	var anchor: Vector2 = _resolve_reveal_anchor()
 	# ── S0 frame-0: tier-colored burst (pre-attentive rarity channel) + fanfare ──
@@ -388,8 +447,15 @@ func _issue_ceremony_freeze() -> void:
 	if _screen_effects == null:
 		return
 	if _screen_effects.has_method("ceremony_freeze"):
-		_freeze_handle = _screen_effects.ceremony_freeze(
+		var handle = _screen_effects.ceremony_freeze(
 			float(_timing_config.timestop_ms[_current_tier]) / 1000.0)
+		if handle == null or (handle is int and int(handle) <= 0):
+			# EC-M2 — #6 not serviceable: degrade to the motion-variant
+			# timeline for THIS reveal, ceremony continues to S3.
+			_freeze_rejected = true
+			_emit_telemetry("loot_reveal.freeze_rejected", {"tier": _current_tier})
+			return
+		_freeze_handle = handle
 		_freeze_issued = true
 	if _screen_effects.has_method("shake") and _timing_config.shake_intensity[_current_tier] > 0.0:
 		_screen_effects.shake(
@@ -488,6 +554,8 @@ func get_telemetry() -> Array[Dictionary]:
 
 
 func _process(delta: float) -> void:
+	if _suspended_mid_reveal:
+		return  # EC-M1 park — bfcache renders zero frames; the clock must not drift
 	if _state == ModalState.STEADY:
 		_since_s3_ms += delta * 1000.0  # debounce window only — reveal clock parks
 		return
@@ -500,10 +568,13 @@ func _process(delta: float) -> void:
 ## Timeline-driven stage progression (FSM state ≠ timeline stage — these
 ## edges fire off the global clock, never off additive per-stage timers).
 func _advance_timeline() -> void:
-	var t_block: int = LootRevealFormulas.t_block_ms(_timing_config, _current_tier, _motion_reduction)
+	# EC-M2: a rejected freeze degrades this reveal to the motion-variant
+	# timeline (no time-stop) — the reveal itself is the hard guarantee.
+	var variant: bool = _motion_reduction or _freeze_rejected
+	var t_block: int = LootRevealFormulas.t_block_ms(_timing_config, _current_tier, variant)
 	if _state == ModalState.ENTRY and _reveal_clock_ms >= float(_timing_config.entry_ms[_current_tier]):
 		_transition(ModalState.CEREMONY)
-	if _state == ModalState.CEREMONY and not _freeze_issued and not _motion_reduction:
+	if _state == ModalState.CEREMONY and not _freeze_issued and not _motion_reduction and not _freeze_rejected:
 		var hold: float = float(_timing_config.hold_ms[_current_tier])
 		if _current_tier == LootEnums.RarityTier.RARE and _reveal_clock_ms >= hold:
 			# RARE: clock-anchored (pulse 0.3s finishes early; freeze still

@@ -72,6 +72,10 @@ const ATTENTION_CEILING_MS: int = 1200
 ## Safe range 0.15–0.4.
 @export var dismiss_debounce_sec: float = 0.25
 
+## EC-M1 — suspend→resume continue-vs-cancel threshold (#15 GDD Formula 4
+## number, mirrored here until #15 ships a code carrier). Safe [10000, 60000].
+@export var bfcache_continue_threshold_ms: int = 30000
+
 
 ## Data-load assert (F1 + Tuning Knobs flash budget). Empty result == valid.
 func validate() -> Array[String]:
