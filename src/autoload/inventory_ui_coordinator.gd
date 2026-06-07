@@ -106,6 +106,9 @@ var _make_room_shortfall: int = 0
 ## ITEM_INSPECT / SALVAGE_CONFIRM 對象(modal 軸對應 transient)。
 var _inspect_item_id: StringName = &""
 var _salvage_target: StringName = &""
+## Inspect 內 lock nudge(Rule 13 (a) — render locus = sheet 內 inline 一行;
+## sheet-local lifetime:閂咗即棄,唔跟去 list)。{item_id, confirmed} 或 {}。
+var _inspect_nudge: Dictionary = {}
 
 ## BULK_CONFIRM receipt itemised list cap(GDD Tuning Knobs — default 8,
 ## safe range 4-20;cap 咗都「+N more」總數照報 — 誠實度唔縮水)。
@@ -295,6 +298,7 @@ func _enter_closed() -> void:
 	_make_room_pending = &""
 	_inspect_item_id = &""
 	_salvage_target = &""
+	_inspect_nudge = {}
 	_toast = {}
 	_disconnect_all()  # CLOSED invariant (Rule 6)
 
@@ -610,6 +614,8 @@ func get_inspect_view() -> Dictionary:
 		return {}
 	var in_mailbox: bool = \
 			item.lifecycle_state == EquipmentEnums.ItemLifecycle.IN_MAILBOX
+	var is_equipped: bool = \
+			item.lifecycle_state == EquipmentEnums.ItemLifecycle.EQUIPPED
 	var locked: bool = bool(item.is_locked)
 	return {
 		"item_id": _inspect_item_id,
@@ -619,10 +625,15 @@ func get_inspect_view() -> Dictionary:
 		"locked": locked,
 		"receipt": bool(item.has_receipt()),
 		"stat_modifiers": item.stat_modifiers.duplicate(),  # 原始數據(= #22 Rule 22)
-		# Rule 12:mailbox 件 equip / salvage 入口 disabled +「先領取」hint —
-		# salvage 對 IN_MAILBOX **冇 #17 code guard**,disabled 入口係唯一防線。
-		"equip_enabled": not in_mailbox,
+		# Rule 13 affordance set 按 lifecycle 分:
+		# (a) IN_INVENTORY —「裝備」;(b) EQUIPPED —「裝備」唔 render
+		#(self-equip 無意義 — 唔係靠 error 擋),「現役」標記 +「卸下」;
+		# (c) IN_MAILBOX — disabled +「先領取」hint(Rule 12)。
+		"equip_visible": not is_equipped,
+		"equip_enabled": not in_mailbox and not is_equipped,
 		"equip_hint": "先領取先用得" if in_mailbox else "",
+		"equipped_badge": is_equipped,
+		"unequip_visible": is_equipped,
 		"salvage_enabled": (not in_mailbox) and not locked,
 		"salvage_hint": "先領取先分解得" if in_mailbox else ("上鎖中 — 解鎖先可以分解" if locked else ""),
 		# D1:lock toggle enabled(set_lock 冇 lifecycle check — 有效)+ honest copy
@@ -640,13 +651,45 @@ func equip_item(item_id: StringName) -> Dictionary:
 		return {"ok": false, "error": "screen_not_open"}
 	var item = _inventory.get_item(item_id)
 	var slot: int = int(item.slot_affinity) if item != null else 0
+	var was_locked: bool = item != null and bool(item.is_locked)
 	var result: Dictionary = _inventory.equip(item_id, slot)
 	if result.get("ok", false):
 		_reread_all()
 		_show_toast("已裝備 %s" % String(item_id))
+		# Rule 13 (a):manual equip 成功 → lock nudge inline 喺 inspect sheet
+		# 內(unconditional,已 lock 除外 — #22 Rule 18 同款;sheet 閂咗即棄)。
+		if _modal == ModalKind.ITEM_INSPECT and not was_locked:
+			_inspect_nudge = {"item_id": item_id, "confirmed": false}
 	else:
 		_handle_command_error(result)
 	return result
+
+
+## EQUIPPED 件「卸下」(Rule 13 (b))。Silent SFX(cue map — toast/badge 承擔
+## 視覺,ARIA announce 承擔 SR);unequip 永不爆 cap(#17 L1125 口徑)。
+func unequip_slot(slot: int) -> Dictionary:
+	if not _command_allowed():
+		return {"ok": false, "error": "screen_not_open"}
+	var result: Dictionary = _inventory.unequip(slot)
+	if result.get("ok", false):
+		_reread_all()
+		_announce("已卸下")  # UI Req command-result announce set
+	else:
+		_handle_command_error(result)
+	return result
+
+
+## Nudge 內 [鎖定] one-tap(Rule 13 (a))— lock + nudge 變「已鎖定」確認態。
+func nudge_lock_tap() -> void:
+	if _inspect_nudge.is_empty():
+		return
+	var result: Dictionary = toggle_lock(_inspect_nudge["item_id"], true)
+	if result.get("ok", false):
+		_inspect_nudge["confirmed"] = true
+
+
+func get_inspect_nudge() -> Dictionary:
+	return _inspect_nudge
 
 
 ## Salvage 入口(兩步 friction 第一步 = #22 Rule 19)。
@@ -678,8 +721,12 @@ func confirm_salvage() -> Dictionary:
 		_salvage_target = &""
 		return {"ok": false, "error": "in_mailbox_zero_dispatch"}  # Rule 12 invariant
 	var result: Dictionary = _inventory.salvage(target)
+	# Rule 13 (c):confirm 成功 → SALVAGE_CONFIRM + ITEM_INSPECT 一齊閂 → 返
+	# list(件已毀,inspect 對住唔存在嘅嘢係 limbo)。
 	_modal = ModalKind.NONE
 	_salvage_target = &""
+	_inspect_item_id = &""
+	_inspect_nudge = {}
 	if result.get("ok", false):
 		_reread_all()
 		_play_sfx(&"ui_salvage_execute")
@@ -687,6 +734,30 @@ func confirm_salvage() -> Dictionary:
 	else:
 		_handle_command_error(result)
 	return result
+
+
+## SALVAGE_CONFIRM view(P-15 兩步文法 = #22 Rule 19/22:yield + provenance
+## + LEGENDARY signature + equipped warning)。
+func get_salvage_confirm_view() -> Dictionary:
+	if _modal != ModalKind.SALVAGE_CONFIRM or _salvage_target == &"":
+		return {}
+	var item = _inventory.get_item(_salvage_target)
+	if item == null:
+		return {}
+	var sig: String = ""
+	if item.source_receipt != null and "signature_text" in item.source_receipt:
+		sig = String(item.source_receipt.signature_text)
+	var view: Dictionary = {
+		"item_id": _salvage_target,
+		"yield": InvUiFormulas.InventoryScript.salvage_yield(int(item.rarity)),
+		"provenance": String(item.provenance_text),
+		"rarity": int(item.rarity),
+		"signature_text": sig,
+		"default_focus": "cancel",
+	}
+	if item.lifecycle_state == EquipmentEnums.ItemLifecycle.EQUIPPED:
+		view["warning"] = "現役裝備 — 會自動卸下(如有後備會自動補上)"
+	return view
 
 
 ## Lock toggle(D1 — mailbox 件都 enabled;card 第三 zone / inspect 內)。
@@ -902,6 +973,7 @@ func cancel_modal() -> void:
 			# ITEM_INSPECT / BULK_SELECT → NONE。
 			_modal = ModalKind.NONE
 			_inspect_item_id = &""
+			_inspect_nudge = {}  # sheet 閂咗 nudge 即棄(Rule 13 (a))
 	_play_sfx(&"ui_sheet_close")
 
 
