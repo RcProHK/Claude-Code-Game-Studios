@@ -88,6 +88,7 @@ const EDGE_TABLE: Dictionary = {
 # --- DI seams (untyped node seams — project DI discipline) ---
 var _gsm             ## seam 1: #1 GameStateMachine (default /root/GameStateMachine)
 var _loot_system     ## seam 2: #15 LootDropSystem (default /root/LootDropSystem)
+var _inventory       ## seam 10: #17 InventorySystem (receive_loot @ S3 — INV-M3)
 var _particles       ## seam 5: #5 ParticleSystemWrapper (burst — FR-2 carrier)
 var _audio           ## seam 6: #4 AudioManager (fanfare caller = #21 — EG-1 precedent)
 var _camera          ## seam 7: #7 CameraController (request_focal + focal_completed)
@@ -164,6 +165,14 @@ var _suspend_at_ms: int = 0
 ## Injectable monotonic clock (tests drive resume deltas deterministically).
 var _now_ms: Callable = Callable(Time, "get_ticks_msec")
 
+## INV-M3 banking state (story 009). _banked guards exactly-once per drop.
+var _banked: bool = false
+var _pending_stash_exit: bool = false  # QUEUED_SUSPENDED → stash-exit (011 consumes)
+
+## Deferred acknowledgement bucket (F4 — story 013 owns aggregation/flush;
+## EC-M14 CONVERTED_DUPE shard acks land here from 009).
+var _deferred_acks: Array = []
+
 ## Telemetry append-log (#15/#17 verbatim pattern; #28 sink not required).
 var _telemetry_log: Array[Dictionary] = []
 
@@ -185,6 +194,8 @@ func _ready() -> void:
 		_gsm = get_node_or_null("/root/GameStateMachine")
 	if _loot_system == null:
 		_loot_system = get_node_or_null("/root/LootDropSystem")
+	if _inventory == null:
+		_inventory = get_node_or_null("/root/InventorySystem")
 	if _particles == null:
 		_particles = get_node_or_null("/root/ParticleSystemWrapper")
 	if _audio == null:
@@ -244,8 +255,50 @@ func _transition(to_state: int) -> bool:
 	elif _state == ModalState.STEADY:
 		_since_s3_ms = 0.0  # debounce anchor = S3 ENTRY (F5/AC-15 unified)
 		_s3_entries += 1
-		# S3 entry side effects (receive_loot INV-M3 / SR announce) — stories 009/025.
+		_commit_current_drop()  # INV-M3 — S3 is THE banking commit point
+		# SR announcement — story 025.
 	return true
+
+
+## INV-M3 (story 009): receive_loot fires at S3 ENTRY, exactly once per drop —
+## the tap is purely ceremonial (撳快門); a player who never taps never loses
+## the item. EC-M14 maps all five ReceiveResult variants.
+func _commit_current_drop() -> void:
+	if _banked:
+		return  # exactly-once (fast-complete / natural / suspend-resume all converge)
+	if _current_drop == null:
+		return  # nothing to bank (EC-M6 null-skip path never reaches S3 anyway)
+	if _inventory == null or not _inventory.has_method("receive_loot"):
+		return
+	_banked = true
+	var result: int = int(_inventory.receive_loot(_current_drop))
+	match result:
+		EquipmentEnums.ReceiveResult.FAILED_ROLLBACK:
+			# 真假 ambiguous (re-entrant defer path returns it too) — zero
+			# user-visible delta, dismiss proceeds; #15 recovery chain keeps
+			# eventual grant alive (Rule 7 — handler dedupes, defer-path safe).
+			_emit_telemetry("loot_reveal.receive_failed", {"drop_id": _drop_id_of(_current_drop), "severity": "CRITICAL"})
+			if _loot_system != null and _loot_system.has_method("report_receive_failure"):
+				_loot_system.report_receive_failure(_drop_id_of(_current_drop))
+		EquipmentEnums.ReceiveResult.QUEUED_SUSPENDED:
+			# Suspend × S3 same-frame race — durably parked == success;
+			# the visible exit is a stash (story 011 consumes the flag).
+			_pending_stash_exit = true
+		EquipmentEnums.ReceiveResult.DUPLICATE_NOOP:
+			_emit_telemetry("loot_reveal.duplicate_noop", {"drop_id": _drop_id_of(_current_drop)})
+			# success — and NO second micro_ack is emitted.
+		EquipmentEnums.ReceiveResult.CONVERTED_DUPE:
+			# Honest loop closure: shard ack joins the F4 deferred aggregate
+			# (flush at terminal + safe state — story 013).
+			_deferred_acks.append({"tier": _current_tier, "reason": "converted_dupe"})
+		_:
+			pass  # OK
+
+
+func _drop_id_of(drop) -> String:
+	if drop is Object and "drop_id" in drop:
+		return str(drop.drop_id)
+	return ""
 
 
 ## Rule 2 — GSM owns "when": → LOOT_DROP is the ONLY open trigger.
@@ -366,6 +419,8 @@ func _begin_reveal(drop) -> void:
 	_burst_handle = null
 	_freeze_rejected = false
 	_suspended_mid_reveal = false
+	_banked = false
+	_pending_stash_exit = false
 	_fill_content_slots(drop)
 	var anchor: Vector2 = _resolve_reveal_anchor()
 	# ── S0 frame-0: tier-colored burst (pre-attentive rarity channel) + fanfare ──
