@@ -3,3 +3,5 @@
 - [#18 PR Detection Pass 2 review](project_pr_detection_pass2_review.md) — 2026-06-06: B1-B8 7 FIXED+B7 PARTIAL; 0 phantom; 4 NEW BLOCKING (AC-30 矛盾/ratchet 缺 D8/D-2.2 下界/stale-magnitude 破 INV-PR-2)
 - [#19 Zone Pass 2 review](project_zone_system_pass2_review.md) — 2026-06-06: exit bar 12/12 + P1-P6 FIXED; 3 NEW BLOCKING (cite 錯 Rule 7→3/9; epoch full-resync 破 dedup→`<=` guard; EC-7 漏 queue rollback)
 - [#21 Loot Modal consult](project_loot_modal_21_consult.md) — 2026-06-06 F1-F6+EC-M1..20; 🔴 ceremony_freeze 0.4 vs MAX_PAUSE_SEC 0.12; FAILED_ROLLBACK defer ambiguity; LEG=1200ms equality
+- [#21 review pass](project_loot_modal_21_review.md) — Pass 2 verify 2026-06-07: 7/8 FIXED, 0 phantom; 殘留 2 BLOCKING one-line (F2 px sum 121≠120 / F1 S2a-S2b label 反 D2) + 2 REC
+- [#22 Formulas review](project_character_screen_f_review.md) — Pass 1 2026-06-07: 4 BLOCKING one-line (F1 u-clamp/F2 NaN guard/settle pin/retarget source qualifier); 0 phantom; NEEDS REVISION

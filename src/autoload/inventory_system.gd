@@ -1141,5 +1141,32 @@ func get_forge_shards() -> int:
 
 
 ## Fetch a live item by id (null when absent / salvaged).
+## NOTE (#22 Rule 14): returns the LIVE domain object, not a copy — callers are
+## read-only-by-discipline (all writes via equip/unequip/set_lock/salvage).
 func get_item(item_id: StringName) -> EquipmentItem:
 	return _items.get(item_id, null)
+
+
+## ---- G-CS-1 additive read getters (#22 story 010;GDD L127 兌現) ----
+
+## Loadout snapshot — slot → item_id COPY (caller mutation 唔掂 internal _loadout)。
+## Caller: #22 loadout panel (Rule 13 render + Rule 23 visibility re-read)。
+func get_loadout() -> Dictionary:
+	return _loadout.duplicate()
+
+
+## Slot-filtered enumeration:IN_INVENTORY 且 slot_affinity == slot 嘅 item_ids。
+## 排序由 caller 做(#22 F3 picker comparator — 方向 intentionally 異於
+## 內部 _candidate_beats;呢度零 ordering 承諾)。Cosmetic slot → cosmetic-only
+## 由 slot_affinity 1:1 mapping 自然成立。
+## Caller: #22 SLOT_PICKER (Rule 17 / AC-31)。
+func get_items_for_slot(slot: int) -> Array[StringName]:
+	var out: Array[StringName] = []
+	for item_id: StringName in _items:
+		var item: EquipmentItem = _items[item_id]
+		if item.lifecycle_state != EquipmentEnums.ItemLifecycle.IN_INVENTORY:
+			continue
+		if int(item.slot_affinity) != slot:
+			continue
+		out.append(item_id)
+	return out

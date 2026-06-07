@@ -345,6 +345,29 @@ func get_bus_volume_db(bus: Bus) -> float:
 	var idx: int = _bus_index(bus)
 	return AudioServer.get_bus_volume_db(idx) if idx != -1 else MUTE_FLOOR_DB
 
+
+## G-CS-11 (#22 story 012) — linear slider 入口。Formula 2(L197-213)locus
+## 留喺 #4:`db = linear_to_db(s)`,s ∈ [0,1],s=0 → MUTE_FLOOR(slider 最低
+## = 靜音)。#22 MASTER volume slider 經呢度 call — #22 源碼禁出現任何
+## linear→dB 數學(duplicate ban;#22 AC-52 assert)。Corrupt s(NaN/inf)→
+## 0.0(靜音 — 保守安全向);persistence 由 set_bus_volume_db 內部做
+## (audio.<bus>_db,Rule 9 — #22 零 audio.* write)。
+func set_bus_volume_linear(bus: Bus, s: float) -> void:
+	var safe_s: float = 0.0 if (is_nan(s) or is_inf(s)) else clampf(s, 0.0, 1.0)
+	if safe_s <= 0.0:
+		set_bus_volume_db(bus, MUTE_FLOOR_DB)
+		return
+	set_bus_volume_db(bus, linear_to_db(safe_s))
+
+
+## G-CS-11 配對 getter — #22 panel open 現值 read(slider 初始位)。
+## dB→linear 數學同樣留喺 #4(duplicate ban 對稱);MUTE_FLOOR → 0.0。
+func get_bus_volume_linear(bus: Bus) -> float:
+	var db: float = get_bus_volume_db(bus)
+	if db <= MUTE_FLOOR_DB:
+		return 0.0
+	return clampf(db_to_linear(db), 0.0, 1.0)
+
 ## Mute / unmute a bus. Persisted independently of volume (unmute restores the prior dB).
 func set_bus_muted(bus: Bus, muted: bool) -> void:
 	var idx: int = _bus_index(bus)

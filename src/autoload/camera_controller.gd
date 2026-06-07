@@ -89,6 +89,16 @@ var _debug_build_override = null
 ## Viewport size override for deterministic dead-zone recompute tests (Story 003/008).
 var _viewport_size_override = null
 
+## PersistenceLayer seam (G-CS-2 — #22 story 013 boot self-read;tests inject).
+var _persistence = null
+
+## P-08 reduce-camera-motion (story 011 / #22 G-CS-2;#7 GDD AC-27/AC-06b)。
+## ON ⇒ request_focal silent no-op(預期 opt-out,NOT push_warning)+ Following
+## dead-zone 0% hard-lock + smoothing off(zero optical flow / stroboscopic edge)。
+var _motion_reduction: bool = false
+## Observability counter(silent no-op 嘅可測面)。
+var _focal_motion_reduction_suppressed: int = 0
+
 ## Cached follow-target NodePath saved on Suspend, resolved on resume (Story 007).
 var _cached_target_path: NodePath = NodePath("")
 
@@ -118,6 +128,21 @@ func _ready() -> void:
 		_gsm = GameStateMachine
 	if _gsm != null and _gsm.has_method("connect_for_initial_state"):
 		_gsm.connect_for_initial_state(_on_gsm_state_changed)
+	# G-CS-2 / story 011 (#22 P-08): consumer self-read boot apply —
+	# settings.reduce_camera_motion(#22 Rule 29 convention;canonical key pin
+	# G-CS-3 — 「SettingsManager autoload」L697 措辭已 erratum)。
+	_boot_read_motion_reduction()
+
+
+## G-CS-2 boot self-read — 缺 key = documented default false;corrupt 型 skip。
+func _boot_read_motion_reduction() -> void:
+	if _persistence == null:
+		_persistence = get_node_or_null("/root/PersistenceLayer")
+	if _persistence == null or not _persistence.has_method("read"):
+		return
+	var v = _persistence.read("settings.reduce_camera_motion")
+	if v is bool:
+		set_motion_reduction(v)
 
 
 ## Engine per-frame hook delegates to the underscore-prefixed seam so the public API surface
@@ -166,6 +191,11 @@ func set_follow_target(node) -> void:
 ## Request a Focal ritual push-in. Validation (Story 002), GSM-state gating + re-entry guard
 ## (Story 006), and the tween (Story 004/005) are layered on; Story 001 provides the surface.
 func request_focal(target_position: Vector2, duration: float = FOCAL_ENTRY_DURATION, zoom_level: float = FOCAL_ZOOM_DEFAULT) -> void:
+	# AC-27 (story 011 / #22 P-08): motion reduction ON → silent no-op。
+	# NOT push_warning — 呢個係預期 user opt-out,唔係 caller bug。
+	if _motion_reduction:
+		_focal_motion_reduction_suppressed += 1
+		return
 	# Rule 4 / EC-02 — finite check first (NaN/INF poisons the tween matrix; fail-loud).
 	if not _is_finite_vec2(target_position) or not is_finite(duration) or not is_finite(zoom_level):
 		push_error("CameraController.request_focal: NaN/INF rejected")
@@ -244,6 +274,23 @@ func _on_gsm_state_changed(_from: Variant, to: Variant, _payload: Variant = null
 
 ## Synchronous Focal teardown (EC-07): kill tweens, snap zoom to default, re-enable smoothing,
 ## return to Following — NO exit tween (the GSM change is itself dramatic enough).
+## G-CS-2 / story 011 公開 setter(#22 P-08 toggle 嘅 consumer 面;AC-06b 第 6
+## 個 closed-API method)。ON:request_focal silent no-op + Following smoothing
+## off + dead-zone 0%(hard-lock);即場生效(包括 flip 時 FOCAL 進行中 —
+## 同步清 focal,returning 行為跟 motion policy)。OFF:恢復 smoothing。
+func set_motion_reduction(enabled: bool) -> void:
+	_motion_reduction = enabled
+	if enabled and _lifecycle_state == LifecycleState.FOCAL:
+		_force_clear_focal_sync()  # opt-out 即場退出 focal(零 push)
+	if _camera != null:
+		_camera.position_smoothing_enabled = _follow_smoothing_enabled()
+
+
+## Smoothing policy — motion reduction ON ⇒ 永遠 false(hard-lock)。
+func _follow_smoothing_enabled() -> bool:
+	return not _motion_reduction
+
+
 func _force_clear_focal_sync() -> void:
 	if _active_tween != null and _active_tween.is_valid():
 		_active_tween.kill()
@@ -251,7 +298,7 @@ func _force_clear_focal_sync() -> void:
 		_exit_tween.kill()
 	if _camera != null:
 		_camera.zoom = DEFAULT_ZOOM
-		_camera.position_smoothing_enabled = true
+		_camera.position_smoothing_enabled = _follow_smoothing_enabled()
 	_lifecycle_state = LifecycleState.FOLLOWING
 
 
@@ -264,7 +311,7 @@ func _enter_suspended() -> void:
 		_exit_tween.kill()
 	if _camera != null:
 		_camera.zoom = DEFAULT_ZOOM  # position untouched → snaps to current interpolated value
-		_camera.position_smoothing_enabled = true
+		_camera.position_smoothing_enabled = _follow_smoothing_enabled()
 		if _camera.has_method("reset_smoothing"):
 			_camera.reset_smoothing()
 	_cached_target_path = _follow_target.get_path() if is_instance_valid(_follow_target) else NodePath("")
@@ -331,6 +378,10 @@ func _update(delta: float) -> void:
 
 ## Dead-zone half-extents in world units (GDD Formula 5). One side = viewport × margin / zoom.
 func _dead_zone_half_extents() -> Vector2:
+	# AC-27 (story 011 / #22 P-08): dead-zone 0% hard-lock — camera 永遠正中
+	# avatar,zero movement(殺 optical flow + stroboscopic edge-crossing)。
+	if _motion_reduction:
+		return Vector2.ZERO
 	var vp: Vector2 = _viewport_size_override if _viewport_size_override != null else Vector2(get_viewport().get_visible_rect().size)
 	var zoom: Vector2 = _camera.zoom if _camera != null else Vector2.ONE
 	return Vector2(vp.x * DRAG_HORIZONTAL_MARGIN / zoom.x, vp.y * DRAG_VERTICAL_MARGIN / zoom.y)
@@ -379,7 +430,7 @@ func _on_focal_complete(target_position: Vector2) -> void:
 func _on_focal_exit_complete() -> void:
 	_lifecycle_state = LifecycleState.FOLLOWING
 	if _camera != null:
-		_camera.position_smoothing_enabled = true
+		_camera.position_smoothing_enabled = _follow_smoothing_enabled()
 
 
 ## Quart ease-out (GDD Formula 2 — decisive-invitation front-load). Pure static (underscore =

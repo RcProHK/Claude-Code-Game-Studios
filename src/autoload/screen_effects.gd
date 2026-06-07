@@ -93,7 +93,11 @@ var _shader_sink: Callable = Callable()
 var _gsm = null
 
 ## SettingsManager seam (Story 009 — set_motion_intensity propagation). Default = autoload.
+## SUPERSEDED by G-CS-4 consumer-self-read (#22 Rule 29) — kept for test-injection compat.
 var _settings = null
+
+## PersistenceLayer seam (G-CS-4 — #22 story 011 boot self-read;tests inject).
+var _persistence = null
 
 ## Warning sink (default push_warning). Tests inject to assert warnings deterministically.
 var _warn_sink: Callable = Callable()
@@ -184,6 +188,11 @@ func _ready() -> void:
 	# Boot done → Active (GDD state table). Story 007 Suspended override can flip this.
 	if _lifecycle_state == LifecycleState.BOOTING:
 		_lifecycle_state = LifecycleState.ACTIVE
+	# G-CS-4(a) (#22 story 011): consumer self-read boot apply — #22 Rule 29
+	# convention (無 SettingsManager autoload;L95 嘅 _settings seam 由呢條
+	# self-read 取代)。PersistenceLayer (pos 1) boots first;post-ACTIVE call
+	# so set_motion_intensity is serviceable。
+	_boot_read_motion_intensity()
 
 
 ## Build the burst_started → effect dispatch table (Rule 9). Keyed by the live
@@ -380,6 +389,43 @@ func _refresh_tree_pause() -> void:
 	if _ceremony_freeze_ledger.is_empty() and _lifecycle_state != LifecycleState.HIT_PAUSED:
 		if get_tree().paused:
 			get_tree().paused = false
+
+
+## G-CS-4(a) boot self-read (#22 story 011) — settings.motion_intensity → apply。
+## 缺 key = documented default 1.0(existing default,零 set call);corrupt 型
+## 直接 skip(retain default — 同 set_motion_intensity reject-and-retain 語意)。
+func _boot_read_motion_intensity() -> void:
+	if _persistence == null:
+		_persistence = get_node_or_null("/root/PersistenceLayer")
+	if _persistence == null or not _persistence.has_method("read"):
+		return
+	var v = _persistence.read("settings.motion_intensity")
+	if v == null:
+		return  # fresh install — default 1.0 已係現值
+	if not (v is float or v is int):
+		return  # corrupt type class — retain default(F2 guard 喺 #22 UI 側)
+	set_motion_intensity(float(v))  # non-finite 由 setter reject-and-retain
+
+
+## G-CS-4(b) (#22 story 011) — P-07 slider release preview。
+## HIT_HEAVY-equivalent shake,params 取自 internal dispatch table(#22 唔
+## hardcode magic numbers)。**Shake-only,永不 hit_pause**(#22
+## CharacterScreenLayer 係 PAUSABLE — tree pause 會 freeze 自己 mid-drag)。
+## Retrigger = cancel-restart(latest-wins,唔疊 — #22 EC-26):唔行 additive
+## _apply_shake 路徑(spam 會飽和到 1.0);preview 喺 IDLE/DISCONNECTED 先
+## fire(workout states force-close #22),零 combat shake 並發,reset decay 安全。
+## motion_intensity == 0 → 零 visible motion(EC-24 — 唔 fake shake,preview
+## 語意係「感受結果」,0 嘅結果就係無)。
+func preview_hit_heavy() -> void:
+	if not _is_serviceable():
+		return
+	var entry: Dictionary = _dispatch.get(ParticleSystemWrapper.PresetId.HIT_HEAVY, {})
+	var s: Vector2 = entry.get("shake", Vector2(0.4, 0.12))
+	if _motion_intensity == 0.0:
+		_shader_sink.call(SHAKE_UNIFORM, Vector2.ZERO)  # latch-clear,零 motion
+		return
+	_trauma = clampf(s.x * _motion_intensity, 0.0, 1.0)       # restart,唔疊
+	_decay_rate = 1.0 / maxf(MIN_SHAKE_DURATION, s.y)
 
 
 ## Accessibility multiplier setter (GDD Rule 3). In-range overshoot silently clamps (EC-05);

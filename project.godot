@@ -95,6 +95,17 @@ ZoneSystem="*res://src/autoload/zone_system.gd"
 ; (G-LM-2) fires post-#21-boot precisely because #21 is tail. #28 Telemetry stays last.)
 LootRevealCoordinator="*res://src/autoload/loot_reveal_coordinator.gd"
 
+; Character Screen Coordinator (#22 — ADR-0008 G-CS-8: tail append after
+; LootRevealCoordinator. Predecessor constraints {GSM (C6), StatSystem,
+; InventorySystem, AvatarRenderer, ScreenEffects, CameraController,
+; PlatformDetect, AudioManager, PersistenceLayer} ≺ #22 all boot earlier;
+; CLOSED at boot = zero subscriptions (Rule 8 invariant) — subscribes on
+; open() only (GSM + #11 via connect_for_initial_state; #26 plain connect).
+; Owns CharacterScreenLayer(60, PAUSABLE — ADR-0001 #22 revision, inside
+; BackBufferCopy capture so P-07 preview shakes the screen itself).
+; #28 Telemetry stays last.)
+CharacterScreenCoordinator="*res://src/autoload/character_screen_coordinator.gd"
+
 [display]
 
 window/size/viewport_width=1280

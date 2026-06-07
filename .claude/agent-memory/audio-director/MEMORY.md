@@ -1,3 +1,5 @@
 - [Audio Manager priority-steal boundary](reference_audio_manager_priority_steal.md) — #4 Rule 3 只保護 high vs lower;same-priority 仍 steal 最舊,mid 唔絕對安全
+- [Loot duck spec conflict](reference_loot_duck_spec_conflict.md) — #15 per-tier duck 列(−16dB/固定時長/0dB base)stale vs shipped #4(flat −8 + finished-release);#21 Rule 4 引錯邊
+- [Unlock-gesture SFX 唔會 drop](reference_unlock_gesture_sfx_not_dropped.md) — #4 _input() unlock 先於 GUI stage;gesture-triggered UI SFX 永不 LOCKED-drop,真 drop = boot force-reveal class
 - [Resolved-Q ref sweep](feedback_resolved_ref_sweep.md) — Q 改 RESOLVED 後須 sweep Dependencies/BLOCKED/QA-flag 引用;殘留「sprint 前須確認」= stale(#20 R6 教訓)
 - [Forward-contract consumer stub](feedback_forward_contract_consumer_stub.md) — forward-contract 推遲 co-design 若改變 consumer 實作形狀,consumer GDD 須留 conditional stub,否則不可實作=BLOCKING(#20 R7 Q-OQ1)

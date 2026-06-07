@@ -43,8 +43,29 @@ func test_boot_defaults_are_constant() -> void:
 # AC-22 — persistence ban (static scan)
 # ---------------------------------------------------------------------------
 
-func test_no_persistence_layer_reference() -> void:
-	assert_false("PersistenceLayer" in _read_source(), "AC-22: ScreenEffects must not reference PersistenceLayer")
+## AC-22 — AMENDED by #22 G-CS-4 (story 011, 2026-06-07): the blanket
+## "no PersistenceLayer reference" ban predates the consumer-self-read
+## convention (#22 GDD Rule 29 — 無 SettingsManager autoload;#7 G-CS-2 同款
+## erratum)。Ban 本意保留:#6 永不 WRITE persistence / own save state。
+## 唯一允許 touchpoint = read-only boot seam(_boot_read_motion_intensity,
+## G-CS-4a)。Scoped line-scan + write ban(gateway-lint owner-exempt 先例 —
+## main-CI debug-override lesson)。
+func test_persistence_touchpoint_is_readonly_boot_seam_only() -> void:
+	var src := _read_source()
+	assert_false("_persistence.write" in src, "AC-22 本意:零 persistence write")
+	assert_false("PersistenceLayer.write" in src, "AC-22 本意:零 persistence write(autoload 直呼)")
+	var allowed_markers: Array[String] = ["G-CS-4", "read", "seam", "/root/PersistenceLayer"]
+	for line in src.split("\n"):
+		if not ("PersistenceLayer" in line):
+			continue
+		var ok := false
+		for m in allowed_markers:
+			if m in line:
+				ok = true
+				break
+		assert_true(ok,
+			"AC-22(G-CS-4 amended): PersistenceLayer 只准出現喺 read-only boot seam 行: "
+			+ line.strip_edges())
 
 
 func test_no_save_or_load_methods() -> void:

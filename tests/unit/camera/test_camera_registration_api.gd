@@ -89,15 +89,18 @@ func test_double_register_preserves_first() -> void:
 # AC-06a — closed public surface
 # ---------------------------------------------------------------------------
 
-func test_public_api_surface_is_exactly_five_methods() -> void:
+## AC-06a AMENDED by story 011 / #22 G-CS-2 (2026-06-07): closed surface = 5
+## core methods + set_motion_reduction(AC-06b — #22 P-08 contract,#7 GDD
+## anticipated「post-#22 GDD」)。仍然 closed — 加新 method 要再 amend 呢度。
+func test_public_api_surface_is_exactly_six_methods() -> void:
 	var public: Array = []
 	for m in _sut.get_script().get_script_method_list():
 		if not String(m.name).begins_with("_"):
 			public.append(String(m.name))
 	public.sort()
-	var expected := ["clear_focal", "register_camera", "request_focal", "set_follow_target", "unregister_camera"]
+	var expected := ["clear_focal", "register_camera", "request_focal", "set_follow_target", "set_motion_reduction", "unregister_camera"]
 	expected.sort()
-	assert_eq(public, expected, "AC-06a: exactly the 5 closed-API methods are public")
+	assert_eq(public, expected, "AC-06a/b: exactly the 6 closed-API methods are public")
 
 
 func test_required_signals_present() -> void:
@@ -106,6 +109,8 @@ func test_required_signals_present() -> void:
 	assert_true(_sut.has_signal("focal_target_clamped"), "AC-06a: focal_target_clamped signal")
 
 
-func test_set_motion_reduction_absent_in_vs_tier_scope() -> void:
-	assert_false(_sut.has_method("set_motion_reduction"),
-		"AC-06a: set_motion_reduction MUST NOT exist until #22 GDD (Story 011 BLOCKED)")
+## Tripwire 已觸發並反轉(2026-06-07):#22 GDD APPROVED → story 011 unblock
+## → set_motion_reduction 由 #22 G-CS-2(story 013)交付。AC-06b。
+func test_set_motion_reduction_present_post_22_gdd() -> void:
+	assert_true(_sut.has_method("set_motion_reduction"),
+		"AC-06b: set_motion_reduction delivered (story 011 / #22 G-CS-2)")
