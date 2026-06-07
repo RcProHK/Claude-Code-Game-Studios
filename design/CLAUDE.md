@@ -33,6 +33,6 @@ Use `/quick-design` to author.
 - Per-screen specs: `design/ux/[screen-name].md`
 - HUD design: `design/ux/hud.md`
 - Interaction pattern library: `design/ux/interaction-patterns.md`
-- Accessibility requirements: `design/ux/accessibility-requirements.md`
+- Accessibility requirements: `design/accessibility-requirements.md`(注意:喺 `design/` 根,唔係 `design/ux/` — path erratum fixed 2026-06-07 G-CS-3)
 
 Use `/ux-design` to author. Validate with `/ux-review` before passing to `/team-ui`.

@@ -1,12 +1,12 @@
-# Story 011: [BLOCKED #22] Motion Reduction Accessibility API
+# Story 011: Motion Reduction Accessibility API(原 BLOCKED #22 — 已解鎖)
 
 > **Epic**: Camera System
-> **Status**: Blocked
+> **Status**: ✅ Complete(2026-06-07 — 由 #22 epic story 013 / G-CS-2 交付:`set_motion_reduction` setter + AC-27 silent no-op + dead-zone 0% hard-lock + smoothing policy + boot self-read `settings.reduce_camera_motion`(consumer-self-read,SettingsManager 措辭 erratum 已落 GDD L697);tests `tests/integration/camera/test_camera_motion_reduction.gd` 6/6 + AC-06a tripwire 反轉做 AC-06b presence + AC-21 scoped amendment;camera 48/48 green)
 > **Layer**: Foundation
 > **Type**: Integration
 > **Estimate**: S
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: 2026-06-01
+> **Last Updated**: 2026-06-07
 
 ## Context
 

@@ -693,8 +693,8 @@ Camera autoload 嘅 implementation 內絕對唔可以 reference `AudioStreamPlay
 
 | Element | Specification |
 |---------|---------------|
-| Owner | #22 Character Screen GDD (pending — accessibility settings panel) |
-| Backend contract | `Camera.set_motion_reduction(enabled: bool)` setter call from SettingsManager autoload |
+| Owner | #22 Character Screen GDD (✅ APPROVED 2026-06-07 — Settings panel P-08) |
+| Backend contract | `Camera.set_motion_reduction(enabled: bool)` setter — caller = #22 SETTINGS panel(P-08 flip);boot 現值 = **consumer-self-read**(`settings.reduce_camera_motion`,#22 Rule 29 — **erratum 2026-06-07 G-CS-2:原「SettingsManager autoload」措辭作廢,無 SettingsManager autoload**)|
 | Default value | false (full motion — Mirror Hero healthy adult gym context) |
 | When enabled (`true`) | Focal mode disabled entirely — `request_focal()` silently no-op (does NOT push_warning, expected user opt-out)；Follow mode `position_smoothing_enabled = false` + **drag margins ALL set to 0.0 (dead-zone = 0%, camera hard-locked to avatar center)** — eliminates optical flow (continuous lerp) AND dead-zone edge-crossing discontinuity (stroboscopic jumps) completely。**`snap follow` pattern removed (Pass 3 accessibility fix)**: prior spec's "snap follow" (smoothing=false but non-zero dead-zone) creates stroboscopic discontinuity at dead-zone edge crossings — a photosensitive / vestibular-migraine trigger class distinct from optical flow；dead-zone 0% hard-lock (camera always exactly centred on avatar, no camera motion at all) is the correct vestibular-safe pattern per Apple HIG Reduce Motion principles。 |
 | UI label | 「降低畫面動態」/ "Reduce Camera Motion" |

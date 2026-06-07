@@ -6,6 +6,8 @@
 
 **Amendment 2026-06-07 (#21 G-LM-1)** — additive topology revision: added `CelebrationVFXLayer` (110, ALWAYS) + `ModalLayer` (120, ALWAYS) above ScreenEffectsLayer (BackBufferCopy-immune; L109 HUD knob precedent); pinned viewport residence (root viewport, `follow_viewport=false`, explicit world→screen anchor transform required); ruled modal blur **CUT from MVP** (opacity-only — avoids a second WebGL2 framebuffer copy; v0.2 re-price if revisited). Additive, no constraint conflict, no measurement gate — no re-ratification needed (ADR-0008 amendment precedent).
 
+**Amendment 2026-06-07 (#22 G-CS-7)** — additive topology revision: added `CharacterScreenLayer` (**60**, PAUSABLE) between HUDLayer (50) and ScreenEffectsLayer (100), owned by `CharacterScreenCoordinator` autoload (instantiated in `_ready`, pre-warmed `visible=false` — #21 coordinator precedent). **Placement is load-bearing, < 100 by design**: the P-07 motion-intensity slider preview (HIT_HEAVY shake on release) must visibly shake the Character Screen itself — BackBufferCopy capture enumeration updated to **layers 0/10/50/60** so #22 rides the real ScreenEffects shader path (>100 placement would leave the preview shaking a fully-occluded world = silently dead feature). Constraints: >50 (above #20 HUD for workout-transition fade ordering), <110/120 (below #21 layers — force-close ≤150ms coexists with deferred loot reveal). Mood/saturation note: at layer 60 #22 pixels pass through the saturation chain; in IDLE/DISCONNECTED steady state the chain is identity (`u_world_saturation_drop` driven only by #21 ceremony; LOOT_DROP state force-closes #22) — residual recovery tail ≤2s decays to identity, accepted. Additive, no constraint conflict, no measurement gate — no re-ratification needed.
+
 ## Date
 2026-05-26
 
@@ -103,8 +105,11 @@ Root
 ├─ HUDLayer           (CanvasLayer layer=50,  process_mode=PAUSABLE)
 │  └─ HP bar, damage numbers, cooldown timers
 │
+├─ CharacterScreenLayer (CanvasLayer layer=60, process_mode=PAUSABLE)  [#22 revision 2026-06-07]
+│  └─ Character Screen full-screen overlay (owned by CharacterScreenCoordinator; pre-warmed visible=false)
+│
 ├─ ScreenEffectsLayer (CanvasLayer layer=100, process_mode=ALWAYS)
-│  ├─ BackBufferCopy  (captures layers 0/10/50 into screen texture)
+│  ├─ BackBufferCopy  (captures layers 0/10/50/60 into screen texture)  [#22 revision: +60]
 │  └─ ColorRect (full-screen, ShaderMaterial reads u_shake_offset uniform)
 │
 ├─ CelebrationVFXLayer (CanvasLayer layer=110, process_mode=ALWAYS)   [#21 revision 2026-06-07]
@@ -119,9 +124,16 @@ Root
 #### #21 Loot Drop Modal layers (revision 2026-06-07 — G-LM-1)
 
 - **`CelebrationVFXLayer` (110, ALWAYS)** + **`ModalLayer` (120, ALWAYS)** — single owner = `LootRevealCoordinator` autoload (instantiates both in `_ready`, pre-warmed `visible=false`). Precedent for >100 placement: the L109 HUD knob already established that layers may sit above ScreenEffectsLayer for immunity.
-- **>100 = outside BackBufferCopy capture**: BackBufferCopy at layer 100 captures layers 0/10/50 only — content on 110/120 is **immune to saturation (world −60% desaturation) and shader shake**. This is the mechanism behind #21 AC-75/AC-87 (loot burst stays fully saturated while the world desaturates; art bible「爆裝特效全飽和」).
+- **>100 = outside BackBufferCopy capture**: BackBufferCopy at layer 100 captures layers 0/10/50/60 only (#22 revision added 60) — content on 110/120 is **immune to saturation (world −60% desaturation) and shader shake**. This is the mechanism behind #21 AC-75/AC-87 (loot burst stays fully saturated while the world desaturates; art bible「爆裝特效全飽和」).
 - **Viewport residence (① 釘實)**: both layers attach to the **root viewport** (autoload-owned). World content lives inside the GameLayer **SubViewport** (see SubViewport Oversample above) where Camera2D resides — therefore `follow_viewport_enabled` is **meaningless on these layers and must stay `false`** (screen-space layers). World-anchored positions (e.g. #21 `reveal_anchor_pos` from the `avatar_anchor` group) **must be explicitly transformed** SubViewport-world → root-viewport-screen coordinates at call time (via the game viewport's canvas transform / camera screen mapping) before being passed to `ParticleSystemWrapper.play()` or used to place burst/modal anchors. No implicit follow.
 - **Modal blur (② 裁決 — MVP = opacity-only)**: the GDD's 8% modal-local blur would require a **second** BackBufferCopy per frame on Compatibility/WebGL2 (the first is ScreenEffectsLayer's; ≥0.5ms GPU each on mobile Safari). **Decision: blur is CUT from MVP — opacity-only fallback** (`ui_ink_bg` 92% opacity flat backdrop, zero extra framebuffer copy). Desktop-tier blur is a v0.2 enhancement and must be re-priced into the budget table if revisited. #21 stories implement opacity-only.
+
+#### #22 Character Screen layer (revision 2026-06-07 — G-CS-7)
+
+- **`CharacterScreenLayer` (60, PAUSABLE)** — single owner = `CharacterScreenCoordinator` autoload (instantiates in `_ready`, pre-warmed `visible=false`; #21 coordinator precedent). PAUSABLE (not ALWAYS): the screen only opens in GSM IDLE/DISCONNECTED — it has no need to run while the tree is paused, and PAUSABLE keeps it inert during #6 `hit_pause`/ceremony freezes.
+- **<100 placement is load-bearing (P-07 preview mechanism)**: the motion-intensity slider's release-time HIT_HEAVY preview must shake the Character Screen itself — at layer 60 the screen's pixels ride the BackBufferCopy→shader path (capture enumeration now 0/10/50/60), so "feel the result" is literally honoured. A >100 placement would leave the preview shaking a world fully occluded by the opaque overlay (feature silently dead). Consequence accepted: #22 pixels also pass the saturation chain — identity in IDLE/DISCONNECTED steady state (`u_world_saturation_drop` is #21-ceremony-driven only; LOOT_DROP state force-closes #22); residual recovery tail ≤2s decays to identity.
+- **Ordering constraints**: >50 (above #20 HUDLayer — workout-transition fade ordering: #22 force-close fade renders above the HUD fading in); <110/120 (below #21 layers — deferred loot reveal on IDLE entry force-closes #22 within ≤150ms while the #21 modal appears above it).
+- **G-CS-4 interaction note**: the #6 preview API used by P-07 (`preview_hit_heavy()` or equivalent) must be **shake-only — never `hit_pause`** (tree pause would freeze the PAUSABLE CharacterScreenLayer mid-drag).
 
 **BackBufferCopy GPU cost note**: BackBufferCopy triggers a framebuffer copy per frame on WebGL 2. On mobile Safari this can cost ≥0.5ms GPU. This is included in the total Foundation budget (see Two-Tier model). If VS-tier profiling exceeds mobile budget, mitigation = reduce BackBufferCopy frequency (every N frames) or skip during low-trauma idle frames.
 

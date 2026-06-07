@@ -742,7 +742,7 @@ AC-84 加 CJK 截圖 variant(雙 font 混排 + 窄屏)。
 
 | ID | Question | Owner | Target |
 |----|----------|-------|--------|
-| **OQ-1** | Stat-delta ticker slot(P-05 殘餘):modal 顯示 equip 前後 stat 變化需要 #17 equip-result payload API(`receive_loot` 回 enum 冇 stats)— MVP 唔做;#22 Character Screen 設計時一併裁(modal 加 slot vs 留俾 #22) | #22 GDD authoring | #22 design 時 |
+| **OQ-1** | ✅ **RESOLVED 2026-06-07(#22 G-CS-5 回寫)**:stat-delta ticker **留 #22**(#22 GDD Rule 16 — equip/unequip stat 變化完全靠 #11 `stat_changed(EQUIPMENT)` 自然流入 F1 tween;**modal 唔加 slot,#17 唔使加 equip-result payload API**)。原問題:modal 顯示 equip 前後 stat 變化需要 #17 payload API — 已裁零新 API 方案 | ~~#22 GDD authoring~~ RESOLVED | — |
 | **OQ-2** | Rule 15 telemetry payload type(signal args vs metric struct)— `time_to_dismiss_ms` 等 4 hook 嘅 envelope 格式 | #28 Telemetry GDD | #28 design 時 |
 | **OQ-3** | Contact-sheet grid 嘅 PWA share button 整合(#15 Pillar 5 提過 LEGENDARY「PWA share button 截圖」)— share API 經 platform seam 定 MVP 只靠 OS 截圖 | #27 Onboarding / PWA 層 | v0.2 |
 | ~~OQ-4~~ | **RESOLVED Pass 1** — 併入 G-LM-8(catalog co-design 連 lint scope 一齊裁) | — | — |

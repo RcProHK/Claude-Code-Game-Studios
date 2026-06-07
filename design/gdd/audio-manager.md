@@ -359,7 +359,7 @@ Attack 用 `ATTACK_SEC` lerp 落，release（high-priority SFX `finished` 或 st
 | event_id | 來源系統 | priority（duck?） | channels | 備註 |
 |----------|---------|------------------|----------|------|
 | `ui_tap` | #20 HUD / #33 | low | mono | next-exercise tap |
-| `ui_back` / `ui_error` | #20 / #21 | low | mono | menu nav / 無效操作 |
+| `ui_back` / `ui_error` | #20 / #21 / #22 | low | mono | menu nav / 無效操作(#22 G-CS-9 reuse 2026-06-07)|
 | `audio_unlock_confirm` | #4 self | **mid** | mono | **首 gesture unlock 確認 chime**（首個 real action 唔無聲後果）。**升 mid**：unlock 嗰刻同首個 BGM + 首個 workout SFX 可能撞；low priority 會即刻俾 pool 嘅其他 SFX steal → 「開聲」嗰一下反而無聲，諷刺地破壞 Rule 5 §81 design intent。mid 確保 chime 唔俾 combat SFX steal。[audio-director] Pass 4 |
 | `hit_light` / `hit_heavy` | #13/#14/#25 | low | mono | combat hit feedback（體感印章） |
 | `enemy_death` | #14 | low | mono | enemy 死 |
@@ -490,3 +490,19 @@ Attack 用 `ATTACK_SEC` lerp 落，release（high-priority SFX `finished` 或 st
 
 **Voice pool 重估(catch-up 包絡)**:stream 全程單一 aggregated cue(1 voice + 1 duck handle)+ per-ceremony fanfare(≤1 並發,EC-M9 gap 隔開)+ shutter(no-duck)— 8-voice pool 充裕;機關槍 per-beat 方案已禁(D4),洪水 steal 場景消滅。
 **Lint scope 裁決(原 OQ-4)**:cue id 註冊 lint 隨 `/asset-spec` 產 tres 時一齊開(catalog 未 ship 前 lint 無對象)。
+
+### #22 Character Screen cue 註冊(G-CS-9,2026-06-07 — G-LM-8 先例;co-design ✅;audio-director sign-off 記錄於 #22 story 012)
+
+> 全部 **low / mono / no-duck**(#22 §Audio direction:「紙、木、石墨 + 細金屬 accent 限 lock 語意」;零 chime 零 fanfare — Pillar 3 reserved;AC-03b 永不 steal loot fanfare voice)。`SfxCatalog.tres` entries 隨 `/asset-spec system:character-screen` 產 tres 時落(Q-CS7;Lint scope 裁決同上)。
+
+| event_id | 來源系統 | priority(duck?)| channels | 備註 |
+|----------|---------|------------------|----------|------|
+| `ui_charscreen_open` / `ui_charscreen_close` | #22 | low | mono | 低沉軟 thock + 紙(close = 短 reverse);**只 player-initiated** — force-close / SUSPENDED snap 零 SFX(#22 CD C1)|
+| `ui_equip_settle` | #22 | low | mono | stat tween settle 一刻「刻一下」;**dedupe locus = #22-side settle-frame coalesce**(每 command 最多 1 響,4-row 並行都係 1 — #4 stateless gateway 唔做 time-window)|
+| `ui_lock_on` / `ui_lock_off` | #22 | low | mono | 細金屬 click,on 略重 |
+| `ui_salvage_execute` | #22 | low | mono | 短 grind / 紙撕 — 唔係爆炸 |
+| `ui_sheet_open` / `ui_sheet_close` | #22 | low | mono | picker / modal 軟 slide(共用)|
+| `ui_toggle_flip` | #22 | low | mono | P-08 toggle 細 click |
+
+**Naming 慣例裁決(#22 G-CS-9 順手,audio N5)**:UI cue canonical prefix = bare `ui_*`(`ui_tap`/`ui_back` 同源);#21 嘅 `sfx_loot_*` prefix 係 outlier(已 ship,唔改 — 記錄在案,新 cue 一律跟 `ui_*`/domain 名)。
+**Voice pool 重估(#22 包絡)**:#22 只喺 IDLE/DISCONNECTED 開(combat/workout SFX 唔並發),同時最多 ~2-3 UI cue — 8-voice pool 零 contention。

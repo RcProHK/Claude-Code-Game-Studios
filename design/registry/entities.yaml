@@ -2974,6 +2974,28 @@ constants:
     revised: ""
     notes: "#22 force-close fast path 上限(GSM 轉入非 permitted state)。Safe range 0-150;too high = workout HUD 同 #22 並存 frame(Pillar 2 violation);SUSPENDED 係 instant snap(0,無 animation)。Force-close 一律零 SFX(CD C1)。"
 
+  - name: settings_namespace
+    status: active
+    source: design/gdd/character-screen.md
+    referenced_by:
+      - design/gdd/character-screen.md            # G-CS-3 註冊者;Rule 27/28 write/read
+      - design/ux/interaction-patterns.md          # P-07 L243 settings.motion_intensity / P-08 L272 settings.reduce_camera_motion
+      - design/accessibility-requirements.md       # L63 settings.reduce_camera_motion
+      - design/gdd/screen-effects-system.md        # #6 boot self-read settings.motion_intensity(G-CS-4)
+      - design/gdd/camera-system.md                # #7 boot self-read settings.reduce_camera_motion(G-CS-2)
+    added: 2026-06-07
+    revised: ""
+    notes: "PersistenceLayer namespace `settings.*`(ADR-0003 process,G-CS-3 2026-06-07)。Keys:settings.motion_intensity(float 1% grid,default 1.0)/ settings.reduce_camera_motion(bool,default false)。**Canonical key pin:`settings.reduce_camera_motion`**(NOT camera_motion_reduction — Pass 1 ux B5 三 doc 分裂 fix)。Writer = #22 only(slider settle / toggle flip,close-path critical flush);readers = #6/#7 boot self-read(consumer-self-read convention,無 SettingsManager autoload — #22 Rule 29)。"
+
+  - name: charscreen_namespace
+    status: active
+    source: design/gdd/character-screen.md
+    referenced_by:
+      - design/gdd/character-screen.md   # Rule 31 watermark write-once
+    added: 2026-06-07
+    revised: ""
+    notes: "PersistenceLayer namespace `charscreen.*`(ADR-0003 process,G-CS-3 2026-06-07)。Keys:charscreen.stat_watermark.[stat_id] = {value: float, date: String}(×7,write-once 永不覆寫 — 門框第一格刻度,CD 裁決 1)。Presentation-layer 記錄,唔係 game state;Private Mode persist fail → 唔 render 唔 fabricate。"
+
 # ──────────────────────────────────────────────────────────────────────────────
 # BUILD PINS — asset SHA-256 digests that CI lints compare against on-disk files.
 # These prevent silent formula-constant tampering post-build (ADR-0005 no-hot-swap).

@@ -36,6 +36,11 @@ Mirror Hero 係一個 web-based gym companion RPG，設計為 background auto-pl
 | P-09 | [single-tap-exercise-switch](#p-09-single-tap-exercise-switch) | Input | Exercise switch (GymSys) | Defined |
 | P-10 | [damage-number-popup](#p-10-damage-number-popup) | Feedback | Combat VFX (#25) | Defined |
 | P-11 | [enemy-threat-hud-bar](#p-11-enemy-threat-hud-bar) | Data Display | HUD (#20) — Boss HP | Defined |
+| P-12 | ledger-watermark-line | Data Display | Character Screen (#22) — Rule 31 | **Stub**(#22 G-CS-6 2026-06-07;full spec 留 /ux-design patterns — 行為 ground truth 喺 #22 GDD Rule 31)|
+| P-13 | three-zone-item-card | Input | Character Screen (#22) — loadout card | **Stub**(主體→inspect / 更換→picker / lock toggle;#22 Rule 22 entry map)|
+| P-14 | inline-nudge-strip | Feedback | Character Screen (#22) — lock nudge / backfill note | **Stub**(overlay 唔推 layout;inline one-tap action;#22 Rule 18)|
+| P-15 | destructive-confirm-modal | Modal | Character Screen (#22) — SALVAGE_CONFIRM | **Stub**(cancel button + scrim=cancel + default focus cancel;#22 Rule 19)|
+| P-16 | bottom-sheet-picker | Modal | Character Screen (#22) — SLOT_PICKER | **Stub**(slot-filtered + virtualized + count indicator + empty 照開;#22 Rule 17)|
 
 ---
 
@@ -98,8 +103,10 @@ Mirror Hero 係一個 web-based gym companion RPG，設計為 background auto-pl
 ### P-03: stat-number-ticker
 
 **Category**: Feedback
-**Used In**: HUD (#20), Combat VFX (#25), Character Screen (#22)
+**Used In**: HUD (#20), Combat VFX (#25)~~, Character Screen (#22)~~
 **Derived From**: Art Bible Section 7.D
+
+> ⚠️ **#22 sync note(G-CS-6,2026-06-07)**:#22 stat tween **唔用 P-03** — #22 F1 係 cubic-lerp-經-formatter(constant 300ms duration,4-row lockstep settle),≠ P-03 嘅 33ms/step 整數 ticker(duration ∝ delta)。Implementer 唔好喺 #22 錯套 P-03(G-LM-7 先例做法)。
 
 **Description**: A number that "ticks up" in discrete integer steps when a stat increases. Uses a step function (not smooth lerp) — each frame shows a valid integer value. This gives a "count-up" feel aligned with the pixel art aesthetic rather than a smooth slide. The discontinuous stepping communicates "real increments" matching the physical rep-by-rep nature of training (Pillar 1 visual language).
 
@@ -243,7 +250,7 @@ Mirror Hero 係一個 web-based gym companion RPG，設計為 background auto-pl
 - Persistence: saves to `PersistenceLayer.write("settings.motion_intensity", value)`
 - Boot: `ScreenEffects.set_motion_intensity(PersistenceLayer.read()["settings.motion_intensity"] ?? 1.0)` on autoload startup
 - Visual: uses P-02 frameless bar style for track, amber fill for handle
-- Accessibility: keyboard left/right adjusts in 0.1 increments; screen reader narrates label + value (v0.2+)
+- Accessibility: keyboard left/right adjusts in 0.1 increments; screen reader narrates label + value(**SHIPPED at MVP — #22 G-CS-6 errata 2026-06-07:`platform_detect.announce_aria` 已 ship(#21 story-025),#22 EC-28 coalesced announce 係 BLOCKING AC,原「v0.2+」措辭作廢**)
 - Label CJK: "畫面震動強度" (繁體中文) / "Screen Shake Intensity" (English)
 
 **When to Use**: Settings screen, accessibility section.
@@ -272,7 +279,7 @@ Mirror Hero 係一個 web-based gym companion RPG，設計為 background auto-pl
 - Persistence: `PersistenceLayer.write("settings.reduce_camera_motion", enabled)`
 - Boot: `CameraSystem.set_motion_reduction(PersistenceLayer.read()["settings.reduce_camera_motion"] ?? false)`
 - Visual: standard toggle switch component. Left = OFF, Right = ON. Color: amber `#F2A93B` active, ink-mid `#2D323D` inactive.
-- Accessibility: keyboard space bar toggles; screen reader narrates state ("on" / "off") on change (v0.2+)
+- Accessibility: keyboard space bar toggles; screen reader narrates state ("on" / "off") on change(**SHIPPED at MVP — #22 G-CS-6 errata 2026-06-07,同 P-07;原「v0.2+」措辭作廢**)
 
 **When to Use**: Settings screen, accessibility section, co-located with P-07 slider.
 
