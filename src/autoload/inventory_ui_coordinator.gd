@@ -430,10 +430,9 @@ func get_count_readout() -> String:
 	return "%d/%d" % [_inventory_count, InvUiFormulas.InventoryScript.MAX_INVENTORY]
 
 
-## Shards 顯示 — G-IU-5 thousands-separator formatter 喺 story 017 落地;
-## TODO(story 017): 換 shared formatter(AC-21 golden 嗰陣跑)。
+## Shards 顯示(D6 — G-IU-5 shared formatter;千位逗號 lossless,禁 K/M)。
 func get_forge_shards_display() -> String:
-	return str(_forge_shards)
+	return InventorySystem.format_shards(_forge_shards)
 
 
 ## EC-09 empty copy 分流("" = 非 empty,唔 render empty state)。
@@ -735,7 +734,10 @@ func confirm_salvage() -> Dictionary:
 	if result.get("ok", false):
 		_reread_all()
 		_play_sfx(&"ui_salvage_execute")
-		_show_toast("已分解 %s — +%d 碎片" % [String(target), int(result.get("shards", 0))])
+		_show_toast("已分解 %s — +%s 碎片" % [
+			String(target),
+			InventorySystem.format_shards(int(result.get("shards", 0))),  # G-IU-5
+		])
 	else:
 		_handle_command_error(result)
 	return result
@@ -822,6 +824,7 @@ func get_bulk_select_rows() -> Array:
 			"rarity": rarity,
 			"count": int(preview["count"]),
 			"yield": int(preview["yield"]),
+			"yield_display": InventorySystem.format_shards(int(preview["yield"])),  # G-IU-5
 			"receipt_count": int(preview["receipt_count"]),
 			"grayed": int(preview["count"]) == 0,  # 灰掉唔 disable tap(EC-02)
 		})
@@ -901,6 +904,7 @@ func get_bulk_confirm_view() -> Dictionary:
 		"header": {
 			"count": int(_bulk_preview.get("count", 0)),
 			"yield": int(_bulk_preview.get("yield", 0)),
+			"yield_display": InventorySystem.format_shards(int(_bulk_preview.get("yield", 0))),  # G-IU-5
 			"receipt_total_line": "內含 %d 件收據件" % receipt_total if receipt_total > 0 else "",
 		},
 		# scrollable 中段(三層)。
@@ -954,9 +958,9 @@ func confirm_bulk_salvage() -> Dictionary:
 	if result.get("ok", false):
 		_reread_all()  # bulk rebuild — list 層 scroll reset 頂(EC-14;005 API)
 		_play_sfx(&"ui_salvage_execute")
-		# TODO(story 017 G-IU-5):shards 數字換 thousands-separator shared formatter。
-		_show_toast("已分解 %d 件 — +%d 碎片" % [
-			int(result.get("count", 0)), int(result.get("shards", 0)),
+		_show_toast("已分解 %d 件 — +%s 碎片" % [
+			int(result.get("count", 0)),
+			InventorySystem.format_shards(int(result.get("shards", 0))),  # G-IU-5
 		])
 	else:
 		_handle_command_error(result)

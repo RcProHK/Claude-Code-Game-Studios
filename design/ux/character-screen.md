@@ -87,7 +87,7 @@ One-way notes:exit 全部可逆(re-open 隨時得,只要 GSM permitted);唯一�
 | Empty slot card | card | 1px pixel-dotted outline + slot silhouette glyph + dim label | tap→SLOT_PICKER 直入 | — |
 | AntiSnowball row | text chip | 「+[eff] / +[raw](受真身上限約束)」(F4;effective amber / raw `ui_amber_dim`)| 否(tooltip ledger voice)| — |
 | Aggregate row | 數據行 | 「+0」照 render(EC-12)| 否 | — |
-| Forge shards row | 數據行 | `get_forge_shards()` verbatim int(禁 K/M 縮寫)| 否 | — |
+| Forge shards row | 數據行 | `get_forge_shards()` 千位逗號 render(G-IU-5 shared formatter — UXQ-6 erratum 2026-06-08;禁 K/M 縮寫)| 否 | — |
 | Lock nudge strip | overlay strip(唔推 layout)| 「未上鎖 — 下次自動換裝可能換走佢 [鎖定]」;[鎖定] = inline one-tap | [鎖定] tap → set_lock + 變「已鎖定」| **NEW:inline-nudge-strip** |
 | Backfill note strip | overlay strip | 「自動補上 [item]」(EC-13a)| 否 | 同上 strip 處理 |
 
@@ -237,7 +237,7 @@ MVP **零 analytics event**(#28 Telemetry v0.2 — 刻意,唔係漏)。Persisten
 - **最長文字元素**:provenance_text(「拾於 6月3日・腿日」~10 字,安全)/ LEGENDARY `signature_text`(可長 — wrap 優先,死限 ellipsis + inspect 全文;EC-14)/ lock nudge ~20 字(LOCK_NUDGE_DURATION_MS 下限 4s 由 CJK 讀速推導)
 - **Layout-critical**:tab labels(一行)/ AntiSnowball badge 文案(同 F4 數字 bijective — 唔可以斷行拆數字)/「[鎖定]」inline action(一個 tap word)— **HIGH PRIORITY for 40% expansion check**
 - **逐 string font 指派表**:CJK(Zpix)vs latin/數字(m6x11)混排 baseline — **本 spec 留俾 implementation 前嘅 string table**(GDD ux R5 mandate;#21 L578-583 先例:11px latin H1 < 12px CJK 係接受嘅 inversion,hierarchy 由 position/weight 補)
-- **Locale formats**:watermark / provenance dates = **device local**(EC-15;跨 timezone 顯示日期可變 — 接受並寫明);數字無千分位(ledger verbatim;shards 禁 K/M)
+- **Locale formats**:watermark / provenance dates = **device local**(EC-15;跨 timezone 顯示日期可變 — 接受並寫明);shards 數字**千位逗號**(UXQ-6 erratum 2026-06-08 — #23 D6 全 game 統一,原「無千分位」superseded;禁 K/M 照舊);stat 數字無千分位(F2 quantize 範圍 ≤3 位,無影響)
 
 ## Acceptance Criteria
 

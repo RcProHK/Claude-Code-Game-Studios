@@ -201,7 +201,7 @@ func test_ac10_open_first_frame_five_reads_and_zero_live_ref() -> void:
 	assert_eq(coord.get_inventory_view().size(), 2, "all-inventory 含 EQUIPPED(G-IU-1)")
 	assert_eq(coord.get_mailbox_view().size(), 1)
 	assert_eq(coord.get_count_readout(), "2/120")
-	assert_eq(coord.get_forge_shards_display(), "1400")
+	assert_eq(coord.get_forge_shards_display(), "1,400", "G-IU-5 千位逗號(story 017 同步)")
 	# 零 live ref(AC-10):view 係 Dictionary snapshot — mutate #17 後 view 不變。
 	var view: Dictionary = coord.get_inventory_view()[0]
 	assert_eq(typeof(view), TYPE_DICTIONARY, "view model 係 snapshot,唔係 EquipmentItem")

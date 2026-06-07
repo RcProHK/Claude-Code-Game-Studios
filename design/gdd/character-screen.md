@@ -293,7 +293,7 @@ Sub-display-unit 變化(e.g. crit_chance 0.071→0.074)由 formatter guard 自�
 |------|------|------|
 | Salvage yield preview | Rule(Rule 19)| 直接 call #17 static `salvage_yield(rarity)`(inventory_system.gd L911;COMMON 100 → LEGENDARY 800)— #22 自己寫 = duplicate ban 同類違規 |
 | Volume linear→dB 轉換 | Rule(Rule 33)| #4 Formula 2 own(audio-manager.md L197-213,含 MUTE_FLOOR_DB 邊界)— #22 經 G-CS-11 additive setter call,自己抄 = duplicate ban 同類違規 |
-| forge_shards 顯示 | Rule | `get_forge_shards()` int verbatim render;MVP 禁 K/M abbreviation — ledger 數字係收據,唔縮寫 |
+| forge_shards 顯示 | Rule | `get_forge_shards()` int render **千位逗號**(D6 erratum 2026-06-08 — #23 G-IU-5 全 game 統一 shared formatter `InventorySystem.format_shards`;原「verbatim 無分隔」superseded);禁 K/M abbreviation 原意保留 — 千位逗號係 lossless,ledger 數字係收據唔縮寫 |
 | provenance_text / signature_text / tier badge | Rule | upstream 已 derive 好,verbatim display |
 | Force-close ≤150ms | Knob | 一個 cap 常數(Tuning Knobs)|
 

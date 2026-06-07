@@ -949,7 +949,7 @@ func get_aggregate_badge() -> Dictionary:
 
 
 func get_forge_shards_display() -> String:
-	return str(_forge_shards)  # verbatim int — 禁 K/M 縮寫(ledger 收據)
+	return InventorySystem.format_shards(_forge_shards)  # G-IU-5 shared contract(D6 — 千位逗號 lossless;禁 K/M)
 
 
 func get_nudge(slot: int) -> Dictionary:

@@ -1145,9 +1145,26 @@ func get_inventory_count() -> int:
 	return count
 
 
-## Current forge_shard balance (int64; #23 display contract: thousands separators).
+## Current forge_shard balance (int64; #22/#23 shared display contract:
+## thousands separators — format_shards below, G-IU-5).
 func get_forge_shards() -> int:
 	return _forge_shards
+
+
+## Shards 顯示 formatter(D6 — 全 game 統一;G-IU-5)。千位逗號 lossless
+##(「禁 K/M」原意 = 禁 lossy abbreviation;千位逗號係真賬簿文法)。
+## **#22/#23 shared contract** — 兩邊全部 shards 顯示位行呢一個 static。
+static func format_shards(value: int) -> String:
+	var negative: bool = value < 0
+	var digits: String = str(absi(value))
+	var out: String = ""
+	var count: int = 0
+	for i in range(digits.length() - 1, -1, -1):
+		out = digits[i] + out
+		count += 1
+		if count % 3 == 0 and i > 0:
+			out = "," + out
+	return ("-" + out) if negative else out
 
 
 ## Fetch a live item by id (null when absent / salvaged).

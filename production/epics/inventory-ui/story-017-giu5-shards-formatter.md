@@ -1,7 +1,7 @@
 # Story 017: G-IU-5 shards thousands-separator shared formatter(#22 churn 管控)
 
 > **Epic**: Inventory UI (#23)
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Presentation
 > **Type**: Integration
 > **Estimate**: S
@@ -25,10 +25,10 @@
 
 ## Acceptance Criteria
 
-- [ ] Shared formatter(locus:`src/ui/inventory_ui/inv_ui_formulas.gd` static 或 #17-side static — implementer 裁,doc comment 標「#22/#23 shared contract」)+ unit golden(0 / 999 / 1000 / 1234567 → "1,234,567")
-- [ ] #23 全部 shards 顯示位(header counter / BULK rows / toast)行 formatter(006/011/012 嘅 placeholder 收口)
-- [ ] **#22-side 一行 churn**:`get_forge_shards_display` `str()` → formatter + #22 AC literal 同步;**#22 suite 重跑零變紅**
-- [ ] Doc errata:#17 L1138 comment 擴「#22/#23 shared contract」;#22 GDD「verbatim 禁 K/M」行 + #22 ux spec「無千分位」行 erratum(UXQ-6)
+- [x] Shared formatter(locus 裁:**#17-side static `InventorySystem.format_shards`** — #22 零新 preload[global class_name],真・一行 churn;doc comment「#22/#23 shared contract」)+ unit golden(0 / 999 / 1000 / 1400 / 1234567 / 負數)
+- [x] #23 全部 shards 顯示位(header counter / BULK select rows + confirm header `yield_display` / 單件+bulk toast)行 formatter(006/011/012 placeholder 收口;TODO 剷走)
+- [x] **#22-side 一行 churn**:`get_forge_shards_display` `str()` → formatter;#23 browse test literal「1400」→「1,400」同步(#22 suite 無 display-string literal — grep 確認);**#22 suite 重跑零變紅**
+- [x] Doc errata:#17 comment 擴「#22/#23 shared contract」;#22 GDD「verbatim 禁 K/M」行 + #22 ux spec「無千分位」×2 行 erratum(UXQ-6;superseded 注記)
 
 ## Implementation Notes
 
@@ -47,7 +47,15 @@
 
 **Story Type**: Integration
 **Required evidence**: formatter unit + #22 suite 重跑 + combined CI gate
-**Status**: [ ] Not yet created
+**Status**: [x] Created — `tests/unit/inventory_ui/test_shards_formatter.gd` 3 tests(goldens + 負數 + 雙 coordinator locus assert);combined gate CLEAN 2370/2369/0 fail(2026-06-08)
+
+## Completion Notes
+
+**Completed**: 2026-06-08
+**Criteria**: 4/4 passing
+**Deviations**: None — diff 範圍照 directive ⑤:formatter(#17 static)+ #22 一行 + #23 收口位 + 三處 doc + tests;零順手 refactor
+**Test Evidence**: 3 unit tests + browse literal 同步 + #22 suite 零變紅(combined gate)
+**Code Review**: Complete — degraded inline APPROVED / ADEQUATE(spawn block 持續)
 
 ## Dependencies
 
