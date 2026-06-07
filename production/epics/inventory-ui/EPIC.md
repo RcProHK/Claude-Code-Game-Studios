@@ -4,31 +4,31 @@
 > **GDD**: design/gdd/inventory-ui.md(✅ APPROVED 2026-06-07 — 同日全 pipeline:Pass 1 full 7-specialist + CD NEEDS REVISION → consolidated fix pass → 3-verifier re-pass [1 salvage-sibling FAIL → 修] → CD sign-off 0 phantom)
 > **UX Spec**: design/ux/inventory-ui.md(✅ APPROVED 2026-06-07 — /ux-review 0 blocking / 3 advisory 已修;stories 引用 UX spec,唔直接 cite GDD UI 細節)
 > **Architecture Module**: `InventoryUICoordinator` autoload @ `src/autoload/inventory_ui_coordinator.gd`(thin Node;持有 CanvasLayer **61**(PAUSABLE),pre-warm `visible=false` — G-IU-2;>60 #22 / <100 BackBufferCopy capture[ADR-0001 L112+L127 enumeration 隨 G-IU-2 更新「…/61」] / <110-120 #21)。Autoload 位置:tail append 喺 CharacterScreenCoordinator 後(#28 keep last)— G-IU-2 ADR-0008 amendment;predecessor constraints `{GSM(C6), InventorySystem, AudioManager, PlatformDetect} ≺ #23`;**明文 NO #22 constraint**(tail 係慣例唔係 binding — 防 phantom)。**FSM = fork #22**(~150-200 行 inline;header cross-ref + divergence 同步註記 — CD 裁決;extraction ADR 留 #24)
-> **Status**: Ready
+> **Status**: ✅ **COMPLETE 18/18(2026-06-08)** — 全 stories implemented + combined gate CLEAN 2370/2369/0 fail;G-IU-1..5 全落地;manual evidence protocol 交付(收集 EXTERNAL);AC-33 RATIFICATION-GATED(ADR-0001 CPU 數字)
 > **Stories**: **18**(2 Config/Data + 1 Logic + 15 Integration;baseline 14-18 內)— QL-STORY-READY degraded inline ADEQUATE(spawn blocked 1M-credit,#17/#18/#21/#22 同款;GDD 37 ACs 3-verifier verified GWT = qa-plan-import-equivalent,直接 embed)
 
 ## Stories
 
 | # | Story | Type | Status | ADR |
 |---|-------|------|--------|-----|
-| 001 | G-IU-2 ADR revisions(layer 61 + enumeration + insertion)| Config/Data | Ready | ADR-0001+0008 |
-| 002 | Coordinator scaffold + FSM fork + CanvasLayer 61 + 登記 | Integration | Ready | ADR-0008+0001+0006 |
-| 003 | G-IU-1 #17 additive 三件(getters + receipt_ids)| Integration | Ready | N/A(additive)|
-| 004 | F1 retention + F2-M comparator + sort identity | Logic | Ready | N/A(pure formula)|
-| 005 | Virtualized list component(novel)| Integration | Ready | ADR-0001 |
-| 006 | View models + browse binding + count/120 | Integration | Ready | ADR-0006+0007(sec)|
-| 007 | Lifecycle suite + subscriptions + zero-persist | Integration | Ready | ADR-0006+0003 |
-| 008 | Mailbox section render(F2-M + retention + grace)| Integration | Ready | ADR-0007(sec)|
-| 009 | Claim flow + MAKE_ROOM D4 | Integration | Ready | ADR-0006(sec)|
-| 010 | Mailbox inspect 限制 + lock D1 + 零-dispatch | Integration | Ready | N/A(UI gating)|
-| 011 | Bulk sheets(SELECT + CONFIRM D5 三層)| Integration | Ready | ADR-0007(sec)|
-| 012 | Bulk execute + drift + EC-12 | Integration | Ready | ADR-0006(sec)|
-| 013 | ITEM_INSPECT 單件 ops | Integration | Ready | ADR-0007(sec)|
-| 014 | Error model 6+1 + DISCONNECTED | Integration | Ready | ADR-0006+0003 |
-| 015 | ARIA + event→cue map | Integration | Ready | N/A(seams shipped)|
-| 016 | G-IU-4 #22 link + glue | Integration | Ready | ADR-0006(sec)|
-| 017 | G-IU-5 shards formatter | Integration | Ready | N/A(display)|
-| 018 | G-IU-3 errata ×6 + evidence protocol | Config/Data | Ready | N/A(doc)|
+| 001 | G-IU-2 ADR revisions(layer 61 + enumeration + insertion)| Config/Data | Complete | ADR-0001+0008 |
+| 002 | Coordinator scaffold + FSM fork + CanvasLayer 61 + 登記 | Integration | Complete | ADR-0008+0001+0006 |
+| 003 | G-IU-1 #17 additive 三件(getters + receipt_ids)| Integration | Complete | N/A(additive)|
+| 004 | F1 retention + F2-M comparator + sort identity | Logic | Complete | N/A(pure formula)|
+| 005 | Virtualized list component(novel)| Integration | Complete | ADR-0001 |
+| 006 | View models + browse binding + count/120 | Integration | Complete | ADR-0006+0007(sec)|
+| 007 | Lifecycle suite + subscriptions + zero-persist | Integration | Complete | ADR-0006+0003 |
+| 008 | Mailbox section render(F2-M + retention + grace)| Integration | Complete | ADR-0007(sec)|
+| 009 | Claim flow + MAKE_ROOM D4 | Integration | Complete | ADR-0006(sec)|
+| 010 | Mailbox inspect 限制 + lock D1 + 零-dispatch | Integration | Complete | N/A(UI gating)|
+| 011 | Bulk sheets(SELECT + CONFIRM D5 三層)| Integration | Complete | ADR-0007(sec)|
+| 012 | Bulk execute + drift + EC-12 | Integration | Complete | ADR-0006(sec)|
+| 013 | ITEM_INSPECT 單件 ops | Integration | Complete | ADR-0007(sec)|
+| 014 | Error model 6+1 + DISCONNECTED | Integration | Complete | ADR-0006+0003 |
+| 015 | ARIA + event→cue map | Integration | Complete | N/A(seams shipped)|
+| 016 | G-IU-4 #22 link + glue | Integration | Complete | ADR-0006(sec)|
+| 017 | G-IU-5 shards formatter | Integration | Complete | N/A(display)|
+| 018 | G-IU-3 errata ×6 + evidence protocol | Config/Data | Complete | N/A(doc)|
 
 ## Overview
 
