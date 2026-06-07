@@ -1,12 +1,12 @@
 # Story 001: G-IU-2 ADR revisions(ADR-0001 layer 61 + capture enumeration / ADR-0008 insertion)
 
 > **Epic**: Inventory UI (#23)
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Presentation
 > **Type**: Config/Data
 > **Estimate**: S
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-07
 
 ## Context
 
@@ -25,9 +25,9 @@
 
 ## Acceptance Criteria
 
-- [ ] ADR-0001:InventoryUILayer **61** 註冊(PAUSABLE + pre-warm hidden 注記)+ **L112 + L127 capture enumeration「0/10/50/60」→「0/10/50/60/61」**(G-CS-7 先例格式)+ mood note(saturation chain = identity;LOOT_DROP force-close;CLOSING×OPENING crossfade transient 接受 — 遠低 mobile 150 cap)
-- [ ] ADR-0008:amendment row — InventoryUICoordinator tail append 喺 CharacterScreenCoordinator 後;predecessor constraints `{GameStateMachine (C6), InventorySystem, AudioManager, PlatformDetect} ≺ InventoryUICoordinator`;**明文「NO #22 constraint」note**(#19 G-Z-1 先例);明文唔列零接觸 autoloads;#28 keep last
-- [ ] technical-preferences.md ADR-0001/0008 行更新(#23 amendment 注記)
+- [x] ADR-0001:InventoryUILayer **61** 註冊(PAUSABLE + pre-warm hidden 注記)+ **L112 + L127 capture enumeration「0/10/50/60」→「0/10/50/60/61」**(G-CS-7 先例格式)+ mood note(saturation chain = identity;LOOT_DROP force-close;CLOSING×OPENING crossfade transient 接受 — 遠低 mobile 150 cap)
+- [x] ADR-0008:amendment row — InventoryUICoordinator tail append 喺 CharacterScreenCoordinator 後;predecessor constraints `{GameStateMachine (C6), InventorySystem, AudioManager, PlatformDetect} ≺ InventoryUICoordinator`;**明文「NO #22 constraint」note**(#19 G-Z-1 先例);明文唔列零接觸 autoloads;#28 keep last
+- [x] technical-preferences.md ADR-0001/0008 行更新(#23 amendment 注記)
 
 ## Implementation Notes
 
@@ -46,9 +46,17 @@
 
 **Story Type**: Config/Data
 **Required evidence**: ADR diffs(grep-verifiable)+ combined CI gate 唔變紅
-**Status**: [ ] Not yet created
+**Status**: [x] Created — greps(`0/10/50/60/61`×5 / `InventoryUILayer`×3 / `InventoryUICoordinator`×2 / `NO #22`×2 / `#23 G-IU-2`×2 / stale sweep CLEAN)+ combined gate GREEN 2246/0 fail(2026-06-07)
 
 ## Dependencies
 
 - Depends on: None
 - Unlocks: Story 002(scaffold 前提)
+
+## Completion Notes
+
+**Completed**: 2026-06-07
+**Criteria**: 3/3 passing
+**Deviations**: ADVISORY ×2 — (1) ADR-0001 L139 stale present-tense「now 0/10/50/60」同步修(whole-doc sweep 紀律,additive);(2) insertion 令 ADR-0001 enumeration 行號 L112/L127 → L117/L132,#22/#23 GDD line cites 跟住 stale — defer story 018 G-IU-3 errata cluster
+**Test Evidence**: None required beyond doc greps(Config/Data)— combined CI gate GREEN 2246 pass / 0 fail / 1 pending(= main baseline)
+**Code Review**: Complete — LP-CODE-REVIEW degraded inline(spawn 1M-credit block,sonnet override 同 fail)APPROVED;QL-STORY-READY degraded inline ADEQUATE;QL-TEST-COVERAGE skip(Config/Data)
