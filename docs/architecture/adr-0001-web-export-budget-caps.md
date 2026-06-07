@@ -4,6 +4,8 @@
 **Accepted (structural) 2026-05-30** — ratified via `/architecture-review` focused ratification (cross-ADR conflict scan clean; depends only on ADR-006 Accepted; engine audit clean Godot 4.6). The **structural decisions** (renderer-per-platform, CanvasLayer topology, mobile detection, CI enforcement mechanisms, GPU particle-cap concept) are sound design choices with no measurement gate and are now Accepted. The CPU budget **numeric figures remain Provisional** pending VS-tier mobile profiling on target hardware; the CPU-benchmark RATIFICATION-GATED acceptance criteria (e.g. CombatResolver AC-35, #5/#6/#7 CPU-budget ACs) stay gated until measured values land. Update the provisional numbers with `(measured YYYY-MM-DD)` tags to mark the ADR *fully* Accepted.
 *(Previously: Proposed — structural decisions intended for Accepted; CPU budget values Provisional pending VS-tier profiling.)*
 
+**Amendment 2026-06-07 (#21 G-LM-1)** — additive topology revision: added `CelebrationVFXLayer` (110, ALWAYS) + `ModalLayer` (120, ALWAYS) above ScreenEffectsLayer (BackBufferCopy-immune; L109 HUD knob precedent); pinned viewport residence (root viewport, `follow_viewport=false`, explicit world→screen anchor transform required); ruled modal blur **CUT from MVP** (opacity-only — avoids a second WebGL2 framebuffer copy; v0.2 re-price if revisited). Additive, no constraint conflict, no measurement gate — no re-ratification needed (ADR-0008 amendment precedent).
+
 ## Date
 2026-05-26
 
@@ -101,12 +103,25 @@ Root
 ├─ HUDLayer           (CanvasLayer layer=50,  process_mode=PAUSABLE)
 │  └─ HP bar, damage numbers, cooldown timers
 │
-└─ ScreenEffectsLayer (CanvasLayer layer=100, process_mode=ALWAYS)
-   ├─ BackBufferCopy  (captures layers 0/10/50 into screen texture)
-   └─ ColorRect (full-screen, ShaderMaterial reads u_shake_offset uniform)
+├─ ScreenEffectsLayer (CanvasLayer layer=100, process_mode=ALWAYS)
+│  ├─ BackBufferCopy  (captures layers 0/10/50 into screen texture)
+│  └─ ColorRect (full-screen, ShaderMaterial reads u_shake_offset uniform)
+│
+├─ CelebrationVFXLayer (CanvasLayer layer=110, process_mode=ALWAYS)   [#21 revision 2026-06-07]
+│  └─ LOOT preset pool nodes (reparented by #5 via register_celebration_layer handshake — G-LM-2)
+│
+└─ ModalLayer          (CanvasLayer layer=120, process_mode=ALWAYS)   [#21 revision 2026-06-07]
+   └─ Loot reveal modal / catch-up surfaces (owned by LootRevealCoordinator)
 ```
 
 **HUD position knob**: `HUD_SHAKES_WITH_WORLD: bool = true` (default, #6 Section G) — default = HUDLayer below ScreenEffectsLayer (shaken, DNF unified feel). Toggle `false` = HUDLayer above ScreenEffectsLayer (immune, readability priority for accessibility).
+
+#### #21 Loot Drop Modal layers (revision 2026-06-07 — G-LM-1)
+
+- **`CelebrationVFXLayer` (110, ALWAYS)** + **`ModalLayer` (120, ALWAYS)** — single owner = `LootRevealCoordinator` autoload (instantiates both in `_ready`, pre-warmed `visible=false`). Precedent for >100 placement: the L109 HUD knob already established that layers may sit above ScreenEffectsLayer for immunity.
+- **>100 = outside BackBufferCopy capture**: BackBufferCopy at layer 100 captures layers 0/10/50 only — content on 110/120 is **immune to saturation (world −60% desaturation) and shader shake**. This is the mechanism behind #21 AC-75/AC-87 (loot burst stays fully saturated while the world desaturates; art bible「爆裝特效全飽和」).
+- **Viewport residence (① 釘實)**: both layers attach to the **root viewport** (autoload-owned). World content lives inside the GameLayer **SubViewport** (see SubViewport Oversample above) where Camera2D resides — therefore `follow_viewport_enabled` is **meaningless on these layers and must stay `false`** (screen-space layers). World-anchored positions (e.g. #21 `reveal_anchor_pos` from the `avatar_anchor` group) **must be explicitly transformed** SubViewport-world → root-viewport-screen coordinates at call time (via the game viewport's canvas transform / camera screen mapping) before being passed to `ParticleSystemWrapper.play()` or used to place burst/modal anchors. No implicit follow.
+- **Modal blur (② 裁決 — MVP = opacity-only)**: the GDD's 8% modal-local blur would require a **second** BackBufferCopy per frame on Compatibility/WebGL2 (the first is ScreenEffectsLayer's; ≥0.5ms GPU each on mobile Safari). **Decision: blur is CUT from MVP — opacity-only fallback** (`ui_ink_bg` 92% opacity flat backdrop, zero extra framebuffer copy). Desktop-tier blur is a v0.2 enhancement and must be re-priced into the budget table if revisited. #21 stories implement opacity-only.
 
 **BackBufferCopy GPU cost note**: BackBufferCopy triggers a framebuffer copy per frame on WebGL 2. On mobile Safari this can cost ≥0.5ms GPU. This is included in the total Foundation budget (see Two-Tier model). If VS-tier profiling exceeds mobile budget, mitigation = reduce BackBufferCopy frequency (every N frames) or skip during low-trauma idle frames.
 

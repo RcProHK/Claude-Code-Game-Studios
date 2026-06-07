@@ -6,7 +6,7 @@
 > **Type**: Config/Data
 > **Estimate**: S
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-07
 
 ## Context
 

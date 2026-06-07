@@ -157,36 +157,35 @@ Mirror Hero 係一個 web-based gym companion RPG，設計為 background auto-pl
 
 **Description**: The ceremonial modal that appears when a loot item drops (mini-boss kill or workout-complete final boss kill). This is the most high-stakes UI pattern in the game — it is the Pillar 3 dopamine delivery mechanism. It must feel ritualistic, shareable, and over-the-top.
 
-**Specification**:
+> **Synced 2026-06-07 (G-LM-7)** — pattern rebased onto the APPROVED #21 GDD (`design/gdd/loot-drop-modal.md`) + UX spec (`design/ux/loot-drop-modal.md`). **Those two documents are authoritative**; this pattern is a summary. Key reversals from the original draft: 5s auto-dismiss 撤銷(tap-only + two-stage);slowmo 撤銷(D2 freeze-as-hold time-stop);ladder 數值跟 #15 Visual Spec Table;8% blur CUT from MVP(ADR-0001 2026-06-07 amendment — opacity-only);stat-delta ticker MVP 唔做(#21 OQ-1 → #22)。
 
-*Opening sequence (total duration varies by rarity)*:
-1. **World freeze** (0.4s): World layer saturates to −60% (near-greyscale), game world freezes — time-stop effect. UI and particle layers continue.
-2. **Modal entry** (0.15s → 1.2s): Modal emerges from center. Entry animation: `scale 0.8 → 1.0` with elastic-light overshoot (not bouncy). Simultaneously particle burst at `3× combat baseline` from loot position.
-3. **Rarity-calibrated hold** (varies: COMMON 0.2s → LEGENDARY 0.8s): Modal holds open. Rarity color trail from initial white burst.
-4. **World recovery** (0.8s): World saturation returns to normal. Modal stays open until player taps dismiss.
+**Specification**(S0–S4 pipeline,全部 timer 行 global reveal clock):
+
+*Reveal sequence(D2 freeze-as-hold;T=0 = reveal-start frame)*:
+1. **S0 Burst**(frame-0 event):tier-colored particle burst(loot anchor,3× combat baseline ceiling)+ flash frame + fanfare 同 frame。Trigger→S0 ≤100ms(FR-2)。
+2. **S1 Entry**([0, D_entry] 150–450ms per-tier,同 S2 並行):modal `scale 0.8 → 1.0` elastic-light overshoot;scale-in 完成嗰 frame 全部 content slots final(禁 staggered pop-in)。
+3. **S2 Ceremony**(S2a hold/focal-push [0, D_hold] → S2b freeze @ peak [D_hold, D_hold+D_timestop]):EPIC/LEG camera 推鏡到 peak,`focal_completed` → `ceremony_freeze` 快門凍結(world −60% saturation 同步;modal/burst 喺 >100 layers immune)。Tap = fast-complete。
+4. **S3 Steady**:靜態 dismissable 終態;banking(`receive_loot`)+ SR announcement 喺呢度 fire;**modal 留開直到玩家 tap — 無 timed auto-dismiss**。
+5. **S4 Exit**(tap → ≤200ms):快門白 flash 1-2 frame → snapshot 定格 → shrink/fade。
+
+*Ladder 數值(#15 Visual Spec Table own — hold/timestop ms)*:C 200/0 · U 350/0 · R 500/150 · E 650/300 · L 800/400;T_block ≤ 1200ms(attention ceiling,LEGENDARY equality touch)。
 
 *Modal appearance*:
-- Frame style: pixel-illustrated dirty frame ("破爛布旗/鐵鏽金屬條" silhouette per art bible) — NOT clean rectangle
-- Background: `ui_ink_bg #1A1D24` at 92% opacity with 8% blur (modal blur only, not screen)
-- Item display: centered 64×64 px item icon at 2× scale (128×128 render)
-- Item name: H1 font (11px m6x11) in `ui_text_primary`
-- Rarity label: Body font (7px m5x7) in rarity color with matching rarity orb icon (P-06)
-- Stats delta: stat-number-tickers (P-03) showing stat gains
-- Dismiss: single tap anywhere on modal OR 5s auto-dismiss (Pillar 2 — never traps player)
-
-*Rarity duration calibration*:
-- COMMON: hold 0.2s, particle 0.5s, no slowmo
-- UNCOMMON: hold 0.3s, particle 0.7s, no slowmo
-- RARE: hold 0.4s, particle 1.0s, slight slowmo 0.98×
-- EPIC: hold 0.6s, particle 1.2s, slowmo 0.95×, screen edge vignette
-- LEGENDARY: hold 0.8s, particle 1.5s, slowmo 0.90×, full vignette, fanfare
+- Frame style: pixel-illustrated dirty frame("破爛布旗/鐵鏽金屬條" silhouette)— NOT clean rectangle;per-tier ornament escalation
+- Background: `ui_ink_bg #1A1D24` at 92% opacity,**opacity-only(blur cut from MVP — ADR-0001)**
+- Item display: centered 64×64 icon at 2× scale(128×128 render),唯一 hero
+- Item name: H1(11px m6x11)`ui_text_primary`;**CJK strings 一律 Zpix 12px**(#21 font 指派表)
+- Rarity label: 7px m5x7(latin tier 名)+ rarity orb(P-06),貼 icon 同一 foveal cluster
+- RARE+ breakdown bar(75/25 汗水/運氣,ADR-0005)— `ui_amber_primary` vs `ui_ink_hi`,% label 必須
+- ~~Stats delta ticker~~ **MVP 唔做**(#21 OQ-1 — #17 equip-result payload API 未有;#22 設計時裁)
+- **Dismiss: tap-only + two-stage**(S2 tap = fast-complete;S3 tap = dismiss;0.25s debounce 錨 S3 entry)。CTA label「影低佢」;tap surface = 全屏 scrim。**無 auto-dismiss** —「never traps」由 system 層兜(外部 transition force-close + #15 Pending pool 零 loss;pre-S3 = cancel+re-reveal,post-S3 = stash-exit)
 
 *Accessibility*:
-- Rarity is communicated by hold duration + particle density + frame ornament density (P-06) + audio — not color alone
-- Auto-dismiss after 5s ensures player never gets stuck mid-set
-- Reduced motion (P-08 enabled): particle density 0.5×, slowmo disabled, hold times unchanged
+- Rarity = 色 + badge shape + hold 時長 + sting character — never color alone(P-06)
+- ~~5s auto-dismiss~~ 撤銷:auto-dismiss 唯一「炒」嘅人就係望得最慢嗰個(loss-aversion 打擊 Pillar 3);mid-set 唔 trap 由 GSM safe-state gating + force-close 兜
+- Reduced motion:D_timestop=0 全 tier、focal → fade-in vignette、particle ×0.5、S1 改 150ms fade;hold/dismiss/queue 不變
 
-**When to Use**: Loot item drop events only. One modal at a time.
+**When to Use**: GSM `LOOT_DROP` entry(唯一 trigger)。One modal at a time;FULL_CEREMONY 件 only(micro_ack 件行 toast 路徑)。
 
 **When NOT to Use**: Non-item rewards (stat increases, streak milestones) — use inline celebration or toast notification pattern (to be defined).
 
@@ -375,5 +374,5 @@ The following patterns are referenced in GDD UI Requirements sections but not ye
 
 - **OQ-P1**: Player journey map not yet created. Template available at `.claude/docs/templates/player-journey.md`. Run `/ux-design` Phase 2b or create it manually to establish player context for this screen. OQ carried from context gather phase.
 - **OQ-P2**: Are there any patterns that should fire analytics events on interaction? (e.g., loot modal open/close, motion intensity changes) — resolve when #28 Telemetry GDD is authored.
-- **OQ-P3**: Pattern P-05 (loot drop modal) requires input from #15 Loot Drop System GDD (not yet authored) to confirm timing and trigger contract. Modal spec is provisional pending #15.
+- ~~**OQ-P3**~~: **CLOSED 2026-06-07(G-LM-7)** — #15 GDD shipped + #21 GDD/UX spec APPROVED;P-05 已 rebase 做 summary,timing/trigger contract 以 `design/gdd/loot-drop-modal.md` + `design/ux/loot-drop-modal.md` 為準。P-06 hex 套同時確認 = art bible §4.B canonical(#FFFFFF/#6FB87A/#4D8FD6/#9B5FCC/#FF8C42 — #15 Visual Spec Table 嗰套 Material hex 係 erratum 對象)。
 - **OQ-P4**: Equipment item card pattern gap — will be defined during #17 Equipment & Inventory GDD authoring. Until then, no inventory screen UX spec can be finalized.
