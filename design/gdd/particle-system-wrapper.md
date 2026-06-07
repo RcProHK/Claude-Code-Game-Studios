@@ -1672,3 +1672,12 @@ Wrapper 嚴格 own particles only，**唔 own SFX** — 呢個係 Foundation inf
 **Trigger**: VS-tier profiling milestone
 **Default if未 resolved**: 2.0s interval acceptable per art-director's mobile budget assessment
 **Risk if未 resolved**: 若 reconcile cost > 0.5ms on iPhone 11 → `_process` overhead 開始觸發 Pillar 2 silent violation
+
+---
+
+## Errata / Sync(2026-06-07 — #21 G-LM-2 執行)
+
+- **Section C #21 interaction contract actualized**:caller = `LootRevealCoordinator`;tier→preset mapping 確認 — COMMON/UNCOMMON/RARE → `LOOT_BURST`、EPIC/LEGENDARY → `LOOT_RARE_BURST`(per-tier multiplier 1/1/1.5/2/3 由 #21 config 讀)。
+- **EC-18 [PROVISIONAL] → actualized**:#21 無 re-peek pattern(dismiss-peek 唔存在)— dedup by design;catch-up stream 用 aggregated effect(caller dedup 責任已兌現)。
+- **G-LM-2 reparent 時序**:pool 喺 #5 boot `add_child` 到 wrapper;`CelebrationVFXLayer` 等 #21(tail)`_ready` 先存在 → reparent 行 post-#21-boot handshake `register_celebration_layer(layer)`(idempotent;`null` = deregister re-home — lifecycle hygiene);LARGE tier(LOOT 專用 ×2)reparent + per-slot `PROCESS_MODE_ALWAYS`;SMALL/MEDIUM combat tiers 留 layer 0(saturation 降格 = deliberate 明度尺)。lazy-built LARGE(EC1)post-handshake 都落 layer。
+- Q-V4 部分閉(上述 mapping + contract)。

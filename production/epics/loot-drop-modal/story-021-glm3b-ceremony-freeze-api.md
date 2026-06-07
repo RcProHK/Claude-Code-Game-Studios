@@ -1,7 +1,7 @@
 # Story 021: G-LM-3b — #6 ceremony_freeze + release(handle) + saturation API
 
 > **Epic**: Loot Drop Modal (#21)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-07 — ①③④⑤ + EC-M3 主測試;ceremony_freeze→handle / idempotent release / saturation uniform path + recovery;解封 AC-1 release-shape / AC-12 freeze-shape / AC-54;combined 2083/2082/0 fail;commit 964b781)
 > **Layer**: Presentation(epic)/ 改動喺 Foundation #6
 > **Type**: Logic
 > **Estimate**: M

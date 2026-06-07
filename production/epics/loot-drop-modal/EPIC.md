@@ -103,8 +103,8 @@ This epic is complete when:
 | 017 | **G-LM-4a** #15 state 分離 + kind 持久化 + ②b breakdown 載體 + errata ×9 | Logic | ✅ Complete | ADR-0003 | (#15-side) |
 | 018 | **G-LM-4b** #15 handlers/signals(+micro_ack emit-order bug fix)| Integration | ✅ Complete | ADR-0009 | 解封 19/29/34b/65/71 |
 | 019 | **G-LM-4c** GSM wiring + fast-victory ⑧ + GSM errata ×2 | Integration | ✅ Complete | ADR-0006 | 37b |
-| 020 | **G-LM-3a** #6 ledger refactor + parity | Logic | Ready | ADR-0001 | (#6 零變紅) |
-| 021 | **G-LM-3b** #6 freeze/release/saturation API | Logic | Ready | ADR-0001 | 解封 1/12/54 |
+| 020 | **G-LM-3a** #6 ledger(hybrid 裁決)+ parity | Logic | ✅ Complete | ADR-0001 | (#6 零變紅) |
+| 021 | **G-LM-3b** #6 freeze/release/saturation API | Logic | ✅ Complete | ADR-0001 | 解封 1/12/54 |
 | 022 | **G-LM-2** #5 reparent handshake | Integration | Ready | ADR-0001 | 75 |
 | 023 | **G-LM-8+9** #4 catalog + process-mode + lint + #4 errata ×2 | Logic | Ready | ADR-0008 | 76,76b |
 | 024 | **G-LM-10** #17 batch seam + #17 errata ×3 | Logic | Ready | ADR-0003 | 解封 72/28/58 |

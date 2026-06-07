@@ -1,7 +1,7 @@
 # Story 020: G-LM-3a — #6 freeze 記帳 scalar→ledger refactor + behaviour-parity
 
 > **Epic**: Loot Drop Modal (#21)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-07 — **hybrid ledger 裁決**:hit-scalar 原封(parity by construction,#6 suite poke privates)+ ceremony per-entry dict,invariants 全保;#6 suites 120/120 零變紅;同 021 一齊落地 commit 964b781 — producer 拆分意圖(零變紅保護)以 hybrid 設計+suite run 滿足)
 > **Layer**: Presentation(epic)/ 改動喺 Foundation #6
 > **Type**: Logic
 > **Estimate**: M

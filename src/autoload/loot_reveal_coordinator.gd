@@ -278,6 +278,19 @@ func _ready() -> void:
 		# ADR-0006 C6 — covers the boot force-reveal case where GSM is
 		# already in LOOT_DROP before #21 (tail autoload) reaches _ready.
 		_gsm.connect_for_initial_state(_on_state_changed)
+	if _particles != null and _particles.has_method("register_celebration_layer"):
+		# G-LM-2 post-boot handshake — LOOT pool nodes reparent onto the >100
+		# layer (freeze-proof + saturation-immune). #21 is tail, so the layer
+		# only exists now.
+		_particles.register_celebration_layer(_celebration_vfx_layer)
+
+
+## Lifecycle hygiene (G-LM-2): hand the LOOT pool nodes back to the wrapper
+## before our layer frees them (production never tears down — autoload — but
+## tests do, and a freed layer must never strand the shared pool).
+func _exit_tree() -> void:
+	if _particles != null and is_instance_valid(_particles) and _particles.has_method("register_celebration_layer"):
+		_particles.register_celebration_layer(null)
 
 
 ## Pre-warmed, hidden until a reveal opens (HIDDEN state — FSM story 003).

@@ -187,6 +187,16 @@ class PoolSlot:
 
 var _pool: Array[PoolSlot] = []
 
+## #21 G-LM-2: CelebrationVFXLayer handshake target. The LOOT presets live on
+## the LARGE tier (Pillar 3 dedicated nodes) — those nodes reparent into the
+## >100 celebration layer (ADR-0001 #21 revision: BackBufferCopy-immune, so a
+## loot burst stays fully saturated while the world desaturates) and run
+## PROCESS_MODE_ALWAYS (a ceremony_freeze pauses the tree; the burst must keep
+## playing — it IS the freeze's visual anchor). The layer is #21-owned and only
+## exists after #21 (tail autoload) boots — hence a post-boot handshake instead
+## of a boot-order dependency.
+var _celebration_layer: Node = null
+
 ## Per-tier free lists: { TIER_SMALL: Array[int], TIER_MEDIUM: ..., TIER_LARGE: ... }.
 ## Dictionary values are Arrays held by reference, so pop_back/append mutate in place.
 var _free: Dictionary = {}
@@ -313,6 +323,54 @@ func _build_pool() -> void:
 	_build_tier_guarded(TIER_LARGE, POOL_SIZE_LARGE, AMOUNT_BUFFER_LARGE)
 
 
+## #21 G-LM-2 — post-#21-boot handshake (idempotent). #21 calls this from its
+## _ready tail with the CelebrationVFXLayer; every current AND future LARGE-tier
+## node moves onto the layer with PROCESS_MODE_ALWAYS.
+##
+## Usage (from #21): ParticleSystemWrapper.register_celebration_layer(layer)
+func register_celebration_layer(layer: Node) -> void:
+	if layer == _celebration_layer:
+		return  # idempotent — repeat registration is a no-op
+	if layer == null:
+		# Deregistration (owner tearing down — e.g. test lifecycle): re-home
+		# the LARGE nodes back onto the wrapper BEFORE the layer frees them.
+		_rehome_large_nodes()
+		_celebration_layer = null
+		return
+	_celebration_layer = layer
+	for slot in _pool:
+		_apply_celebration_residence(slot)
+
+
+func _rehome_large_nodes() -> void:
+	for slot in _pool:
+		if slot.tier != TIER_LARGE or not (slot.node is Node):
+			continue
+		var n: Node = slot.node
+		if is_instance_valid(n) and n.get_parent() != self:
+			if n.get_parent() != null:
+				n.get_parent().remove_child(n)
+			add_child(n)
+
+
+## Moves a LARGE-tier slot node onto the celebration layer (no-op pre-handshake
+## or for SMALL/MEDIUM combat tiers — their layer-0 saturation downgrade is the
+## deliberate luminance ruler).
+func _apply_celebration_residence(slot: PoolSlot) -> void:
+	if _celebration_layer != null and not is_instance_valid(_celebration_layer):
+		_celebration_layer = null  # defensive — a freed layer never strands the pool
+	if _celebration_layer == null or slot.tier != TIER_LARGE:
+		return
+	if not (slot.node is Node):
+		return
+	var n: Node = slot.node
+	if n.get_parent() != _celebration_layer:
+		if n.get_parent() != null:
+			n.get_parent().remove_child(n)
+		_celebration_layer.add_child(n)
+	n.process_mode = Node.PROCESS_MODE_ALWAYS
+
+
 ## Build a tier unless it is the EC1 slow-boot deferred tier (lazily built on first use).
 func _build_tier_guarded(tier: String, count: int, buffer: int) -> void:
 	if tier == _skip_tier_for_test:
@@ -342,6 +400,7 @@ func _build_tier(tier: String, count: int, amount_buffer: int) -> void:
 		if slot.node != null and slot.node is Node:
 			slot.node.amount = amount_buffer  # set ONCE at boot (Rule 5 — no runtime realloc)
 			add_child(slot.node)
+			_apply_celebration_residence(slot)  # lazy-built LARGE after handshake (EC1)
 		_pool.append(slot)
 		(_free[tier] as Array).append(slot.index)
 
