@@ -23,6 +23,11 @@ class MockGSM:
 	func connect_for_initial_state(callable: Callable) -> void:
 		state_changed.connect(callable)
 
+	func transition(to: int) -> void:
+		var from: int = state
+		state = to
+		state_changed.emit(from, to, null)
+
 
 var _sut = null
 var _inv = null
@@ -45,7 +50,8 @@ func before_each() -> void:
 
 
 func _put(id: StringName, rarity: int, lifecycle: int, locked: bool = false,
-		with_receipt: bool = false, slot: int = EquipmentEnums.EquipSlot.WEAPON) -> void:
+		with_receipt: bool = false, slot: int = EquipmentEnums.EquipSlot.WEAPON,
+		mods: Dictionary = {}) -> void:
 	var item: EquipmentItem = EquipmentItem.new()
 	item.item_id = id
 	item.item_type = LootEnums.ItemType.WEAPON
@@ -54,6 +60,7 @@ func _put(id: StringName, rarity: int, lifecycle: int, locked: bool = false,
 	item.rarity = rarity
 	item.is_locked = locked
 	item.acquired_at_unix = ACQ
+	item.stat_modifiers = mods
 	item.provenance_text = "prov %s" % String(id)
 	if with_receipt:
 		item.source_receipt = SourceReceipt.new()
@@ -240,6 +247,150 @@ func test_ac24_make_room_esc_clears_pending() -> void:
 	assert_true(_sut.handle_escape())
 	assert_eq(_sut.get_modal(), CoordinatorScript.ModalKind.NONE)
 	assert_eq(_sut.get_make_room_pending(), &"", "MAKE_ROOM ESC = 放棄(pending 清)")
+
+
+## ============ story 012: execute(AC-21/22/23/36) ============
+
+## #17 subclass — bulk_salvage 完成嗰刻(return 前)觸發 GSM force-close,
+## 模擬「confirm 同 frame force-close」嘅 executed 邊(EC-12 — transaction
+## 已成立,presentation 必須 skip)。
+class ForceCloseMidTransactionInventory:
+	extends InventorySystem
+	var gsm_to_transition = null
+
+	func bulk_salvage(rarity: int) -> Dictionary:
+		var result := super.bulk_salvage(rarity)
+		if gsm_to_transition != null:
+			gsm_to_transition.transition(GSMScript.GameState.WORKOUT_ACTIVE)
+		return result
+
+
+class SfxSpy:
+	extends Node
+	var sfx_calls: Array = []
+
+	func play_sfx(event_id: StringName) -> void:
+		sfx_calls.append(event_id)
+
+
+func test_ac21_confirm_executes_with_toast_single_cue_locked_survive() -> void:
+	# Arrange: 3 unlocked + 1 locked(rarity 0)+ SFX spy。
+	for i in 3:
+		_put(StringName("victim_%d" % i), 0, EquipmentEnums.ItemLifecycle.IN_INVENTORY)
+	_put(&"protected", 0, EquipmentEnums.ItemLifecycle.IN_INVENTORY, true)
+	var audio := SfxSpy.new()
+	add_child_autofree(audio)
+	_sut._audio = audio
+	_open()
+	_sut.open_bulk_select()
+	_sut.bulk_row_tap(0)
+	audio.sfx_calls.clear()
+	# Act
+	var result: Dictionary = _sut.confirm_bulk_salvage()
+	# Assert: toast 報 execute return + 恰好 1 響 + modal NONE + re-read。
+	assert_true(result["ok"])
+	assert_eq(_sut.get_toast()["text"],
+		"已分解 %d 件 — +%d 碎片" % [3, 3 * InventoryScript.salvage_yield(0)])
+	assert_eq(audio.sfx_calls, [&"ui_salvage_execute"] as Array, "恰好一響(transaction stamp)")
+	assert_eq(_sut.get_modal(), CoordinatorScript.ModalKind.NONE)
+	assert_eq(_sut.get_inventory_view().size(), 1, "re-read — 剩 locked 件")
+	assert_not_null(_inv.get_item(&"protected"), "locked 件全存活(AC-21)")
+
+
+func test_ac22_drift_between_preview_and_execute_toasts_truth() -> void:
+	# Arrange: 3 件 → row-tap preview = 3。
+	for i in 3:
+		_put(StringName("v%d" % i), 0, EquipmentEnums.ItemLifecycle.IN_INVENTORY)
+	_open()
+	_sut.open_bulk_select()
+	_sut.bulk_row_tap(0)
+	assert_eq(_sut.get_bulk_confirm_view()["header"]["count"], 3, "preview 快照 = 3")
+	# Drift: execute 前外部 mutation(另一路徑食咗一件)。
+	_inv.salvage(&"v0")
+	# Act
+	var result: Dictionary = _sut.confirm_bulk_salvage()
+	# Assert: execute 用 #17 當下真值;toast ≠ preview;零 crash(EC-01)。
+	assert_eq(int(result["count"]), 2, "execute 當下真值")
+	assert_eq(_sut.get_toast()["text"],
+		"已分解 %d 件 — +%d 碎片" % [2, 2 * InventoryScript.salvage_yield(0)],
+		"toast 報 execute return,唔報 preview 數")
+
+
+func test_ac22_boundary_execute_zero_count_honest_toast() -> void:
+	# 邊界:preview 後全部被外部食晒 → execute 0 — toast 照報 execute 真值。
+	_put(&"only", 0, EquipmentEnums.ItemLifecycle.IN_INVENTORY)
+	_open()
+	_sut.open_bulk_select()
+	_sut.bulk_row_tap(0)
+	_inv.salvage(&"only")
+	var result: Dictionary = _sut.confirm_bulk_salvage()
+	assert_eq(int(result["count"]), 0)
+	assert_eq(_sut.get_toast()["text"], "已分解 0 件 — +0 碎片", "execute 真值照報")
+
+
+func test_ac23_equipped_in_range_auto_unequip_backfill_reflected() -> void:
+	# Arrange: equipped rarity-0 件(range 內)+ 後備同 slot rarity-4 件
+	#(range 外;有 mods — backfill 要 strictly-better-than-empty)。
+	_put(&"worn_cheap", 0, EquipmentEnums.ItemLifecycle.EQUIPPED)
+	_inv._loadout[EquipmentEnums.EquipSlot.WEAPON] = &"worn_cheap"
+	_put(&"backup_epic", 4, EquipmentEnums.ItemLifecycle.IN_INVENTORY, false, false,
+		EquipmentEnums.EquipSlot.WEAPON, {&"max_hp": 10.0})
+	_open()
+	_sut.open_bulk_select()
+	_sut.bulk_row_tap(0)
+	# Act
+	var result: Dictionary = _sut.confirm_bulk_salvage()
+	# Assert: equipped 件被食 → #17 auto-unequip + backfill → re-read 反映。
+	assert_true(result["ok"])
+	assert_null(_inv.get_item(&"worn_cheap"), "equipped unlocked 件喺 range 內(Rule 18)")
+	var views: Array = _sut.get_inventory_view()
+	assert_eq(views.size(), 1)
+	assert_true(bool(views[0]["equipped"]),
+		"backfill 後備件自動補上 — re-read 反映現役 badge(AC-23)")
+
+
+func test_ac36_force_close_mid_transaction_executes_skips_presentation() -> void:
+	# Arrange: mid-transaction force-close 特製 #17(EC-12 executed 邊)。
+	var inv2 := ForceCloseMidTransactionInventory.new()
+	inv2._persistence = MockPersistenceLayer.new()
+	inv2._gsm = MockInventoryGSM.new()
+	inv2._stat_system = MockInventoryStat.new()
+	inv2._stat_table = load(TABLE_PATH)
+	add_child_autofree(inv2)
+	inv2.gsm_to_transition = _gsm
+	var item: EquipmentItem = EquipmentItem.new()
+	item.item_id = &"victim"
+	item.item_type = LootEnums.ItemType.WEAPON
+	item.slot_affinity = EquipmentEnums.EquipSlot.WEAPON
+	item.lifecycle_state = EquipmentEnums.ItemLifecycle.IN_INVENTORY
+	item.rarity = 0
+	item.acquired_at_unix = ACQ
+	inv2._items[&"victim"] = item
+	_sut._inventory = inv2
+	var audio := SfxSpy.new()
+	add_child_autofree(audio)
+	_sut._audio = audio
+	_open()
+	_sut.open_bulk_select()
+	_sut.bulk_row_tap(0)
+	audio.sfx_calls.clear()
+	var view_before: Array = _sut.get_inventory_view()
+	# Act: confirm — dispatch 期間 GSM → WORKOUT_ACTIVE(force-close 落地)。
+	var result: Dictionary = _sut.confirm_bulk_salvage()
+	# Assert: #17 state 已變(transaction 成立)。
+	assert_true(result["ok"])
+	assert_null(inv2.get_item(&"victim"), "#17 已執行(synchronous 已執行就成立)")
+	assert_eq(inv2.get_forge_shards(), InventoryScript.salvage_yield(0))
+	# 零 toast 零 SFX 零 re-read(presentation skip)。
+	assert_true(_sut.get_toast().is_empty(), "零 toast(AC-36)")
+	assert_eq(audio.sfx_calls.size(), 0, "零 SFX(force-close path CD C1)")
+	assert_true(is_same(view_before, _sut.get_inventory_view()), "零 re-read(同一 view object)")
+	# Screen 跟 force-close 收口;下次 open render 新 state。
+	_sut.advance(TimingConfig.FORCE_CLOSE_MAX_MS)
+	assert_eq(_sut.get_screen_state(), CoordinatorScript.ScreenState.CLOSED)
+	_gsm.state = GSMScript.GameState.IDLE
+	assert_true(_sut.open())
+	assert_eq(_sut.get_inventory_view().size(), 0, "下次 open 收割 — render 新 state")
 
 
 func test_tabs_blocked_while_modal_open() -> void:

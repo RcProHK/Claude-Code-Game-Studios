@@ -1,7 +1,7 @@
 # Story 012: Bulk execute + preview-execute drift + EC-12 兩邊
 
 > **Epic**: Inventory UI (#23)
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Presentation
 > **Type**: Integration
 > **Estimate**: M
@@ -25,10 +25,10 @@
 
 ## Acceptance Criteria
 
-- [ ] **AC-21**:confirm → toast 報 **execute return**(count/shards — thousands separators[017 落地前 placeholder + TODO])+ `ui_salvage_execute` 恰好 1 響 + `modal := NONE` + re-read;locked 件全存活
-- [ ] **AC-22**:row-tap preview 後 execute 前外部 mutation(test 直接 `_inv.salvage(victim)`)→ confirm → execute 當下真值,toast ≠ preview — 零 crash
-- [ ] **AC-23**:equipped unlocked 件喺 range → #17 auto-unequip + backfill → re-read 反映
-- [ ] **AC-36**:confirm 同 frame GSM force-close(EC-12 executed 邊)→ #17 state 已變(count/shards assert)+ 零 toast 零 SFX 零 re-read;下次 open render 新 state
+- [x] **AC-21**:confirm → toast 報 **execute return**(count/shards — thousands separators[017 落地前 placeholder + TODO])+ `ui_salvage_execute` 恰好 1 響 + `modal := NONE` + re-read;locked 件全存活
+- [x] **AC-22**:row-tap preview 後 execute 前外部 mutation(test 直接 `_inv.salvage(victim)`)→ confirm → execute 當下真值,toast ≠ preview — 零 crash(+ 0-count 誠實邊界)
+- [x] **AC-23**:equipped unlocked 件喺 range → #17 auto-unequip + backfill → re-read 反映(backup 要有 mods — strictly-better-than-empty 先 backfill)
+- [x] **AC-36**:confirm 同 frame GSM force-close(EC-12 executed 邊)→ #17 state 已變(count/shards assert)+ 零 toast 零 SFX 零 re-read;下次 open render 新 state(mid-transaction subclass 模擬)
 
 ## Implementation Notes
 
@@ -47,7 +47,15 @@
 
 **Story Type**: Integration
 **Required evidence**: `tests/integration/inventory_ui/test_invui_bulk.gd`
-**Status**: [ ] Not yet created
+**Status**: [x] Created — +5 tests(suite 17)全 pass;combined gate CLEAN 2339/2338/0 fail(2026-06-08)
+
+## Completion Notes
+
+**Completed**: 2026-06-08
+**Criteria**: 4/4 passing
+**Deviations**: AC-36 實現機制 — `confirm_bulk_salvage` dispatch 後 re-check `_state != OPEN` 先 skip presentation;test 用 `ForceCloseMidTransactionInventory` subclass(bulk_salvage return 前觸發 GSM transition)模擬「同 frame」executed 邊 — 確定性重現 EC-12
+**Test Evidence**: +5 tests — AC-21(SfxSpy 恰好一響 + locked 存活)/ AC-22 drift + 0-count / AC-23 backfill badge / AC-36 全鏈(transaction 成立 + 三零 + is_same view 證零 re-read + 下次 open 收割)
+**Code Review**: Complete — degraded inline APPROVED / ADEQUATE(spawn block 持續)
 
 ## Dependencies
 

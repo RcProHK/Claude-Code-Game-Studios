@@ -851,6 +851,36 @@ func _count_equipped_unlocked(rarity: int) -> int:
 	return n
 
 
+## Confirm → execute(story 012;Rule 16/17 + EC-01/12)。
+## Toast 報 **execute return**(#17 當下真值 — 唔報 row-tap preview 數;
+## 兩者可以唔同,EC-01 處理唔係 bug);`ui_salvage_execute` 恰好一響
+## (transaction stamp,count-invariant — 唔 per 件);`modal := NONE`
+## (連環 bulk 由玩家重開,sheet re-enter 自然攞新 preview)。
+func confirm_bulk_salvage() -> Dictionary:
+	if not _command_allowed() or _modal != ModalKind.BULK_CONFIRM:
+		return {"ok": false, "error": "no_confirm_context"}
+	var result: Dictionary = _inventory.bulk_salvage(_bulk_rarity)
+	_bulk_rarity = -1
+	_bulk_preview = {}
+	if _state != ScreenState.OPEN:
+		# EC-12 executed 邊(AC-36):dispatch 期間 force-close 落地 — #17
+		# single transaction 已成立;presentation 全 skip(零 toast 零 SFX
+		# 零 re-read — modal/transients 已由 _enter_closed/_on_gsm 清),
+		# 下次 open 收割(open 嘅 sync read 自然 render 新 state)。
+		return result
+	_modal = ModalKind.NONE
+	if result.get("ok", false):
+		_reread_all()  # bulk rebuild — list 層 scroll reset 頂(EC-14;005 API)
+		_play_sfx(&"ui_salvage_execute")
+		# TODO(story 017 G-IU-5):shards 數字換 thousands-separator shared formatter。
+		_show_toast("已分解 %d 件 — +%d 碎片" % [
+			int(result.get("count", 0)), int(result.get("shards", 0)),
+		])
+	else:
+		_handle_command_error(result)
+	return result
+
+
 ## ---- modal dismiss routing(story 011;States return-target 表 + EC-07) ----
 
 ## Per-modal dismiss(cancel button / scrim tap / ESC 三者等效 — 一律呢度)。
