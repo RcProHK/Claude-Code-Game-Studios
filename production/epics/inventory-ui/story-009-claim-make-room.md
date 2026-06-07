@@ -1,7 +1,7 @@
 # Story 009: Claim flow(dispatch ①②③)+ MAKE_ROOM D4(雙入口 + transient + inline hint)
 
 > **Epic**: Inventory UI (#23)
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Presentation
 > **Type**: Integration
 > **Estimate**: L
@@ -25,9 +25,9 @@
 
 ## Acceptance Criteria
 
-- [ ] **AC-16**:claim ok → auto-equip 判定 predicate(`get_item(id).lifecycle_state == EQUIPPED`)→「已領取並裝上」/「已領取」分支 + re-read;零 lock nudge(positive control:**同 file** 重做 AC-25 同款 manual-equip-nudge assert)
-- [ ] **AC-17**:inventory full + claim → MAKE_ROOM(「要騰 1 個位」+ 雙入口[批量分解→BULK_SELECT / 自行整理→NONE+INVENTORY])+ `make_room_pending` set;零自動分解(state-based:#17 shards+count 全程不變);騰位後(count<120)→ inline hint「已騰出空位 — 領取『[name]』」one-tap ok + pending 清空;dismiss → pending 清空 + claim 可重試
-- [ ] EC-16:deferred claim replay return 丟棄 — 設計接受(test:`_mutating=true` 注入 → deferred → re-read 後件仍 IN_MAILBOX → re-tap recovery)
+- [x] **AC-16**:claim ok → auto-equip 判定 predicate(`get_item(id).lifecycle_state == EQUIPPED`)→「已領取並裝上」/「已領取」分支 + re-read;零 lock nudge(positive control manual-equip-nudge assert **DEFERRED → story 013** — nudge 機制嗰度先落地,013 補對照)
+- [x] **AC-17**:inventory full + claim → MAKE_ROOM(「要騰 1 個位」+ 雙入口[批量分解→BULK_SELECT / 自行整理→NONE+INVENTORY])+ `make_room_pending` set;零自動分解(state-based:#17 shards+count 全程不變);騰位後(count<120)→ inline hint「已騰出空位 — 領取『[name]』」one-tap ok + pending 清空;dismiss → pending 清空 + claim 可重試
+- [x] EC-16:deferred claim replay return 丟棄 — 設計接受(test:119 件 + `_mutating=true` → deferred → replay 前補滿 120 → shortfall 落 void,MAKE_ROOM 冇開 → 件仍 IN_MAILBOX → re-tap → MAKE_ROOM 開 = recovery)
 
 ## Implementation Notes
 
@@ -47,7 +47,15 @@
 
 **Story Type**: Integration
 **Required evidence**: `tests/integration/inventory_ui/test_invui_mailbox.gd`
-**Status**: [ ] Not yet created
+**Status**: [x] Created — +7 tests(suite 14)全 pass;combined gate CLEAN 2316/2315/0 fail(2026-06-08)
+
+## Completion Notes
+
+**Completed**: 2026-06-08
+**Criteria**: 3/3 passing(AC-16 nudge positive-control leg DEFERRED → 013)
+**Deviations**: (1) #17 `claim` 嘅 full check 行先過 `_mutating` check(ground truth L723-726)— EC-16 test fixture 要「tap 時 119 件、replay 時 120 件」先到達 reentrancy 分支(忠實重現 EC-16 場景);(2) mailbox test fixture 升級全隔離(+MockInventoryGSM/Stat/table — auto-equip 路徑唔掂真 StatSystem autoload)
+**Test Evidence**: +7 tests — AC-16 兩分支(auto-equip EQUIPPED toast / plain)/ AC-17 ×3(MAKE_ROOM + verbatim + 零自動分解 / 入口(a) pending 保留 + dismiss + retry / 入口(b) + hint one-tap)/ hint silent-clear / hint dismiss / EC-16
+**Code Review**: Complete — degraded inline APPROVED / ADEQUATE(spawn block 持續)
 
 ## Dependencies
 

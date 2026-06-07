@@ -101,6 +101,8 @@ var _modal: int = ModalKind.NONE
 ## MAKE_ROOM claim-target transient (Rule 11;零 persist — open reset / close /
 ## force-close / claim 成功 / not_in_mailbox / MAKE_ROOM dismiss 一律清空)。
 var _make_room_pending: StringName = &""
+## claim ② return 嘅 shortfall(verbatim render — #17 invariant 下 N≡1)。
+var _make_room_shortfall: int = 0
 var _offline_banner: bool = false
 var _anim_elapsed_ms: float = 0.0
 
@@ -461,11 +463,18 @@ func claim_item(item_id: StringName) -> Dictionary:
 	if result.get("ok", false):
 		_make_room_pending = &""  # claim 成功清空(States 表)
 		_reread_all()
-		_show_toast("已領取")  # EC-05「已領取並裝上」分支 — story 009
+		# EC-05:auto-equip 判定 predicate(claim 觸發 #17 評估 — re-read 後
+		# 睇 lifecycle)。零 lock nudge — auto-equip 係 #17 機器,唔係 player
+		# 手動選擇(#22 Rule 24 silent-accept 口徑)。
+		var claimed = _inventory.get_item(item_id)
+		var auto_equipped: bool = claimed != null \
+				and claimed.lifecycle_state == EquipmentEnums.ItemLifecycle.EQUIPPED
+		_show_toast("已領取並裝上" if auto_equipped else "已領取")
 		return result
 	# ② shortfall(MAKE_ROOM — D4;claim target 入 transient pending)。
 	if int(result.get("shortfall", 0)) > 0:
 		_make_room_pending = item_id
+		_make_room_shortfall = int(result["shortfall"])
 		_modal = ModalKind.MAKE_ROOM
 		_play_sfx(&"ui_sheet_open")
 		return result
@@ -483,6 +492,80 @@ func claim_item(item_id: StringName) -> Dictionary:
 	_reread_all()
 	_show_toast("操作失敗(%s)" % err)
 	return result
+
+
+## ---- MAKE_ROOM(story 009;Rule 11 D4 — 雙入口 + transient + inline hint) ----
+
+## MAKE_ROOM sheet view(D4 copy;shortfall verbatim — #17 invariant N≡1,
+## L725 公式只產 1;中文無複數,copy 零問題)。{} = modal 唔係 MAKE_ROOM。
+func get_make_room_view() -> Dictionary:
+	if _modal != ModalKind.MAKE_ROOM:
+		return {}
+	return {
+		"title": "倉滿 — 要騰 %d 個位" % _make_room_shortfall,
+		"claim_target": _make_room_pending,
+	}
+
+
+## 入口 (a)「批量分解」→ BULK_SELECT(pending 保留 — BULK_CONFIRM
+## claim-target warning 喺 story 011 接;兌現 #17 bulk-salvage shortcut 期望)。
+## Cue:前 modal 關一響 + 後 modal 開一響(map「兩層連開 = 兩響」口徑)。
+func make_room_bulk_entry() -> void:
+	if _modal != ModalKind.MAKE_ROOM:
+		return
+	_modal = ModalKind.BULK_SELECT
+	_play_sfx(&"ui_sheet_close")
+	_play_sfx(&"ui_sheet_open")
+
+
+## 入口 (b)「自行整理」→ modal NONE + 切 INVENTORY(= Rule 23 visibility
+## re-read)。States 表明文:呢個入口係 tabs-封鎖嘅唯一例外 — 佢本身 set NONE。
+func make_room_self_organize() -> void:
+	if _modal != ModalKind.MAKE_ROOM:
+		return
+	_modal = ModalKind.NONE
+	_play_sfx(&"ui_sheet_close")
+	set_active_section(SectionKind.INVENTORY)
+
+
+## Dismiss(cancel / scrim / ESC 等效)= 放棄:pending 清空(States 表);
+## claim button 唔 disable — 重試 = 再 tap 領取(EC-04)。
+func make_room_dismiss() -> void:
+	if _modal != ModalKind.MAKE_ROOM:
+		return
+	_modal = ModalKind.NONE
+	_make_room_pending = &""
+	_play_sfx(&"ui_sheet_close")
+
+
+## Inline hint strip(P-14 文法;L0 static — 唔 slide 唔 pulse)。
+## 騰夠位(count < cap)+ pending 件仍 IN_MAILBOX 先 render;件已消失
+## (被 bulk 食咗 — QA note)→ 清 pending,silent。{} = 唔 render。
+func get_make_room_hint() -> Dictionary:
+	if _make_room_pending == &"" or _modal != ModalKind.NONE:
+		return {}
+	if _inventory_count >= InvUiFormulas.InventoryScript.MAX_INVENTORY:
+		return {}
+	var item = _inventory.get_item(_make_room_pending) if _inventory != null else null
+	if item == null or item.lifecycle_state != EquipmentEnums.ItemLifecycle.IN_MAILBOX:
+		_make_room_pending = &""  # implementer note:件唔再喺 mailbox → 清,silent
+		return {}
+	return {
+		"text": "已騰出空位 — 領取「%s」" % String(_make_room_pending),
+		"item_id": _make_room_pending,
+	}
+
+
+## Hint one-tap claim(P-14 action)。
+func hint_claim_tap() -> Dictionary:
+	if _make_room_pending == &"":
+		return {"ok": false, "error": "no_pending"}
+	return claim_item(_make_room_pending)
+
+
+## Hint dismiss X = 放棄(pending 清空;claim 可重試)。
+func hint_dismiss() -> void:
+	_make_room_pending = &""
 
 
 ## ---- toast(= #22 transient pattern;injected clock) ----
