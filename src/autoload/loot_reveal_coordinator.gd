@@ -1216,6 +1216,10 @@ func _open_toast(acks: Array) -> void:
 	_toast_node = Node2D.new()  # icon + tier tint skin lands with UI; ZERO text node
 	_toast_node.name = "MicroAckToast"
 	_toast_container.add_child(_toast_node)
+	# Toast 一律配 tick(low/mono)— fanfare 音色家族 modal 獨家(#15 L204
+	# erratum;cue id 屬 G-LM-8 freeze 表)。
+	if _audio != null and _audio.has_method("play_sfx"):
+		_audio.play_sfx(&"loot_toast_tick")
 
 
 func _toast_tick(delta: float) -> void:

@@ -1,7 +1,7 @@
 # Story 022: G-LM-2 — #5 LOOT pool reparent + PROCESS_MODE_ALWAYS + handshake
 
 > **Epic**: Loot Drop Modal (#21)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-07 — handshake + AC-75 property asserts + lazy-build EC1 + lifecycle hygiene(null deregister re-home — test isolation 發現);#5 GDD sync appendix;combined 2086/2085/0 fail;commit b8f6af7)
 > **Layer**: Presentation(epic)/ 改動喺 Foundation #5
 > **Type**: Integration
 > **Estimate**: S

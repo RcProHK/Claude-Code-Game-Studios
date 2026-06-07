@@ -105,7 +105,7 @@ This epic is complete when:
 | 019 | **G-LM-4c** GSM wiring + fast-victory ⑧ + GSM errata ×2 | Integration | ✅ Complete | ADR-0006 | 37b |
 | 020 | **G-LM-3a** #6 ledger(hybrid 裁決)+ parity | Logic | ✅ Complete | ADR-0001 | (#6 零變紅) |
 | 021 | **G-LM-3b** #6 freeze/release/saturation API | Logic | ✅ Complete | ADR-0001 | 解封 1/12/54 |
-| 022 | **G-LM-2** #5 reparent handshake | Integration | Ready | ADR-0001 | 75 |
+| 022 | **G-LM-2** #5 reparent handshake | Integration | ✅ Complete | ADR-0001 | 75 |
 | 023 | **G-LM-8+9** #4 catalog + process-mode + lint + #4 errata ×2 | Logic | Ready | ADR-0008 | 76,76b |
 | 024 | **G-LM-10** #17 batch seam + #17 errata ×3 | Logic | Ready | ADR-0003 | 解封 72/28/58 |
 | 025 | **G-LM-6** announce_aria + SR | Logic | Ready | N/A(gateway) | 77 |

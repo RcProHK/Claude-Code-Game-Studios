@@ -155,6 +155,10 @@ signal bgm_changed(track_id: StringName)
 
 
 func _ready() -> void:
+	# #21 G-LM-9: ceremony_freeze pauses the SceneTree — a PAUSABLE AudioManager
+	# would stutter the fanfare 0.4s right at the dopamine peak. ALWAYS keeps the
+	# SFX pool players (children — they inherit) running through the freeze.
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	# Resolve DI seams to autoload singletons. Tests inject mocks BEFORE add_child (the
 	# `== null` guards leave an injected seam untouched), so this never clobbers a mock.
 	if _gsm == null:

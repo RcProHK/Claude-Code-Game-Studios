@@ -462,3 +462,31 @@ Attack 用 `ATTACK_SEC` lerp 落，release（high-priority SFX `finished` 或 st
 - **Q-PENDING-BLK8-CO ✅ RESOLVED 2026-06-03 (EG-3 confirmed)**：LOOT_DROP from BOSS_ENCOUNTER → conditional boss_theme→rest_calm fade-back（Rule 6 情境A）**已確認正確**。證據：(1) **GSM GDD line 213**（BossEncounter state transitions）明定 `Boss defeated → LootDrop (BossOutcome.DEFEATED)` + `workout_completed → LootDrop (INTERRUPTED_WITH_CREDIT)` → **final boss kill 入 LOOT_DROP 嘅 from_state == BOSS_ENCOUNTER**。(2) **#15 LootDrop GDD line 71** = 純 data/event layer（收 boss_killed/enemy_killed/workout_completed → generate loot + emit ceremony signal），**唔 own GSM state transition** → 無 contradict from-state。(3) Nuance：mini-boss 喺 COMBAT_ACTIVE（非 BOSS_ENCOUNTER；GSM line 213「Boss 戰 promote 自 CombatActive」= final boss）+ deferred-reveal loot 從 safe state 入 → 兩者 from ≠ BOSS_ENCOUNTER 且 boss_theme 已停，audio 正確唔 fire 情境A。**唯一 boss_theme 響緊 + 入 LOOT_DROP 嘅 path = final boss via BOSS_ENCOUNTER，啱啱好 == 情境A 判別。** EG-3 CLOSED — 無需改 audio 或 #15 GDD。
 - **Q-PENDING-B1-CO（Pass 4 resolved — needs #9 patch）**：Forward contract 已落入 Dependencies section。**#9 WST GDD（已 Approved）需 patch** 加 `audio_unlocked` subscribe + mid/high SFX buffer/flush 邏輯。Owner：game-designer + #9 WST GDD。此 patch 係 #9 revision，唔係 /design-system 新 GDD。
 - **Q-CLEANUP（Pass 4 RECOMMENDED）**：`_exit_tree()` / `NOTIFICATION_PREDELETE` 中 kill retained Tweens（`_duck_tween.kill()`, `_crossfade_tween.kill()`）防 shutdown dangling Tween callback。低優先，可 implementation story 順手做。
+
+---
+
+## Errata + G-LM-8 Cue Freeze 表(2026-06-07 — #21 stories 023 執行)
+
+### Errata ×2
+
+1. **Catalog source 列**:`loot_fanfare_*` 觸發 caller = **#21 LootRevealCoordinator @ S0 frame**(EG-1 precedent — data layer 唔 call play_sfx;#15 唔係 caller)。
+2. **AudioManager process-mode**:`PROCESS_MODE_ALWAYS`(code-set 喺 `_ready`)— `ceremony_freeze`(#6 G-LM-3)用 `get_tree().paused`,PAUSABLE audio 會令 fanfare 喺 dopamine peak 停 0.4s;SFX pool players 係 children 自動繼承。CI lint:`tools/ci/check_autoload_process_modes.gd`(audio_manager / loot_reveal_coordinator / screen_effects 三檔 marker)。
+
+### G-LM-8 Cue Freeze 表(BINDING co-design 記錄;`SfxCatalog.tres` 由 /asset-spec 產 — streamless catalog 會反轉 safe no-op mode,唔 ship 半生 tres)
+
+| event_id | Priority | Channels | Duck | Note |
+|---|---|---|---|---|
+| `loot_fanfare_common` | LOW | mono | per-tier ceremony duck 照 #4 flat −8dB 機制 | tier sting 家族(#15 §D 音色) |
+| `loot_fanfare_uncommon` | LOW | mono | 同上 | |
+| `loot_fanfare_rare` | MID | mono | 同上 | |
+| `loot_fanfare_epic` | MID | stereo | 同上 | |
+| `loot_fanfare_legendary` | HIGH | stereo | 同上;0.1s pre-roll 對齊 pre-shake | ~1.6s orchestral |
+| `sfx_loot_shutter_dismiss` | **MID / mono / NO-DUCK** | mono | 無 | S4 快門 — 儀式錨點唔俾 combat-class 食(`audio_unlock_confirm` 升 mid 同構);單一共用唔分 tier |
+| `sfx_loot_contactsheet_enter` | LOW | mono | 無 | exposure sweep whoosh ≤0.6s |
+| `loot_stream_aggregate` | LOW | mono | **單一 duck handle −4dB sustained**(catch-up 全程;exit release) | ≤stream 長度 riser/coin-shower;**禁 per-beat fanfare**(D4) |
+| `loot_toast_tick` | LOW | mono | 無 | ≤0.15s;toast 一律 tick — fanfare 家族 modal 獨家(#15 L204 erratum);`FLUSH_DELAY` 下限 0.15s 避開 set_complete/streak_chime stagger |
+| `sfx_loot_stash_put` | — | — | — | **default SILENT**(stash 語境 = 玩家已唔望 mon;acknowledgment 由 flush toast 承擔) |
+| Grid hero-cell sting | 條件化 | — | — | 只喺 hero 件未經 full ceremony 先播(2 秒內同 peak 播兩次 = devaluation) |
+
+**Voice pool 重估(catch-up 包絡)**:stream 全程單一 aggregated cue(1 voice + 1 duck handle)+ per-ceremony fanfare(≤1 並發,EC-M9 gap 隔開)+ shutter(no-duck)— 8-voice pool 充裕;機關槍 per-beat 方案已禁(D4),洪水 steal 場景消滅。
+**Lint scope 裁決(原 OQ-4)**:cue id 註冊 lint 隨 `/asset-spec` 產 tres 時一齊開(catalog 未 ship 前 lint 無對象)。
