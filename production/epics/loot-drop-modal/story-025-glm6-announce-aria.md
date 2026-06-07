@@ -1,7 +1,7 @@
 # Story 025: G-LM-6 — platform_detect announce_aria + SR announcement
 
 > **Epic**: Loot Drop Modal (#21)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-07 — gateway + boot inject + AC-77 once-only + short variant + grid aggregate;AccessKit web spike 結論 = VS-tier double-announcement check(027);combined 2097/2096/0 fail;commit d206514)
 > **Layer**: Presentation(epic)/ 改動喺 platform_detect + #21
 > **Type**: Logic
 > **Estimate**: M

@@ -108,7 +108,7 @@ This epic is complete when:
 | 022 | **G-LM-2** #5 reparent handshake | Integration | ✅ Complete | ADR-0001 | 75 |
 | 023 | **G-LM-8+9** #4 catalog freeze 表 + process-mode + lint(tres→/asset-spec)| Logic | ✅ Complete | ADR-0008 | 76,76b |
 | 024 | **G-LM-10** #17 batch seam + #17 errata ×3 | Logic | ✅ Complete | ADR-0003 | 解封 72/28/58 |
-| 025 | **G-LM-6** announce_aria + SR | Logic | Ready | N/A(gateway) | 77 |
+| 025 | **G-LM-6** announce_aria + SR | Logic | ✅ Complete | N/A(gateway) | 77 |
 | 026 | Cross-system integration suite | Integration | Ready | ADR-0006 | 54,71-74,78 |
 | 027 | Visual/UI evidence pack(ADVISORY) | Visual/Feel | Ready | ADR-0001 | 9,80-88 |
 
