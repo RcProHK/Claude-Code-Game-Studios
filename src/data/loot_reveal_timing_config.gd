@@ -89,6 +89,16 @@ const ATTENTION_CEILING_MS: int = 1200
 @export var toast_max_lifetime_sec: float = 3.0  # 2.0–5.0 — ack stream can't pin a toast forever
 @export var flush_delay_sec: float = 0.15     # 0.15–0.3 — lower bound dodges the #4 stagger window
 
+# ── Catch-up (contact-sheet) knobs — stories 014/015. threshold + cadence are
+#    #15-GDD-locked numbers mirrored here until #15 ships a code carrier. ──
+
+@export var catch_up_threshold: int = 5       # #15 Formula 6 — depth ≥ this → CATCHUP_PROMPT
+@export var stream_beat_sec: float = 0.15     # #15 locked — per-beat cadence
+@export var banner_beat_sec: float = 0.3      # banner→stream 過場 (F3 T_banner_beat)
+@export var max_stream_beats: int = 40        # 20–80 — overflow折入 grid (F3 bound)
+@export var k_ceremony_max: int = 5           # 3–8 — catch-up full-ceremony cap (C-1 互動)
+@export var grid_entry_sec: float = 0.5       # contact-sheet 入場 (F3 T_grid)
+
 
 ## Data-load assert (F1 + Tuning Knobs flash budget). Empty result == valid.
 func validate() -> Array[String]:

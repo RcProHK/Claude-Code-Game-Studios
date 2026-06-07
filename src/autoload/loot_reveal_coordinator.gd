@@ -184,6 +184,19 @@ var _force_closed_mid_exit: bool = false  # force-close landed mid-S4 → no gap
 var _rolled_ids: Array[String] = []
 var _rollback_gap_pending: bool = false  # gap before the next ENTRY after a rollback-cancel
 
+## Catch-up (contact-sheet) state — stories 014/015. Drops are SELECTED ONCE
+## at reveal-all (K-cap never re-picks — EC-M8/Rule 11); phases never revisit
+## (termination guarantee).
+var _prompt_count: int = 0               # banner N (EC-M18 in-place updates)
+var _catchup_stream: Array = []          # sub-RARE drops, display order
+var _catchup_stream_displayed: Array = []  # display-only beats awaiting batch commit (015)
+var _catchup_stream_index: int = 0
+var _stream_clock_ms: float = 0.0
+var _stream_phase: String = ""           # "banner" / "beats"
+var _catchup_ceremonies: Array = []      # RARE+ drops, ascending reveal order
+var _catchup_grid_items: Array = []      # overflow (sub-RARE 「+N」-able + RARE+ own cells)
+var _catchup_phase: String = ""          # "stream" / "ceremonies" / "grid" — 唔回頭
+
 ## Deferred acknowledgement bucket (F4 — story 013 owns aggregation/flush;
 ## EC-M14 CONVERTED_DUPE shard acks land here from 009). Entry shape:
 ## {tier:int, reason:String, n:int(default 1)}.
@@ -358,13 +371,17 @@ func _on_state_changed(_from_state, to_state, _payload) -> void:
 		return  # safe→safe mid-modal continues (EC-M11 — no stash, no cancel)
 	if _state != ModalState.HIDDEN:
 		return  # Rule 6 one-modal-at-a-time (re-entry guarded)
-	if _queue_depth() > 0:
-		_open_reveal_flow()
-	else:
+	# EC-M13 — single entry point, ONE depth read, exclusive branch: the
+	# force-transition only decides WHEN; the flow is the queue depth's call.
+	var depth: int = _queue_depth()
+	if depth == 0:
 		# Rule 13 — empty-queue LOOT_DROP entry (rollback race): emit the
 		# terminal immediately or GSM is stuck (seam runs the #15 chain).
 		modal_dismissed.emit("", true)
-	# depth ≥ CATCH_UP_THRESHOLD → CATCHUP_PROMPT branch (story 014 — AC-26).
+	elif depth >= _timing_config.catch_up_threshold:
+		_open_catchup_prompt(depth)
+	else:
+		_open_reveal_flow()
 
 
 ## EC-M1 — bfcache/suspend mid-reveal: #6's Suspended override hard-cancels
@@ -465,7 +482,15 @@ func _cancel_reveal() -> void:
 
 ## Rule 2 — doorbell/prep semantics ONLY. NOT an "open modal now" command:
 ## mid-set deferral is GSM Rule 13's job; #21 never builds its own wait queue.
-func _on_loot_dropped(_drop_id: String, _rarity_tier: String, _item_type: String, _transition_id: String) -> void:
+func _on_loot_dropped(drop_id: String, _rarity_tier: String, _item_type: String, _transition_id: String) -> void:
+	if _state == ModalState.CATCHUP_PROMPT:
+		_prompt_count = _queue_depth()  # EC-M18 — in-place count, no re-trigger anim
+		return
+	if _state == ModalState.CATCHUP_STREAM or (_in_catchup and _state != ModalState.HIDDEN):
+		var drop = _loot_system.get_drop(drop_id) if _loot_system != null and _loot_system.has_method("get_drop") else null
+		if drop != null:
+			_catchup_phase_gated_append(drop)  # EC-M8
+		return
 	if _state != ModalState.HIDDEN:
 		return  # AC-7: no second modal, no FSM re-entry
 	if _gsm == null or not _gsm.has_method("get_current_state"):
@@ -711,8 +736,12 @@ func handle_tap() -> void:
 			_fast_complete()
 		ModalState.STEADY:
 			_attempt_dismiss()
+		ModalState.CATCHUP_PROMPT:
+			_start_catchup_reveal_all()  # 全屏 tap = reveal-all (Rule 10)
+		ModalState.CATCHUP_GRID:
+			_handle_catchup_exit()       # tap close → terminal emit
 		_:
-			pass  # ENTRY / EXITING / HIDDEN / catch-up surfaces (stories 014/015)
+			pass  # ENTRY / EXITING / HIDDEN / CATCHUP_STREAM (zero-tap)
 
 
 ## F5 stage-1: snap to the S3 terminal frame over SNAP_SEC.
@@ -763,6 +792,17 @@ func _finish_exit() -> void:
 	_exit_emitted = true
 	var dismissed_id: String = _drop_id_of(_current_drop)
 	_last_dismissed_id = dismissed_id
+	if _in_catchup:
+		# Catch-up ceremonies: per-item commit happened at S3; advance the
+		# pre-selected remainder, then the grid (EXITING→ENTRY / →CATCHUP_GRID).
+		modal_dismissed.emit(dismissed_id, false)
+		if not _catchup_ceremonies.is_empty():
+			_in_gap = true
+			_gap_clock_ms = 0.0
+			_gap_target_ms = LootRevealFormulas.successor_gap_sec(_timing_config, _current_tier) * 1000.0
+		else:
+			_enter_catchup_grid()
+		return
 	var remaining: Array = _pull_queue()
 	if remaining.size() > 0:
 		# Intra-queue: GSM does NOT move (Rule 6) — gap then next ENTRY.
@@ -780,6 +820,9 @@ func _finish_exit() -> void:
 ## revealing, GSM stays) or drained (rollback ate the rest → terminal now).
 func _end_gap() -> void:
 	_in_gap = false
+	if _in_catchup:
+		_begin_next_catchup_ceremony_or_grid()
+		return
 	var head = _peek_head_drop()
 	if head != null:
 		if _transition(ModalState.ENTRY):
@@ -802,8 +845,162 @@ func _release_freeze() -> void:
 	_freeze_handle = null
 
 
+# ── Catch-up contact-sheet mode (stories 014/015 — Rule 10 / F3 / EC-M7/M8/M13/M18) ──
+
+func _open_catchup_prompt(depth: int) -> void:
+	_interrupt_toast_for_modal()
+	if not _transition(ModalState.CATCHUP_PROMPT):
+		return
+	_prompt_count = depth
+	_modal_layer.visible = true
+
+
+## Reveal-all (prompt full-scrim tap): selection happens ONCE here.
+func _start_catchup_reveal_all() -> void:
+	var queue: Array = _pull_queue()
+	var tiers: Array = []
+	for drop in queue:
+		tiers.append(_coerce_tier_of(drop))
+	var parts: Dictionary = LootRevealFormulas.catchup_partition(tiers, _timing_config)
+	_catchup_stream = []
+	for i: int in parts["stream"]:
+		_catchup_stream.append(queue[i])
+	_catchup_ceremonies = []
+	for i: int in parts["ceremonies"]:
+		_catchup_ceremonies.append(queue[i])
+	_catchup_grid_items = []
+	for i: int in parts["grid_overflow"]:
+		_catchup_grid_items.append(queue[i])
+	_catchup_stream_displayed = []
+	_catchup_stream_index = 0
+	if _catchup_stream.size() > 0:
+		if _transition(ModalState.CATCHUP_STREAM):
+			_in_catchup = true
+			_catchup_phase = "stream"
+			_stream_phase = "banner"
+			_stream_clock_ms = 0.0
+	else:
+		_begin_next_catchup_ceremony_or_grid()
+
+
+## Stream beats are display-only (luminance-stable — zero per-beat flash;
+## the batch commit fires at stream end / force-close — story 015).
+func _stream_tick(delta: float) -> void:
+	_stream_clock_ms += delta * 1000.0
+	if _stream_phase == "banner":
+		if _stream_clock_ms >= _timing_config.banner_beat_sec * 1000.0:
+			_stream_phase = "beats"
+			_stream_clock_ms = 0.0
+		return
+	while _stream_clock_ms >= _timing_config.stream_beat_sec * 1000.0 \
+			and _catchup_stream_index < _catchup_stream.size():
+		_stream_clock_ms -= _timing_config.stream_beat_sec * 1000.0
+		_catchup_stream_displayed.append(_catchup_stream[_catchup_stream_index])
+		_catchup_stream_index += 1
+	if _catchup_stream_index >= _catchup_stream.size():
+		_commit_stream_batch()  # stream-end batch commit point (Rule 7 — 015)
+		_begin_next_catchup_ceremony_or_grid()
+
+
+func _begin_next_catchup_ceremony_or_grid() -> void:
+	_catchup_phase = "ceremonies" if not _catchup_ceremonies.is_empty() else "grid"
+	if _catchup_phase == "ceremonies":
+		var next = _catchup_ceremonies.pop_front()
+		if _transition(ModalState.ENTRY):
+			_in_catchup = true
+			_begin_reveal(next)
+			_modal_layer.visible = true
+			_celebration_vfx_layer.visible = true
+	else:
+		_enter_catchup_grid()
+
+
+func _enter_catchup_grid() -> void:
+	if not _transition(ModalState.CATCHUP_GRID):
+		return
+	_catchup_phase = "grid"
+	_commit_grid_overflow_batch()  # C-2 — grid entry frame (015)
+
+
+## EC-M8 — phase-gated append: only a phase that has NOT finished may accept;
+## phases never rewind ⇒ catch-up always terminates.
+func _catchup_phase_gated_append(drop) -> void:
+	var tier: int = _coerce_tier_of(drop)
+	if tier < LootEnums.RarityTier.RARE:
+		if _state == ModalState.CATCHUP_STREAM and _catchup_stream.size() < _timing_config.max_stream_beats:
+			_catchup_stream.append(drop)
+		# stream 已過/cap 滿 → 留 pending(下次 catch-up)
+	else:
+		# K-cap counts the ORIGINAL selection: remainder + the one revealing.
+		var in_flight: int = _catchup_ceremonies.size() + (1 if _catchup_phase == "ceremonies" else 0)
+		if _catchup_phase != "grid" and in_flight < _timing_config.k_ceremony_max:
+			# ascending insert (chronological inside a tier — append-after-equals)
+			var inserted: bool = false
+			for i: int in range(_catchup_ceremonies.size()):
+				if _coerce_tier_of(_catchup_ceremonies[i]) > tier:
+					_catchup_ceremonies.insert(i, drop)
+					inserted = true
+					break
+			if not inserted:
+				_catchup_ceremonies.append(drop)
+		# cap 滿 → 留 pending,唔入 grid(grid 係本 session commit summary — Pass 1 釘)
+
+
+## Tier coercion without touching the active-reveal state (catch-up bookkeeping).
+func _coerce_tier_of(drop) -> int:
+	var tier_name: String = str(drop.rarity_tier) if (drop is Object and "rarity_tier" in drop) else "COMMON"
+	var tier = LootEnums.RarityTier.get(tier_name)
+	return LootEnums.RarityTier.COMMON if tier == null else tier
+
+
+## Stream-end / force-close batch commit (story 015 wires the G-LM-10 seam).
+func _commit_stream_batch() -> void:
+	if _catchup_stream_displayed.is_empty():
+		return
+	_batch_commit_drops(_catchup_stream_displayed)
+	_catchup_stream_displayed = []
+
+
+## C-2 — every overflow item (sub-RARE「+N」collapsibles AND RARE+ own-cell
+## items) batch-commits on the grid entry frame.
+func _commit_grid_overflow_batch() -> void:
+	if _catchup_grid_items.is_empty():
+		return
+	_batch_commit_drops(_catchup_grid_items)
+
+
+## Single-frame batch: G-LM-10 public seam wrap + 連發 receive_loot + per-item
+## dequeue emits — aggregate/push/persist once (#17-side; AC-72 persist count).
+func _batch_commit_drops(drops: Array) -> void:
+	var seam: bool = _inventory != null and _inventory.has_method("begin_receive_batch")
+	if seam:
+		_inventory.begin_receive_batch()
+	for drop in drops:
+		if _inventory != null and _inventory.has_method("receive_loot"):
+			_inventory.receive_loot(drop)
+		var id: String = _drop_id_of(drop)
+		_consume_id(id)
+		modal_dismissed.emit(id, false)
+	if seam:
+		_inventory.end_receive_batch()
+
+
+## 「稍後再拆」(corner affordance / ui_cancel) — Pillar 2 never-trap:
+## CATCHUP_PROMPT → defer (zero commit, all pending); mid-flow → story 015.
 func _handle_catchup_exit() -> void:
-	pass  # 「稍後再拆」semantics — stories 014/015
+	match _state:
+		ModalState.CATCHUP_PROMPT:
+			modal_dismissed.emit("", true)  # terminal — GSM 推進;pending 不變
+			_transition(ModalState.HIDDEN)
+		ModalState.CATCHUP_STREAM:
+			_commit_stream_batch()  # 已 display 件 commit;未 display 留 pending
+			modal_dismissed.emit("", true)
+			_transition(ModalState.HIDDEN)
+		ModalState.CATCHUP_GRID:
+			modal_dismissed.emit("", true)
+			_transition(ModalState.HIDDEN)
+		_:
+			pass  # ceremonies 中嘅 exit 行為 — story 015
 
 
 # ── micro_ack banking + F4 toast (story 013 — Rule 9 / F4 / EC-M17) ─────────
@@ -981,9 +1178,19 @@ func _on_loot_rollback(drop_id: String) -> void:
 func _rollback_cancel_and_requery() -> void:
 	_release_freeze()
 	_fast_complete_active = false
-	# in_catchup: re-query targets the already-selected ceremonies remainder
-	# (K-cap never re-picks) — ceremonies cleared → CATCHUP_GRID. Stories
-	# 014/015 own the ceremony list; until then the queue path covers it.
+	if _in_catchup:
+		# Re-query targets the ALREADY-SELECTED ceremonies remainder (K-cap
+		# never re-picks — 防 cancel 觸發超 cap 補位); cleared → CATCHUP_GRID
+		# (grid is this session's commit summary — it still shows).
+		if not _catchup_ceremonies.is_empty():
+			if _state == ModalState.CEREMONY:
+				_transition(ModalState.ENTRY)
+			_in_gap = true
+			_gap_clock_ms = 0.0
+			_gap_target_ms = LootRevealFormulas.successor_gap_sec(_timing_config, _current_tier) * 1000.0
+		else:
+			_enter_catchup_grid()
+		return
 	if _queue_depth() > 0:
 		# Gap then next ENTRY (table self-edge ENTRY→ENTRY / CEREMONY→ENTRY).
 		if _state == ModalState.CEREMONY:
@@ -1013,6 +1220,9 @@ func _process(delta: float) -> void:
 	if _state == ModalState.STEADY:
 		_since_s3_ms += delta * 1000.0  # debounce window only — reveal clock parks
 		return
+	if _state == ModalState.CATCHUP_STREAM:
+		_stream_tick(delta)
+		return
 	if _state == ModalState.EXITING:
 		if _in_gap:
 			_gap_clock_ms += delta * 1000.0
@@ -1035,6 +1245,9 @@ func _process(delta: float) -> void:
 		if _gap_clock_ms >= _gap_target_ms:
 			_in_gap = false
 			_rollback_gap_pending = false
+			if _in_catchup:
+				_begin_next_catchup_ceremony_or_grid()
+				return
 			var head = _peek_head_drop()
 			if head != null:
 				_begin_reveal(head)

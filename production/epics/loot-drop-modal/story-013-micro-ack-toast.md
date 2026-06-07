@@ -1,12 +1,12 @@
 # Story 013: micro_ack banking + F4 toast aggregation + flush gate + EC-M17
 
 > **Epic**: Loot Drop Modal (#21)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-07 — AC-24/25/34b½/48/49/68;GUT 103/103;combined 2033/2032/0 fail;commit 536b5cd)
 > **Layer**: Presentation
 > **Type**: Logic
 > **Estimate**: M
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-07
 
 ## Context
 

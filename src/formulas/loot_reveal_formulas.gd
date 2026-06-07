@@ -29,6 +29,55 @@ static func successor_gap_sec(config: LootRevealTimingConfig, prev_tier: int) ->
 	return config.inter_reveal_gap_sec
 
 
+# ── F3 — catchup_duration (story 014; provable bound 15.8s @ defaults) ──
+
+## Partitions a tier list into the contact-sheet model: sub-RARE stream
+## (capped — overflow joins the grid), RARE+ ceremonies (tier-DESC top-K,
+## chronological within tier; revealed ASCENDING — peak-end rule), RARE+
+## overflow (own grid cell, C-1 identity). Pure — caller maps drops↔tiers.
+static func catchup_partition(tiers: Array, config: LootRevealTimingConfig) -> Dictionary:
+	var sub: Array = []
+	var rare_plus: Array = []  # [ [tier, original_index], ... ]
+	for i: int in range(tiers.size()):
+		var tier: int = int(tiers[i])
+		if tier < LootEnums.RarityTier.RARE:
+			sub.append(i)
+		else:
+			rare_plus.append([tier, i])
+	var stream: Array = sub.slice(0, config.max_stream_beats)
+	var grid: Array = sub.slice(config.max_stream_beats)
+	# Selection: tier DESC, stable (chronological inside a tier).
+	var sorted_rp: Array = rare_plus.duplicate()
+	sorted_rp.sort_custom(func(a: Array, b: Array) -> bool:
+		return a[0] > b[0] if a[0] != b[0] else a[1] < b[1])
+	var selected: Array = sorted_rp.slice(0, config.k_ceremony_max)
+	var overflow: Array = sorted_rp.slice(config.k_ceremony_max)
+	# Reveal order: ASCENDING tier (chronological inside a tier).
+	selected.sort_custom(func(a: Array, b: Array) -> bool:
+		return a[0] < b[0] if a[0] != b[0] else a[1] < b[1])
+	var ceremonies: Array = []
+	for pair: Array in selected:
+		ceremonies.append(pair[1])
+	for pair: Array in overflow:
+		grid.append(pair[1])  # C-1: RARE+ overflow keeps its own cell
+	return {"stream": stream, "ceremonies": ceremonies, "grid_overflow": grid}
+
+
+## F3 machine time (excl. player taps; assumes #7 emits focal_completed —
+## the watchdog-degraded path is explicitly outside this bound).
+static func catchup_machine_time_sec(config: LootRevealTimingConfig, n_sub: int,
+		ceremony_tiers_ascending: Array) -> float:
+	var t: float = config.banner_beat_sec
+	t += float(mini(n_sub, config.max_stream_beats)) * config.stream_beat_sec
+	var prev_tier: int = -1
+	for tier: int in ceremony_tiers_ascending:
+		t += successor_gap_sec(config, prev_tier) if prev_tier >= 0 else config.inter_reveal_gap_sec
+		t += float(t_block_ms(config, tier)) / 1000.0
+		prev_tier = tier
+	t += config.grid_entry_sec
+	return t
+
+
 # ── F2 — breakdown_bar_geometry (story 008; ADR-0005 75/25 binding 可視化) ──
 
 const BREAKDOWN_IDENTITY_EPS: float = 0.001
