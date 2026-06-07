@@ -258,18 +258,6 @@ func test_opening_abort_skips_open_straight_to_closed() -> void:
 
 ## ============ story 007: Group B AC suite ============
 
-## Spy persistence — AC-37(collect 所有 writes;read 回 null)。
-class SpyPersistence:
-	extends RefCounted
-	var writes: Array = []  # [{key, value}]
-
-	func write(key: String, value: Variant, _critical: bool = false) -> bool:
-		writes.append({"key": key, "value": value})
-		return true
-
-	func read(_key: String) -> Variant:
-		return null
-
 
 func _put_item(inv, id: StringName, lifecycle: int) -> void:
 	var item: EquipmentItem = EquipmentItem.new()
@@ -283,6 +271,7 @@ func _put_item(inv, id: StringName, lifecycle: int) -> void:
 func test_ac05_force_close_with_bulk_confirm_inventory_untouched() -> void:
 	# Arrange: 真 #17(count/shards 基準)+ BULK_CONFIRM 開緊。
 	var inv = InventoryScript.new()
+	inv._persistence = MockPersistenceLayer.new()  # 隔離 user://(_ready 前注入)
 	add_child_autofree(inv)
 	_put_item(inv, &"a", EquipmentEnums.ItemLifecycle.IN_INVENTORY)
 	_put_item(inv, &"b", EquipmentEnums.ItemLifecycle.IN_INVENTORY)
@@ -352,14 +341,18 @@ func test_ac08_subscription_introspection_and_three_close_paths() -> void:
 
 
 func test_ac37_zero_persist_full_session_with_positive_control() -> void:
-	# Arrange: spy persistence 注入 #17 seam;真 #17 + coordinator full session。
+	# Arrange: mock persistence + write spy 注入 #17 seam(_ready 前 — 隔離
+	# user:// 兼收集 writes);真 #17 + coordinator full session。
 	var inv = InventoryScript.new()
+	var mock_persist := MockPersistenceLayer.new()
+	var write_log: Array = []
+	mock_persist.attach_write_spy(write_log.append)
+	inv._persistence = mock_persist
 	add_child_autofree(inv)
-	var spy := SpyPersistence.new()
-	inv._persistence = spy
 	_put_item(inv, &"a", EquipmentEnums.ItemLifecycle.IN_INVENTORY)
 	_sut._inventory = inv
 	_gsm.state = GSMScript.GameState.IDLE
+	write_log.clear()  # boot 階段(#17 自己)唔計 — session 由 open 起
 	# Act: 完整操作 session — open / section 切換 / filter / 3 close paths。
 	_open_to_state_open()
 	_sut.set_active_section(CoordinatorScript.SectionKind.MAILBOX)
@@ -373,14 +366,12 @@ func test_ac37_zero_persist_full_session_with_positive_control() -> void:
 	_gsm.state = GSMScript.GameState.IDLE
 	_open_to_state_open()
 	_gsm.transition(GSMScript.GameState.SUSPENDED)  # snap
-	var writes_from_session: int = spy.writes.size()
-	# Assert ①: 零 #23-origin write(#23 連 namespace 都唔開 — 全 session 零 write)。
-	assert_eq(writes_from_session, 0,
+	# Assert ①: 零 write(#23 連 namespace 都唔開 — 全 session 零 write)。
+	assert_eq(write_log.size(), 0,
 		"完整 session + 3 close paths → 零 PersistenceLayer write(AC-37)")
 	# Assert ②(positive control):#17 自己 write 照行(spy 接線正確,唔係假陰性)。
-	_gsm.state = GSMScript.GameState.IDLE
 	inv.set_lock(&"a", true)  # 真 #17 command → _mark_dirty_and_flush
-	assert_gt(spy.writes.size(), 0, "positive control — #17 自己嘅 write 照行")
-	for w: Dictionary in spy.writes:
+	assert_gt(write_log.size(), 0, "positive control — #17 自己嘅 write 照行")
+	for w: Dictionary in write_log:
 		assert_true(String(w["key"]).begins_with("inventory"),
 			"所有 write 都係 #17-origin(inventory.*)— 零 #23 key:%s" % w["key"])

@@ -113,6 +113,13 @@ var _inventory_count: int = 0     # get_inventory_count(#17 L1125 口徑)
 var _forge_shards: int = 0
 var _equipped_ids: Dictionary = {}  # item_id → true(loadout set — 現役 badge O(1))
 
+## {text, remaining_ms} — 同屏最多 1 條(新取代舊;= #22 pattern)。
+var _toast: Dictionary = {}
+## injected tz offset seam(F1 date_local;production = device offset;
+## tests 注入固定值 — AC-01/14 determinism)。
+var _tz_offset_provider: Callable = func() -> int:
+	return int(Time.get_time_zone_from_system()["bias"]) * 60
+
 ## ---- DI seams (untyped — GDScript DI seam convention; tests inject mocks) ----
 ## #23 只掂 4 個 upstream(ADR-0008 predecessor set)— 冇 #11/#26/#3/#6/#7 seams。
 var _gsm = null
@@ -147,12 +154,13 @@ func _process(delta: float) -> void:
 func advance(delta_ms: float) -> void:
 	match _state:
 		ScreenState.OPENING:
+			_advance_transients(delta_ms)
 			_anim_elapsed_ms += delta_ms
 			if _anim_elapsed_ms >= TimingConfig.OPEN_ANIM_MS:
 				_state = ScreenState.OPEN
 				_anim_elapsed_ms = 0.0
 		ScreenState.OPEN:
-			pass  # transient timers (stories 007+) tick here
+			_advance_transients(delta_ms)
 		ScreenState.CLOSING:
 			_anim_elapsed_ms += delta_ms
 			if _anim_elapsed_ms >= TimingConfig.CLOSE_ANIM_MS:
@@ -271,6 +279,7 @@ func _enter_closed() -> void:
 	# States 表「close / force-close 一律清空」)。
 	_modal = ModalKind.NONE
 	_make_room_pending = &""
+	_toast = {}
 	_disconnect_all()  # CLOSED invariant (Rule 6)
 
 
@@ -401,6 +410,103 @@ func get_inventory_empty_copy() -> String:
 			return "收據庫仲未有收藏 — 完成 workout 之後,loot 會喺度等你"
 		return "呢類暫時冇收藏"  # filter 收窄到 0 件 — 唔 auto-reset filter
 	return ""
+
+
+## ---- mailbox render(story 008;Rule 10 + F1 render guards + EC-08/15) ----
+
+## MAILBOX rows(F2-M 序已喺 view build)+ retention 行 + receipt 裝飾。
+## Retention 行:F1 三 guard 喺 formula 層("" = 唔 render);過去日期照
+## render 原文案,零 urgency styling(D2/EC-15 — 賬簿唔改寫事實)。
+## 「領取」永遠 enabled(rescue window — Rule 12;#17 claim 零 TTL check)。
+## #23 唔 render evict 預警(EC-10 — v0.2 Q-IU4 negative fold)。
+func get_mailbox_rows() -> Array:
+	var tz: int = _tz_offset_provider.call()
+	var rows: Array = []
+	for view: Dictionary in _mailbox_view:
+		var row: Dictionary = view.duplicate()
+		var date_text: String = InvUiFormulas.retention_date_text(
+			int(view["acquired_at_unix"]), bool(view["receipt"]), tz)
+		row["retention_line"] = ("保留至 %s" % date_text) if date_text != "" else ""
+		row["receipt_glyph"] = bool(view["receipt"])  # 細印章形(asset spec)
+		row["receipt_note"] = "收據件唔會自動分解" if bool(view["receipt"]) else ""  # #17 A3
+		row["claim_enabled"] = true  # rescue window(Rule 12 — 唔好「好心」disable)
+		rows.append(row)
+	return rows
+
+
+## MAILBOX tab count badge(Rule 10 文法):dim ink 純文字「(N)」;
+## 0 件唔 render(""")— 禁色 pill / 紅 / dot / pulse(styling 喺 skin 層)。
+func get_mailbox_badge_text() -> String:
+	return "(%d)" % _mailbox_view.size() if _mailbox_view.size() > 0 else ""
+
+
+## Z3 sub-header(filter chips + count + 批量分解)只喺 INVENTORY render
+## (UX spec Zones — MAILBOX 冇 filter 冇 bulk 入口)。
+func is_sub_header_visible() -> bool:
+	return _active_section == SectionKind.INVENTORY
+
+
+## ---- claim(story 008/009;Rule 11 — dispatch order BINDING ① ② ③) ----
+
+## Claim 一件 mailbox 件。Return 處理順序(binding — Rule 11):
+## ① ok == true → success;② shortfall > 0 → MAKE_ROOM(**呢個 return 冇
+## error key — #17 L725,唔行 error path**;not_in_mailbox 有 shortfall:0,
+## 所以條件係 >0 唔係 key-presence);③ 其餘 → Rule 14 error path。
+## (EC-05 equipped 判定分支 + MAKE_ROOM pending lifecycle/hint — story 009。)
+func claim_item(item_id: StringName) -> Dictionary:
+	if _state != ScreenState.OPEN:
+		return {"ok": false, "error": "screen_not_open"}
+	var result: Dictionary = _inventory.claim(item_id)
+	# ① success。
+	if result.get("ok", false):
+		_make_room_pending = &""  # claim 成功清空(States 表)
+		_reread_all()
+		_show_toast("已領取")  # EC-05「已領取並裝上」分支 — story 009
+		return result
+	# ② shortfall(MAKE_ROOM — D4;claim target 入 transient pending)。
+	if int(result.get("shortfall", 0)) > 0:
+		_make_room_pending = item_id
+		_modal = ModalKind.MAKE_ROOM
+		_play_sfx(&"ui_sheet_open")
+		return result
+	# ③ error path(full error map — story 014;deferred_reentrancy 例外
+	# 唔 toast,下 frame 收割 = #22 EC-23 口徑)。
+	var err: String = String(result.get("error", ""))
+	if err == "deferred_reentrancy":
+		call_deferred("_reread_all")
+		return result
+	if err == "not_in_mailbox":
+		_make_room_pending = &""  # not_in_mailbox 清空(States 表)
+		_reread_all()
+		_show_toast("件物品已唔喺信箱(可能已自動分解)")  # EC-07
+		return result
+	_reread_all()
+	_show_toast("操作失敗(%s)" % err)
+	return result
+
+
+## ---- toast(= #22 transient pattern;injected clock) ----
+
+func _show_toast(text: String) -> void:
+	_toast = {"text": text, "remaining_ms": TimingConfig.ERROR_TOAST_DURATION_MS}
+	_announce(text)  # toast = ARIA live region(Rule 14)
+
+
+func get_toast() -> Dictionary:
+	return _toast
+
+
+func _advance_transients(delta_ms: float) -> void:
+	if not _toast.is_empty():
+		_toast["remaining_ms"] -= delta_ms
+		if _toast["remaining_ms"] <= 0.0:
+			_toast = {}
+
+
+## ARIA announce seam(UI Req;story 015 spy 對象)。
+func _announce(text: String) -> void:
+	if _platform != null and _platform.has_method("announce_aria"):
+		_platform.announce_aria(text)
 
 
 func _is_disconnected() -> bool:

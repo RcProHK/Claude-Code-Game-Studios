@@ -154,6 +154,7 @@ class MockGSM:
 
 func _make_coordinator_with_real_inventory() -> Array:
 	var inv = InventoryScript.new()
+	inv._persistence = MockPersistenceLayer.new()  # 隔離 user://(_ready 前注入)
 	add_child_autofree(inv)
 	var gsm := MockGSM.new()
 	add_child_autofree(gsm)

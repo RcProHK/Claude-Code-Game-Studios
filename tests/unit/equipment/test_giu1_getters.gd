@@ -12,6 +12,7 @@ var _inv = null
 
 func before_each() -> void:
 	_inv = InventoryScript.new()
+	_inv._persistence = MockPersistenceLayer.new()  # 隔離 user://(_ready 前注入 — suite 慣例)
 	add_child_autofree(_inv)
 
 
