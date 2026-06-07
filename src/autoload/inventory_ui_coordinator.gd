@@ -132,6 +132,9 @@ var _equipped_ids: Dictionary = {}  # item_id → true(loadout set — 現役 ba
 
 ## {text, remaining_ms} — 同屏最多 1 條(新取代舊;= #22 pattern)。
 var _toast: Dictionary = {}
+## Coalesced ARIA channel(= #22 EC-28/29 pattern:window 內多次 → 最後
+## 一條為準,window 完先讀一句 — section/filter 切換報數用)。
+var _aria_pending: Dictionary = {}
 ## injected tz offset seam(F1 date_local;production = device offset;
 ## tests 注入固定值 — AC-01/14 determinism)。
 var _tz_offset_provider: Callable = func() -> int:
@@ -178,6 +181,7 @@ func advance(delta_ms: float) -> void:
 				_anim_elapsed_ms = 0.0
 		ScreenState.OPEN:
 			_advance_transients(delta_ms)
+			_advance_aria(delta_ms)
 		ScreenState.CLOSING:
 			_anim_elapsed_ms += delta_ms
 			if _anim_elapsed_ms >= TimingConfig.CLOSE_ANIM_MS:
@@ -379,6 +383,12 @@ func set_active_section(section: int) -> void:
 		return
 	_active_section = section
 	_reread_all()
+	# UI Req:section 切換 → announce section 名 + list summary(coalesced —
+	# window 內連續切換最後一條為準)。
+	var section_name: String = "收藏庫" if section == SectionKind.INVENTORY else "信箱"
+	var count: int = get_filtered_inventory_view().size() \
+			if section == SectionKind.INVENTORY else _mailbox_view.size()
+	_announce_coalesced("%s,收藏 %d 件" % [section_name, count])
 
 
 ## Filter 切換(Rule 8)— view predicate only:零 re-read、view model array
@@ -387,6 +397,8 @@ func set_slot_filter(filter: int) -> void:
 	if _state != ScreenState.OPEN:
 		return
 	_slot_filter = filter
+	# filter 切換同款報數(coalesced — UI Req list summary)。
+	_announce_coalesced("收藏 %d 件" % get_filtered_inventory_view().size())
 
 
 ## ---- browse view getters(render 層 + tests) ----
@@ -770,10 +782,11 @@ func toggle_lock(item_id: StringName, locked: bool) -> Dictionary:
 func _handle_command_error(result: Dictionary) -> void:
 	var err: String = String(result.get("error", ""))
 	if err == "deferred_reentrancy":
-		call_deferred("_reread_all")  # 唔 toast,下 frame 收割(= #22 EC-23)
+		call_deferred("_reread_all")  # 唔 toast 零 SFX,下 frame 收割(= #22 EC-23)
 		return
 	_reread_all()
 	_show_toast(_error_toast_text(err))
+	_play_sfx(&"ui_error")  # event→cue map:error toast → ui_error
 
 
 ## Error toast 文案(Rule 14 — 6 codes + deferred_reentrancy 例外;
@@ -1007,6 +1020,26 @@ func _advance_transients(delta_ms: float) -> void:
 func _announce(text: String) -> void:
 	if _platform != null and _platform.has_method("announce_aria"):
 		_platform.announce_aria(text)
+
+
+## Coalesced ARIA(window 內最後一條為準 — ARIA_COALESCE_WINDOW_MS reuse #22)。
+func _announce_coalesced(text: String) -> void:
+	_aria_pending = {"text": text, "remaining_ms": TimingConfig.ARIA_COALESCE_WINDOW_MS}
+
+
+func _advance_aria(delta_ms: float) -> void:
+	if _aria_pending.is_empty():
+		return
+	_aria_pending["remaining_ms"] -= delta_ms
+	if _aria_pending["remaining_ms"] <= 0.0:
+		_announce(_aria_pending["text"])
+		_aria_pending = {}
+
+
+## Disabled 入口 focus → announce 原因(UI Req binding — 視覺玩家有 hint
+## 文字,SR 玩家唔可以得個謎)。Render 層 focus handler call 呢度。
+func announce_disabled_focus(label: String, hint: String) -> void:
+	_announce("%s — %s" % [label, hint])
 
 
 func _is_disconnected() -> bool:
