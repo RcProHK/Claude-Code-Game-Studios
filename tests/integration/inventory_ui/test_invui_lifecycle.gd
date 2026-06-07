@@ -10,6 +10,7 @@
 extends GutTest
 
 const CoordinatorScript := preload("res://src/autoload/inventory_ui_coordinator.gd")
+const CharScreenScript := preload("res://src/autoload/character_screen_coordinator.gd")
 const GSMScript := preload("res://src/autoload/game_state_machine.gd")
 const TimingConfig := preload("res://src/ui/character_screen/char_screen_timing_config.gd")
 const InventoryScript := preload("res://src/autoload/inventory_system.gd")
@@ -338,6 +339,90 @@ func test_ac08_subscription_introspection_and_three_close_paths() -> void:
 	_open_to_state_open()
 	_gsm.transition(GSMScript.GameState.SUSPENDED)
 	assert_eq(_gsm.state_changed.get_connections().size(), 0, "snap → 零 active")
+
+
+## ============ story 016: G-IU-4 #22 link + sequential glue(AC-09) ============
+
+func _make_charscreen() -> Node:
+	var cs = CharScreenScript.new()
+	add_child_autofree(cs)
+	cs._gsm = _gsm        # 共用 GSM(sequential 切換同一 state machine)
+	cs._audio = _audio    # 共用 audio spy(雙 cue 政策 assert)
+	cs._inventory_ui = _sut  # G-IU-4 glue seam(test 注入 — 唔行 /root)
+	return cs
+
+
+func test_ac09_link_sequential_close_then_open_with_dual_cue() -> void:
+	# Arrange: #22 open 喺 LOADOUT panel。
+	var cs := _make_charscreen()
+	_gsm.state = GSMScript.GameState.IDLE
+	assert_true(cs.open())
+	cs.advance(TimingConfig.OPEN_ANIM_MS)
+	cs.set_active_panel(CharScreenScript.PanelKind.LOADOUT)
+	_audio.sfx_calls.clear()
+	# Act: 「查看全部 →」tap — close 後同 gesture deferred open #23。
+	cs.loadout_view_all_tap()
+	assert_eq(cs.get_screen_state(), CharScreenScript.ScreenState.CLOSING,
+		"#22 normal close path")
+	await get_tree().process_frame  # deferred open fires
+	# Assert: sequential — #23 OPENING(CLOSING×OPENING crossfade 接受)。
+	assert_eq(_sut.get_screen_state(), CoordinatorScript.ScreenState.OPENING,
+		"#23 同 gesture deferred open(EC-11 — 唔等 #22 CLOSED)")
+	# 雙 cue 各一響(政策 verify — sequential 切換嘅誠實聲)。
+	assert_eq(_audio.sfx_calls.count(&"ui_charscreen_close"), 1)
+	assert_eq(_audio.sfx_calls.count(&"ui_charscreen_open"), 1)
+	# 收口:兩邊 settle。
+	cs.advance(TimingConfig.CLOSE_ANIM_MS)
+	_sut.advance(TimingConfig.OPEN_ANIM_MS)
+	assert_eq(cs.get_screen_state(), CharScreenScript.ScreenState.CLOSED)
+	assert_eq(_sut.get_screen_state(), CoordinatorScript.ScreenState.OPEN)
+
+
+func test_ac09_gsm_race_both_closed_no_limbo() -> void:
+	# Arrange
+	var cs := _make_charscreen()
+	_gsm.state = GSMScript.GameState.IDLE
+	assert_true(cs.open())
+	cs.advance(TimingConfig.OPEN_ANIM_MS)
+	cs.set_active_panel(CharScreenScript.PanelKind.LOADOUT)
+	# Act: link tap 之後、deferred open 之前 GSM 轉 state(race)。
+	cs.loadout_view_all_tap()
+	_gsm.transition(GSMScript.GameState.WORKOUT_ACTIVE)
+	await get_tree().process_frame  # deferred open fires — double guard 拒
+	# Assert: #23 double guard 拒 → 兩邊 CLOSED 無 limbo(EC-11)。
+	assert_eq(_sut.get_screen_state(), CoordinatorScript.ScreenState.CLOSED,
+		"#23 open() double guard 拒(GSM ∉ whitelist)")
+	cs.advance(TimingConfig.FORCE_CLOSE_MAX_MS + TimingConfig.CLOSE_ANIM_MS)
+	assert_eq(cs.get_screen_state(), CharScreenScript.ScreenState.CLOSED, "無 limbo")
+
+
+func test_ac09_link_when_inv_ui_already_open_is_noop() -> void:
+	# 邊界:#23 已 OPEN(理論 race)→ deferred open no-op(double guard)。
+	var cs := _make_charscreen()
+	_gsm.state = GSMScript.GameState.IDLE
+	_open_to_state_open()  # #23 已 OPEN
+	assert_true(cs.open())
+	cs.advance(TimingConfig.OPEN_ANIM_MS)
+	cs.set_active_panel(CharScreenScript.PanelKind.LOADOUT)
+	cs.loadout_view_all_tap()
+	await get_tree().process_frame
+	assert_eq(_sut.get_screen_state(), CoordinatorScript.ScreenState.OPEN,
+		"#23 已 OPEN — open() no-op(state != CLOSED),無 crash 無 reset")
+
+
+func test_ac09_rapid_double_tap_no_crash() -> void:
+	# 邊界:rapid double-tap link — 第二下 close no-op + 第二下 deferred open false。
+	var cs := _make_charscreen()
+	_gsm.state = GSMScript.GameState.IDLE
+	assert_true(cs.open())
+	cs.advance(TimingConfig.OPEN_ANIM_MS)
+	cs.set_active_panel(CharScreenScript.PanelKind.LOADOUT)
+	cs.loadout_view_all_tap()
+	cs.loadout_view_all_tap()  # 第二下:state CLOSING — handler guard 拒
+	await get_tree().process_frame
+	_sut.advance(TimingConfig.OPEN_ANIM_MS)
+	assert_eq(_sut.get_screen_state(), CoordinatorScript.ScreenState.OPEN,
+		"double-tap 安全 — 一次 open")
 
 
 func test_ac37_zero_persist_full_session_with_positive_control() -> void:

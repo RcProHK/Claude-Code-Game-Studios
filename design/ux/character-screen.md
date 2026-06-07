@@ -36,6 +36,7 @@ This screen lives at: **[shell home(#24,未 design)] → Character Screen** — 
 | Exit Destination | Trigger | Notes |
 |---|---|---|
 | Shell home | X button(≥48px,persistent)/ ESC(desktop;modal open 時第二下先閂 screen — EC-07)| CLOSING 出場 animation 120-150ms;**唔 cancel 任何已發出嘅 #17 write**(Rule 6)|
+| **#23 Inventory UI** | LOADOUT panel header「查看全部 →」link(≥48px;#23 G-IU-4)| normal close → 同 gesture deferred open #23(sequential;CLOSING×OPENING crossfade 接受 — 61>60 冚住);雙 cue 各一響(誠實聲);GSM race → #23 double guard 拒,兩邊 CLOSED 無 limbo(#23 EC-11)|
 | (force)workout states | GSM `state_changed` → ∉ {IDLE, DISCONNECTED} | FORCE_CLOSING ≤150ms;modal 一律 cancel(SALVAGE_CONFIRM 永不 confirm — EC-01);**零 SFX**(CD C1)|
 | (snap)SUSPENDED | tab hidden | instant snap CLOSED,無 animation;pending settings write critical flush 先行(EC-27);resume 唔 auto-reopen |
 

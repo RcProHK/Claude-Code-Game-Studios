@@ -125,6 +125,9 @@ var _screen_effects = null
 var _camera = null
 var _audio = null
 var _platform = null
+## #23 G-IU-4 glue seam(default = /root/InventoryUICoordinator;唔 subscribe
+## 唔讀對方 state — one-shot deferred call only)。
+var _inventory_ui = null
 
 ## CanvasLayer 60 (ADR-0001 #22 revision) — owned, pre-warmed hidden.
 var _layer: CanvasLayer = null
@@ -236,6 +239,21 @@ func close() -> void:
 	_state = ScreenState.CLOSING
 	_anim_elapsed_ms = 0.0
 	_play_sfx(&"ui_charscreen_close")  # player-initiated only (CD C1)
+
+
+## #23 G-IU-4 — LOADOUT panel header「查看全部 →」link handler(MVP glue
+## locus,#23 GDD Rules 1-2)。normal close 後**同 gesture** call_deferred
+## 開 #23(唔等 CLOSED — CLOSING×OPENING crossfade 接受,layer 61>60 冚住,
+## EC-11)。「唔互相依賴」收窄為「唔 subscribe、唔讀對方 state」— one-shot
+## deferred call + has_method guard;#24 shell 落地後遷移(Q-IU1)。
+## 雙 cue 政策:#22 close 響 + #23 open 響 back-to-back = sequential 切換
+## 嘅誠實聲(#23 GDD Rule 1)。GSM race → #23 自己 double guard 拒(EC-11)。
+func loadout_view_all_tap() -> void:
+	if _state != ScreenState.OPEN or _active_panel != PanelKind.LOADOUT:
+		return
+	close()
+	if _inventory_ui != null and _inventory_ui.has_method("open"):
+		_inventory_ui.call_deferred("open")
 
 
 ## ---- GSM lifecycle handler (story 007;plain method — no .bind()) ----
@@ -1026,3 +1044,4 @@ func _resolve_default_seams() -> void:
 	_camera = get_node_or_null("/root/CameraController")
 	_audio = get_node_or_null("/root/AudioManager")
 	_platform = get_node_or_null("/root/PlatformDetect")
+	_inventory_ui = get_node_or_null("/root/InventoryUICoordinator")  # G-IU-4 glue

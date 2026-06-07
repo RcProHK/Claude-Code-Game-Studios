@@ -176,7 +176,7 @@ CLOSED                                            │ GSM state_changed → ∉ 
 | **#4 AudioManager** | OUT(`play_sfx` + volume) | Hard | 9 個新 SFX cue + 2 reuse(`ui_back`/`ui_error`)經 `play_sfx`(全 low/mono/no-duck);MASTER volume slider 經 G-CS-11 additive linear setter + `get_bus_volume_db(MASTER)` 現值read(Rule 33);9 cue 入 #4 catalog freeze 表 = **G-CS-9**(G-LM-8 先例)— Pass 1 audio B1 fix(bidirectional rule 兌現) |
 | **#33 Attention Budget** | (none) | — | **明文唔用** `is_input_permitted()`(Rule 1 語意分離);#22 跟 #33 嘅 glance-budget policy 用自己嘅 GSM state set 兌現 |
 | **#21 Loot Modal** | (pattern 共用) | Soft | P-06 rarity 語言 pattern 級共用;OQ-1 裁決:ticker 留 #22(Rule 16),#21 唔加 slot — 回寫 #21 OQ-1 row(G-CS-5) |
-| **#23 Inventory UI** | 邊界 | Soft | picker 唔做 browse / search / bulk(Rule 17 邊界);#23 係 full inventory surface |
+| **#23 Inventory UI** | 邊界 + 出口 link | Soft | picker 唔做 browse / search / bulk(Rule 17 邊界);#23 係 full inventory surface。**「查看全部 →」link(LOADOUT panel header;#23 G-IU-4 story 016 落地)**:`loadout_view_all_tap()` — normal `close()` 後同 gesture `call_deferred` 開 #23(untyped `_inventory_ui` seam + `has_method` guard;唔 subscribe 唔讀對方 state;雙 cue 政策 — #23 GDD Rules 1-2;#24 shell 落地後遷移 Q-IU1)|
 | **#18 PR Detection** | (v0.2) | Soft | PR history panel = v0.2(`get_baselines()` read-only) |
 | **#28 Telemetry** | (v0.2) | Soft | 上週對比 = v0.2(#28-dependent — 裁決 2026-06-07) |
 | **#29 Mirror Moment** | (metaphor 邊界) | Soft | #22 永不 reveal 新 evolution;`is_ready_for_milestone_check()` 提示唔劇透(Rule 11) |
