@@ -92,6 +92,7 @@ var _inventory       ## seam 10: #17 InventorySystem (receive_loot @ S3 — INV-
 var _particles       ## seam 5: #5 ParticleSystemWrapper (burst — FR-2 carrier)
 var _audio           ## seam 6: #4 AudioManager (fanfare caller = #21 — EG-1 precedent)
 var _camera          ## seam 7: #7 CameraController (request_focal + focal_completed)
+var _platform        ## seam 11: PlatformDetect (announce_aria gateway — G-LM-6)
 var _screen_effects  ## seam 8: #6 ScreenEffects (shake; ceremony_freeze/release/saturation — G-LM-3 shapes, fake until story 021)
 
 ## seam 3: F1 per-tier timeline data (default = class defaults — GDD table).
@@ -205,6 +206,10 @@ var _banner_active_kind: String = ""
 var _banner_displaced_kind: String = ""
 var _banner_deferred: Array[String] = []  # modal active 時 loot_disabled defer
 
+## SR announcement state (story 025 — AC-77 once-only + intra-queue short variant).
+var _announced_current: bool = false   # exactly-once per drop (fast-complete 唔 double)
+var _reveals_this_run: int = 0         # 連環 reveal 計數 — 第二件起用 short variant
+
 ## Deferred acknowledgement bucket (F4 — story 013 owns aggregation/flush;
 ## EC-M14 CONVERTED_DUPE shard acks land here from 009). Entry shape:
 ## {tier:int, reason:String, n:int(default 1)}.
@@ -257,6 +262,8 @@ func _ready() -> void:
 		_camera = get_node_or_null("/root/CameraController")
 	if _screen_effects == null:
 		_screen_effects = get_node_or_null("/root/ScreenEffects")
+	if _platform == null:
+		_platform = get_node_or_null("/root/PlatformDetect")
 	if _camera != null and _camera.has_signal("focal_completed"):
 		_camera.focal_completed.connect(_on_focal_completed)
 	if _loot_system != null and _loot_system.has_signal("loot_dropped"):
@@ -332,11 +339,12 @@ func _transition(to_state: int) -> bool:
 		_modal_layer.visible = false
 		_celebration_vfx_layer.visible = false
 		_flush_deferred_banners()  # Rule 12 — banner 喺 dismiss 後先出
+		_reveals_this_run = 0      # short-variant 計數隨 occupancy 重置
 	elif _state == ModalState.STEADY:
 		_since_s3_ms = 0.0  # debounce anchor = S3 ENTRY (F5/AC-15 unified)
 		_s3_entries += 1
 		_commit_current_drop()  # INV-M3 — S3 is THE banking commit point
-		# SR announcement — story 025.
+		_announce_reveal()      # SR announcement — exactly once per drop (AC-77)
 		if _catchup_exit_pending:
 			_stash_exit(false)  # 「稍後再拆」mid-ceremony: commit 完即 stash (Rule 10)
 	return true
@@ -621,6 +629,7 @@ func _begin_reveal(drop) -> void:
 	_suspended_mid_reveal = false
 	_banked = false
 	_pending_stash_exit = false
+	_announced_current = false
 	_stash_mode = false
 	_force_closed_mid_exit = false
 	_exit_emitted = false
@@ -991,6 +1000,13 @@ func _enter_catchup_grid() -> void:
 		return
 	_catchup_phase = "grid"
 	_commit_grid_overflow_batch()  # C-2 — grid entry frame (015)
+	# 收尾單一 aggregate announce(stream 逐件零 announce — AC §E)
+	var total: int = _catchup_stream.size() + _catchup_grid_items.size() + _reveals_this_run
+	var max_tier: int = 0
+	for drop in _catchup_grid_items:
+		max_tier = maxi(max_tier, _coerce_tier_of(drop))
+	max_tier = maxi(max_tier, _current_tier)
+	_announce_catchup_grid(total, max_tier)
 
 
 ## EC-M8 — phase-gated append: only a phase that has NOT finished may accept;
@@ -1345,6 +1361,39 @@ func _rollback_cancel_and_requery() -> void:
 	else:
 		modal_dismissed.emit("", true)  # terminal — GSM 唔 stuck
 		_transition(ModalState.HIDDEN)
+
+
+## AC-77 — fires at S3 entry exactly once (fast-complete converges on the
+## same edge). Intra-queue chains use the short variant from the second item
+## (assertive announcements preempt each other — a full read never finishes);
+## catch-up streams announce NOTHING per beat, the grid aggregates once.
+func _announce_reveal() -> void:
+	if _announced_current:
+		return
+	_announced_current = true
+	if _state == ModalState.STEADY and _in_catchup:
+		pass  # catch-up ceremonies still announce — they are full ceremonies
+	_reveals_this_run += 1
+	if _platform == null or not _platform.has_method("announce_aria"):
+		return
+	var tier_name: String = String(LootEnums.RarityTier.find_key(_current_tier))
+	var item_name: String = str(_content_slots.get("item_name", ""))
+	if _reveals_this_run > 1:
+		_platform.announce_aria("%s:%s" % [tier_name, item_name])  # short variant
+		return
+	var text: String = "%s loot: %s,來自 %s." % [
+		tier_name, item_name, str(_content_slots.get("source_attribution", ""))]
+	var bd = _content_slots.get("breakdown_bar")
+	if bd is Dictionary:
+		text += " Workout %d%%, RNG %d%%" % [int(bd["pct_w"]), int(bd["pct_r"])]
+	_platform.announce_aria(text)
+
+
+func _announce_catchup_grid(total: int, max_tier: int) -> void:
+	if _platform == null or not _platform.has_method("announce_aria"):
+		return
+	_platform.announce_aria("%d 件 loot 已收,最高 %s" % [
+		total, String(LootEnums.RarityTier.find_key(max_tier))])
 
 
 func _emit_telemetry(event: String, data: Dictionary) -> void:

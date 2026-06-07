@@ -1,7 +1,7 @@
 # Story 024: G-LM-10 — #17 public batch seam(begin/end_receive_batch)
 
 > **Epic**: Loot Drop Modal (#21)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-07 — seam + nested/unbalanced edges + persist-once spy proof + #17 errata ×3;#17 suite 109/109 零變紅;combined 2092/2091/0 fail;commit 67680d1)
 > **Layer**: Presentation(epic)/ 改動喺 Feature #17
 > **Type**: Logic
 > **Estimate**: S
