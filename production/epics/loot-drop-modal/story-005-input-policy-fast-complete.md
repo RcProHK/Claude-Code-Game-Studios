@@ -1,12 +1,12 @@
 # Story 005: Per-stage input policy + F5 fast-complete + two-stage tap + keyboard
 
 > **Epic**: Loot Drop Modal (#21)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-07 — AC-11/15/16/50 + AC-37c ui_accept 半(ui_cancel target → 014/015);GUT 48/48;combined 1978/1977/0 fail;commit aea31c6;實作順序喺 006 後 — ladder artifacts 係 fast-complete 前提)
 > **Layer**: Presentation
 > **Type**: Logic
 > **Estimate**: M
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-07
 
 ## Context
 

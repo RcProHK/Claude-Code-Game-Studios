@@ -1,12 +1,12 @@
 # Story 009: INV-M3 S3 commit point + EC-M14 五 variant + EC-M5 coercion + AC-21 lint
 
 > **Epic**: Loot Drop Modal (#21)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-07 — AC-20/21(lint PASS)/56 unit 半/65 #21-side 半;GUT 77/77;combined 2007/2006/0 fail;commit d29363b)
 > **Layer**: Presentation
 > **Type**: Logic
 > **Estimate**: M
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-07
 
 ## Context
 

@@ -1,12 +1,12 @@
 # Story 008: F2 breakdown bar + INV-M2 + EC-M15 corrupt + EC-M12 resize
 
 > **Epic**: Loot Drop Modal (#21)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-07 — AC-3/42/43/44/45/63/66;GUT 68/68;combined 1998/1997/0 fail;commit 75ff5a0;ws/rr/score 載體 = pinned item_metadata keys,G-LM-4a(017)grant 時持久化 — **新發現 gap fold 入 017 scope**)
 > **Layer**: Presentation
 > **Type**: Logic
 > **Estimate**: M
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-07
 
 ## Context
 

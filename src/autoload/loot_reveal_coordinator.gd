@@ -169,6 +169,14 @@ var _now_ms: Callable = Callable(Time, "get_ticks_msec")
 var _banked: bool = false
 var _pending_stash_exit: bool = false  # QUEUED_SUSPENDED → stash-exit (011 consumes)
 
+## S4 exit + inter-reveal gap bookkeeping (story 010).
+var _exit_clock_ms: float = 0.0
+var _exit_emitted: bool = false       # AC-23 idempotency — emit exactly once per exit
+var _in_gap: bool = false             # gap runs INSIDE the EXITING state (no extra FSM state)
+var _gap_clock_ms: float = 0.0
+var _gap_target_ms: float = 0.0
+var _last_dismissed_id: String = ""   # exclusion until #15's dequeue handler lands (018)
+
 ## Deferred acknowledgement bucket (F4 — story 013 owns aggregation/flush;
 ## EC-M14 CONVERTED_DUPE shard acks land here from 009).
 var _deferred_acks: Array = []
@@ -317,7 +325,10 @@ func _on_state_changed(_from_state, to_state, _payload) -> void:
 		return  # Rule 6 one-modal-at-a-time (re-entry guarded)
 	if _queue_depth() > 0:
 		_open_reveal_flow()
-	# depth == 0 → Rule 13 empty-queue terminal emit (story 010 — AC-34).
+	else:
+		# Rule 13 — empty-queue LOOT_DROP entry (rollback race): emit the
+		# terminal immediately or GSM is stuck (seam runs the #15 chain).
+		modal_dismissed.emit("", true)
 	# depth ≥ CATCH_UP_THRESHOLD → CATCHUP_PROMPT branch (story 014 — AC-26).
 
 
@@ -372,10 +383,25 @@ func _on_loot_dropped(_drop_id: String, _rarity_tier: String, _item_type: String
 
 
 func _queue_depth() -> int:
+	return _pull_queue().size()
+
+
+## Pulls the #15 reveal queue (committed store — AC-32 source of truth).
+## EC-M6: dangling/null records are skipped with CRITICAL telemetry — a
+## placeholder modal would be fabrication. The just-dismissed id is excluded
+## locally until #15's dequeue handler lands (story 018 makes this redundant).
+func _pull_queue() -> Array:
 	if _loot_system == null or not _loot_system.has_method("get_pending_drops"):
-		return 0
-	var pending: Array = _loot_system.get_pending_drops()
-	return pending.size()
+		return []
+	var out: Array = []
+	for drop in _loot_system.get_pending_drops():
+		if drop == null:
+			_emit_telemetry("loot_reveal.dangling_drop", {"severity": "CRITICAL"})
+			continue
+		if _last_dismissed_id != "" and _drop_id_of(drop) == _last_dismissed_id:
+			continue
+		out.append(drop)
+	return out
 
 
 ## Opens the sequential reveal flow (HIDDEN → ENTRY edge).
@@ -395,12 +421,8 @@ func _open_reveal_flow() -> void:
 
 ## Head of the #15 reveal queue (committed store — AC-32 source of truth).
 func _peek_head_drop():
-	if _loot_system == null or not _loot_system.has_method("get_pending_drops"):
-		return null
-	var pending: Array = _loot_system.get_pending_drops()
-	if pending.is_empty():
-		return null
-	return pending[0]
+	var queue: Array = _pull_queue()
+	return queue[0] if not queue.is_empty() else null
 
 
 ## Anchors T=0 and fires the frame-0 orchestration for this drop (F1 unified
@@ -622,9 +644,49 @@ func _attempt_dismiss() -> void:
 
 
 ## Tap = 撳快門. Banking already happened at S3 (INV-M3) — this only exits.
-## S4 emit ordering + queue advance land in story 010.
 func _dismiss() -> void:
-	_transition(ModalState.EXITING)
+	if not _transition(ModalState.EXITING):
+		return
+	_exit_clock_ms = 0.0
+	_exit_emitted = false
+	_in_gap = false
+
+
+## S4 anim complete (story 010). Terminal evaluation happens HERE — drops
+## that arrived mid-S4 are naturally in the queue read (EC-M20: never a
+## mid-exit re-entry; the anim always finishes first).
+func _finish_exit() -> void:
+	if _exit_emitted:
+		return  # AC-23 — force-close landing mid-S4 must not double-emit
+	_exit_emitted = true
+	var dismissed_id: String = _drop_id_of(_current_drop)
+	_last_dismissed_id = dismissed_id
+	var remaining: Array = _pull_queue()
+	if remaining.size() > 0:
+		# Intra-queue: GSM does NOT move (Rule 6) — gap then next ENTRY.
+		modal_dismissed.emit(dismissed_id, false)
+		_in_gap = true
+		_gap_clock_ms = 0.0
+		_gap_target_ms = LootRevealFormulas.successor_gap_sec(_timing_config, _current_tier) * 1000.0
+	else:
+		# Terminal: emit AFTER the anim (AC-19) — #15 chain exits GSM.
+		modal_dismissed.emit(dismissed_id, true)
+		_transition(ModalState.HIDDEN)
+
+
+## Gap end — EC-M20 re-evaluation: the queue may have grown (new drop → keep
+## revealing, GSM stays) or drained (rollback ate the rest → terminal now).
+func _end_gap() -> void:
+	_in_gap = false
+	var head = _peek_head_drop()
+	if head != null:
+		if _transition(ModalState.ENTRY):
+			_begin_reveal(head)
+			_modal_layer.visible = true
+			_celebration_vfx_layer.visible = true
+	else:
+		modal_dismissed.emit("", true)
+		_transition(ModalState.HIDDEN)
 
 
 ## INV-M1 single freeze-release exit (skeleton — story 007 hardens with
@@ -655,6 +717,16 @@ func _process(delta: float) -> void:
 		return  # EC-M1 park — bfcache renders zero frames; the clock must not drift
 	if _state == ModalState.STEADY:
 		_since_s3_ms += delta * 1000.0  # debounce window only — reveal clock parks
+		return
+	if _state == ModalState.EXITING:
+		if _in_gap:
+			_gap_clock_ms += delta * 1000.0
+			if _gap_clock_ms >= _gap_target_ms:
+				_end_gap()
+		else:
+			_exit_clock_ms += delta * 1000.0
+			if _exit_clock_ms >= _timing_config.exit_anim_sec * 1000.0:
+				_finish_exit()
 		return
 	if _state != ModalState.ENTRY and _state != ModalState.CEREMONY:
 		return

@@ -88,11 +88,11 @@ This epic is complete when:
 | 002 | Coordinator 骨架 + layers + 登記 + GSM trigger | Logic | ✅ Complete | ADR-0006 C6 | 4,5,6,7,79 |
 | 003 | FSM 8-state × in_catchup table-driven | Logic | ✅ Complete | ADR-0006 | 37 |
 | 004 | F1 timeline + motion_reduction | Logic | ✅ Complete | N/A(formula) | 38-41(55→006)|
-| 005 | Input policy + F5 fast-complete + keyboard | Logic | Ready | N/A | 11,15,16,50,37c |
+| 005 | Input policy + F5 fast-complete + keyboard | Logic | ✅ Complete | N/A | 11,15,16,50,37c½(ui_cancel→014)|
 | 006 | Ceremony ladder D2 調用序 + EC-M9 | Logic | ✅ Complete | ADR-0001 | 8,10,12,13,14,55,60½(margin wiring→010)|
-| 007 | INV-M1 release 出口 + EC-M1/M2 | Logic | Ready | N/A | 1,2,52,53 |
-| 008 | F2 breakdown bar + INV-M2 + EC-M15/M12 | Logic | Ready | **ADR-0005** | 3,42-45,63,66 |
-| 009 | INV-M3 S3 commit + EC-M14/M5 + AC-21 lint | Logic | Ready | ADR-0007 | 20,21,56,65½ |
+| 007 | INV-M1 release 出口 + EC-M1/M2 | Logic | ✅ Complete | N/A | 1(×2/4 path),2,52,53 |
+| 008 | F2 breakdown bar + INV-M2 + EC-M15/M12 | Logic | ✅ Complete | **ADR-0005** | 3,42-45,63,66 |
+| 009 | INV-M3 S3 commit + EC-M14/M5 + AC-21 lint | Logic | ✅ Complete | ADR-0007 | 20,21,56,65½ |
 | 010 | Queue drain + terminal + EC-M6/M20 | Logic | Ready | ADR-0009 | 18,19½,32,34,57,70 |
 | 011 | Force-close D1 split + stash F6 | Logic | Ready | ADR-0006 | 22,22b,23,51 |
 | 012 | Rollback paths | Logic | Ready | N/A | 30,30b,31 |

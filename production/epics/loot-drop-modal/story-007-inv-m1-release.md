@@ -1,12 +1,12 @@
 # Story 007: INV-M1 freeze-release 單一出口 + EC-M1 suspend + EC-M2 reject degrade
 
 > **Epic**: Loot Drop Modal (#21)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-07 — AC-2/52/53 全 + AC-1 兩 path(×4 parametrize 完成 @ 011/012 cancel paths 落地後);GUT 56/56;combined 1986/1985/0 fail;commit b7d82b1)
 > **Layer**: Presentation
 > **Type**: Logic
 > **Estimate**: M
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-07
 
 ## Context
 
