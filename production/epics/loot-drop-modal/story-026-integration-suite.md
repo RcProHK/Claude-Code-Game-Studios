@@ -1,7 +1,7 @@
 # Story 026: Cross-system integration suite(real #15/#17/GSM/#20)
 
 > **Epic**: Loot Drop Modal (#21)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-07 — AC-54 smoke/72/73/74(**G-flag-1 grep-VERIFIED:零 runtime gating site**);AC-71 @ 018 收;**AC-78 BLOCKED-ON #20 Q-OQ6 suppress 接線**(#20-side,deferred-tracked);combined 2101/2100/0 fail;commit 84a5ed2)
 > **Layer**: Presentation
 > **Type**: Integration
 > **Estimate**: M

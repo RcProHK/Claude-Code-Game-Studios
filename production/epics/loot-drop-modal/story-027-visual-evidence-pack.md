@@ -1,7 +1,7 @@
 # Story 027: Visual/UI ADVISORY evidence pack
 
 > **Epic**: Loot Drop Modal (#21)
-> **Status**: Ready(evidence 部分需真 browser build — VS-tier 場景接受 deferred)
+> **Status**: ✅ Protocol delivered(2026-06-07 — per-AC evidence protocol @ production/qa/evidence/loot-drop-modal/README.md;**evidence 收集 EXTERNAL**(真 browser + 人手;ADVISORY 軌唔 block — #20 先例);AC-9/87/88+SR = VS-tier)
 > **Layer**: Presentation
 > **Type**: Visual/Feel
 > **Estimate**: M

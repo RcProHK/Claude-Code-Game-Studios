@@ -4,7 +4,7 @@
 > **GDD**: design/gdd/loot-drop-modal.md(✅ APPROVED 2026-06-06 Pass 3 — 三 pass 同 session 收斂,0 phantom)
 > **UX Spec**: design/ux/loot-drop-modal.md(✅ APPROVED 2026-06-06 — 0 blocking / 3 advisory;stories 引用 UX spec,唔直接 cite GDD UI 細節)
 > **Architecture Module**: `LootRevealCoordinator` autoload @ `src/autoload/loot_reveal_coordinator.gd`(thin Node;`_ready` instantiate + 持有 `ModalLayer`(CanvasLayer 120)+ `CelebrationVFXLayer`(CanvasLayer 110)— >100 層 single owner,layer 數值 ground truth 屬 G-LM-1 ADR-0001 revision)。Autoload 位置:tail append 喺 ZoneSystem 後(#28 keep last)— G-LM-5 ADR-0008 amendment;predecessor constraints `{#15, #1(C6), #33, Camera, ScreenEffects, Particle, Audio, PlatformDetect} ≺ #21`
-> **Status**: Ready
+> **Status**: ✅ **INTERNAL COMPLETE 26/27 + 027 protocol-delivered**(2026-06-07 單日 story pipeline:001-026 全 implemented + CI-green;027 = manual ADVISORY evidence protocol 交付,收集 EXTERNAL[真 browser/人手])。**AC tally:71 unit + 3 static BLOCKING 全過;9 integration 解封後全過(AC-78 BLOCKED-ON #20 Q-OQ6);AC-35 mapping 自查 ✅(①→11 ②→31/71 ③→17 ④→16);10 manual = protocol 交付**。最終 combined gate:**323 scripts / 2101 / 2100 / 0 fail / 1 pre-existing pending**。Deferred/EXTERNAL:manual evidence 收集 + SR double-announce check(VS browser)/ AC-78(#20-side suppress 接線)/ SfxCatalog.tres + audio assets(/asset-spec)/ RestPeriod window remaining check(#2 transport)/ UI visual skin(scene 實作 — evidence 收集前提,隨 /asset-spec → UI build)/ UX advisory ×2
 > **Stories**: **27 created**(1 Config/Data + 21 Logic + 4 Integration + 1 Visual/Feel;baseline 22–28 內)— QL-STORY-READY degraded inline ADEQUATE(spawn blocked 1M-context credits,#17/#18 同款;GDD 94 ACs 3-pass verified GWT = qa-plan-import-equivalent,story 直接 embed)
 > **Producer gate (PR-EPIC)**: **CONCERNS → adjustments 採納**(2026-06-07 full-mode spawn)— 維持單一 epic(gate-inside-epic pattern,#17/#18 grep 實證先例;「gates epic」係 dependency-epic anti-pattern);story 估算 re-baseline **22–28**(18–22 係 force-compress 訊號 — AC density 唔可以超歷史值 ~2.6/story 兩倍);4 項 binding structural directives 見下文「Story breakdown directives」
 
@@ -109,8 +109,8 @@ This epic is complete when:
 | 023 | **G-LM-8+9** #4 catalog freeze 表 + process-mode + lint(tres→/asset-spec)| Logic | ✅ Complete | ADR-0008 | 76,76b |
 | 024 | **G-LM-10** #17 batch seam + #17 errata ×3 | Logic | ✅ Complete | ADR-0003 | 解封 72/28/58 |
 | 025 | **G-LM-6** announce_aria + SR | Logic | ✅ Complete | N/A(gateway) | 77 |
-| 026 | Cross-system integration suite | Integration | Ready | ADR-0006 | 54,71-74,78 |
-| 027 | Visual/UI evidence pack(ADVISORY) | Visual/Feel | Ready | ADR-0001 | 9,80-88 |
+| 026 | Cross-system integration suite | Integration | ✅ Complete | ADR-0006 | 54,71-74(78 BLOCKED-ON #20)|
+| 027 | Visual/UI evidence pack(ADVISORY) | Visual/Feel | ✅ Protocol(evidence EXTERNAL)| ADR-0001 | 9,80-88 |
 
 **AC-35** = mapping AC(→ AC-11/16/17/31/71)— epic 收線自查,無獨立 story。
 **建議實作順序**(CD gate 順序 + dependency):001 → 002 → **017(critical path 並行開)** → 003 → 004 → 005 → 006 → 007 → 008 → 009 → 010 → 011 → 012 → 013 → 014 → 015 → 016 → 018 → 019 → 020 → 021 → 022 → 023 → 024 → 025 → 026 → 027。017-019 同 003-016 可 interleave(#15-side vs #21-side 唔同檔);020/024 任何時候可插(無 #21 dep)。
