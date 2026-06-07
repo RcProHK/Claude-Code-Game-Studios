@@ -274,11 +274,12 @@ func _on_gsm_state_changed(_from_state, to_state, _payload) -> void:
 ## ---- subscriptions (Rule 6 — GSM only;#11/#26 明文唔訂) ----
 
 func _subscribe_all() -> void:
-	# GSM — connect_for_initial_state (ADR-0006 C6;deferred next-frame sentinel).
+	# GSM — connect_for_initial_state ONLY (ADR-0006 C6;deferred next-frame
+	# sentinel)。冇 plain-connect fallback — check_attention_subscription lint
+	# 禁(2026-06-08 main-RED hotfix:fallback 係 dead code,真 GSM + 全部
+	# mock 都實裝 cfis)。
 	if _gsm != null and _gsm.has_method("connect_for_initial_state"):
 		_gsm.connect_for_initial_state(_on_gsm_state_changed)
-	elif _gsm != null and _gsm.has_signal("state_changed"):
-		_gsm.state_changed.connect(_on_gsm_state_changed)
 
 
 ## Disconnect 喺 CLOSED entry 先做(CLOSING 仍要聽 GSM — rationale 見 header)。

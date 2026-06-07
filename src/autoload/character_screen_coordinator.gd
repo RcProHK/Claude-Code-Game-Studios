@@ -292,16 +292,17 @@ func _on_gsm_state_changed(_from_state, to_state, _payload) -> void:
 ## ---- subscriptions (story 008;Rule 8) ----
 
 func _subscribe_all() -> void:
-	# GSM — connect_for_initial_state (ADR-0006 C6;deferred next-frame sentinel).
+	# GSM — connect_for_initial_state ONLY (ADR-0006 C6;deferred next-frame
+	# sentinel)。冇 plain-connect fallback — check_attention_subscription lint
+	# 禁(2026-06-08 main-RED hotfix:fallback 係 dead code,真 GSM + 全部
+	# mock 都實裝 cfis;#22 epic 起 main CI 一直 red 未發現)。
 	if _gsm != null and _gsm.has_method("connect_for_initial_state"):
 		_gsm.connect_for_initial_state(_on_gsm_state_changed)
-	elif _gsm != null and _gsm.has_signal("state_changed"):
-		_gsm.state_changed.connect(_on_gsm_state_changed)
-	# #11 — connect_for_initial_state (sync burst ×7 then connect;5-arg layout).
+	# #11 — connect_for_initial_state ONLY (sync burst ×7 then connect;5-arg
+	# layout)。冇 plain-connect fallback(check_stat_changed_connect lint 禁 —
+	# 同 GSM fallback 一齊剷,2026-06-08 main-RED hotfix)。
 	if _stat_system != null and _stat_system.has_method("connect_for_initial_state"):
 		_stat_system.connect_for_initial_state(_on_stat_changed)
-	elif _stat_system != null and _stat_system.has_signal("stat_changed"):
-		_stat_system.stat_changed.connect(_on_stat_changed)
 	# #26 — plain connect (cfis 對 #26 係 phantom — Pass 1 fix;initial avatar
 	# state 由 Rule 7 sync read cover)。has_signal guard:shipped avatar stub
 	# 未有 signal(#26 epic 未實作)— signal 落地後自動接上。
