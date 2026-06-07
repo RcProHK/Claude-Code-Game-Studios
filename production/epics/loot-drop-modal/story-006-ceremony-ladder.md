@@ -3,12 +3,12 @@
 > **Scope 變更(2026-06-07)**:**AC-55(EC-M4 motion_reduction matrix)由 story-004 移入** — assert 對象(`request_focal` 零 call / shake 0 / particle ×0.5)係本 story 先存在嘅 ladder 調用;F1 timing variant 半邊已喺 004 完成(AC-41)。
 
 > **Epic**: Loot Drop Modal (#21)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-07 — AC-8/10/12/13/14/55 + AC-60 watchdog+formula 半(margin wiring → 010);GUT 36/36;combined 1966/1965/0 fail;commit 31e47f0;**順序 note:006 先於 005 實作** — fast-complete 依賴 ladder artifacts,dep 方向當初寫反)
 > **Layer**: Presentation
 > **Type**: Logic
 > **Estimate**: M
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-07
 
 ## Context
 

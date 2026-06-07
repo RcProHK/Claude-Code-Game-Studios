@@ -60,6 +60,18 @@ const ATTENTION_CEILING_MS: int = 1200
 ## arrives (F1: fallback timer T = D_hold + 0.2s — #7 bug still freezes).
 @export var focal_fallback_grace_ms: int = 200
 
+# ── F5 two-stage tap knobs (story 005) ──
+
+## Fast-complete in-flight tween snap duration (F5 — 0-frame is reserved for
+## rollback; a snap that instant reads as a glitch). Safe range 0.05–0.2.
+@export var snap_sec: float = 0.1
+
+## Two-stage tap lockout, anchored at S3 ENTRY (F5/AC-15 unified anchor) —
+## min-readable window so a sweat-handed mash can't blind-skip the terminal
+## frame. Only applies after a fast-complete; natural S3 has zero lockout.
+## Safe range 0.15–0.4.
+@export var dismiss_debounce_sec: float = 0.25
+
 
 ## Data-load assert (F1 + Tuning Knobs flash budget). Empty result == valid.
 func validate() -> Array[String]:

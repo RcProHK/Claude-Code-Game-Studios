@@ -89,7 +89,7 @@ This epic is complete when:
 | 003 | FSM 8-state × in_catchup table-driven | Logic | ✅ Complete | ADR-0006 | 37 |
 | 004 | F1 timeline + motion_reduction | Logic | ✅ Complete | N/A(formula) | 38-41(55→006)|
 | 005 | Input policy + F5 fast-complete + keyboard | Logic | Ready | N/A | 11,15,16,50,37c |
-| 006 | Ceremony ladder D2 調用序 + EC-M9 | Logic | Ready | ADR-0001 | 8,10,12,13,14,55,60 |
+| 006 | Ceremony ladder D2 調用序 + EC-M9 | Logic | ✅ Complete | ADR-0001 | 8,10,12,13,14,55,60½(margin wiring→010)|
 | 007 | INV-M1 release 出口 + EC-M1/M2 | Logic | Ready | N/A | 1,2,52,53 |
 | 008 | F2 breakdown bar + INV-M2 + EC-M15/M12 | Logic | Ready | **ADR-0005** | 3,42-45,63,66 |
 | 009 | INV-M3 S3 commit + EC-M14/M5 + AC-21 lint | Logic | Ready | ADR-0007 | 20,21,56,65½ |

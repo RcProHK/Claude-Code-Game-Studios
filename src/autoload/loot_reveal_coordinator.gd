@@ -135,6 +135,15 @@ var _freeze_issued: bool = false
 var _freeze_handle = null
 var _skip_pending_freeze: bool = false  # fast-complete before issue ⇒ never issue (F5)
 
+## F5 fast-complete state (story 005).
+var _fast_complete_active: bool = false
+var _s3_entry_target_ms: float = -1.0  # min(t_tap + SNAP, T_block) — D5 clamp
+var _since_s3_ms: float = 0.0          # debounce anchor accumulator (S3 entry)
+var _s3_entries: int = 0               # exactly-once guard observable (AC-50 race)
+
+## Burst handle of the current reveal (fast-complete stops it — natural fade).
+var _burst_handle = null
+
 ## Telemetry append-log (#15/#17 verbatim pattern; #28 sink not required).
 var _telemetry_log: Array[Dictionary] = []
 
@@ -210,6 +219,10 @@ func _transition(to_state: int) -> bool:
 		_in_catchup = false  # terminal exits always reset the mode flag
 		_modal_layer.visible = false
 		_celebration_vfx_layer.visible = false
+	elif _state == ModalState.STEADY:
+		_since_s3_ms = 0.0  # debounce anchor = S3 ENTRY (F5/AC-15 unified)
+		_s3_entries += 1
+		# S3 entry side effects (receive_loot INV-M3 / SR announce) — stories 009/025.
 	return true
 
 
@@ -281,6 +294,9 @@ func _begin_reveal(drop) -> void:
 	_freeze_issued = false
 	_freeze_handle = null
 	_skip_pending_freeze = false
+	_fast_complete_active = false
+	_s3_entry_target_ms = -1.0
+	_burst_handle = null
 	_fill_content_slots(drop)
 	var anchor: Vector2 = _resolve_reveal_anchor()
 	# ── S0 frame-0: tier-colored burst (pre-attentive rarity channel) + fanfare ──
@@ -289,7 +305,7 @@ func _begin_reveal(drop) -> void:
 		var mult: float = _timing_config.particle_multiplier[_current_tier]
 		if _motion_reduction:
 			mult *= 0.5  # EC-M4 — density halves, ceremony stays
-		_particles.play(preset, anchor, mult)
+		_burst_handle = _particles.play(preset, anchor, mult)
 	if _audio != null and _audio.has_method("play_sfx"):
 		_audio.play_sfx(_fanfare_event_for_tier(_current_tier))
 	# ── Camera track (T=0, GSM==LOOT_DROP holds by construction — #7 Rule 4):
@@ -385,6 +401,84 @@ func _issue_ceremony_freeze() -> void:
 			_timing_config.saturation_drop, _timing_config.saturation_recovery_sec)
 
 
+# ── Input (story 005 — Rule 5 two-stage tap + F5) ─────────────────────────────
+
+## Keyboard parity (AC-37c): ui_accept == scrim tap, same per-stage policy.
+## ui_cancel == catch-up「稍後再拆」(stories 014/015 give it a target).
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed(&"ui_accept"):
+		handle_tap()
+	elif event.is_action_pressed(&"ui_cancel"):
+		_handle_catchup_exit()
+
+
+## The full-screen scrim's single entry point (Fitts + sweat — the whole scrim
+## is the surface; the ≥48px「影低佢」CTA is a labelled affordance only).
+## #33 exempt handler: NEVER consults is_input_permitted() (EC-15 / AC-11b
+## "modal is the input, not the surroundings").
+## Per-stage policy (AC-11): ENTRY ignore (covers S0/S1 + tap-through EC-M19);
+## CEREMONY fast-complete; STEADY dismiss (debounced); EXITING ignore.
+## Ignored taps get NO audio feedback (deliberate — the sting is the sole
+## audio subject at that moment; debounce-ignore is not an invalid action).
+func handle_tap() -> void:
+	match _state:
+		ModalState.CEREMONY:
+			_fast_complete()
+		ModalState.STEADY:
+			_attempt_dismiss()
+		_:
+			pass  # ENTRY / EXITING / HIDDEN / catch-up surfaces (stories 014/015)
+
+
+## F5 stage-1: snap to the S3 terminal frame over SNAP_SEC.
+## Freeze active → release THIS frame; not yet issued → never issue (skip).
+## Particle stop() = natural fade (never hard-cut); the audio sting keeps
+## playing — zero stop/cut calls (colorblind rarity backup channel).
+func _fast_complete() -> void:
+	if _fast_complete_active:
+		return  # second S2 tap — snap already in flight
+	_fast_complete_active = true
+	var t_block: int = LootRevealFormulas.t_block_ms(_timing_config, _current_tier, _motion_reduction)
+	_s3_entry_target_ms = minf(
+		_reveal_clock_ms + _timing_config.snap_sec * 1000.0, float(t_block))
+	if _freeze_issued:
+		_release_freeze()
+	else:
+		_skip_pending_freeze = true
+	if _burst_handle != null and _burst_handle is Object and _burst_handle.has_method("stop"):
+		_burst_handle.stop()
+	_advance_timeline()  # same-frame snap-window check (SNAP may be sub-frame)
+
+
+## F5 stage-2: dismiss, locked out for DISMISS_DEBOUNCE_SEC after a
+## fast-completed S3 entry (min-readable window). Natural S3 → zero lockout.
+func _attempt_dismiss() -> void:
+	if _fast_complete_active and _since_s3_ms < _timing_config.dismiss_debounce_sec * 1000.0:
+		return  # debounce-ignore: silent, no ui_error (Rule 5)
+	_dismiss()
+
+
+## Tap = 撳快門. Banking already happened at S3 (INV-M3) — this only exits.
+## S4 emit ordering + queue advance land in story 010.
+func _dismiss() -> void:
+	_transition(ModalState.EXITING)
+
+
+## INV-M1 single freeze-release exit (skeleton — story 007 hardens with
+## idempotency + EC-M1/M2; story 021 supplies the real #6 release(handle)).
+func _release_freeze() -> void:
+	if not _freeze_issued:
+		return  # not-issued ⇒ no-op (INV-M1)
+	if _screen_effects != null and _screen_effects.has_method("release"):
+		_screen_effects.release(_freeze_handle)
+	_freeze_issued = false
+	_freeze_handle = null
+
+
+func _handle_catchup_exit() -> void:
+	pass  # 「稍後再拆」semantics — stories 014/015
+
+
 func _emit_telemetry(event: String, data: Dictionary) -> void:
 	_telemetry_log.append({"event": event, "data": data})
 
@@ -394,6 +488,9 @@ func get_telemetry() -> Array[Dictionary]:
 
 
 func _process(delta: float) -> void:
+	if _state == ModalState.STEADY:
+		_since_s3_ms += delta * 1000.0  # debounce window only — reveal clock parks
+		return
 	if _state != ModalState.ENTRY and _state != ModalState.CEREMONY:
 		return
 	_reveal_clock_ms += delta * 1000.0
@@ -418,9 +515,15 @@ func _advance_timeline() -> void:
 			# anyway at T = D_hold + grace; the queue must never deadlock.
 			_emit_telemetry("loot_reveal.focal_fallback", {"tier": _current_tier})
 			_issue_ceremony_freeze()
-	if _state == ModalState.CEREMONY and _reveal_clock_ms >= float(t_block):
+	# F5: fast-complete S3 target = min(t_tap + SNAP, T_block) — D5 clamp.
+	# Same-frame race (snap target == natural T_block) resolves here in one
+	# pass: the FIRST satisfied condition transitions, S3 side effects fire
+	# exactly once (natural supersede is byte-identical — same edge).
+	var effective_block: float = float(t_block)
+	if _fast_complete_active:
+		effective_block = minf(_s3_entry_target_ms, float(t_block))
+	if _state == ModalState.CEREMONY and _reveal_clock_ms >= effective_block:
 		_transition(ModalState.STEADY)
-		# S3 entry side effects (receive_loot INV-M3 / SR announce) — stories 009/025.
 
 
 func is_modal_active() -> bool:
