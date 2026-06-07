@@ -2,3 +2,4 @@
 - [Glance protocol stats gate](feedback_glance_protocol_stats.md) — Wilson CI lower-bound + small N is infeasible; check sample-size feasibility before binding a playtest gate
 - [Loot Modal UX positions + review](project_loot_modal_ux_positions.md) — #21 consultation positions + /ux-review 6 BLOCKING; GSM L375 contract row = loot-GDD 必查點
 - [Character Screen UX review](project_character_screen_ux_review.md) — #22 adversarial review: 6 BLOCKING (preview/shake topology, volume 孤兒, #26 接線, tap 衝突, key 名分裂, ARIA), NEEDS REVISION
+- [Inventory UI re-verification](project_inventory_ui_verification.md) — #23 fix-pass verify: 11/12 PASS, 1 BLOCKING (salvage×IN_MAILBOX phantom error code); error-code sweep 要逐 command grep
