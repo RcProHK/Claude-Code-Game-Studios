@@ -1,12 +1,12 @@
 # Story 015: Catch-up ceremonies + grid + commit 語意 + EC-M7/M16 + C-1/C-2
 
 > **Epic**: Loot Drop Modal (#21)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-07 — AC-28½/29½/58½/67(#21-side;gated 半邊→018/023/024);GUT 118/118;combined 2048/2047/0 fail;commit 53c88fe)
 > **Layer**: Presentation
 > **Type**: Logic
 > **Estimate**: M
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-07
 
 ## Context
 

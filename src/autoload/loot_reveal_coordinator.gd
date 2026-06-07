@@ -198,6 +198,13 @@ var _catchup_grid_items: Array = []      # overflow (sub-RARE 「+N」-able + RA
 var _catchup_phase: String = ""          # "stream" / "ceremonies" / "grid" — 唔回頭
 var _catchup_exit_pending: bool = false  # 「稍後再拆」mid-ceremony → S3 後 stash + terminal
 
+## Banner stack (story 016 — Rule 12): top-edge status region, 同屏最多 1 條,
+## priority private_mode > 其他;displacement ≠ one-shot dismissal(被 displace
+## 嘅 banner predicate 仍 true 就 re-render — #20-side arbitration 係 AC-78/026)。
+var _banner_active_kind: String = ""
+var _banner_displaced_kind: String = ""
+var _banner_deferred: Array[String] = []  # modal active 時 loot_disabled defer
+
 ## Deferred acknowledgement bucket (F4 — story 013 owns aggregation/flush;
 ## EC-M14 CONVERTED_DUPE shard acks land here from 009). Entry shape:
 ## {tier:int, reason:String, n:int(default 1)}.
@@ -258,6 +265,8 @@ func _ready() -> void:
 		_loot_system.loot_rollback.connect(_on_loot_rollback)
 	if _loot_system != null and _loot_system.has_signal("loot_micro_ack"):
 		_loot_system.loot_micro_ack.connect(_on_loot_micro_ack)
+	if _loot_system != null and _loot_system.has_signal("loot_disabled"):
+		_loot_system.loot_disabled.connect(_on_loot_disabled)
 	_toast_container = Node.new()
 	_toast_container.name = "ToastContainer"
 	add_child(_toast_container)
@@ -305,6 +314,7 @@ func _transition(to_state: int) -> bool:
 		_in_catchup = false  # terminal exits always reset the mode flag
 		_modal_layer.visible = false
 		_celebration_vfx_layer.visible = false
+		_flush_deferred_banners()  # Rule 12 — banner 喺 dismiss 後先出
 	elif _state == ModalState.STEADY:
 		_since_s3_ms = 0.0  # debounce anchor = S3 ENTRY (F5/AC-15 unified)
 		_s3_entries += 1
@@ -420,6 +430,7 @@ func _on_force_close() -> void:
 			# force-close 嗰刻就係 batch commit point — 已 display beats 單一
 			# frame 連發 commit;in-flight 未 display → 留 pending。
 			_commit_stream_batch()
+			_emit_telemetry("catchup_truncated", {"remaining": _queue_depth(), "reason": "force_close"})
 			modal_dismissed.emit("", true)
 			_transition(ModalState.HIDDEN)
 			return
@@ -780,6 +791,7 @@ func _fast_complete() -> void:
 	if _fast_complete_active:
 		return  # second S2 tap — snap already in flight
 	_fast_complete_active = true
+	_emit_telemetry("ceremony_skip_attempted", {"tier": _current_tier})
 	var t_block: int = LootRevealFormulas.t_block_ms(_timing_config, _current_tier, _motion_reduction)
 	_s3_entry_target_ms = minf(
 		_reveal_clock_ms + _timing_config.snap_sec * 1000.0, float(t_block))
@@ -802,6 +814,11 @@ func _attempt_dismiss() -> void:
 
 ## Tap = 撳快門. Banking already happened at S3 (INV-M3) — this only exits.
 func _dismiss() -> void:
+	var total_ms: int = int(_reveal_clock_ms + _since_s3_ms)
+	var payload: Dictionary = {"ms": total_ms, "tier": _current_tier}
+	if _current_tier >= LootEnums.RarityTier.EPIC and total_ms < 500:
+		payload["suspicious_dismiss"] = true  # 誤觸 dismiss = moment 蒸發嘅盲區量度
+	_emit_telemetry("time_to_dismiss_ms", payload)
 	if not _transition(ModalState.EXITING):
 		return
 	_exit_clock_ms = 0.0
@@ -1022,10 +1039,12 @@ func _batch_commit_drops(drops: Array) -> void:
 func _handle_catchup_exit() -> void:
 	match _state:
 		ModalState.CATCHUP_PROMPT:
+			_emit_telemetry("catchup_abandoned", {"remaining": _queue_depth()})
 			modal_dismissed.emit("", true)  # terminal — GSM 推進;pending 不變
 			_transition(ModalState.HIDDEN)
 		ModalState.CATCHUP_STREAM:
 			_commit_stream_batch()  # 已 display 件 commit;未 display 留 pending
+			_emit_telemetry("catchup_abandoned", {"remaining": _queue_depth()})
 			modal_dismissed.emit("", true)
 			_transition(ModalState.HIDDEN)
 		ModalState.CATCHUP_GRID:
@@ -1044,6 +1063,47 @@ func _handle_catchup_exit() -> void:
 				_stash_exit(false)
 		_:
 			pass
+
+
+# ── Banner stack (story 016 — Rule 12) ───────────────────────────────────────
+
+## Private Mode 等 status banner。Modal active → 現行 ceremony 行完先出
+## (唔 mid-ceremony 偷走 euphoria);copy 係 #15 own。
+func _on_loot_disabled(_reason: String) -> void:
+	if _state != ModalState.HIDDEN:
+		if "private_mode" not in _banner_deferred:
+			_banner_deferred.append("private_mode")
+		return
+	_show_banner("private_mode")
+
+
+## 同屏最多 1 條;priority: private_mode > 其他(audio silent-mode 等)。
+## Displacement 語意:被 displace 嘅 banner 喺高 priority 清走後 re-render。
+func _show_banner(kind: String) -> void:
+	if _banner_active_kind == "":
+		_banner_active_kind = kind
+		return
+	if kind == "private_mode" and _banner_active_kind != "private_mode":
+		_banner_displaced_kind = _banner_active_kind
+		_banner_active_kind = kind
+	# 同級/較低 priority 嚟 → 唔搶位(現行 banner 留)
+
+
+func clear_banner(kind: String) -> void:
+	if _banner_active_kind != kind:
+		return
+	_banner_active_kind = ""
+	if _banner_displaced_kind != "":
+		# predicate 仍 true 就返嚟 — displacement ≠ one-shot dismissal
+		var restored: String = _banner_displaced_kind
+		_banner_displaced_kind = ""
+		_show_banner(restored)
+
+
+func _flush_deferred_banners() -> void:
+	for kind: String in _banner_deferred:
+		_show_banner(kind)
+	_banner_deferred = []
 
 
 # ── micro_ack banking + F4 toast (story 013 — Rule 9 / F4 / EC-M17) ─────────
