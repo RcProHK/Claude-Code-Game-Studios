@@ -1,16 +1,20 @@
-## #23 Inventory UI — lifecycle integration tests(story 002 scaffold)。
+## #23 Inventory UI — lifecycle integration tests。
+## story 002:scaffold shape(boot / FSM fork / clean-slate / boot order)。
+## story 007:Group B AC suite(AC-04..08 + AC-37 — mechanism-agnostic 驗收;
+## AC-04 = whitelist tests / AC-07 = clean-slate test 已喺 002 段 cover)。
 ##
 ## Conventions: GUT test_ prefix;preload SUT pattern;engine 唔 tick test child
 ## _process — 全部經 injected clock advance(delta_ms) 手動 drive;
 ## frame-stepping 一律 await process_frame(禁 wait_frames)。
-## FSM = #22 fork(CD binding)— 行為等價由兩邊 AC contract-pin,呢度驗
-## #23-specific scaffold shape;full Group B lifecycle suite = story 007。
+## FSM = #22 fork(CD binding)— 行為等價由兩邊 AC contract-pin。
 extends GutTest
 
 const CoordinatorScript := preload("res://src/autoload/inventory_ui_coordinator.gd")
 const GSMScript := preload("res://src/autoload/game_state_machine.gd")
 const TimingConfig := preload("res://src/ui/character_screen/char_screen_timing_config.gd")
+const InventoryScript := preload("res://src/autoload/inventory_system.gd")
 const PROJECT_GODOT := "res://project.godot"
+const COORDINATOR_SRC := "res://src/autoload/inventory_ui_coordinator.gd"
 
 
 ## GSM mock — 3-arg signal shape(from, to, payload)+ cfis counter(= #22 先例)。
@@ -250,3 +254,133 @@ func test_opening_abort_skips_open_straight_to_closed() -> void:
 	_gsm.transition(GSMScript.GameState.WORKOUT_ACTIVE)
 	assert_eq(_sut.get_screen_state(), CoordinatorScript.ScreenState.CLOSED,
 		"OPENING abort 直接去 CLOSED,skip OPEN(= #22 States)")
+
+
+## ============ story 007: Group B AC suite ============
+
+## Spy persistence — AC-37(collect 所有 writes;read 回 null)。
+class SpyPersistence:
+	extends RefCounted
+	var writes: Array = []  # [{key, value}]
+
+	func write(key: String, value: Variant, _critical: bool = false) -> bool:
+		writes.append({"key": key, "value": value})
+		return true
+
+	func read(_key: String) -> Variant:
+		return null
+
+
+func _put_item(inv, id: StringName, lifecycle: int) -> void:
+	var item: EquipmentItem = EquipmentItem.new()
+	item.item_id = id
+	item.slot_affinity = EquipmentEnums.EquipSlot.WEAPON
+	item.lifecycle_state = lifecycle
+	item.acquired_at_unix = 1000
+	inv._items[id] = item
+
+
+func test_ac05_force_close_with_bulk_confirm_inventory_untouched() -> void:
+	# Arrange: 真 #17(count/shards 基準)+ BULK_CONFIRM 開緊。
+	var inv = InventoryScript.new()
+	add_child_autofree(inv)
+	_put_item(inv, &"a", EquipmentEnums.ItemLifecycle.IN_INVENTORY)
+	_put_item(inv, &"b", EquipmentEnums.ItemLifecycle.IN_INVENTORY)
+	inv._forge_shards = 500
+	_sut._inventory = inv
+	_gsm.state = GSMScript.GameState.IDLE
+	# Positive control(AC-05 同 test):player-initiated open cue 恰好一響。
+	_open_to_state_open()
+	assert_eq(_audio.sfx_calls.count(&"ui_charscreen_open"), 1,
+		"positive control — open cue 一響(同 test 內,防 spy 接錯線假陰性)")
+	_sut._modal = CoordinatorScript.ModalKind.BULK_CONFIRM
+	_audio.sfx_calls.clear()
+	# Act: GSM → WORKOUT_ACTIVE(force-close)。
+	_gsm.transition(GSMScript.GameState.WORKOUT_ACTIVE)
+	# Assert: modal cancel(永不 confirm — #17 不變)+ ≤cap CLOSED + 零 SFX。
+	assert_eq(_sut.get_modal(), CoordinatorScript.ModalKind.NONE)
+	_sut.advance(TimingConfig.FORCE_CLOSE_MAX_MS)
+	assert_eq(_sut.get_screen_state(), CoordinatorScript.ScreenState.CLOSED)
+	assert_eq(inv.get_inventory_count(), 2, "bulk 永不被 system event confirm(AC-05)")
+	assert_eq(inv.get_forge_shards(), 500, "shards 不變")
+	assert_eq(_audio.sfx_calls.size(), 0, "force-close 零 play_sfx(CD C1)")
+
+
+func test_ac06_suspended_snap_and_resume_does_not_auto_reopen() -> void:
+	# Arrange
+	_gsm.state = GSMScript.GameState.IDLE
+	_open_to_state_open()
+	# Act ①: SUSPENDED → instant snap(無 animation)。
+	_gsm.transition(GSMScript.GameState.SUSPENDED)
+	assert_eq(_sut.get_screen_state(), CoordinatorScript.ScreenState.CLOSED, "instant snap")
+	# Act ②: resume 返 IDLE。
+	_gsm.transition(GSMScript.GameState.IDLE)
+	# Assert: 唔 auto-reopen(player-initiated only — AC-06)。
+	assert_eq(_sut.get_screen_state(), CoordinatorScript.ScreenState.CLOSED,
+		"resume 唔 auto-reopen")
+	assert_false(_sut._layer.visible)
+
+
+func test_ac08_subscription_introspection_and_three_close_paths() -> void:
+	_gsm.state = GSMScript.GameState.IDLE
+	# ① Positive:open 後 GSM connect 存在,而且只此一條。
+	_open_to_state_open()
+	assert_eq(_gsm.state_changed.get_connections().size(), 1,
+		"GSM connect 存在(positive)+ 只此一條(AC-08)")
+	# ② #11/#26 零 connect:#23 根本冇 stat/avatar seam(明文唔訂 — GDD #26/#11 row)。
+	assert_null(_sut.get("_stat_system"), "#23 冇 #11 seam")
+	assert_null(_sut.get("_avatar"), "#23 冇 #26 seam")
+	# ③ 零 is_input_permitted call(Rule 1 明文拒用 #33)— source-level introspect。
+	var src: String = FileAccess.get_file_as_string(COORDINATOR_SRC)
+	assert_false("is_input_permitted" in src.replace("拒用 #33 is_input_permitted", ""),
+		"coordinator source 零 is_input_permitted 引用(doc comment 豁免)")
+	# ④ 3 close paths 後零 active subscription:
+	# path 1 — player close。
+	_sut.close()
+	_sut.advance(TimingConfig.CLOSE_ANIM_MS)
+	assert_eq(_gsm.state_changed.get_connections().size(), 0, "player close → 零 active")
+	# path 2 — force-close。
+	_open_to_state_open()
+	_gsm.transition(GSMScript.GameState.WORKOUT_ACTIVE)
+	_sut.advance(TimingConfig.FORCE_CLOSE_MAX_MS)
+	assert_eq(_gsm.state_changed.get_connections().size(), 0, "force-close → 零 active")
+	# path 3 — SUSPENDED snap。
+	_gsm.state = GSMScript.GameState.IDLE
+	_open_to_state_open()
+	_gsm.transition(GSMScript.GameState.SUSPENDED)
+	assert_eq(_gsm.state_changed.get_connections().size(), 0, "snap → 零 active")
+
+
+func test_ac37_zero_persist_full_session_with_positive_control() -> void:
+	# Arrange: spy persistence 注入 #17 seam;真 #17 + coordinator full session。
+	var inv = InventoryScript.new()
+	add_child_autofree(inv)
+	var spy := SpyPersistence.new()
+	inv._persistence = spy
+	_put_item(inv, &"a", EquipmentEnums.ItemLifecycle.IN_INVENTORY)
+	_sut._inventory = inv
+	_gsm.state = GSMScript.GameState.IDLE
+	# Act: 完整操作 session — open / section 切換 / filter / 3 close paths。
+	_open_to_state_open()
+	_sut.set_active_section(CoordinatorScript.SectionKind.MAILBOX)
+	_sut.set_active_section(CoordinatorScript.SectionKind.INVENTORY)
+	_sut.set_slot_filter(CoordinatorScript.SlotFilter.WEAPON)
+	_sut.close()
+	_sut.advance(TimingConfig.CLOSE_ANIM_MS)
+	_open_to_state_open()
+	_gsm.transition(GSMScript.GameState.WORKOUT_ACTIVE)  # force-close
+	_sut.advance(TimingConfig.FORCE_CLOSE_MAX_MS)
+	_gsm.state = GSMScript.GameState.IDLE
+	_open_to_state_open()
+	_gsm.transition(GSMScript.GameState.SUSPENDED)  # snap
+	var writes_from_session: int = spy.writes.size()
+	# Assert ①: 零 #23-origin write(#23 連 namespace 都唔開 — 全 session 零 write)。
+	assert_eq(writes_from_session, 0,
+		"完整 session + 3 close paths → 零 PersistenceLayer write(AC-37)")
+	# Assert ②(positive control):#17 自己 write 照行(spy 接線正確,唔係假陰性)。
+	_gsm.state = GSMScript.GameState.IDLE
+	inv.set_lock(&"a", true)  # 真 #17 command → _mark_dirty_and_flush
+	assert_gt(spy.writes.size(), 0, "positive control — #17 自己嘅 write 照行")
+	for w: Dictionary in spy.writes:
+		assert_true(String(w["key"]).begins_with("inventory"),
+			"所有 write 都係 #17-origin(inventory.*)— 零 #23 key:%s" % w["key"])

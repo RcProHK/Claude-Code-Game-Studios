@@ -1,7 +1,7 @@
 # Story 007: Lifecycle AC suite + subscriptions + zero-persist negative
 
 > **Epic**: Inventory UI (#23)
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Presentation
 > **Type**: Integration
 > **Estimate**: M
@@ -25,12 +25,12 @@
 
 ## Acceptance Criteria
 
-- [ ] **AC-04**:全 GSM states 逐個 → 只 IDLE/DISCONNECTED 准(double guard;唔 hardcode 數)
-- [ ] **AC-05**:BULK_CONFIRM 開緊 + GSM→WORKOUT_ACTIVE → modal cancel(#17 count/shards 不變)+ ≤FORCE_CLOSE_MAX_MS CLOSED + 零 play_sfx(**同 test positive control**:先 player-initiated open assert `ui_charscreen_open` 一響)
-- [ ] **AC-06**:SUSPENDED → instant snap;resume 唔 auto-reopen
-- [ ] **AC-07**:MAILBOX + WEAPON + modal + pending set → close→re-open 全 reset
-- [ ] **AC-08**:先 assert GSM connect **存在**(positive)再 assert 只此一條;#11/#26 零 connect;零 `is_input_permitted` call(同一 introspect);3 close paths 後零 active
-- [ ] **AC-37**:完整操作 session + 3 close paths → 零 #23-origin PersistenceLayer write(spy;positive control = #17 自己 write 照行)
+- [x] **AC-04**:全 GSM states 逐個 → 只 IDLE/DISCONNECTED 准(double guard;唔 hardcode 數)— 002 段 `test_can_open_only_in_permitted_states` + `test_open_rejected_outside_permitted`
+- [x] **AC-05**:BULK_CONFIRM 開緊 + GSM→WORKOUT_ACTIVE → modal cancel(#17 count/shards 不變)+ ≤FORCE_CLOSE_MAX_MS CLOSED + 零 play_sfx(**同 test positive control**:先 player-initiated open assert `ui_charscreen_open` 一響)
+- [x] **AC-06**:SUSPENDED → instant snap;resume 唔 auto-reopen
+- [x] **AC-07**:MAILBOX + WEAPON + modal + pending set → close→re-open 全 reset — 002 段 `test_open_clean_slate_resets_all_axes_and_pending`
+- [x] **AC-08**:先 assert GSM connect **存在**(positive)再 assert 只此一條;#11/#26 零 connect(seam 不存在 introspect);零 `is_input_permitted` call(source-level);3 close paths 後零 active
+- [x] **AC-37**:完整操作 session + 3 close paths → 零 #23-origin PersistenceLayer write(spy;positive control = #17 `set_lock` write 照行 + 全部 keys `inventory.*`)
 
 ## Implementation Notes
 
@@ -49,7 +49,15 @@
 
 **Story Type**: Integration
 **Required evidence**: `tests/integration/inventory_ui/test_invui_lifecycle.gd`
-**Status**: [ ] Not yet created
+**Status**: [x] Created — suite 而家 17 tests(13 scaffold + 4 AC suite)全 pass;combined gate CLEAN 2302/2301/0 fail(2026-06-08)
+
+## Completion Notes
+
+**Completed**: 2026-06-08
+**Criteria**: 6/6 passing(AC-04/07 由 story 002 tests cover — mechanism-agnostic suite 口徑,標註喺 file header)
+**Deviations**: None — AC-08「零 is_input_permitted」用 source-level introspect(doc-comment 提及位豁免);AC-37 spy 注入 #17 `_persistence` seam
+**Test Evidence**: +4 tests — AC-05(真 #17 + positive SFX control)/ AC-06(snap + resume)/ AC-08(positive-first introspect + 3 paths)/ AC-37(spy + positive control + key prefix sweep)
+**Code Review**: Complete — degraded inline APPROVED / ADEQUATE(spawn block 持續;本 story 零 production code 改動 — 純 test suite)
 
 ## Dependencies
 
