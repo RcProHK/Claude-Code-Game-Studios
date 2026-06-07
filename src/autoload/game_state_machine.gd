@@ -438,6 +438,17 @@ func on_workout_completed(workout_id: String) -> void:
 # ============================================================================
 
 const KEY_LOOT_REVEAL_PENDING: String = "gsm.loot_reveal_pending"
+
+## #21 G-LM-4c (6): same-occupancy retry suppression — a deferred reveal fires
+## at most once per CONTINUOUS stay in a safe state. The flag survives the
+## LOOT_DROP round-trip (defer → loot_confirmed(false) → return to the same
+## safe state must NOT immediately re-trigger — that loop is what (6) kills);
+## it resets when a safe state is entered from any non-LOOT_DROP state.
+var _reveal_attempted_in_occupancy: bool = false
+
+## Where loot_confirmed returns the FSM to (captured at LOOT_DROP entry —
+## the deferred-reveal context; non-safe entry falls back to IDLE).
+var _loot_return_state: GameState = GameState.IDLE
 const LOOT_REVEAL_SAFE_STATES: Array[int] = [
 	GameState.IDLE, GameState.REST_PERIOD, GameState.DISCONNECTED
 ]
@@ -448,6 +459,43 @@ func _check_pending_loot_reveal() -> bool:
 	if pending != true:
 		return false
 	return _current_state in LOOT_REVEAL_SAFE_STATES
+
+
+## #21 G-LM-4c (6) — post-emit deferred-reveal evaluation (GDD Rule 13 L123:
+## evaluate after every state_changed emit). call_deferred per Decision #1 —
+## follow-up transitions from inside the emit path are forbidden (Contract 5).
+## NOTE: the RestPeriod MIN_REVEAL_WINDOW remaining-duration check needs the
+## GymSys timer-remaining API — wired when the #2 transport lands (VS-gated);
+## until then RestPeriod triggers unconditionally (entry-gate degraded-open).
+func _post_transition_loot_hooks(from_state: GameState, to_state: GameState) -> void:
+	if to_state == GameState.LOOT_DROP:
+		_loot_return_state = from_state if from_state in LOOT_REVEAL_SAFE_STATES else GameState.IDLE
+		return
+	if to_state not in LOOT_REVEAL_SAFE_STATES:
+		return
+	if from_state != GameState.LOOT_DROP:
+		_reveal_attempted_in_occupancy = false  # genuinely new occupancy
+	if _reveal_attempted_in_occupancy:
+		return  # (6) — same occupancy never re-triggers
+	if not _check_pending_loot_reveal():
+		return
+	_reveal_attempted_in_occupancy = true
+	var payload := StateTransitionPayload.new()
+	payload.source_event = "deferred_reveal"
+	call_deferred("enqueue_event", payload, GameState.LOOT_DROP, 2)
+
+
+## #21 G-LM-4c (4) — the #15 loot_confirmed exit chain handler (#15 reverse-
+## wires its emitter in here; #21 NEVER calls GSM — AC-14). queue_drained:
+## true ⇒ clear loot_reveal_pending; false (catch-up defer) ⇒ the flag
+## survives so the NEXT occupancy re-offers the banner.
+func on_loot_confirmed(queue_drained: bool) -> void:
+	if queue_drained:
+		PersistenceLayer.write(KEY_LOOT_REVEAL_PENDING, false)
+	if _current_state == GameState.LOOT_DROP:
+		var payload := StateTransitionPayload.new()
+		payload.source_event = "loot_confirmed"
+		enqueue_event(payload, _loot_return_state, 2)
 
 
 # ============================================================================
@@ -574,6 +622,7 @@ func _forward_recover_from_tombstone(tombstone: Dictionary) -> void:
 	_notify_in_memory_spies(from_state, to_state)
 	_last_emit_tick = Time.get_ticks_usec()
 	state_changed.emit(from_state, to_state, payload)
+	_post_transition_loot_hooks(from_state, to_state)
 	_remove_tombstone()
 
 
@@ -630,6 +679,7 @@ func _request_transition(event: Variant, to_state: GameState = GameState.IDLE, p
 	_last_emit_tick = Time.get_ticks_usec()
 	var effective_payload: StateTransitionPayload = payload if payload != null else _initial_state_payload
 	state_changed.emit(from_state, to_state, effective_payload)
+	_post_transition_loot_hooks(from_state, to_state)
 
 	# Rule 2 step 8: release lock AFTER emit so re-entrant subscribers
 	# observe `_transitioning = true` and route through dropped_event.

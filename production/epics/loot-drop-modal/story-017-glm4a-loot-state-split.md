@@ -1,12 +1,12 @@
 # Story 017: G-LM-4a — #15 revealed/sync state 分離 + ceremony kind 持久化 + #15 errata
 
 > **Epic**: Loot Drop Modal (#21)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-07 — ①②②b⑦ + errata ×9 appendix;#15 existing suite 217/217 零變紅;combined 2062/2061/0 fail;commit 2646d25)
 > **Layer**: Presentation(epic)/ 改動喺 Core #15
 > **Type**: Logic
 > **Estimate**: M
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-07
 
 ## Context
 

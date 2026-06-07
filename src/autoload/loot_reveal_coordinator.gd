@@ -657,11 +657,16 @@ func _fanfare_event_for_tier(tier: int) -> StringName:
 ## pop-in (AC-10). Slot 7 (SR announcement) fires at S3 (story 025).
 func _fill_content_slots(drop) -> void:
 	var is_record: bool = drop is Object
+	# AC-37b — fast-victory marker (G-LM-4c ⑧): attribution slot uses the
+	# 「快勝」copy variant; the ceremony ladder stays tier-driven (layout
+	# variant, NOT a ceremony variant — Rule 13b(c)).
+	var fast_victory: bool = is_record and "item_metadata" in drop \
+		and bool(drop.item_metadata.get("fast_victory", false))
 	_content_slots = {
 		"rarity_badge": _current_tier,
 		"item_icon": str(drop.item_type) if (is_record and "item_type" in drop) else "",
 		"item_name": str(drop.item_metadata.get("item_name", "")) if (is_record and "item_metadata" in drop) else "",
-		"source_attribution": str(drop.source_event_kind) if (is_record and "source_event_kind" in drop) else "",
+		"source_attribution": "快勝" if fast_victory else (str(drop.source_event_kind) if (is_record and "source_event_kind" in drop) else ""),
 		"breakdown_bar": _compute_breakdown_slot(drop),
 		"dismiss_cta": "影低佢",
 	}

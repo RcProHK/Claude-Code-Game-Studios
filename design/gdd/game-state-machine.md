@@ -858,3 +858,12 @@ After ADR-006 ratified: Pass 4 (estimated ~30 min) verifies (a) GDD ACs trace cl
 | **Q-A6** (NEW, Pass 3 B7 / Decision #5) | `MAX_WEEKLY_TICK_CATCHUP = 8` 對長期 lapse player (e.g. 1 年不活躍) 嘅 returning-player ritual 設計 — 由 #29 Mirror Moment 用 `weekly_tick_catchup_capped` signal 處理? Specific ritual TBD | game-designer + #29 owner | OPEN — defer to #29 GDD authoring；state machine 只 emit signal + cap，#29 自行決定 ritual |
 
 **Resolution gating**: Q-E1 必須喺 #15 Loot Drop System GDD 寫成之前解決（Pillar 3 直接依賴）。Q-A2 (ADR-006) — Pass 3 confirmed need; combined with Q-A5 as next-action ADR. Q-X2 動畫 ownership 喺 Pre-MVP tier 解決（payload schema 已 locked）。Q-X3 post-MVP。Q-X4 應喺 UX spec authoring 期間 close（VS 前）。Q-A4 喺 VS spike 期間 close（ADR-006 covers）。Q-A5 next-session ADR-006 authoring. Q-A6 喺 #29 GDD 範圍 close. Q-E5 喺 MVP 之後 batch resolve。
+
+---
+
+## Errata(2026-06-07 — #21 G-LM-4c 執行;source = loot-drop-modal.md Bidirectional sync flags)
+
+1. **L128「每個 RestPeriod 只 drain ONE」** → 被 #21 Rule 6/10 supersede:intra-queue drain-all + catch-up contact-sheet(fatigue bound 由 #21 F3 caps + per-item commit + 外部 force-close 兜)。GSM 唔再 own drain cadence — LOOT_DROP occupancy 內嘅 reveal 數量係 #21/#15 嘅事。
+2. **L375(b)「未開封 item tap entry trigger」→ defer v0.2**(#21 OQ-6)— 需要 #23 Inventory UI surface + 獨立 content-source 分支;MVP 30-日 hard-cap auto-commit 係極罕 fallback path,deferred-ack 已 acknowledge。L375 (a)/(c)/(d) 已由 #21 兌現(Rule 2 / Rule 13b(c) 快勝 variant / Rule 8 pre-S3 cancel)。
+
+**Code-side 同步(2026-06-07,#21 story-019)**:`_post_transition_loot_hooks` 接線(Rule 13 L123 evaluate-after-emit + G-LM-4 ⑥ same-occupancy retry-suppression)+ `on_loot_confirmed(queue_drained)` exit chain(drained=false 即 catch-up defer — flag 保留俾下個 occupancy);RestPeriod `MIN_REVEAL_WINDOW` remaining-duration check 留 #2 transport(VS-gated)。

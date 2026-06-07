@@ -61,6 +61,12 @@ const CURRENT_SCHEMA: int = 1
 
 var _persistence = null       ## #3 PersistenceLayer
 var _gsm = null               ## #1 GameStateMachine
+
+## #21 G-LM-4c (8): fast-victory marker buffer — workout_id whose LOOT_DROP
+## entry carried BossOutcome.INTERRUPTED_WITH_CREDIT. The transition payload
+## is gone by deferred-reveal time; the LootDrop record is the only durable
+## carrier, so the grant stamps item_metadata["fast_victory"] from here.
+var _fast_victory_workout_ids: Dictionary = {}
 var _streak_system = null     ## #8 StreakSystem
 var _workout_tracker = null   ## #9 WorkoutStateTracker
 var _enemy_director = null    ## #14 EnemyDirector
@@ -99,10 +105,13 @@ signal loot_rollback(drop_id: String)
 ## Emitted for MICRO_ACK ceremony tier (0.15s toast — no full reveal modal).
 signal loot_micro_ack(drop_id: String)
 
-## #21 G-LM-4b (4): emitted when a terminal dismissal drains the reveal queue
-## to empty — GSM subscribes this to exit LOOT_DROP (GSM AC-14 zero-direct-call
-## chain; #21 NEVER calls GSM). Payload-free per ADR-0009 (pure doorbell).
-signal loot_confirmed
+## #21 G-LM-4b/4c (4): emitted on every TERMINAL dismissal — GSM subscribes
+## this to exit LOOT_DROP (GSM AC-14 zero-direct-call chain; #21 NEVER calls
+## GSM). queue_drained is intrinsic event data (ADR-0009): true ⇒ GSM clears
+## loot_reveal_pending; false (catch-up defer — items remain) ⇒ flag survives
+## so the NEXT safe-state occupancy re-offers (G-LM-4 (6) suppression stops
+## the same-occupancy loop).
+signal loot_confirmed(queue_drained: bool)
 
 
 # ── Internal state ─────────────────────────────────────────────────────────────
@@ -155,6 +164,9 @@ func _ready() -> void:
 		# Contract 6: use connect_for_initial_state, NOT direct state_changed.connect().
 		# Contract 6 Addendum: do NOT pass .bind() callables.
 		_gsm.connect_for_initial_state(_on_gsm_state_changed)
+		# #21 G-LM-4c: reverse-wire the exit chain (#15 boots after GSM).
+		if _gsm.has_method("on_loot_confirmed"):
+			loot_confirmed.connect(_gsm.on_loot_confirmed)
 
 	# ── Private Mode gate (ADR-0003) — check BEFORE any persistence reads ─────
 	if _persistence != null and _persistence.is_private_mode():
@@ -234,8 +246,8 @@ func on_modal_dismissed(drop_id: String, terminal: bool) -> void:
 			# Refresh the pending snapshot only if the ACK hasn't renamed it yet.
 			if _pending_drops.has(drop_id) and _persistence != null and _persistence.has_method("write"):
 				_persistence.write("loot.pending." + drop_id, drop.to_dict())
-	if terminal and _reveal_pending.is_empty():
-		loot_confirmed.emit()
+	if terminal:
+		loot_confirmed.emit(_reveal_pending.is_empty())
 
 
 ## #21 G-LM-4b (5): EC-1 recovery chain — #21 is stateless presentation and
@@ -277,9 +289,33 @@ func _on_private_mode_detected() -> void:
 
 
 ## GSM state-change handler (ADR-0006 Contract 6 sentinel pattern).
+## #21 G-LM-4c (8): captures the fast-victory marker off the transition payload
+## (BossOutcome.INTERRUPTED_WITH_CREDIT string name — Contract 3 serialization).
+## Both orders covered: marker-before-grant buffers; marker-after-grant patches
+## the already-granted record and refreshes its pending snapshot.
 func _on_gsm_state_changed(_from, _to, _payload) -> void:
 	# Suspend/resume handling wired in Story 009 (partial) and Story 012 (full).
-	pass
+	if _payload == null or not (_payload is Object and "data" in _payload):
+		return
+	var data = _payload.data
+	if not (data is Dictionary):
+		return
+	var boss_dict = data.get("boss")
+	if not (boss_dict is Dictionary):
+		return
+	if str(boss_dict.get("outcome", "")) != "INTERRUPTED_WITH_CREDIT":
+		return
+	var workout_id: String = str(data.get("workout_id", ""))
+	if workout_id.is_empty():
+		return
+	_fast_victory_workout_ids[workout_id] = true
+	# Late-marker order: the workout-completion drop may already be granted.
+	if _drops_by_transition.has(workout_id):
+		var drop: LootDrop = _drops_by_transition[workout_id]
+		if not bool(drop.item_metadata.get("fast_victory", false)):
+			drop.item_metadata["fast_victory"] = true
+			if _pending_drops.has(drop.drop_id) and _persistence != null and _persistence.has_method("write"):
+				_persistence.write("loot.pending." + drop.drop_id, drop.to_dict())
 
 
 ## Short-circuit guard for all trigger event handlers (Rule 16).
@@ -680,6 +716,10 @@ func _process_loot_trigger(
 	# #21 G-LM-4a (2): routing kind set BEFORE the Step-3 persist snapshot —
 	# the on-disk record must carry it for deferred-reveal rehydration.
 	drop.ceremony_kind = LootEnums.CeremonyDecision.find_key(ceremony)
+	# #21 G-LM-4c (8): fast-victory stamp (workout-completion path keys the
+	# trigger by workout_id == transition_id).
+	if kind == LootEnums.SourceEventKind.WORKOUT_DAILY and _fast_victory_workout_ids.has(transition_id):
+		drop.item_metadata["fast_victory"] = true
 
 	# Step 2: OPTIMISTIC emit before any async operation (FR-2 100ms visual onset).
 	# MICRO_ACK is NOT optimistic (#21 G-LM-4b fix): it has no visual-onset

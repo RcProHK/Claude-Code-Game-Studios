@@ -71,7 +71,7 @@ func _make() -> Node:
 	add_child_autofree(_gsm)
 	add_child_autofree(_inv)
 	add_child_autofree(_loot)
-	_loot.loot_confirmed.connect(func() -> void: _confirmed += 1)
+	_loot.loot_confirmed.connect(func(_queue_drained: bool) -> void: _confirmed += 1)
 	var c: Node = CoordinatorScript.new()
 	c._gsm = _gsm
 	c._loot_system = _loot

@@ -1,12 +1,12 @@
 # Story 018: G-LM-4b — #15 handlers/signals(dismiss dequeue / loot_confirmed / report_receive_failure)
 
 > **Epic**: Loot Drop Modal (#21)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-07 — ③④⑤ + AC-19/34b/65 解封 + AC-71 ordering 全鏈;**bonus bug fix:#15 micro_ack optimistic emit 早過 registration → get_drop 永遠 null,emit 移去 post-registration**;integration 6/6;combined 2068/2067/0 fail;commit 3697f96)
 > **Layer**: Presentation(epic)/ 改動喺 Core #15
 > **Type**: Integration
 > **Estimate**: M
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-07
 
 ## Context
 

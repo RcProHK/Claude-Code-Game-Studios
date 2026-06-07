@@ -100,8 +100,8 @@ This epic is complete when:
 | 014 | Catch-up prompt/stream/F3 | Logic | ✅ Complete | N/A | 26,27,46,47,59,64,69,37c完 |
 | 015 | Catch-up ceremonies/grid/commit | Logic | ✅ Complete | ADR-0005(C-1) | 28½,29½,58½,67 |
 | 016 | Banner stack + telemetry + #33 exempt | Logic | ✅ Complete | ADR-0009 | 17,33,36,61(62→011)|
-| 017 | **G-LM-4a** #15 state 分離 + kind 持久化 + #15 errata ×9 | Logic | Ready | ADR-0003 | (#15-side) |
-| 018 | **G-LM-4b** #15 handlers/signals | Integration | Ready | ADR-0009 | 解封 19/29/34b/65 |
+| 017 | **G-LM-4a** #15 state 分離 + kind 持久化 + ②b breakdown 載體 + errata ×9 | Logic | ✅ Complete | ADR-0003 | (#15-side) |
+| 018 | **G-LM-4b** #15 handlers/signals(+micro_ack emit-order bug fix)| Integration | ✅ Complete | ADR-0009 | 解封 19/29/34b/65/71 |
 | 019 | **G-LM-4c** GSM wiring + fast-victory ⑧ + GSM errata ×2 | Integration | Ready | ADR-0006 | 37b |
 | 020 | **G-LM-3a** #6 ledger refactor + parity | Logic | Ready | ADR-0001 | (#6 零變紅) |
 | 021 | **G-LM-3b** #6 freeze/release/saturation API | Logic | Ready | ADR-0001 | 解封 1/12/54 |
