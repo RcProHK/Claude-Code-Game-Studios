@@ -2996,6 +2996,31 @@ constants:
     revised: ""
     notes: "PersistenceLayer namespace `charscreen.*`(ADR-0003 process,G-CS-3 2026-06-07)。Keys:charscreen.stat_watermark.[stat_id] = {value: float, date: String}(×7,write-once 永不覆寫 — 門框第一格刻度,CD 裁決 1)。Presentation-layer 記錄,唔係 game state;Private Mode persist fail → 唔 render 唔 fabricate。"
 
+  - name: retention_date
+    status: active
+    source: design/gdd/inventory-ui.md
+    referenced_by:
+      - design/gdd/inventory-ui.md         # F1 — #23 唯一 owned formula
+      - design/gdd/equipment-inventory.md  # TTL 基準 + OVERFLOW_MAILBOX_TTL_DAYS owner
+    variables:
+      - acquired_at_unix                   # #17 item field(mailbox 入箱時刻 = TTL sweep 同一基準)
+      - OVERFLOW_MAILBOX_TTL_DAYS          # #17 L32 const(7)— #17 own,#23 referenced
+    expression: "retention_date = date_local(acquired_at_unix + OVERFLOW_MAILBOX_TTL_DAYS × 86400)"
+    added: 2026-06-07
+    revised: ""
+    notes: "#23 mailbox「保留至 [date]」static 顯示(device local,#22 EC-15 同款)。**禁 ticking countdown**(pinned — Player Fantasy 裁決,壓力 UI 違 Pillar 2 anti-pillar)。Receipt 件(has_receipt)唔 render retention 行(A3 永不 auto-salvage — 顯示限期 = 講大話)+「收據件唔會自動分解」note。"
+
+  - name: bulk_confirm_receipt_list_max
+    status: active
+    source: design/gdd/inventory-ui.md
+    referenced_by:
+      - design/gdd/inventory-ui.md   # Rule 16 BULK_CONFIRM itemised cap
+    value: 8
+    unit: items
+    added: 2026-06-07
+    revised: ""
+    notes: "#23 BULK_CONFIRM modal receipt 件 itemised 列名上限。Safe range 4-20;too high = modal 細屏超高;too low = 列唔晒 →「+N more」行(總數照報 — 誠實度)。"
+
 # ──────────────────────────────────────────────────────────────────────────────
 # BUILD PINS — asset SHA-256 digests that CI lints compare against on-disk files.
 # These prevent silent formula-constant tampering post-build (ADR-0005 no-hot-swap).
