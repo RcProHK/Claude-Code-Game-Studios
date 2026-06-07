@@ -498,19 +498,11 @@ func claim_item(item_id: StringName) -> Dictionary:
 		_modal = ModalKind.MAKE_ROOM
 		_play_sfx(&"ui_sheet_open")
 		return result
-	# ③ error path(full error map — story 014;deferred_reentrancy 例外
-	# 唔 toast,下 frame 收割 = #22 EC-23 口徑)。
-	var err: String = String(result.get("error", ""))
-	if err == "deferred_reentrancy":
-		call_deferred("_reread_all")
-		return result
-	if err == "not_in_mailbox":
+	# ③ error path(Rule 14 統一 map;deferred_reentrancy 例外唔 toast,
+	# 下 frame 收割 = #22 EC-23 口徑)。
+	if String(result.get("error", "")) == "not_in_mailbox":
 		_make_room_pending = &""  # not_in_mailbox 清空(States 表)
-		_reread_all()
-		_show_toast("件物品已唔喺信箱(可能已自動分解)")  # EC-07
-		return result
-	_reread_all()
-	_show_toast("操作失敗(%s)" % err)
+	_handle_command_error(result)
 	return result
 
 
@@ -646,11 +638,12 @@ func get_inspect_view() -> Dictionary:
 ## Equip dispatch(Rule 13 (a) — slot = item.slot_affinity;mailbox 件 UI
 ## disabled,stale tap 漏網由 #17 guard 兜底 L658-659)。
 ## (Success 嘅 lock nudge + announce — story 013。)
-func equip_item(item_id: StringName) -> Dictionary:
+func equip_item(item_id: StringName, slot_override: int = -1) -> Dictionary:
 	if not _command_allowed():
 		return {"ok": false, "error": "screen_not_open"}
 	var item = _inventory.get_item(item_id)
-	var slot: int = int(item.slot_affinity) if item != null else 0
+	var slot: int = slot_override if slot_override >= 0 \
+			else (int(item.slot_affinity) if item != null else 0)
 	var was_locked: bool = item != null and bool(item.is_locked)
 	var result: Dictionary = _inventory.equip(item_id, slot)
 	if result.get("ok", false):
@@ -783,11 +776,16 @@ func _handle_command_error(result: Dictionary) -> void:
 	_show_toast(_error_toast_text(err))
 
 
-## Error toast 文案(story 014 收 6+1 full map — 呢度先有 010 需要嘅 codes)。
+## Error toast 文案(Rule 14 — 6 codes + deferred_reentrancy 例外;
+## #22 map fork 後**必須加 not_in_mailbox entry** — 唔加 = raw code leak)。
 func _error_toast_text(err: String) -> String:
 	match err:
 		"not_found": return "件物品已唔存在"
 		"in_mailbox_claim_first": return "先去信箱領取"
+		"slot_type_mismatch": return "件裝備唔啱呢個位"
+		"slot_empty": return "呢個位係空嘅"
+		"locked": return "上鎖中 — 解鎖先可以操作"
+		"not_in_mailbox": return "件物品已唔喺信箱(可能已自動分解)"
 		_: return "操作失敗(%s)" % err
 
 
