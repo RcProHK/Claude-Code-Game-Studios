@@ -1,12 +1,12 @@
 # Story 012: Rollback paths(pre-S3 / S3 no-op / queued / re-query)
 
 > **Epic**: Loot Drop Modal (#21)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-07 — AC-30 ×3 / 30b / 31;**AC-1 ×4 cancel-path matrix 收線**(fast-complete/suspend/force-close/rollback 全經單一 release 出口);GUT 96/96;combined 2026/2025/0 fail;commit b8e1c44;in_catchup re-query branch → 015)
 > **Layer**: Presentation
 > **Type**: Logic
 > **Estimate**: M
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-07
 
 ## Context
 

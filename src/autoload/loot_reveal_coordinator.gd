@@ -185,8 +185,25 @@ var _rolled_ids: Array[String] = []
 var _rollback_gap_pending: bool = false  # gap before the next ENTRY after a rollback-cancel
 
 ## Deferred acknowledgement bucket (F4 — story 013 owns aggregation/flush;
-## EC-M14 CONVERTED_DUPE shard acks land here from 009).
+## EC-M14 CONVERTED_DUPE shard acks land here from 009). Entry shape:
+## {tier:int, reason:String, n:int(default 1)}.
 var _deferred_acks: Array = []
+
+## F4 toast instance state (story 013). Pure-data toast + a contentless
+## display node — the real visual skin is the UI evidence story (027).
+var _toast_active: bool = false
+var _toast_n: int = 0
+var _toast_tier: int = 0
+var _toast_age_ms: float = 0.0
+var _toast_phase: String = ""            # "entry" / "plateau" / "fade"
+var _toast_phase_ms: float = 0.0
+var _toast_plateau_remaining_ms: float = 0.0
+var _toast_node: Node = null
+var _toast_container: Node = null
+var _carryover_acks: Array = []          # cap-overflow bucket (F4 merge boundary)
+var _flush_wait_ms: float = 0.0
+var _total_acks: int = 0                 # 守恆 audit input
+var _displayed_acks_total: int = 0       # Σ N_agg over CLOSED instances
 
 ## Telemetry append-log (#15/#17 verbatim pattern; #28 sink not required).
 var _telemetry_log: Array[Dictionary] = []
@@ -225,6 +242,11 @@ func _ready() -> void:
 		_loot_system.loot_dropped.connect(_on_loot_dropped)
 	if _loot_system != null and _loot_system.has_signal("loot_rollback"):
 		_loot_system.loot_rollback.connect(_on_loot_rollback)
+	if _loot_system != null and _loot_system.has_signal("loot_micro_ack"):
+		_loot_system.loot_micro_ack.connect(_on_loot_micro_ack)
+	_toast_container = Node.new()
+	_toast_container.name = "ToastContainer"
+	add_child(_toast_container)
 	if _gsm != null and _gsm.has_method("connect_for_initial_state"):
 		# ADR-0006 C6 — covers the boot force-reveal case where GSM is
 		# already in LOOT_DROP before #21 (tail autoload) reaches _ready.
@@ -307,7 +329,7 @@ func _commit_current_drop() -> void:
 		EquipmentEnums.ReceiveResult.CONVERTED_DUPE:
 			# Honest loop closure: shard ack joins the F4 deferred aggregate
 			# (flush at terminal + safe state — story 013).
-			_deferred_acks.append({"tier": _current_tier, "reason": "converted_dupe"})
+			_enqueue_ack(_current_tier, "converted_dupe")
 		_:
 			pass  # OK
 
@@ -408,7 +430,7 @@ func _finish_exit_closed() -> void:
 	var dismissed_id: String = _drop_id_of(_current_drop)
 	_last_dismissed_id = dismissed_id
 	if _stash_mode:
-		_deferred_acks.append({"tier": _current_tier, "reason": "stash"})
+		_enqueue_ack(_current_tier, "stash")
 		_emit_telemetry("stash_exit_count", {"tier": _current_tier})
 	var remaining: Array = _pull_queue()
 	modal_dismissed.emit(dismissed_id, remaining.is_empty())
@@ -485,7 +507,8 @@ func _open_reveal_flow() -> void:
 		return
 	var drop = _peek_head_drop()
 	if drop == null:
-		return  # EC-M6 dangling-head hardening lands in story 010 (AC-57)
+		return  # EC-M6 — _pull_queue already skipped nulls with telemetry
+	_interrupt_toast_for_modal()  # EC-M17 — count folds into deferred, never lost
 	if not _transition(ModalState.ENTRY):
 		return
 	_begin_reveal(drop)
@@ -783,6 +806,156 @@ func _handle_catchup_exit() -> void:
 	pass  # 「稍後再拆」semantics — stories 014/015
 
 
+# ── micro_ack banking + F4 toast (story 013 — Rule 9 / F4 / EC-M17) ─────────
+
+## Rule 9 — micro_ack banking: instant data-layer grant, ZERO UI, dequeue
+## emit-back, F4-deferred acknowledgement. The item never leaks into a later
+## catch-up as a full ceremony (that would double-acknowledge and overturn
+## the #15 cap decision).
+func _on_loot_micro_ack(drop_id: String) -> void:
+	var drop = null
+	if _loot_system != null and _loot_system.has_method("get_drop"):
+		drop = _loot_system.get_drop(drop_id)
+	if drop == null:
+		_emit_telemetry("loot_reveal.dangling_drop", {"severity": "CRITICAL", "path": "micro_ack"})
+		return
+	var tier: int = _coerce_tier(drop)
+	if _inventory != null and _inventory.has_method("receive_loot"):
+		var result: int = int(_inventory.receive_loot(drop))
+		if result == EquipmentEnums.ReceiveResult.FAILED_ROLLBACK:
+			# Rule 9 (c) — same recovery chain as the S3 path (AC-34b variant).
+			_emit_telemetry("loot_reveal.receive_failed", {"drop_id": drop_id, "severity": "CRITICAL", "path": "micro_ack"})
+			if _loot_system != null and _loot_system.has_method("report_receive_failure"):
+				_loot_system.report_receive_failure(drop_id)
+	_consume_id(drop_id)
+	modal_dismissed.emit(drop_id, false)  # dequeue emit-back (#15 handler — 018)
+	_enqueue_ack(tier, "micro_ack")
+
+
+## F4 entry point for every acknowledgement source (micro_ack / stash /
+## CONVERTED_DUPE shard). Visible toast → merge-or-carryover; otherwise the
+## deferred bucket waits for the flush gate.
+func _enqueue_ack(tier: int, reason: String = "ack", n: int = 1) -> void:
+	_total_acks += n
+	if _toast_active:
+		_try_merge(tier, n)
+	else:
+		_deferred_acks.append({"tier": tier, "reason": reason, "n": n})
+
+
+## F4 merge boundary: merge ONLY when remaining-to-cap ≥ MERGE_MIN_REMAIN —
+## otherwise the ack goes straight to carryover (the acknowledge guarantee
+## is never silently broken by the lifetime cap).
+func _try_merge(tier: int, n: int) -> void:
+	var remaining_to_cap: float = _timing_config.toast_max_lifetime_sec * 1000.0 - _toast_age_ms
+	if remaining_to_cap >= _timing_config.merge_min_remain_sec * 1000.0:
+		_toast_n += n
+		_toast_tier = maxi(_toast_tier, tier)
+		_toast_plateau_remaining_ms = maxf(_toast_plateau_remaining_ms, _timing_config.merge_min_remain_sec * 1000.0)
+	else:
+		_carryover_acks.append({"tier": tier, "reason": "carryover", "n": n})
+
+
+## Flush gate (F4): modal fully closed + FLUSH_DELAY + GSM in the
+## player-attention-safe set. Mid-workout acks hold and keep aggregating.
+func _flush_tick(delta: float) -> void:
+	if _toast_active or _deferred_acks.is_empty() or _state != ModalState.HIDDEN:
+		_flush_wait_ms = 0.0
+		return
+	if not _gsm_in_safe_state():
+		_flush_wait_ms = 0.0
+		return
+	_flush_wait_ms += delta * 1000.0
+	if _flush_wait_ms >= _timing_config.flush_delay_sec * 1000.0:
+		_flush_wait_ms = 0.0
+		_open_toast(_deferred_acks)
+		_deferred_acks = []
+
+
+func _gsm_in_safe_state() -> bool:
+	if _gsm == null or not _gsm.has_method("get_current_state"):
+		return false
+	return int(_gsm.get_current_state()) in GSMScript.LOOT_REVEAL_SAFE_STATES
+
+
+func _open_toast(acks: Array) -> void:
+	if acks.is_empty():
+		return
+	_toast_active = true
+	_toast_n = 0
+	_toast_tier = 0
+	for a: Dictionary in acks:
+		_toast_n += int(a.get("n", 1))
+		_toast_tier = maxi(_toast_tier, int(a.get("tier", 0)))
+	_toast_age_ms = 0.0
+	_toast_phase = "entry"
+	_toast_phase_ms = 0.0
+	_toast_plateau_remaining_ms = _timing_config.toast_visible_sec * 1000.0
+	_toast_node = Node2D.new()  # icon + tier tint skin lands with UI; ZERO text node
+	_toast_node.name = "MicroAckToast"
+	_toast_container.add_child(_toast_node)
+
+
+func _toast_tick(delta: float) -> void:
+	if not _toast_active:
+		return
+	var d_ms: float = delta * 1000.0
+	_toast_age_ms += d_ms
+	_toast_phase_ms += d_ms
+	# Instance hard cap — fade NOW regardless of phase (carryover reopens).
+	if _toast_phase != "fade" and _toast_age_ms >= _timing_config.toast_max_lifetime_sec * 1000.0:
+		_toast_phase = "fade"
+		_toast_phase_ms = 0.0
+	match _toast_phase:
+		"entry":
+			if _toast_phase_ms >= _timing_config.toast_entry_sec * 1000.0:
+				_toast_phase = "plateau"
+				_toast_phase_ms = 0.0
+		"plateau":
+			_toast_plateau_remaining_ms -= d_ms
+			if _toast_plateau_remaining_ms <= 0.0:
+				_toast_phase = "fade"
+				_toast_phase_ms = 0.0
+		"fade":
+			if _toast_phase_ms >= _timing_config.toast_fade_sec * 1000.0:
+				_close_toast()
+
+
+func _close_toast() -> void:
+	_displayed_acks_total += _toast_n
+	_toast_active = false
+	if _toast_node != null:
+		_toast_node.queue_free()
+		_toast_node = null
+	if not _carryover_acks.is_empty():
+		var next: Array = _carryover_acks
+		_carryover_acks = []
+		_open_toast(next)
+
+
+## EC-M17 — modal opening over a visible toast: interrupt fade (0.1s class —
+## instant fold here, the visual fade is skin) and the count folds back into
+## the deferred bucket. The count NEVER evaporates.
+func _interrupt_toast_for_modal() -> void:
+	if not _toast_active:
+		return
+	_total_acks -= _toast_n  # fold-back re-enters via _enqueue-shape entry below
+	_deferred_acks.append({"tier": _toast_tier, "reason": "interrupted", "n": _toast_n})
+	_total_acks += _toast_n
+	_toast_active = false
+	if _toast_node != null:
+		_toast_node.queue_free()
+		_toast_node = null
+	for a: Dictionary in _carryover_acks:
+		_deferred_acks.append(a)
+	_carryover_acks = []
+
+
+func _consume_id(drop_id: String) -> void:
+	if drop_id != "" and drop_id not in _rolled_ids:
+		_rolled_ids.append(drop_id)  # pull-model exclusion (shared list)
+
+
 ## Rule 11 — rollback paths (story 012). #15 owns its queue on rollback;
 ## #21 NEVER emits modal_dismissed here (it would double-advance).
 func _on_loot_rollback(drop_id: String) -> void:
@@ -835,6 +1008,8 @@ func get_telemetry() -> Array[Dictionary]:
 func _process(delta: float) -> void:
 	if _suspended_mid_reveal:
 		return  # EC-M1 park — bfcache renders zero frames; the clock must not drift
+	_toast_tick(delta)
+	_flush_tick(delta)
 	if _state == ModalState.STEADY:
 		_since_s3_ms += delta * 1000.0  # debounce window only — reveal clock parks
 		return

@@ -80,6 +80,15 @@ const ATTENTION_CEILING_MS: int = 1200
 ## capped so collapse + 0.1s jitter margin stays ≤ the 0.3s budget).
 @export var stash_collapse_sec: float = 0.2
 
+# ── F4 micro_ack / deferred-ack toast knobs (story 013) ──
+
+@export var toast_entry_sec: float = 0.15     # locked — aligns the stream cadence
+@export var toast_visible_sec: float = 1.2    # plateau (excl. entry/fade); 0.8–2.0
+@export var toast_fade_sec: float = 0.15      # 0.1–0.3 (EC-M17 interrupt uses its own 0.1)
+@export var merge_min_remain_sec: float = 0.6  # 0.3–1.0 — merge floor vs cap boundary
+@export var toast_max_lifetime_sec: float = 3.0  # 2.0–5.0 — ack stream can't pin a toast forever
+@export var flush_delay_sec: float = 0.15     # 0.15–0.3 — lower bound dodges the #4 stagger window
+
 
 ## Data-load assert (F1 + Tuning Knobs flash budget). Empty result == valid.
 func validate() -> Array[String]:
