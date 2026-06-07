@@ -103,6 +103,9 @@ var _modal: int = ModalKind.NONE
 var _make_room_pending: StringName = &""
 ## claim ② return 嘅 shortfall(verbatim render — #17 invariant 下 N≡1)。
 var _make_room_shortfall: int = 0
+## ITEM_INSPECT / SALVAGE_CONFIRM 對象(modal 軸對應 transient)。
+var _inspect_item_id: StringName = &""
+var _salvage_target: StringName = &""
 var _offline_banner: bool = false
 var _anim_elapsed_ms: float = 0.0
 
@@ -281,6 +284,8 @@ func _enter_closed() -> void:
 	# States 表「close / force-close 一律清空」)。
 	_modal = ModalKind.NONE
 	_make_room_pending = &""
+	_inspect_item_id = &""
+	_salvage_target = &""
 	_toast = {}
 	_disconnect_all()  # CLOSED invariant (Rule 6)
 
@@ -566,6 +571,142 @@ func hint_claim_tap() -> Dictionary:
 ## Hint dismiss X = 放棄(pending 清空;claim 可重試)。
 func hint_dismiss() -> void:
 	_make_room_pending = &""
+
+
+## ---- ITEM_INSPECT + 單件 commands(story 010 mailbox 面;013 收 inventory/equipped 全套) ----
+
+## Command 入口 guard(= #22 — 只喺 OPEN 接受;EC-04 ii)。
+func _command_allowed() -> bool:
+	return _state == ScreenState.OPEN
+
+
+## List row 主體 tap → ITEM_INSPECT(Rule 13/22 entry map)。
+func open_inspect(item_id: StringName) -> void:
+	if not _command_allowed() or _modal != ModalKind.NONE:
+		return
+	_inspect_item_id = item_id
+	_modal = ModalKind.ITEM_INSPECT
+	_play_sfx(&"ui_sheet_open")
+
+
+## Inspect view(Rule 13 — affordance set 按 lifecycle 分;Rule 12 mailbox 面)。
+## provenance 全文(list row 先 ellipsis);stat_modifiers 原始數據 — 禁 predicted final。
+func get_inspect_view() -> Dictionary:
+	if _inspect_item_id == &"" or _inventory == null:
+		return {}
+	var item = _inventory.get_item(_inspect_item_id)
+	if item == null:
+		return {}
+	var in_mailbox: bool = \
+			item.lifecycle_state == EquipmentEnums.ItemLifecycle.IN_MAILBOX
+	var locked: bool = bool(item.is_locked)
+	return {
+		"item_id": _inspect_item_id,
+		"name": String(_inspect_item_id),
+		"rarity": int(item.rarity),
+		"provenance": String(item.provenance_text),
+		"locked": locked,
+		"receipt": bool(item.has_receipt()),
+		"stat_modifiers": item.stat_modifiers.duplicate(),  # 原始數據(= #22 Rule 22)
+		# Rule 12:mailbox 件 equip / salvage 入口 disabled +「先領取」hint —
+		# salvage 對 IN_MAILBOX **冇 #17 code guard**,disabled 入口係唯一防線。
+		"equip_enabled": not in_mailbox,
+		"equip_hint": "先領取先用得" if in_mailbox else "",
+		"salvage_enabled": (not in_mailbox) and not locked,
+		"salvage_hint": "先領取先分解得" if in_mailbox else ("上鎖中 — 解鎖先可以分解" if locked else ""),
+		# D1:lock toggle enabled(set_lock 冇 lifecycle check — 有效)+ honest copy
+		#(lock 擋 bulk 唔擋 sweep — 文案照直講;pinned,唔好「改善」成全保護)。
+		"lock_enabled": true,
+		"lock_copy": "鎖定 — 批量分解唔會掂佢;保留期照計" if in_mailbox else "",
+	}
+
+
+## Equip dispatch(Rule 13 (a) — slot = item.slot_affinity;mailbox 件 UI
+## disabled,stale tap 漏網由 #17 guard 兜底 L658-659)。
+## (Success 嘅 lock nudge + announce — story 013。)
+func equip_item(item_id: StringName) -> Dictionary:
+	if not _command_allowed():
+		return {"ok": false, "error": "screen_not_open"}
+	var item = _inventory.get_item(item_id)
+	var slot: int = int(item.slot_affinity) if item != null else 0
+	var result: Dictionary = _inventory.equip(item_id, slot)
+	if result.get("ok", false):
+		_reread_all()
+		_show_toast("已裝備 %s" % String(item_id))
+	else:
+		_handle_command_error(result)
+	return result
+
+
+## Salvage 入口(兩步 friction 第一步 = #22 Rule 19)。
+## Rule 12 零-dispatch invariant:IN_MAILBOX / locked → 唔開 modal,
+## confirm path 都到唔到 — #23 對 IN_MAILBOX 件零 salvage() dispatch(binding)。
+func request_salvage(item_id: StringName) -> void:
+	if not _command_allowed():
+		return
+	var item = _inventory.get_item(item_id)
+	if item == null or bool(item.is_locked):
+		return  # locked 入口 disabled — double guard
+	if item.lifecycle_state == EquipmentEnums.ItemLifecycle.IN_MAILBOX:
+		return  # Rule 12 binding invariant — disabled 入口係唯一防線(#17 冇 guard)
+	_salvage_target = item_id
+	_modal = ModalKind.SALVAGE_CONFIRM
+	_play_sfx(&"ui_sheet_open")
+
+
+## Confirm(兩步第二步)。Defence-in-depth:dispatch 前 re-check IN_MAILBOX
+## (stale race — confirm 開緊期間件被退回 mailbox 嘅理論窗;invariant 最強讀法)。
+## (SALVAGE_CONFIRM view + 兩層一齊閂 + backfill — story 013。)
+func confirm_salvage() -> Dictionary:
+	if not _command_allowed() or _modal != ModalKind.SALVAGE_CONFIRM:
+		return {"ok": false, "error": "no_confirm_context"}
+	var target: StringName = _salvage_target
+	var item = _inventory.get_item(target)
+	if item != null and item.lifecycle_state == EquipmentEnums.ItemLifecycle.IN_MAILBOX:
+		_modal = ModalKind.NONE
+		_salvage_target = &""
+		return {"ok": false, "error": "in_mailbox_zero_dispatch"}  # Rule 12 invariant
+	var result: Dictionary = _inventory.salvage(target)
+	_modal = ModalKind.NONE
+	_salvage_target = &""
+	if result.get("ok", false):
+		_reread_all()
+		_play_sfx(&"ui_salvage_execute")
+		_show_toast("已分解 %s — +%d 碎片" % [String(target), int(result.get("shards", 0))])
+	else:
+		_handle_command_error(result)
+	return result
+
+
+## Lock toggle(D1 — mailbox 件都 enabled;card 第三 zone / inspect 內)。
+func toggle_lock(item_id: StringName, locked: bool) -> Dictionary:
+	if not _command_allowed():
+		return {"ok": false, "error": "screen_not_open"}
+	var result: Dictionary = _inventory.set_lock(item_id, locked)
+	if result.get("ok", false):
+		_reread_all()
+		_play_sfx(&"ui_lock_on" if locked else &"ui_lock_off")
+	else:
+		_handle_command_error(result)
+	return result
+
+
+## Command error handling(= #22 Rule 15 pattern;full error map — story 014)。
+func _handle_command_error(result: Dictionary) -> void:
+	var err: String = String(result.get("error", ""))
+	if err == "deferred_reentrancy":
+		call_deferred("_reread_all")  # 唔 toast,下 frame 收割(= #22 EC-23)
+		return
+	_reread_all()
+	_show_toast(_error_toast_text(err))
+
+
+## Error toast 文案(story 014 收 6+1 full map — 呢度先有 010 需要嘅 codes)。
+func _error_toast_text(err: String) -> String:
+	match err:
+		"not_found": return "件物品已唔存在"
+		"in_mailbox_claim_first": return "先去信箱領取"
+		_: return "操作失敗(%s)" % err
 
 
 ## ---- toast(= #22 transient pattern;injected clock) ----

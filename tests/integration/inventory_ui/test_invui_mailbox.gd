@@ -26,13 +26,24 @@ class MockGSM:
 		state_changed.connect(callable)
 
 
+## #17 subclass spy — salvage dispatch call-level assert(AC-18 零-dispatch
+## invariant;其餘行為全繼承 real InventorySystem)。
+class SpyInventory:
+	extends InventorySystem
+	var salvage_calls: Array = []
+
+	func salvage(item_id: StringName) -> Dictionary:
+		salvage_calls.append(item_id)
+		return super.salvage(item_id)
+
+
 var _sut = null
 var _inv = null
 var _gsm: MockGSM = null
 
 
 func before_each() -> void:
-	_inv = InventoryScript.new()
+	_inv = SpyInventory.new()
 	# 全隔離(_ready 前注入 — suite 慣例):persistence / #17-GSM / stat / table。
 	_inv._persistence = MockPersistenceLayer.new()
 	_inv._gsm = MockInventoryGSM.new()
@@ -310,6 +321,121 @@ func test_hint_dismiss_clears_pending() -> void:
 	assert_true(_sut.get_make_room_hint().is_empty())
 	# claim 可重試(dismiss 唔 disable button;騰咗位 → 今次成功)。
 	assert_true(_sut.claim_item(&"wanted")["ok"], "dismiss 後 claim 可重試")
+
+
+## ============ story 010: AC-18 — mailbox inspect 限制 + 零-dispatch invariant ============
+
+func _put_inventory_item(id: StringName, locked: bool = false,
+		with_receipt: bool = false) -> void:
+	var item: EquipmentItem = EquipmentItem.new()
+	item.item_id = id
+	item.item_type = LootEnums.ItemType.WEAPON
+	item.slot_affinity = EquipmentEnums.EquipSlot.WEAPON
+	item.lifecycle_state = EquipmentEnums.ItemLifecycle.IN_INVENTORY
+	item.acquired_at_unix = ACQ_JUNE1
+	item.is_locked = locked
+	if with_receipt:
+		item.source_receipt = SourceReceipt.new()
+	_inv._items[id] = item
+
+
+func test_ac18_mailbox_inspect_affordances_gated_lock_enabled() -> void:
+	# Arrange
+	_put_mailbox_item(&"parked", ACQ_JUNE1)
+	_open()
+	# Act: row 主體 tap → ITEM_INSPECT(provenance 睇得)。
+	_sut.open_inspect(&"parked")
+	assert_eq(_sut.get_modal(), CoordinatorScript.ModalKind.ITEM_INSPECT)
+	var view: Dictionary = _sut.get_inspect_view()
+	# Assert: equip / salvage disabled +「先領取」hint;lock enabled + honest copy。
+	assert_false(view["equip_enabled"], "mailbox 件 equip 入口 disabled(Rule 12)")
+	assert_eq(view["equip_hint"], "先領取先用得")
+	assert_false(view["salvage_enabled"], "salvage 入口 disabled — #17 冇 guard,唯一防線")
+	assert_true(view["lock_enabled"], "lock toggle enabled(D1 — set_lock 冇 lifecycle check)")
+	assert_eq(view["lock_copy"], "鎖定 — 批量分解唔會掂佢;保留期照計", "honest copy pinned")
+	assert_eq(view["provenance"], "prov parked", "provenance 全文照睇")
+
+
+func test_ac18_salvage_zero_dispatch_invariant_with_positive_control() -> void:
+	# Arrange: mailbox 件 + inventory 件(positive control)。
+	_put_mailbox_item(&"mb_item", ACQ_JUNE1)
+	_put_inventory_item(&"inv_item")
+	_open()
+	# Act ①(negative): IN_MAILBOX 件 — request_salvage 零反應零 dispatch。
+	_sut.open_inspect(&"mb_item")
+	_sut.request_salvage(&"mb_item")
+	assert_eq(_sut.get_modal(), CoordinatorScript.ModalKind.ITEM_INSPECT,
+		"mailbox 件 salvage 入口唔開 modal(Rule 12 binding invariant)")
+	assert_eq(_inv.salvage_calls.size(), 0, "零 salvage() dispatch(AC-18 negative)")
+	assert_not_null(_inv.get_item(&"mb_item"), "件未被毀")
+	# Act ②(positive control): IN_INVENTORY 件 — dispatch 存在。
+	_sut._modal = CoordinatorScript.ModalKind.NONE
+	_sut.open_inspect(&"inv_item")
+	_sut.request_salvage(&"inv_item")
+	assert_eq(_sut.get_modal(), CoordinatorScript.ModalKind.SALVAGE_CONFIRM)
+	var result: Dictionary = _sut.confirm_salvage()
+	assert_true(result["ok"])
+	assert_eq(_inv.salvage_calls, [&"inv_item"] as Array,
+		"positive control — IN_INVENTORY 件 salvage dispatch 存在(同 file)")
+
+
+func test_ac18_stale_race_per_command_toasts_and_rereads() -> void:
+	# Arrange
+	_put_mailbox_item(&"parked", ACQ_JUNE1)
+	_open()
+	# Act ①: equip 對仍-IN_MAILBOX 件(disabled 防線漏網 stale tap)→ #17 guard 兜底。
+	var r1: Dictionary = _sut.equip_item(&"parked")
+	assert_eq(String(r1["error"]), "in_mailbox_claim_first", "#17 L658-659 兜底")
+	assert_eq(_sut.get_toast()["text"], "先去信箱領取", "toast + re-read(EC-06)")
+	# Act ②: equip 對已消失件 → not_found。
+	_inv._items.erase(&"parked")
+	var r2: Dictionary = _sut.equip_item(&"parked")
+	assert_eq(String(r2["error"]), "not_found")
+	assert_eq(_sut.get_toast()["text"], "件物品已唔存在")
+	# (claim 對已消失件 → not_in_mailbox — story 008 test 已 cover。)
+
+
+## ============ story 010: AC-34 — mailbox lock D1 ============
+
+func test_ac34_locked_receipt_mailbox_item_survives_bulk() -> void:
+	# Arrange: unlocked receipt mailbox 件。
+	_put_mailbox_item(&"precious", ACQ_JUNE1, true)
+	_open()
+	# Act ①: lock on。
+	var result: Dictionary = _sut.toggle_lock(&"precious", true)
+	assert_true(result["ok"], "set_lock 對 mailbox 件有效(D1)")
+	# Assert: lock 標記 + receipt glyph 並存 + honest copy。
+	var row: Dictionary = _row_by_id(_sut.get_mailbox_rows(), "precious")
+	assert_true(row["locked"])
+	assert_true(row["receipt_glyph"], "lock + receipt 並存(全保護:sweep 免 receipt + bulk 免 lock)")
+	_sut.open_inspect(&"precious")
+	assert_eq(_sut.get_inspect_view()["lock_copy"], "鎖定 — 批量分解唔會掂佢;保留期照計")
+	# Act ②: bulk_salvage 該 rarity → 件存活(bulk 免 lock)。
+	_inv.bulk_salvage(0)
+	assert_not_null(_inv.get_item(&"precious"), "locked 件 bulk 唔掂(AC-34)")
+	assert_eq(_inv.get_item(&"precious").lifecycle_state,
+		EquipmentEnums.ItemLifecycle.IN_MAILBOX)
+
+
+func test_ac34_locked_nonreceipt_retention_line_still_renders() -> void:
+	# locked non-receipt 件:lock 唔擋 sweep — 日期仍係事實,照 render。
+	_put_mailbox_item(&"locked_plain", ACQ_JUNE1)
+	_open()
+	_sut.toggle_lock(&"locked_plain", true)
+	var row: Dictionary = _row_by_id(_sut.get_mailbox_rows(), "locked_plain")
+	assert_true(row["locked"])
+	assert_eq(row["retention_line"], "保留至 6月7日",
+		"lock 唔擋 sweep — retention 行照 render(AC-34)")
+
+
+func test_ac34_lock_off_then_bulk_eats_item() -> void:
+	# 邊界:lock off 再 bulk → 件被食(對照組 — lock 係唯一護欄)。
+	_put_mailbox_item(&"doomed", ACQ_JUNE1)
+	_open()
+	_sut.toggle_lock(&"doomed", true)
+	_sut.toggle_lock(&"doomed", false)
+	_inv.bulk_salvage(0)
+	assert_null(_inv.get_item(&"doomed"), "unlocked mailbox 件喺 bulk range 內(Rule 18)")
 
 
 ## ============ story 009: EC-16 — deferred claim replay return 丟棄 ============
