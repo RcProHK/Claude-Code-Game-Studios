@@ -2951,6 +2951,29 @@ constants:
     revised: ""
     notes: "Intra-queue 件距。實際 gap = max(呢個, focal 剩餘)(EC-M9 — 連續 EPIC+ 等 focal_completed,watchdog 1.5s)。Safe range [0.2,0.8]。"
 
+  - name: stat_tween_ms
+    status: active
+    source: design/gdd/character-screen.md
+    referenced_by:
+      - design/gdd/character-screen.md   # F1 constant duration(4-row lockstep settle)
+      - design/gdd/stat-system.md        # L696「typically 200-400ms」建議 band 嘅 #22 instantiation
+    value: 300
+    unit: milliseconds
+    added: 2026-06-07
+    revised: ""
+    notes: "#22 stat number tween constant duration。Safe range 200-400 = #11 L696 建議 band,#22 pin 做 hard local constraint(CD C3 — 出界違 #22 自己唔係違上游)。Constant 唔跟 |delta| scale:4-row 並行 push 同時落定 = 單一「刻低」settle moment。Ease 曲線(cubic ease-out 零 overshoot)係 pinned design constant 唔係 knob(Pillar 1)。"
+
+  - name: charscreen_force_close_max_ms
+    status: active
+    source: design/gdd/character-screen.md
+    referenced_by:
+      - design/gdd/character-screen.md   # Rule 3 fast path cap(AC-11)
+    value: 150
+    unit: milliseconds
+    added: 2026-06-07
+    revised: ""
+    notes: "#22 force-close fast path 上限(GSM 轉入非 permitted state)。Safe range 0-150;too high = workout HUD 同 #22 並存 frame(Pillar 2 violation);SUSPENDED 係 instant snap(0,無 animation)。Force-close 一律零 SFX(CD C1)。"
+
 # ──────────────────────────────────────────────────────────────────────────────
 # BUILD PINS — asset SHA-256 digests that CI lints compare against on-disk files.
 # These prevent silent formula-constant tampering post-build (ADR-0005 no-hot-swap).
