@@ -87,6 +87,14 @@ PrDetection="*res://src/autoload/pr_detection.gd"
 ; touchpoints; the v0.2 G-Z-2 read is workout-start runtime). #28 stays last.)
 ZoneSystem="*res://src/autoload/zone_system.gd"
 
+; Loot Reveal Coordinator (#21 — ADR-0008 G-LM-5: tail append after ZoneSystem.
+; Predecessor constraints {LootDropSystem, GSM (C6), AttentionBudget, CameraController,
+; ScreenEffects, ParticleSystemWrapper, AudioManager, PlatformDetect} ≺ #21 all boot
+; earlier; subscribes GSM via connect_for_initial_state (boot force-reveal sentinel);
+; owns CelebrationVFXLayer(110)+ModalLayer(120) — the #5 LOOT pool reparent handshake
+; (G-LM-2) fires post-#21-boot precisely because #21 is tail. #28 Telemetry stays last.)
+LootRevealCoordinator="*res://src/autoload/loot_reveal_coordinator.gd"
+
 [display]
 
 window/size/viewport_width=1280
