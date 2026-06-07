@@ -1,12 +1,12 @@
 # Story 011: Force-close D1 pre/post-S3 split + stash-exit F6 + S4 idempotent
 
 > **Epic**: Loot Drop Modal (#21)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-07 — AC-22/22b/23/51 + AC-62(EC-M11 safe→safe)+ AC-1 第三 cancel path;GUT 91/91;combined 2021/2020/0 fail;commit a7cd5f9)
 > **Layer**: Presentation
 > **Type**: Logic
 > **Estimate**: M
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-07
 
 ## Context
 

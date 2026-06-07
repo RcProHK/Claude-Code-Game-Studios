@@ -179,6 +179,11 @@ var _last_dismissed_id: String = ""   # exclusion until #15's dequeue handler la
 var _stash_mode: bool = false         # story 011 — post-S3 force-close collapse variant
 var _force_closed_mid_exit: bool = false  # force-close landed mid-S4 → no gap-advance
 
+## Rollback bookkeeping (story 012). Rolled ids mirror #15's own removal
+## (pull-model exclusion until the real dequeue is observable).
+var _rolled_ids: Array[String] = []
+var _rollback_gap_pending: bool = false  # gap before the next ENTRY after a rollback-cancel
+
 ## Deferred acknowledgement bucket (F4 — story 013 owns aggregation/flush;
 ## EC-M14 CONVERTED_DUPE shard acks land here from 009).
 var _deferred_acks: Array = []
@@ -218,6 +223,8 @@ func _ready() -> void:
 		_camera.focal_completed.connect(_on_focal_completed)
 	if _loot_system != null and _loot_system.has_signal("loot_dropped"):
 		_loot_system.loot_dropped.connect(_on_loot_dropped)
+	if _loot_system != null and _loot_system.has_signal("loot_rollback"):
+		_loot_system.loot_rollback.connect(_on_loot_rollback)
 	if _gsm != null and _gsm.has_method("connect_for_initial_state"):
 		# ADR-0006 C6 — covers the boot force-reveal case where GSM is
 		# already in LOOT_DROP before #21 (tail autoload) reaches _ready.
@@ -465,6 +472,8 @@ func _pull_queue() -> Array:
 			continue
 		if _last_dismissed_id != "" and _drop_id_of(drop) == _last_dismissed_id:
 			continue
+		if _drop_id_of(drop) in _rolled_ids:
+			continue  # #15's rollback path removes these — pull-model mirror
 		out.append(drop)
 	return out
 
@@ -774,6 +783,47 @@ func _handle_catchup_exit() -> void:
 	pass  # 「稍後再拆」semantics — stories 014/015
 
 
+## Rule 11 — rollback paths (story 012). #15 owns its queue on rollback;
+## #21 NEVER emits modal_dismissed here (it would double-advance).
+func _on_loot_rollback(drop_id: String) -> void:
+	_rolled_ids.append(drop_id)
+	var is_current: bool = _drop_id_of(_current_drop) == drop_id and _state != ModalState.HIDDEN
+	if not is_current:
+		return  # AC-31 queued rollback — pull model, zero action
+	match _state:
+		ModalState.ENTRY, ModalState.CEREMONY:
+			_rollback_cancel_and_requery()
+		ModalState.STEADY:
+			# Post-banking — display no-op (show-then-revoke is forbidden;
+			# the revoke belongs to the #15/#17 post-grant reconciliation).
+			_emit_telemetry("loot_reveal.late_rollback", {"drop_id": drop_id})
+		_:
+			pass  # EXITING — already dismissed/banked; post-grant class
+
+
+## Pre-S3 rollback: ≤1 frame cancel (0-frame snap is rollback-exclusive),
+## timescale restored via the INV-M1 exit, zero terminal frame, zero toast,
+## zero emit — then RE-QUERY (Rule 11 Pass 1 fix: without it GSM stalls
+## forever — Rule 13 is entry-time only, an empty queue has no terminal emitter).
+func _rollback_cancel_and_requery() -> void:
+	_release_freeze()
+	_fast_complete_active = false
+	# in_catchup: re-query targets the already-selected ceremonies remainder
+	# (K-cap never re-picks) — ceremonies cleared → CATCHUP_GRID. Stories
+	# 014/015 own the ceremony list; until then the queue path covers it.
+	if _queue_depth() > 0:
+		# Gap then next ENTRY (table self-edge ENTRY→ENTRY / CEREMONY→ENTRY).
+		if _state == ModalState.CEREMONY:
+			_transition(ModalState.ENTRY)
+		_rollback_gap_pending = true
+		_in_gap = true
+		_gap_clock_ms = 0.0
+		_gap_target_ms = LootRevealFormulas.successor_gap_sec(_timing_config, _current_tier) * 1000.0
+	else:
+		modal_dismissed.emit("", true)  # terminal — GSM 唔 stuck
+		_transition(ModalState.HIDDEN)
+
+
 func _emit_telemetry(event: String, data: Dictionary) -> void:
 	_telemetry_log.append({"event": event, "data": data})
 
@@ -803,6 +853,19 @@ func _process(delta: float) -> void:
 					_finish_exit()
 		return
 	if _state != ModalState.ENTRY and _state != ModalState.CEREMONY:
+		return
+	if _in_gap:
+		# Rollback-cancel inter-reveal gap (clock parked — next T=0 is fresh).
+		_gap_clock_ms += delta * 1000.0
+		if _gap_clock_ms >= _gap_target_ms:
+			_in_gap = false
+			_rollback_gap_pending = false
+			var head = _peek_head_drop()
+			if head != null:
+				_begin_reveal(head)
+			else:
+				modal_dismissed.emit("", true)
+				_transition(ModalState.HIDDEN)
 		return
 	_reveal_clock_ms += delta * 1000.0
 	_advance_timeline()

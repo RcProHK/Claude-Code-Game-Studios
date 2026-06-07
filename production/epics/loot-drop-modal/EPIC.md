@@ -94,7 +94,7 @@ This epic is complete when:
 | 008 | F2 breakdown bar + INV-M2 + EC-M15/M12 | Logic | ✅ Complete | **ADR-0005** | 3,42-45,63,66 |
 | 009 | INV-M3 S3 commit + EC-M14/M5 + AC-21 lint | Logic | ✅ Complete | ADR-0007 | 20,21,56,65½ |
 | 010 | Queue drain + terminal + EC-M6/M20 | Logic | ✅ Complete | ADR-0009 | 18,19½,32,34,57,70,60 margin |
-| 011 | Force-close D1 split + stash F6 | Logic | Ready | ADR-0006 | 22,22b,23,51 |
+| 011 | Force-close D1 split + stash F6 | Logic | ✅ Complete | ADR-0006 | 22,22b,23,51,62 |
 | 012 | Rollback paths | Logic | Ready | N/A | 30,30b,31 |
 | 013 | micro_ack banking + F4 toast | Logic | Ready | ADR-0009 | 24,25,34b½,48,49,68 |
 | 014 | Catch-up prompt/stream/F3 | Logic | Ready | N/A | 26,27,46,47,59,64,69 |
