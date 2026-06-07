@@ -267,6 +267,10 @@ func _ready() -> void:
 		_loot_system.loot_micro_ack.connect(_on_loot_micro_ack)
 	if _loot_system != null and _loot_system.has_signal("loot_disabled"):
 		_loot_system.loot_disabled.connect(_on_loot_disabled)
+	if _loot_system != null and _loot_system.has_method("on_modal_dismissed"):
+		# G-LM-4b reverse-wire: #21 (tail autoload) connects its emit-back into
+		# the #15 dequeue handler (#18 G-PR-2 precedent — emitter wires itself).
+		modal_dismissed.connect(_loot_system.on_modal_dismissed)
 	_toast_container = Node.new()
 	_toast_container.name = "ToastContainer"
 	add_child(_toast_container)

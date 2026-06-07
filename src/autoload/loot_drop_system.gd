@@ -99,6 +99,11 @@ signal loot_rollback(drop_id: String)
 ## Emitted for MICRO_ACK ceremony tier (0.15s toast — no full reveal modal).
 signal loot_micro_ack(drop_id: String)
 
+## #21 G-LM-4b (4): emitted when a terminal dismissal drains the reveal queue
+## to empty — GSM subscribes this to exit LOOT_DROP (GSM AC-14 zero-direct-call
+## chain; #21 NEVER calls GSM). Payload-free per ADR-0009 (pure doorbell).
+signal loot_confirmed
+
 
 # ── Internal state ─────────────────────────────────────────────────────────────
 
@@ -212,6 +217,41 @@ func get_pending_drops() -> Array:
 func get_drop(drop_id: String) -> LootDrop:
 	var drop = _pending_drops.get(drop_id)
 	return drop if drop != null else _reveal_pending.get(drop_id)
+
+
+## #21 G-LM-4b (3): reveal-dequeue handler — #21's modal_dismissed wires in
+## here (reverse-wire: #21 boots last and connects in its _ready, #18 G-PR-2
+## precedent). Dequeues BY drop_id (catch-up may reorder — never head-pop);
+## EC-29 double-dismiss is a silent no-op. Marks the record revealed and
+## refreshes the on-disk pending snapshot so a reboot never re-reveals a
+## banked item — WITHOUT touching the sync ledger (the ACK rename is sacred).
+func on_modal_dismissed(drop_id: String, terminal: bool) -> void:
+	if drop_id != "":
+		_reveal_pending.erase(drop_id)
+		var drop = get_drop(drop_id)
+		if drop != null and not drop.revealed:
+			drop.revealed = true  # micro_ack 件都標 — acknowledged 語意統一
+			# Refresh the pending snapshot only if the ACK hasn't renamed it yet.
+			if _pending_drops.has(drop_id) and _persistence != null and _persistence.has_method("write"):
+				_persistence.write("loot.pending." + drop_id, drop.to_dict())
+	if terminal and _reveal_pending.is_empty():
+		loot_confirmed.emit()
+
+
+## #21 G-LM-4b (5): EC-1 recovery chain — #21 is stateless presentation and
+## cannot write persistence; a FAILED_ROLLBACK at S3/micro-ack reports here
+## and #15 (the loot.pending.* sole writer) records the recovery entry.
+## Deduped: the re-entrant defer path also returns FAILED_ROLLBACK (true/false
+## indistinguishable at the caller) — a repeat report is a harmless no-op.
+func report_receive_failure(drop_id: String) -> void:
+	if _persistence == null or drop_id.is_empty():
+		return
+	var key: String = "loot.pending.recovery." + drop_id
+	if _persistence.read(key) != null:
+		return  # dedupe — defer-path false alarms land here
+	var drop = get_drop(drop_id)
+	_persistence.write(key, drop.to_dict() if drop != null else {"drop_id": drop_id})
+	_emit_telemetry("loot.receive_failure_reported", {"drop_id": drop_id})
 
 
 ## Returns true when the system is in Disabled state due to Private Mode.
@@ -642,10 +682,11 @@ func _process_loot_trigger(
 	drop.ceremony_kind = LootEnums.CeremonyDecision.find_key(ceremony)
 
 	# Step 2: OPTIMISTIC emit before any async operation (FR-2 100ms visual onset).
+	# MICRO_ACK is NOT optimistic (#21 G-LM-4b fix): it has no visual-onset
+	# deadline, and its consumer banks IMMEDIATELY via get_drop() — emitting
+	# before registration guarantees a null lookup. It emits post-registration.
 	if ceremony == LootEnums.CeremonyDecision.FULL_CEREMONY:
 		loot_dropped.emit(drop.drop_id, drop.rarity_tier, drop.item_type, drop.transition_id)
-	elif ceremony == LootEnums.CeremonyDecision.MICRO_ACK:
-		loot_micro_ack.emit(drop.drop_id)
 	# NON_CEREMONY_ROUTE: silent persist, no ceremony signal.
 
 	# Step 3: Async persist to loot.pending namespace.
@@ -671,6 +712,11 @@ func _process_loot_trigger(
 	# records bank instantly via Rule 9 and never enter it.
 	if ceremony == LootEnums.CeremonyDecision.FULL_CEREMONY:
 		_reveal_pending[drop.drop_id] = drop
+	elif ceremony == LootEnums.CeremonyDecision.MICRO_ACK:
+		# Post-registration emit — the Rule 9 banking consumer's get_drop()
+		# must resolve (G-LM-4b ordering fix; rollback race also closed:
+		# a failed persist never acks).
+		loot_micro_ack.emit(drop.drop_id)
 	_state = State.PENDING
 	_on_loot_persisted(drop)  # transition_id format validation (AC-37)
 
