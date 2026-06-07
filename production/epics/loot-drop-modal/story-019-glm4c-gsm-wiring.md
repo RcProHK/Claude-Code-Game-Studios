@@ -1,12 +1,12 @@
 # Story 019: G-LM-4c — GSM wiring(retry-suppression)+ fast-victory marker ⑧ + GSM errata
 
 > **Epic**: Loot Drop Modal (#21)
-> **Status**: Ready
+> **Status**: ✅ Complete(2026-06-07 — ⑥⑧ + AC-37b + GSM errata ×2;**loot_confirmed 升級帶 queue_drained intrinsic arg**(defer 場景 GSM 推進但 flag 保留 — ⑥ suppression 防 same-occupancy loop);RestPeriod MIN_REVEAL_WINDOW remaining check 留 #2 transport(VS-gated TODO);GSM existing suite 零變紅;combined 2073/2072/0 fail;commit c566049)
 > **Layer**: Presentation(epic)/ 改動喺 Foundation #1 + Core #15
 > **Type**: Integration
 > **Estimate**: M
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-07
 
 ## Context
 

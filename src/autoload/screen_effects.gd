@@ -110,6 +110,27 @@ var _decay_rate: float = 0.0
 ## Remaining hit-pause seconds (Story 004 Formula 3).
 var _pause_remaining_sec: float = 0.0
 
+## #21 G-LM-3 (story 020/021): ceremony freeze ledger — per-entry, handle-keyed.
+## Deliberate HYBRID with the hit-pause scalar above: the scalar keeps its exact
+## shipped semantics (parity by construction — the #6 suite pokes it directly),
+## the ceremony entries get true per-entry accounting. The G-LM-3 invariants all
+## hold: release(handle) clears ONLY its own entry; a stray hit_pause can never
+## truncate a ceremony freeze (separate stores — the tree unpauses only when
+## BOTH drain); effective freeze = max remaining across entries (EC-M3).
+## Ceremony entries have their OWN ceiling (CEREMONY_FREEZE_MAX_SEC) and are
+## NOT governed by MAX_PAUSE_SEC — the 0.12s hit ceiling exists because an
+## anchorless freeze reads as a hang; the ceremony has the ALWAYS-mode modal
+## + burst animation as its anchor.
+const CEREMONY_FREEZE_MAX_SEC: float = 0.4
+var _ceremony_freeze_ledger: Dictionary = {}  # handle:int → remaining:float
+var _next_ceremony_handle: int = 0
+
+## #21 G-LM-3 (4): world saturation (ceremony −60%) — shader uniform path,
+## same sink discipline as shake (NEVER touches nodes above layer 100).
+const SATURATION_UNIFORM: StringName = &"u_world_saturation_drop"
+var _saturation_drop_current: float = 0.0
+var _saturation_recovery_rate: float = 0.0  # drop units per second
+
 ## Player accessibility multiplier ∈ [0, 1] (Rule 3). Default 1.0 (EC-15).
 var _motion_intensity: float = 1.0
 
@@ -199,6 +220,22 @@ func _process(delta: float) -> void:
 	_last_clamped_delta = delta
 	if _lifecycle_state == LifecycleState.SUSPENDED:
 		return  # frozen — Suspended overrides all (Rule 13)
+	# #21 G-LM-3: ceremony ledger drain — runs in EVERY lifecycle (the modal's
+	# shake must stay live during the freeze, so ceremony does NOT enter
+	# HIT_PAUSED; this autoload is PROCESS_MODE_ALWAYS).
+	if not _ceremony_freeze_ledger.is_empty():
+		var expired: Array = []
+		for handle: int in _ceremony_freeze_ledger:
+			_ceremony_freeze_ledger[handle] -= delta
+			if _ceremony_freeze_ledger[handle] <= 0.0:
+				expired.append(handle)
+		for handle: int in expired:
+			_ceremony_freeze_ledger.erase(handle)
+		if not expired.is_empty():
+			_refresh_tree_pause()
+	if _saturation_drop_current > 0.0 and _saturation_recovery_rate > 0.0:
+		_saturation_drop_current = maxf(0.0, _saturation_drop_current - _saturation_recovery_rate * delta)
+		_shader_sink.call(SATURATION_UNIFORM, _saturation_drop_current)
 	# HitPaused (Rule 4): shake amplitude is frozen at entry value — only drain the pause timer.
 	if _lifecycle_state == LifecycleState.HIT_PAUSED:
 		_pause_remaining_sec -= delta
@@ -223,7 +260,9 @@ func _process(delta: float) -> void:
 ## (signal fires on entry only). Story 007 Suspended override force-releases independently.
 func _exit_hit_paused() -> void:
 	_pause_remaining_sec = 0.0
-	if get_tree().paused:
+	# #21 G-LM-3 (6): a hit-pause expiry must NOT unfreeze an active ceremony —
+	# the tree unpauses only when BOTH stores are drained.
+	if get_tree().paused and _ceremony_freeze_ledger.is_empty():
 		get_tree().paused = false
 	_lifecycle_state = LifecycleState.ACTIVE
 
@@ -278,6 +317,69 @@ func hit_pause(duration: float) -> void:
 	get_tree().paused = true
 	if entering:
 		hit_pause_started.emit(int(round(_pause_remaining_sec * 1000.0)))
+
+
+## #21 G-LM-3 (1) — ceremony time-stop primitive (story 021).
+## duration ∈ (0, CEREMONY_FREEZE_MAX_SEC]; over-ceiling clamps with a warning.
+## NOT governed by MAX_PAUSE_SEC (see the ledger doc above). Returns a handle
+## (> 0) for early release; 0 = rejected (BOOTING/SUSPENDED not serviceable —
+## the caller degrades to the motion-variant timeline, EC-M2).
+##
+## Usage:
+##   var handle: int = ScreenEffects.ceremony_freeze(0.4)
+##   ... INV-M1 cancel path ...
+##   ScreenEffects.release(handle)  # idempotent
+func ceremony_freeze(duration_sec: float) -> int:
+	if not _is_serviceable():
+		_warn("ScreenEffects.ceremony_freeze: not serviceable — rejected (EC-M2 caller degrade)")
+		return 0
+	if not is_finite(duration_sec) or duration_sec <= 0.0:
+		_rejected_calls += 1
+		_warn("ScreenEffects.ceremony_freeze: non-positive / non-finite duration rejected (%s)" % duration_sec)
+		return 0
+	if duration_sec > CEREMONY_FREEZE_MAX_SEC:
+		_warn("ScreenEffects.ceremony_freeze: %f exceeds CEREMONY_FREEZE_MAX_SEC, clamped to %f" % [duration_sec, CEREMONY_FREEZE_MAX_SEC])
+	_next_ceremony_handle += 1
+	_ceremony_freeze_ledger[_next_ceremony_handle] = minf(duration_sec, CEREMONY_FREEZE_MAX_SEC)
+	get_tree().paused = true
+	return _next_ceremony_handle
+
+
+## #21 G-LM-3 (3) — idempotent early release (INV-M1 single-exit carrier).
+## Clears ONLY its own ledger entry; double-release and never-issued handles
+## are silent no-ops; releasing while a hit-pause is still active keeps the
+## tree paused (the scalar drains on its own clock).
+##
+## Usage: see ceremony_freeze above.
+func release(handle: int) -> void:
+	if not _ceremony_freeze_ledger.has(handle):
+		return  # idempotent — no error, no double-decrement
+	_ceremony_freeze_ledger.erase(handle)
+	_refresh_tree_pause()
+
+
+## #21 G-LM-3 (4) — world saturation drop (ceremony −60%), shader uniform path.
+## drop ∈ [0,1]; recovers linearly to zero over recovery_sec (non-blocking
+## ambient — outside the attention budget). Layers > 100 are BackBufferCopy-
+## immune by topology (ADR-0001 #21 revision) — the burst stays saturated.
+##
+## Usage: ScreenEffects.apply_ceremony_saturation(0.6, 2.0)
+func apply_ceremony_saturation(drop: float, recovery_sec: float) -> void:
+	if not _is_serviceable():
+		return
+	if not is_finite(drop) or not is_finite(recovery_sec):
+		_rejected_calls += 1
+		return
+	_saturation_drop_current = clampf(drop, 0.0, 1.0)
+	_saturation_recovery_rate = _saturation_drop_current / maxf(recovery_sec, 0.001)
+	_shader_sink.call(SATURATION_UNIFORM, _saturation_drop_current)
+
+
+## Unpause the tree only when BOTH freeze stores are drained (G-LM-3 (6)).
+func _refresh_tree_pause() -> void:
+	if _ceremony_freeze_ledger.is_empty() and _lifecycle_state != LifecycleState.HIT_PAUSED:
+		if get_tree().paused:
+			get_tree().paused = false
 
 
 ## Accessibility multiplier setter (GDD Rule 3). In-range overshoot silently clamps (EC-05);
@@ -364,6 +466,11 @@ func _enter_suspended() -> void:
 	_trauma = 0.0
 	_decay_rate = 0.0
 	_pause_remaining_sec = 0.0
+	_ceremony_freeze_ledger.clear()  # #21 G-LM-3 (5): freeze never survives suspend
+	if _saturation_drop_current > 0.0:
+		_saturation_drop_current = 0.0
+		_saturation_recovery_rate = 0.0
+		_shader_sink.call(SATURATION_UNIFORM, 0.0)
 	_emit_depth = 0
 	_trauma_just_zeroed = false
 	if get_tree().paused:
