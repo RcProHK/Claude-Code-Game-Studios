@@ -1,12 +1,12 @@
 # Story 014: Logout drain(optimistic + 非阻塞 banner + part-fail persistent)
 
 > **Epic**: Login / GymSys Connection UI(Shell)
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Presentation
 > **Type**: Integration
 > **Estimate**: M
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-09
 
 ## Context
 
@@ -73,3 +73,18 @@
 
 - Depends on: Story 004(FSM — DRAINING)+ Story 010(banner)
 - Unlocks: None
+
+---
+
+## Completion Notes
+**Completed**: 2026-06-09
+**Criteria**: 全 pass —
+- **AC-41**:SHELL_IDLE logout tap → `clear_session_token(&"USER_EXPLICIT")` 即 call(clear_calls==1)+「已登出」drain banner(NOTIFICATION)+ 入 DRAINING + 零 blocking modal
+- **AC-42**:DRAINING `drain_completed(5, 2)` → drain banner **替換**做 persistent **WIPE-weight**(`get_drain_entry.severity==WIPE`,acknowledge-dismiss,EC-B6 永不 silent)
+- `drain_completed(_, 0)` → SUCCESS「全部儲好喇 ✓」→ injected-clock 超 `DRAIN_SUCCESS_EXPIRE_SEC`(F2)auto-expire 清;`drain_completed(0,0)` → 照 SUCCESS(EC-B8)
+- **sequencing**:drain SUCCESS notice 入 LOGIN 時清(唔同 form 共存);**PARTFAIL WIPE banner 保留**過 re-login(誠實)
+**Test Evidence**: `tests/unit/login_shell/test_logout_drain.gd` — **6 funcs / 本地 6/6**(login_shell 全 119/119)。Combined gate + 全 lint(見 commit)。
+**Design**: ESM `+Severity.NOTIFICATION`(priority 落 0 最低 — 通知類)+ banner_stack `set_drain_status`/`clear_drain_status`/`get_drain_entry`(DRAIN dedupe_key,severity 翻 NOTIFICATION↔WIPE)+ coordinator DrainState enum + `request_logout`(clear_session_token mock + drain banner + DRAINING)+ `_on_drain_started`/`_on_drain_completed`(wire #2 drain signal has_signal 防禦)+ advance() F2 success-expire + `_begin LOGIN` sequencing clear。
+**Mock-scoped**: `clear_session_token`/`drain_started`/`drain_completed` 係 #2(stub)→ has_method/has_signal 防禦,real boot no-op。真接線 = #2 erratum external。
+**Deviations**: None。banner copy render 留 UI(story 015/019);本 story 釘 drain lifecycle + WIPE-weight part-fail + sequencing + F2 expire。
+**Code Review**: N/A spawn(本地全套 GUT + lint 等效)。

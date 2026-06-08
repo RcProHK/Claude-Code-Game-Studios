@@ -92,6 +92,43 @@ func set_disconnected_status(active: bool, now_ms: int = 0) -> void:
 		_entries.erase(existing)
 
 
+## Drain banner dedupe key (story 014 — single logout-drain status banner).
+const DRAIN_DEDUPE_KEY: String = "STATUS|DRAIN"
+
+
+## Set / update the logout-drain status banner (story 014). severity flips between
+## NOTIFICATION (已登出 / 儲緊 / 儲好 ✓) and WIPE (part-fail persistent acknowledge-dismiss).
+## Refreshing the timestamp re-arms the F2 success-expire window.
+func set_drain_status(severity: int, now_ms: int) -> void:
+	var existing: Dictionary = _find_by_dedupe(DRAIN_DEDUPE_KEY)
+	if existing.is_empty():
+		_arrival_sequence += 1
+		_entries.append({
+			"source": -1,
+			"error_code": &"",
+			"key": null,
+			"severity": severity,
+			"arrival_sequence": _arrival_sequence,
+			"dedupe_key": DRAIN_DEDUPE_KEY,
+			"timestamp_ms": now_ms,
+			"t_banner_start_ms": now_ms,
+		})
+	else:
+		existing["severity"] = severity
+		existing["timestamp_ms"] = now_ms
+		existing["t_banner_start_ms"] = now_ms
+
+
+func clear_drain_status() -> void:
+	var existing: Dictionary = _find_by_dedupe(DRAIN_DEDUPE_KEY)
+	if not existing.is_empty():
+		_entries.erase(existing)
+
+
+func get_drain_entry() -> Dictionary:
+	return _find_by_dedupe(DRAIN_DEDUPE_KEY)
+
+
 ## Find an entry by dedupe_key (returns the live dict by reference, or {} if absent).
 ## Dictionaries in a Godot Array are reference-shared, so mutating the result mutates
 ## the stored entry.

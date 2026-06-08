@@ -23,7 +23,7 @@ const ShellFormulas := preload("res://src/ui/login_shell/shell_formulas.gd")
 ## 4 semantic error classes (Rule 6) + UNMAPPED forward-compat default-deny +
 ## DISCONNECTED connection-status class (story 011 — ranks ABOVE all error classes).
 ## Ordinal order is NOT the priority order — use priority_weight() for the comparator.
-enum Severity { TRANSIENT, FEATURE_DEGRADED, WIPE, ONGOING, UNMAPPED, DISCONNECTED }
+enum Severity { TRANSIENT, FEATURE_DEGRADED, WIPE, ONGOING, UNMAPPED, DISCONNECTED, NOTIFICATION }
 
 ## The 4 upstream error sources (Rule 5). #3 = PersistenceLayer (code-classified);
 ## #8/#11/#12 = STREAK/STAT/ABILITY (source-classified → FEATURE_DEGRADED).

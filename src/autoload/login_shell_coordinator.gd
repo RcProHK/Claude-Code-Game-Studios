@@ -81,6 +81,14 @@ enum LoginVariant {
 	MISCONFIG,        ## &"carve_out_misconfig" — operator prompt + acknowledge guidance (AC-05)
 }
 
+## Logout-drain lifecycle (story 014 — Rule 12, optimistic + non-blocking background drain).
+enum DrainState {
+	NONE,      ## not draining
+	DRAINING,  ## 已登出 — background drain in progress (drain_started not yet completed)
+	SUCCESS,   ## 全部儲好喇 ✓ — auto-expires after DRAIN_SUCCESS_EXPIRE_SEC (F2)
+	PARTFAIL,  ## part-fail — persistent WIPE-weight acknowledge-dismiss banner (never silent)
+}
+
 ## ---- DI seams (UNTYPED — reference_gdscript_di_seam: a typed Node hint fails the
 ## compile-time member check against autoload scripts that expose no class_name). ----
 var _gsm = null          ## GameStateMachine (#1) — cfis subscribe at _ready (AC-27)
@@ -158,6 +166,12 @@ var _claim_show_retry: bool = false    ## network_error / server_error show a re
 ## rate_limited countdown state (dispatched to Formula 1 — story 006).
 var _rate_limit_retry_after: int = 0
 var _rate_limit_t_start_ms: int = 0
+
+## ---- logout drain (story 014) ----
+var _drain_state: int = DrainState.NONE
+var _drain_count: int = 0               ## drain_started(N) — items draining in background
+var _drain_failed: int = 0              ## drain_completed(_, failed) — part-fail count
+var _drain_success_start_ms: int = 0    ## F2 success-expire anchor
 
 
 func _ready() -> void:
@@ -303,6 +317,11 @@ func _wire_error_consumers() -> void:
 		_stat.stat_critical_save_failed.connect(_on_stat_error)
 	if _ability != null and _ability.has_signal("ability_unlock_save_failed"):
 		_ability.ability_unlock_save_failed.connect(_on_ability_error)
+	# #2 logout-drain signals (story 014 — mock-scoped; #2 stub has none yet).
+	if _client != null and _client.has_signal("drain_started"):
+		_client.drain_started.connect(_on_drain_started)
+	if _client != null and _client.has_signal("drain_completed"):
+		_client.drain_completed.connect(_on_drain_completed)
 
 
 ## ---- 4-system error handlers (Rule 5 → BannerStack.dispatch_error) ----
@@ -371,7 +390,13 @@ func advance(delta_ms: float) -> void:
 		_fade_elapsed_ms += delta_ms
 		if _fade_elapsed_ms >= SHELL_FADE_MS:
 			_complete_fade()
-	if not _settle_pending and not _fading and not _claim_pending:
+	if _drain_state == DrainState.SUCCESS:
+		# Formula 2 auto-expire of the「全部儲好喇 ✓」notice (DRAIN_SUCCESS_EXPIRE_SEC).
+		if not ShellFormulas.banner_visible(_now_ms(), _drain_success_start_ms, ShellFormulas.DRAIN_SUCCESS_EXPIRE_SEC):
+			_drain_state = DrainState.NONE
+			_banner_stack.clear_drain_status()
+			_refresh_banner_layer_visibility()
+	if not _settle_pending and not _fading and not _claim_pending and _drain_state != DrainState.SUCCESS:
 		set_process(false)  # idle — zero processing when settled (#23 precedent)
 
 
@@ -473,6 +498,13 @@ func _begin_transition_if_needed() -> void:
 	if target == ShellState.LOGIN:
 		_login_entry_count += 1
 		_refresh_login_variant()  # story 009 — pull the block reason on each fresh entry
+		# Sequencing (story 014 / AC-41/42): a drain-SUCCESS notice (「可以安心熄 app」)
+		# must not coexist with the login form (「請再登入」) — clear it on LOGIN entry. A
+		# part-fail WIPE banner is HONEST and persists through re-login (cleared on ack).
+		if _drain_state == DrainState.SUCCESS or _drain_state == DrainState.DRAINING:
+			_drain_state = DrainState.NONE
+			_banner_stack.clear_drain_status()
+			_refresh_banner_layer_visibility()
 	_fade_elapsed_ms = 0.0
 	_fading = true
 
@@ -504,13 +536,45 @@ func notify_claim_succeeded() -> void:
 	_request_settle()
 
 
-## Logout requested → DRAINING (optimistic「已登出」; story 014 fills the surface +
-## drain banner). DRAINING exits to LOGIN when the token is cleared and #2 fires
-## auth_required. Performs ZERO persist writes (#2 owns the token drain — AC-02).
+## Logout requested → DRAINING (optimistic「已登出」, AC-41). Calls #2
+## clear_session_token(USER_EXPLICIT) immediately + raises the「已登出」drain banner, with
+## ZERO blocking modal (Fantasy Test 3) and ZERO persist writes (#2 owns the token drain).
+## DRAINING exits to LOGIN when the token clears and #2 fires auth_required (sequencing
+## below). clear_session_token is a #2 method (stub) → has_method-guarded, mock-scoped.
 func request_logout() -> void:
 	_last_lifecycle_event = &"logout"
 	_draining = true
+	_drain_state = DrainState.DRAINING
+	if _client != null and _client.has_method("clear_session_token"):
+		_client.clear_session_token(&"USER_EXPLICIT")
+	_banner_stack.set_drain_status(ESM.Severity.NOTIFICATION, _now_ms())
+	_refresh_banner_layer_visibility()
 	_request_settle()
+
+
+## #2 drain_started(N) — items being drained in the background (AC: 「背景儲緊 N 樣」).
+func _on_drain_started(item_count: int) -> void:
+	_drain_count = item_count
+	if _drain_state == DrainState.DRAINING:
+		_banner_stack.set_drain_status(ESM.Severity.NOTIFICATION, _now_ms())
+		_refresh_banner_layer_visibility()
+
+
+## #2 drain_completed(saved, failed) — AC-42 / EC-B8. failed > 0 → the drain notice is
+## REPLACED by a persistent WIPE-weight acknowledge-dismiss banner (never silent — #2's
+## tombstone「會試返」is true). failed == 0 (incl. drain_completed(0,0)) → 「全部儲好喇 ✓」
+## that auto-expires after DRAIN_SUCCESS_EXPIRE_SEC (Formula 2).
+func _on_drain_completed(saved: int, failed: int) -> void:
+	_drain_failed = failed
+	if failed > 0:
+		_drain_state = DrainState.PARTFAIL
+		_banner_stack.set_drain_status(ESM.Severity.WIPE, _now_ms())
+	else:
+		_drain_state = DrainState.SUCCESS
+		_drain_success_start_ms = _now_ms()
+		_banner_stack.set_drain_status(ESM.Severity.NOTIFICATION, _now_ms())
+		set_process(true)  # arm the F2 success-expire tick
+	_refresh_banner_layer_visibility()
 
 
 ## ---- claim flow (story 008 — G-LS-3 mock-scoped) ----
@@ -781,3 +845,17 @@ func get_claim_error_copy() -> String:
 
 func get_claim_show_retry() -> bool:
 	return _claim_show_retry
+
+
+## ---- drain getters (story 014) ----
+
+func get_drain_state() -> int:
+	return _drain_state
+
+
+func get_drain_count() -> int:
+	return _drain_count
+
+
+func get_drain_failed() -> int:
+	return _drain_failed
