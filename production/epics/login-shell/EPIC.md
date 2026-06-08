@@ -4,8 +4,8 @@
 > **GDD**: design/gdd/login-gymsys-connection-ui.md(✅ REVISED + cold-verify 2026-06-08 — fresh /design-review NEEDS REVISION → 6 BLOCKING inline 收 → 5 MINOR cold-verify cleared;15 Rules / 5-state FSM / 2 formula / 26 EC / 56 AC / G-LS-1..9)
 > **UX Spec**: design/ux/login-gymsys-connection-ui.md(✅ APPROVED 2026-06-08 — /ux-review 0 BLOCKING / 4 ADVISORY inline 收;stories 引用 UX spec for layout/pixel/glance,引用 GDD for FSM/severity/formula)
 > **Architecture Module**: `LoginShellCoordinator` autoload @ `src/autoload/login_shell_coordinator.gd`(thin Node;持有兩個 CanvasLayer:`LoginShellLayer`(layer **62**,PAUSABLE,capture enumeration → 0/10/50/60/61/62)+ `ErrorBannerLayer`(layer **111**,ALWAYS,>100 shake/saturation-immune / <120 below #21 loot modal);pre-warm `visible=false` — #21/#22/#23 先例)。**唔開第二 autoload**,但拆 `src/ui/login_shell/` helper file(established pattern;**`banner_stack.gd` + `shell_transitions.gd` 必須獨立 file** — AC-35a grep target 前提)。Autoload 位置:tail append 喺 `InventoryUICoordinator` 後(G-LS-2 ADR-0008 amendment;#28 keep last;**零 #21/#22/#23 constraint**)
-> **Status**: Ready — 19 stories defined,未 implement。NEXT `/create-stories login-shell`
-> **Stories**: 見下表(baseline 16–20;story 001 = G-LS-6 iOS spike)
+> **Status**: Ready — **19/19 stories written**(2026-06-08),未 implement。NEXT `/story-readiness production/epics/login-shell/story-001-ios-safari-spike.md` → `/dev-story`
+> **Stories**: 見下表(baseline 16–20;現 19 ✓;story 001 = G-LS-6 iOS spike;各 story 嵌 GDD AC + ADR guidance + QA Test Cases GWT)
 
 ## Overview
 
