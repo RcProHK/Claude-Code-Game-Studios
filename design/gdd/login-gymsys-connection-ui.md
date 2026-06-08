@@ -1,9 +1,10 @@
 # Login / GymSys Connection UI(Shell)
 
-> **Status**: Designed(pending fresh `/design-review`)
+> **Status**: Designed → **fresh /design-review NEEDS REVISION → REVISED 2026-06-08**(同 session inline,跟 user full-autonomous 指示)
 > **Author**: Frank + specialists(full mode:CD framing + game-designer/ux-designer/ui-programmer Section C + systems-designer D/E + art-director V/A + qa-lead H)
 > **Last Updated**: 2026-06-08
-> **Creative Director Review(CD-GDD-ALIGN)**: CONCERNS → **REVISED 2026-06-08**(C1 phantom immediate-poll API → G-LS-4(b);C2 lint zero-coverage → G-LS-9 + AC-25 GATED;C3 severity map 按 #3 outcome 重 carve [3 class → 4 class:2 ONGOING / 8 WIPE / 2 TRANSIENT + 3 sibling FEATURE_DEGRADED];C4 ≤10% attribution 修正 [#20 Q-X9 → #2 Q-X9 L678] + Z5/Z6 region collision 列 /ux-design 必解;A1 #9 transitive note / A2 401 copy re-login family / A3 forbidden-signal 措辭 + #8 L755 簽名 erratum 全收)
+> **Fresh /design-review(獨立 re-review,2026-06-08)**: **NEEDS REVISION → REVISED 同 session**(6 adversarial specialists [game/systems/qa/ux/uip/godot] + CD synthesis;scope M,唔 freeze)。6 BLOCKING 全收:(1)**auth_required boot-race**(致命 — #2 AC-08 `_ready()` 同步 emit,#24 tail miss → 黑屏)→ G-LS-4(c) `is_auth_required()` pull-check + EC-E5/AC-53 + 8-signal boot sweep 表;(2)**error_severity_map silent dead-end**(unmapped code 證偽 Pillar 1)→ default-deny + source-first dispatch(Rule 5)+ UNMAPPED row + EC-B9/AC-52;(3)**Honest Door vs debounce 自相矛盾**(+ cross-GDD 衝突:#22 EC-30 DISCONNECTED 全功能)→ **整套刪 debounce/F1/EC-C1/knob/invariant 1/AC-13-15**,入口 enabled/hidden 二態;(4)**AC phantom 群**→ AC-26 真斷言 / AC-21 _validate_knobs 兩路 / AC-35 拆 35a+35b / AC-06/07/08/22 改 GATED;(5)**BannerStack sort non-deterministic**→ total-order comparator + arrival_sequence + AC-29b;(6)**claim cancel await-hang**→ G-LS-3 cancellation 語意。RECOMMENDED 一併收:WIPE copy lead-with-impact / ONGOING acknowledge-to-minimize / region GDD-arbitration / a11y announce_aria / cross-knob invariant 2 cartesian fix / iOS 16px canvas caveat + dual-focus / F1 m:ss / credential residue(AC-50)/ clock seam(AC-51)/ banner 獨立性(AC-54)。
+> **PRIOR — Creative Director Review(CD-GDD-ALIGN,authoring session)**: CONCERNS → REVISED 2026-06-08(C1 phantom immediate-poll API → G-LS-4(b);C2 lint zero-coverage → G-LS-9 + AC-25 GATED;C3 severity map 按 #3 outcome 重 carve;C4 ≤10% attribution 修正 [#2 Q-X9 L678] + Z5/Z6 region collision;A1 #9 transitive / A2 401 copy / A3 forbidden-signal + #8 L755 erratum 全收)
 > **Implements Pillar**: Pillar 1(anti-lie error surfacing — indirect)+ Pillar 2(Frictionless Companion — 守護者角色)
 > **System #**: 24(Presentation / MVP tier,size S)
 > **Depends On**: #2 GymSys Backend Client(hard — sole auth/transport upstream);#1 GSM(state observer);#3 PersistenceLayer(error signal consumer);#33 Attention Budget(EC-13 carve-out)
@@ -44,44 +45,45 @@ Login / GymSys Connection UI 係 Mirror Hero 嘅**帳號連接 + 系統誠實層
 
 ### Core Rules
 
-1. **單 coordinator 擁有權** — `LoginShellCoordinator` autoload(ADR-0008 tail insertion — G-LS-2)own 晒 4 個職責同兩個 CanvasLayer:`LoginShellLayer`(layer **62**,PAUSABLE,加入 BackBufferCopy capture enumeration → 0/10/50/60/61/62)+ `ErrorBannerLayer`(layer **111**,ALWAYS,>100 shake/saturation-immune;<120 — #21 loot modal 屬 sacred moment 可冚 banner,banner 完咗自然再現)— G-LS-1 ADR-0001 amendment。`_ready` pre-warmed `visible = false`(#21/#22/#23 先例;idle 時零 draw-call 貢獻)。內部拆 4 個 sub-controller(LoginPanel / ConnectionStatus / BannerStack / ShellEntry)— 全部喺 coordinator 內,**唔開第二個 autoload**。
+1. **單 coordinator 擁有權** — `LoginShellCoordinator` autoload(ADR-0008 tail insertion — G-LS-2)own 晒 4 個職責同兩個 CanvasLayer:`LoginShellLayer`(layer **62**,PAUSABLE,加入 BackBufferCopy capture enumeration → 0/10/50/60/61/62)+ `ErrorBannerLayer`(layer **111**,ALWAYS,>100 shake/saturation-immune;<120 — #21 loot modal 屬 sacred moment 可冚 banner,banner 完咗自然再現)— G-LS-1 ADR-0001 amendment。`_ready` pre-warmed `visible = false`(#21/#22/#23 先例;idle 時零 draw-call 貢獻)。內部拆 4 個 sub-controller(LoginPanel / ConnectionStatus / BannerStack / ShellEntry)— **唔開第二個 autoload**,但**跟 #22/#23 真實先例拆 `src/ui/login_shell/` helper file**(established pattern = 一個 autoload coordinator + 多個 `src/ui/[system]/` helper file,如 `character_screen_coordinator.gd` + `src/ui/character_screen/*.gd`)。**BannerStack + shell transitions 必須拆獨立 file**(`src/ui/login_shell/banner_stack.gd` + `shell_transitions.gd`)— 令 AC-35a banner 靜態紀律 grep scope 明確、唔誤殺合法 state-transition cross-fade tween(ui-programmer B1 / qa-lead B4)。「唔開第二 autoload」(Rule 1 真正約束)同「拆 file」唔衝突 — 先例如此;Rule 14 講 `ScreenLifecycleFsm` FSM extraction,**唔等於** file-layout mandate。
 
-2. **Login 接管條件 + TELEMETRY-CLASS 紀律** — #2 `auth_required()` fire → shell 入 `LOGIN` state(全屏 login form)。觸發源:首次 boot 零 token / Rule 11 401 latch / P0-7 410 update-required / P0-6 carve-out misconfig / logout 完成。LOGIN 入場時經 **pull-model getter** `GymSysClient.get_auth_block_reason() -> StringName`(`&"none"` / `&"update_required"` / `&"carve_out_misconfig"` — #2 additive API,G-LS-4)分流:normal form / update-required prompt(「呢個版本舊咗,要更新先連到」+ 唔顯示 form)/ misconfig prompt(operator-facing,顯示 `acknowledge_carve_out_fix()` 指引)。**#24 全域只訂 4 個 signal**:`auth_required` / `drain_started` / `drain_completed`(#2)+ `state_changed`(GSM,經 `connect_for_initial_state`)— **11 個 forbidden signal**(10 TELEMETRY-CLASS + 1 TEST-SEAM `substate_changed` — #2 L120;CD-GDD-ALIGN A3 措辭對齊)永不訂閱。**注意(CD-GDD-ALIGN C2)**:lint script `check_no_ui_subscribes_telemetry.sh` 未 implement,且 #2 L120 spec scope 只 grep `src/ui/**` — #24 coordinator 喺 `src/autoload/` **唔會被掃** → G-LS-9 要求 scope erratum + script 創建,先有真 coverage。
+2. **Login 接管條件 + TELEMETRY-CLASS 紀律** — #2 `auth_required()` fire → shell 入 `LOGIN` state(全屏 login form)。觸發源:首次 boot 零 token / Rule 11 401 latch / P0-7 410 update-required / P0-6 carve-out misconfig / logout 完成。**Boot-window race 收口(G-LS-4(c) — 致命 blocker)**:#2 GDD AC-08(gymsys-backend-client.md L596)已 contract 「`_ready()` completes → `auth_required()` emit count == 1」(grep-verified:空 token boot 同步 emit);但 #24 係 ADR-0008 tail autoload,#2 喺 pos 4 — #2 `_ready()` emit 嗰刻 #24 **仲未 `_ready()`/未 connect** → signal drop → LOGIN 永不觸發 → **首次開機黑屏**。Signal-only model 喺呢條最關鍵 signal 上同 #3 critical_save_failed boot-window gap(EC-B1)**同根**,所以對稱解:#24 `_ready()` 首批動作行 **pull-check** `GymSysClient.is_auth_required() -> bool`(#2 additive getter — **G-LS-4(c) gate**),返 `true` → 直入 LOGIN(唔靠 signal)。`get_auth_block_reason()` 只分流 *reason*,唔係「而家係咪需要 login」嘅 pull-state,故唔 cover 呢個 race。LOGIN 入場時經 **pull-model getter** `GymSysClient.get_auth_block_reason() -> StringName`(`&"none"` / `&"update_required"` / `&"carve_out_misconfig"` — #2 additive API,G-LS-4)分流:normal form / update-required prompt(「呢個版本舊咗,要更新先連到」+ 唔顯示 form)/ misconfig prompt(operator-facing,顯示 `acknowledge_carve_out_fix()` 指引)。**#24 全域只訂 4 個 signal**:`auth_required` / `drain_started` / `drain_completed`(#2)+ `state_changed`(GSM,經 `connect_for_initial_state`)— **11 個 forbidden signal**(10 TELEMETRY-CLASS + 1 TEST-SEAM `substate_changed` — #2 L120;CD-GDD-ALIGN A3 措辭對齊)永不訂閱。**注意(CD-GDD-ALIGN C2)**:lint script `check_no_ui_subscribes_telemetry.sh` 未 implement,且 #2 L120 spec scope 只 grep `src/ui/**` — #24 coordinator 喺 `src/autoload/` **唔會被掃** → G-LS-9 要求 scope erratum + script 創建,先有真 coverage。
 
-3. **Claim flow** — submit → button disable + loading 態(防 double-submit)→ `await GymSysClient.claim_session(username, password)`(async 簽名 pin = G-LS-3 blocking gate — GDD 簽名返 `SessionClaimResult` 但 HTTP 係 async,await-coroutine vs completion-signal 要同 #2 釘實先做 login form story)→ **success**:token 由 #2 存(#24 永不掂 persistence — Rule 15),#2 開 polling,shell **等 GSM 離開 BOOTING 先轉場**(yield landing state — 唔假設 IDLE;reconciliation 可能直落 LOOT_DROP deferred reveal)→ form cross-fade 出;**failure**:inline error per Rule 4。await 期間玩家 background app(SUSPENDED)→ #2 cancel inflight(#2 State Matrix Cell 1),shell 收唔到 result → timeout fallback copy + re-enable。
+3. **Claim flow** — submit → button disable + loading 態(防 double-submit)→ `await GymSysClient.claim_session(username, password)`(async 簽名 pin = G-LS-3 blocking gate — GDD 簽名返 `SessionClaimResult` 但 HTTP 係 async,await-coroutine vs completion-signal 要同 #2 釘實先做 login form story)→ **success**:token 由 #2 存(#24 永不掂 persistence — Rule 15),#2 開 polling,shell **等 GSM 離開 BOOTING 先轉場**(yield landing state — 唔假設 IDLE;reconciliation 可能直落 LOOT_DROP deferred reveal)→ form cross-fade 出;**failure**:inline error per Rule 4。await 期間玩家 background app(SUSPENDED)→ #2 cancel inflight(#2 State Matrix Cell 1)。**await-hang 收口(G-LS-3 連帶 blocking — godot B2)**:#2 GDD L184/L188(grep-verified)「cancel siblings 唔 wait `request_completed`」+「4.6 Web Export cancellation behavior 未 verify,`RESULT_CANCELED` 同 silent drop 都 acceptable」— 即 cancel 時 `request_completed` **唔保證 fire** → 若 `claim_session` 內部 `await http.request_completed`,#24 `await GymSysClient.claim_session(...)` 會**永不 resolve → submit 永久 disabled**(GDScript 冇 native await-timeout)。G-LS-3 簽名 pin 必須二擇一釘死:(a) `claim_session` 保證一定 resolve(SUSPENDED-cancel 時 return 一個 `error_code` 帶 cancelled 語意嘅 `SessionClaimResult`),fallback 由 result code 驅動;或 (b) 改 completion-signal pattern,#24 自己 race coroutine against injected-clock timer(`await` 兩者取其先)。兩者皆未做 → EC-A1 / AC-22 實作上不可滿足。釘實後:shell 收到 cancelled-result(或 timer 先到)→ timeout fallback copy + re-enable。
 
 4. **Claim error map(4 codes,永不 leak raw HTTP — #2 L310 contract)** — `invalid_credentials` → form 內 field-level inline「username 或者 password 唔啱,再試下?」(唔分邊欄錯 — security 慣例);`network_error` → inline「而家連唔到伺服器,睇下 WiFi?搞掂再撳一次。」+ retry 掣;`rate_limited` → submit disable + `retry_after` **live 倒數**(「等 {N} 秒再試」,倒數到 0 re-enable — 唔 silent disable);`server_error` → inline「伺服器嗰邊出咗少少問題,陣間再試下。」+ retry 掣。Copy register = 廣東話口語 witness 語氣(同 #20 silent-mode banner 一致),零責備零 jargon。
 
-5. **Banner 系統 = anti-lie 收口** — #24 係唯一 UI consumer of:#3 `critical_save_failed(error_code, key)` + #8 `streak_persistence_failed(error_code, key)` + #11 `stat_critical_save_failed(stat_id)` + #12 `ability_unlock_save_failed(ability_id)`。**每個 handler 必須產生 visible state change**(zero silent-swallow — Player Fantasy falsifiable test #2 binding);分類行 Rule 6 severity map。
+5. **Banner 系統 = anti-lie 收口** — #24 係唯一 UI consumer of:#3 `critical_save_failed(error_code, key)` + #8 `streak_persistence_failed(error_code, key)` + #11 `stat_critical_save_failed(stat_id)` + #12 `ability_unlock_save_failed(ability_id)`。**每個 handler 必須產生 visible state change**(zero silent-swallow — Player Fantasy falsifiable test #2 binding)。**分類行 source-first dispatch(明文 — systems-designer B1)**:`if source ∈ {#8, #11, #12} → FEATURE_DEGRADED`(由 **signal source** 判定,唔睇 error_code — 防 #8 某 code string 撞中 #3 同名 code 被錯分做 WIPE acknowledge-dismiss);`elif source == #3 → error_severity_map.tres[error_code]` lookup(Rule 6)。**Unmapped code = default-deny(B1 修正 — 三命中核心)**:`error_severity_map.tres` lookup miss(#3 corrupt path 係 open-ended,將來加第 13 code)**唔可 silent drop** — 必須 fallback 去最高-safe ONGOING-weight 可見 banner(copy「偵測到未知存檔問題」),否則 lookup miss = GDD L30 自己定義「任何 error 入到 #24 但唔產生 surface = bug」+ 證偽 Pillar 1 zero-silent-swallow。Map 同 #3 enumeration 嘅 drift 由 G-LS-8 連帶 keyset-coverage test 防(`map.keys() ⊇ #3 live enumeration`)。
 
 6. **Severity class(Q-X12 閉環;data-driven `error_severity_map.tres`)** — **4 個 semantic class,按 #3 嘅真實 outcome carve 推導**(CD-GDD-ALIGN C3 修正 2026-06-08:原 3-class 草案將 corrupt-wipe 事件標做「下次可能成功」係 anti-lie 自傷;#3 ground truth = corrupt path 8 codes 全部 wipe + re-init [persistence-layer.md Rule 9],QUOTA_EXHAUSTED 係 revert-no-wipe [L277]):
 
    | Class | #3 真實結局 | UX | 觸發 |
    |---|---|---|---|
-   | **ONGOING**(環境持續不可用) | revert-no-wipe / 寫入持續失敗,環境唔變就唔會好返 | persistent banner,**唔可 dismiss**(問題仲存在唔畀眼不見為淨),直至環境恢復 / 重啟 | #3:`QUOTA_EXHAUSTED` `READ_ONLY_FILESYSTEM` |
-   | **WIPE**(本機紀錄已重置 — 一次性已發生) | Rule 9 corrupt path → wipe + re-init(數據已經冇咗,唔係「下次再試」) | persistent banner,**可 acknowledge dismiss**(tap 確認已讀 — 事件已完結,誠實已交付);copy 誠實:「本機紀錄重置咗 — 會由 GymSys 補返;未同步嘅戰利品可能冇咗」(ADR-0003 backend-primary + unsynced-LootDrop client-wins caveat 係真) | #3:`INVALID_JSON` `EMPTY_FILE` `UNREGISTERED_PAYLOAD_TYPE` `FLUSH_FAILED` `MIGRATION_TIMEOUT` `MIGRATION_CHAIN_TOO_LONG` `SCHEMA_DOWNGRADE` `FILE_TOO_LARGE` |
+   | **ONGOING**(環境持續不可用) | revert-no-wipe / 寫入持續失敗,環境唔變就唔會好返 | persistent banner,**acknowledge-to-minimize**(tap 確認已讀 → collapse 做一粒 peripheral status glyph,**唔係永久全 banner**;玩家下次試做被 block 嘅 action 時再 inline 彈)— 問題未解決所以唔完全消失,但讀完一次後唔再永久食 ≤10% 螢幕(game-designer B2:QUOTA_EXHAUSTED 係 Private Mode/低儲存 mobile 常見場景,玩家無 in-game action 可 fix,force-persistent = unactionable attention drain 違 Pillar 2;呼應 EC-B4 ONGOING 本來就會被 DISCONNECTED 降級做「+N」) | #3:`QUOTA_EXHAUSTED` `READ_ONLY_FILESYSTEM` |
+   | **WIPE**(本機紀錄已重置 — 一次性已發生) | Rule 9 corrupt path → wipe + re-init(數據已經冇咗,唔係「下次再試」) | persistent banner,**可 acknowledge dismiss**(tap 確認已讀 — 事件已完結,誠實已交付);**copy lead-with-impact(game-designer B1 cry-wolf 修正)**:「**你喺 GymSys 嘅進度全部安全,會自動補返。**(啱啱本機快取重新整理咗;極少數情況:未上傳嘅戰利品要重爆。)」— 先講真實 impact(ADR-0003 backend-primary,WIPE path 真實 player-facing 損失通常零,下次 sync 補返),caveat 收喺括號;**唔再 lead with「重置咗 / 可能冇咗」**(機械誠實但情感誇大 → 玩家開 game 見一切如常 → 學識守門人會 cry-wolf → 摧毀「肯認衰所以我信佢」fantasy) | #3:`INVALID_JSON` `EMPTY_FILE` `UNREGISTERED_PAYLOAD_TYPE` `FLUSH_FAILED` `MIGRATION_TIMEOUT` `MIGRATION_CHAIN_TOO_LONG` `SCHEMA_DOWNGRADE` `FILE_TOO_LARGE` |
    | **FEATURE_DEGRADED**(單一 feature 寫入失敗) | 上游 feature 入 FAILED/degraded 態(#8 sticky 直至重啟) | persistent banner,auto-clear on 該 feature next success(sticky 情況自然留到重啟 — 誠實) | #8 `streak_persistence_failed` / #11 `stat_critical_save_failed` / #12 `ability_unlock_save_failed` 全部 |
    | **TRANSIENT**(race / 暫態) | block-reject,retry 大機會成功 | toast,~5s auto-dismiss,唔留 banner | #3:`NOT_READY` `MIGRATION_IN_PROGRESS` |
+   | **UNMAPPED**(forward-compat 防線 — B1) | #3 corrupt path open-ended,將來新增 code 而 .tres 未更新 | **ONGOING-weight 重 banner**(acknowledge-to-minimize),**never silent**;copy「偵測到未知存檔問題 — 你嘅進度會由 GymSys 守住」 | 任何唔喺上述 12 code 嘅 #3 `error_code`(default-deny) |
 
    **視覺 weight 對應**(semantic 4 → visual 3,見 Visual/Audio):ONGOING + WIPE → 重(amber accent bar);FEATURE_DEGRADED → dim;TRANSIENT → toast。`QUOTA_EXHAUSTED` 喺 Private Mode 情境 = **ADR-0003 detect-and-gate 同一條 banner**(banner + loot disable — Q-E1 閉環跟 ADR-0003 已裁,唔係 refuse-to-start,唔開第二條 banner)。
 
-7. **Banner stacking** — 單一 banner slot(`max_visible = 1`),顯示最高 severity;其餘 collapse 成「+N」counter(tap 展開 detail list)。Dedupe key = `(signal_source, error_code, key/id)` — 同 key 連 fire refresh 唔疊。Priority:DISCONNECTED status > ONGOING > WIPE > FEATURE_DEGRADED > TRANSIENT > 通知類(drain/reconnect 成功)。位置:**螢幕底部**,≤10% 螢幕高(peripheral class 數值沿用 **#2 Q-X9**(gymsys-backend-client.md L678)CD cascade 對 #20 spinner 嘅 binding[peripheral / ≤10% / 無 animation / 無 audio]— #24 採納同一 class 紀律)。**已知 region collision(CD-GDD-ALIGN C4)**:#20 UX spec **Z5 REST panel(bottom slide-up)+ Z6 silent-mode banner(bottom-center toast)**同 #24 bottom banner 真係會撞 — 確切 region 劃分係 `/ux-design` **必解項**(見 UI Requirements UX Flag)。
+7. **Banner stacking** — 單一 banner slot(`max_visible = 1`),顯示最高 severity;其餘 collapse 成「+N」counter(tap 展開 detail list)。Dedupe key = `(signal_source, error_code, key/id)` — 同 key 連 fire refresh 唔疊。Priority:DISCONNECTED status > ONGOING > WIPE > FEATURE_DEGRADED > TRANSIENT > 通知類(drain/reconnect 成功)。**Same-severity deterministic tie-break(systems-designer R3 / ui-programmer B2 / godot R3 三命中)**:同 class 兩條 banner(e.g. 同 frame 兩個 ONGOING,或 #11+#12 兩個 FEATURE_DEGRADED)嘅主-slot 揀選**唔可靠 `sort_custom`**(4.6 introsort **非 stable**)亦**唔可直接排 StringName**(本 project 已知 gotcha:`Array[StringName].sort()` 按 pointer/allocation order 唔按字面 — reference_stringname_sort)。Comparator 必須係 **total order `(severity_class, arrival_sequence)`**,`arrival_sequence` = 單調遞增 integer counter(每條 banner enqueue 時 assign);任何涉及 StringName 嘅比較(dedupe key)**先轉 `String`**。咁 EC-B2/AC-29 嘅「deterministic」斷言先可達(現狀不可滿足)。位置:**螢幕底部**,≤10% 螢幕高(peripheral class 數值沿用 **#2 Q-X9**(gymsys-backend-client.md L678)CD cascade 對 #20 spinner 嘅 binding[peripheral / ≤10% / 無 animation / 無 audio]— #24 採納同一 class 紀律)。**Bottom-region arbitration 原則(GDD-level — ux BF-1;唔純 punt 落 ux-design)**:#20 Z5 REST panel(bottom slide-up)+ Z6 silent-mode banner(bottom-center toast)+ #24 bottom banner 三方 bottom 撞,而 `ErrorBannerLayer`(111 ALWAYS)令「#24 永遠 draw 喺 #20 之上」變咗一個無人明選嘅 default。**GDD-level 釘三條 binding constraint**(`/ux-design` 喺呢三條之內出 layout spec):(1) **REST panel(Z5)出現時 #24 banner 讓位** — REST 嘅 next-exercise tap window 係 workout 神聖時刻(同 #21 loot modal sacred 同理),banner stack 到 REST panel **之上邊緣**或暫收做 status glyph,唔遮 tap target;(2) **Z6 silent-mode toast 同 #24 TRANSIENT toast 共用同一 bottom-toast slot**(唔同時雙 toast — 兩個都係 peripheral,排隊唔疊);(3) **ONGOING/WIPE persistent banner 同 REST panel 同時想出現** → persistent banner collapse 做 status glyph 讓 REST,REST 完再展開(誠實唔丟,但唔搶 workout)。確切 pixel region 由 `/ux-design` 釘,但**讓位方向同優先權已 GDD-locked**。
 
 8. **Banner 靜態紀律** — #24 banner **零 animation / 零 audio / 零 pulse**;明文**唔援引** #20 silent-mode banner 嘅 alpha-pulse formula(#20 pulse 係邀請式「㩒一下開聲」;#24 係狀態誠實 — pulse = urgency gesture,壞時刻搶 attention 違反 Pillar 2)。Backdrop = opacity-only flat(**禁第二個 BackBufferCopy** — ADR-0001 #21 blur-CUT 裁決同源)。狀態唔純靠色:斷線 slash glyph / error ⚠ glyph / 完成 ✓ glyph。
 
-9. **DISCONNECTED surface(誠實 + 唔築牆)** — GSM `DISCONNECTED`:(a)**workout 進行中**(由 WORKOUT_ACTIVE 系 state 跌入)→ bottom peripheral banner:「**連線斷咗 — 你嘅訓練 GymSys 照記住,連返之後自動補返。**」+ 細「再試一次」text 掣(tap → call #2 `request_immediate_poll()` — **G-LS-4 additive API**[#2 公開 surface 現時冇 immediate-poll API,「fire immediate poll」全部係 internal 行為 — CD-GDD-ALIGN C1 修正];**唔自己寫 backoff** — 重試節奏係 #2 職責;掣係 sense-of-agency affordance,功能上 #2 backoff 已 cover);(b)**non-workout** → shell `DISCONNECTED_SHELL` state:reconnect affordance + greyed 入口 + 斷線 status。**斷線 copy 誠實依據(synthesis 修正)**:GymSys 係 workout 數據嘅 system of record(玩家喺 GymSys 度 log set,獨立於 game),ADR-0002 differential cursor replay + #8 retro-credit drift gate + #21 catch-up contact-sheet 三件套保證 reconnect 後 game 補返反映 — 斷線**唔損數據,只 delay 反映**;所以「照記住會補返」係真話,「數據冇收」先係靠估嘅嚇人話。#33 EC-13:DISCONNECTED + pending tap → input permitted(reconnect affordance 唔被 attention budget gate)。
+9. **DISCONNECTED surface(誠實 + 唔築牆)** — GSM `DISCONNECTED`:(a)**workout 進行中**(由 WORKOUT_ACTIVE 系 state 跌入)→ bottom peripheral banner:「**連線斷咗 — 你嘅訓練 GymSys 照記住,連返之後自動補返。**」+ 細「再試一次」text 掣(tap → call #2 `request_immediate_poll()` — **G-LS-4 additive API**[#2 公開 surface 現時冇 immediate-poll API,「fire immediate poll」全部係 internal 行為 — CD-GDD-ALIGN C1 修正];**唔自己寫 backoff** — 重試節奏係 #2 職責;掣係 sense-of-agency affordance,功能上 #2 backoff 已 cover);(b)**non-workout** → shell `DISCONNECTED_SHELL` state:reconnect affordance + **入口照 enabled**(本地 view — 對齊 #22 EC-30,DISCONNECTED 全功能,**唔 grey**)+ 斷線 status。**斷線 copy 誠實依據(synthesis 修正)**:GymSys 係 workout 數據嘅 system of record(玩家喺 GymSys 度 log set,獨立於 game),ADR-0002 differential cursor replay + #8 retro-credit drift gate + #21 catch-up contact-sheet 三件套保證 reconnect 後 game 補返反映 — 斷線**唔損數據,只 delay 反映**;所以「照記住會補返」係真話,「數據冇收」先係靠估嘅嚇人話。#33 EC-13:DISCONNECTED + pending tap → input permitted(reconnect affordance 唔被 attention budget gate)。
 
-10. **入口 affordance(Q-CS1/Q-IU1 閉環)** — **greyed(visible-but-disabled)+ tap 出 inline reason**,唔用 hidden(Honest Door Test binding:狀態 tap 前已 visible)。入口由首次 render 就存在,enable/disable 切換用 cross-fade 唔用 pop-in/out(onset-transient 自己係 attention event — Q-CS1(a) 重審結論)。**Directional debounce(Q-CS1(b) flicker 閉環)**:變差方向(enabled→greyed)等 `ENTRY_DISABLE_DEBOUNCE_SEC`(default 2.5s)settle window 先郁;變好方向(greyed→enabled)**即時**。Debounce 只用於入口 — **banner 永不 debounce**(error 一 fire 即現身,誠實優先)。
+10. **入口 affordance(Q-CS1/Q-IU1 閉環 — debounce 整套刪除,game-designer B4 / systems-designer B2 / qa-lead / ux 多命中)** — 入口喺 shell 可見嘅兩個 state(SHELL_IDLE / DISCONNECTED_SHELL)**一律 visible + enabled,冇 greyed 狀態**。**Cross-GDD 衝突修正(grep-verified)**:#22 character-screen.md L96 open 條件 = `GSM ∈ {IDLE, DISCONNECTED}` + L350 EC-30「DISCONNECTED 全功能 — equip/unequip/lock/salvage/settings 照行,唯一分別係 offline banner」(ADR-0003 unsynced-only client wins)→ #22/#23 喺 DISCONNECTED 係**全功能本地 view**,grey 一個全功能 surface = 細講大話。原 directional-debounce 草案同 EC-30 **直接矛盾**,且製造一個 2.5s「held-ENABLED 講大話窗口」(嗰窗口 tap → `can_open()` 若依賴 live connection 返 false → EC-E4 reject = Honest Door Test 4 明文禁止「tap 咗先彈 error」)。**整套移除**:Rule 10 directional debounce 機制 / Formula 1 / EC-C1 / `ENTRY_DISABLE_DEBOUNCE_SEC` knob / cross-knob invariant 1 / AC-13/14/15 一併刪。**Honest Door Test(Test 4)新義**:入口狀態 tap 前已 visible — 非 permitted state(workout 系)整個 shell HIDDEN(入口自然唔 render,對齊 #22 「pin:hidden 唔係 greyed」紀律 — workout nav 雜訊歸零 Pillar 2),permitted state 一律 enabled,**永不 tap 咗先彈 error**。入口由首次 render 就存在,shell state 切換用 cross-fade(`SHELL_FADE_SEC`)。Flicker(原 Q-CS1(b))喺新設計天然消失 — IDLE↔DISCONNECTED 之間入口狀態根本唔變(兩個都 enabled)。**Banner 永不 debounce**(error 一 fire 即現身,誠實優先)。
 
-11. **互斥 arbiter(中央化)** — shell 暴露 `request_open(screen_id: StringName)`:close 現 open screen → `call_deferred` open 目標。各 screen 嘅 `can_open()` double guard **保留**(defense-in-depth);shell **唔 subscribe** #22/#23 state(主動 call + `has_method` guard — #22 G-IU-4 glue 紀律同款);GSM force-close **唔經 shell**(各 screen 自己 `_on_gsm_state_changed` handle — shell 唔搶 GSM 嘅 job)。#22 `loadout_view_all_tap` 由直 call #23 遷移做 `request_open(&"inventory")`(G-LS-5 — Q-IU1 已承諾嘅遷移,非新 churn)。
+11. **互斥 arbiter(中央化)** — shell 暴露 `request_open(screen_id: StringName)`:close 現 open screen → `call_deferred` open 目標(**last-wins pending-target latch** — deferred window 內再 call `request_open` 只覆寫最後目標,唔排隊雙開;rapid-tap / G-LS-5 遷移後並發 race 防護,ui-programmer R6;本 project `check_inventory_reentrancy.gd` 證明 reentrancy 係已知風險區)。各 screen 嘅 `can_open()` double guard **保留**(defense-in-depth);shell **唔 subscribe** #22/#23 state(主動 call + `has_method` guard — #22 G-IU-4 glue 紀律同款);GSM force-close **唔經 shell**(各 screen 自己 `_on_gsm_state_changed` handle — shell 唔搶 GSM 嘅 job)。#22 `loadout_view_all_tap` 由直 call #23 遷移做 `request_open(&"inventory")`(G-LS-5 — Q-IU1 已承諾嘅遷移,非新 churn)。
 
-12. **Logout(Q-X10 閉環 — CD path (a) optimistic)** — logout 擺 settings 角落(gear icon,唔同 #22/#23 主入口同級 — 破壞性動作收一層防誤撳)→ tap → **即時** optimistic「已登出」+ `clear_session_token(USER_EXPLICIT)` → #2 background drain。`drain_started(N)` → bottom banner:「已登出 — 緊要嘅嘢背景儲緊({N} 樣),可以安心熄 app。」;`drain_completed` → 「全部儲好喇 ✓」→ 2s auto-expire;drain 部分失敗(timeout_count > 0)→ persistent banner(WIPE-weight 視覺,acknowledge-dismiss — EC-B6)留到 re-login 後(誠實)。**永不**出「等緊 saving 唔好走」blocking modal(Mid-Set Logout Test binding)。玩家 drain 中途熄 app → 冇所謂(#2 tombstone + #3 persist,下次 boot 接返)。
+12. **Logout(Q-X10 閉環 — CD path (a) optimistic)** — logout 擺 settings 角落(gear icon,唔同 #22/#23 主入口同級 — 破壞性動作收一層防誤撳)→ tap → **即時** optimistic「已登出」+ `clear_session_token(USER_EXPLICIT)` → #2 background drain。`drain_started(N)` → bottom banner:「已登出 — 緊要嘅嘢背景儲緊({N} 樣),可以安心熄 app。」;`drain_completed` → 「全部儲好喇 ✓」→ 2s auto-expire;drain 部分失敗(timeout_count > 0)→ persistent banner(WIPE-weight 視覺,acknowledge-dismiss — EC-B6)留到 re-login 後(誠實)。**永不**出「等緊 saving 唔好走」blocking modal(Mid-Set Logout Test binding)。玩家 drain 中途熄 app → 冇所謂(#2 tombstone + #3 persist,下次 boot 接返)。**Sequencing 修正(game-designer R3)**:`auth_required` 入 LOGIN 時,drain success 通知 banner(「全部儲好喇 ✓」)**先清除**,唔同 login form 共存 — 否則玩家見「已登出,可以安心熄 app」banner 疊住「請再登入」form = 一邊叫走一邊叫返,語意打架;但 drain **部分失敗**嘅 WIPE-weight persistent banner(EC-B6)**保留**到 re-login 後(誠實:有嘢未儲到要 surface)。「已登出」optimistic copy 行 CD Q-X10 path (a) 裁決(optimistic + silent drain),drain 真實結局由 `drain_completed` 兌現。
 
-13. **Login form 規格** — username + password(`LineEdit.secret = true`)+ show-password toggle(眼睛 icon,≥44px)+ submit。**無** remember-me checkbox(token persist 係 default 行為 — 30 日 TTL 內唔會再見 login,假選擇唔出);**無** account creation / 忘記密碼 / 註冊(GymSys 帳號管理喺 GymSys 本體 — anti-scope);username 限 ASCII(GymSys schema 確認 — G-LS-3 連帶釘實)。**誠實申報**:MVP canvas `LineEdit` **攞唔到 browser password manager / Keychain autofill**(canvas 對 DOM 隱形 — Web Export 結構限制);mitigation = 30 日 token 令 re-login 罕見;DOM `<input>` overlay 列 v0.2 候選(必須經 `platform_detect.gd` JavaScriptBridge seam — ADR-001 forbidden pattern)。**iOS Safari keyboard / canvas-resize / IME spike = epic 第一個 story**(G-LS-6;HIGH risk — `DisplayServer.virtual_keyboard_show` web 行為 4.6 要 verify;input font ≥16px 防 iOS auto-zoom)。
+13. **Login form 規格** — username + password(`LineEdit.secret = true`)+ show-password toggle(眼睛 icon,≥44px)+ submit。**無** remember-me checkbox(token persist 係 default 行為 — 30 日 TTL 內唔會再見 login,假選擇唔出);**無** account creation / 忘記密碼 / 註冊(GymSys 帳號管理喺 GymSys 本體 — anti-scope);username 限 ASCII(GymSys schema 確認 — G-LS-3 連帶釘實)。**誠實申報**:MVP canvas `LineEdit` **攞唔到 browser password manager / Keychain autofill**(canvas 對 DOM 隱形 — Web Export 結構限制);mitigation = 30 日 token 令 re-login 罕見;DOM `<input>` overlay 列 v0.2 候選(必須經 `platform_detect.gd` JavaScriptBridge seam — ADR-001 forbidden pattern)。**iOS Safari keyboard / canvas-resize / IME / dual-focus spike = epic 第一個 story**(G-LS-6;HIGH risk — `DisplayServer.virtual_keyboard_show` web 行為 4.6 要 verify;**`input font ≥16px 防 auto-zoom` 只對 DOM `<input>` 路線可靠 — 對 MVP canvas `LineEdit` 路線大機會 no-op(false confidence,ui R8 / godot R4)**:iOS focus-zoom 由 DOM input font-size 觸發,canvas 對 iOS 只係一整塊 WebGL,16px 由 GDScript 設唔到嗰個 engine-internal 隱藏 DOM input;canvas path 嘅真 auto-zoom 行為係 spike **必驗項**,唔可預設已解決。**4.6 dual-focus breaking change(godot R5)**:4.5→4.6 把 mouse/touch focus 同 keyboard/gamepad focus 分離 — 「keyboard-only tab 順序」同 touch-tap 係兩條 path,`grab_focus()` 只郁 keyboard focus,spike **必須兩種 input 都實機驗**。IME 對 ASCII-only credential(本 rule)風險偏低,留作 verify 一項)。
 
 14. **FSM extraction 裁決(#23 rule-of-three closure)** — **#24 唔觸發 `ScreenLifecycleFsm` extraction**:login form 喺 BOOTING/AwaitingAuth 係**主畫面**(token 都未有,根本未入 IDLE)唔係 overlay-on-IDLE;banner/status 係常駐 surface 冇 OPENING/CLOSING;shell entry 係 stateless affordance host。三個 lifecycle 都唔 fit #22/#23 嘅五態 overlay FSM — 夾硬 extract = 錯誤抽象。#22/#23 coordinator header 嘅 fork notice 以本 rule 作 closure(G-LS-7 doc edits)。將來如有第三個**真 overlay**(e.g. 獨立 settings screen)先 extract。
 
-15. **Zero persist / zero gameplay state** — #24 唔寫任何 persistence key(token 由 #2 寫;a11y settings 由 #22 unified panel 寫);唔 own 任何 gameplay 數值;typed credentials 只存在於 form 提交瞬間嘅內存(#2 State Matrix:client 都唔 persist credentials)。
+15. **Zero persist / zero gameplay state** — #24 唔寫任何 persistence key(token 由 #2 寫;a11y settings 由 #22 unified panel 寫);唔 own 任何 gameplay 數值;typed credentials 只存在於 form 提交瞬間嘅內存(#2 State Matrix:client 都唔 persist credentials)。**Credential residue 防護(ui-programmer R5)**:claim resolve(success 或任何 failure)後,password `LineEdit.text` **即清空**(唔留喺節點 property 超出「提交瞬間」);`invalid_credentials` 後保 username 清 password(同 EC-A3 「re-enter 保留已填」協調:auth_required re-enter 保 username,password 永不殘留)。Pillar 1 大量 error surfacing 令 web console observable(devtools),所以 claim / error path **零 credential var 入 `print(` / `push_error(`**(static grep AC 守 — AC-50)。
 
 ### States and Transitions
 
@@ -90,9 +92,9 @@ Shell internal FSM(5 states — **唔係** GSM states;shell observe GSM + #2 sig
 | Shell State | 入場條件 | 顯示 | 出場 |
 |---|---|---|---|
 | `HIDDEN` | GSM ∈ {BOOTING(有 token), WORKOUT_ACTIVE, REST_PERIOD, COMBAT_ACTIVE, BOSS_ENCOUNTER, LOOT_DROP, SUSPENDED} | 冇 shell surface(login layer visible=false;banner layer 照常 per Rule 7) | GSM → IDLE / DISCONNECTED;或 `auth_required` |
-| `LOGIN` | #2 `auth_required()` fire(任何 shell state 都可入 — 最高優先) | 全屏 login form(LoginShellLayer visible);reason 分流 per Rule 2 | claim success + GSM 離開 BOOTING → cross-fade 去 landing state 對應 shell state |
+| `LOGIN` | #2 `auth_required()` fire(任何 shell state 都可入 — 最高優先)**或 `_ready()` pull-check `is_auth_required()==true`(boot-race 收口 — Rule 2 / G-LS-4(c))** | 全屏 login form(LoginShellLayer visible);reason 分流 per Rule 2 | claim success + GSM 離開 BOOTING → cross-fade 去 landing state 對應 shell state |
 | `SHELL_IDLE` | GSM `IDLE` 且有 token | 入口 affordance(#22/#23 兩張卡,enabled)+ connection status(綠)+ settings 角落;world view(avatar 由 #26 喺 GameLayer render — shell **唔** own avatar,avatar 經 world camera 自然置中) | GSM 離開 IDLE;或 `auth_required`;或 logout |
-| `DISCONNECTED_SHELL` | GSM `DISCONNECTED`(non-workout 進入) | reconnect affordance + greyed 入口(directional debounce per Rule 10)+ 斷線 status | GSM reconnect → IDLE;或 `auth_required`(401 latch) |
+| `DISCONNECTED_SHELL` | GSM `DISCONNECTED`(non-workout 進入) | reconnect affordance + **入口照 enabled**(本地 view — 對齊 #22 EC-30,**唔 grey**,Rule 10)+ 斷線 status | GSM reconnect → IDLE;或 `auth_required`(401 latch) |
 | `DRAINING` | logout tap(Rule 12) | optimistic「已登出」+ drain banner | `auth_required`(token cleared)→ LOGIN |
 
 **轉場紀律**:全部 state 切換 cross-fade ≤ `SHELL_FADE_SEC`(default 0.25s),唔 hard cut;`LOGIN` 係最高優先 interrupt(`auth_required` 喺任何 state fire 都即入,但 mid-workout 嘅 401 latch 情境行 Rule 9(a) banner-defer — `auth_required` 喺 GSM 仍喺 workout 系 state 時**唔即彈全屏 form**,banner 先,GSM 落 IDLE/DISCONNECTED 先入 LOGIN;呢個 defer 係 Pillar 2 binding)。
@@ -107,43 +109,20 @@ Shell internal FSM(5 states — **唔係** GSM states;shell observe GSM + #2 sig
 | **#2 GymSysClient** | bidirectional | 訂:`auth_required` / `drain_started` / `drain_completed`;call:`claim_session(u,p)`(G-LS-3)/ `clear_session_token(USER_EXPLICIT)` / `request_immediate_poll()`(G-LS-4 additive — Rule 9 retry 掣)/ `get_auth_block_reason()`(G-LS-4 additive)/ `acknowledge_carve_out_fix()`(#2 L149 真存在);**11 個 forbidden signals(10 TELEMETRY + 1 TEST-SEAM)永不訂**(G-LS-9 lint) | #2 owns auth/transport;#24 owns 全部 login/connection UI surface(#2 GDD L272 reciprocal) |
 | **#3 PersistenceLayer** | observe | `critical_save_failed(error_code, key)` → Rule 6 severity map(12 codes 全 mapped — Q-X12 閉環) | #3 owns 12-code enumeration;#24 owns UX surface |
 | **#8 / #11 / #12** | observe | `streak_persistence_failed(error_code, key)` / `stat_critical_save_failed(stat_id)` / `ability_unlock_save_failed(ability_id)` → FEATURE_DEGRADED class banner | 上游 owns signal;#24 owns banner(各上游 GDD「banner 由 #24」嘅 forward contract 兌現) |
-| **#22 / #23** | arbiter | `request_open(&"character_screen"` / `&"inventory")`(Rule 11);greyed affordance 狀態讀 GSM(唔讀對方 state);#22 `loadout_view_all_tap` 遷移(G-LS-5) | #24 owns 互斥仲裁 + 入口 host;#22/#23 owns 各自 screen + `can_open()` double guard |
+| **#22 / #23** | arbiter | `request_open(&"character_screen"` / `&"inventory")`(Rule 11);**enabled-only** affordance(IDLE/DISCONNECTED 皆 enabled — 對齊 #22 EC-30,唔讀對方 state);#22 `loadout_view_all_tap` 遷移(G-LS-5) | #24 owns 互斥仲裁 + 入口 host;#22/#23 owns 各自 screen + `can_open()` double guard |
 | **#33 Attention Budget** | carve-out | EC-13:DISCONNECTED + pending tap → `is_input_permitted` 唔 gate #24 reconnect/login surface(#33 已明文「嗰個係 #24 domain」) | #33 owns budget;#24 嘅 surface 喺 budget 之外 |
-| **#20 Gym-Mode HUD** | spatial contract | banner 喺螢幕底部 ≤10%(數值沿用 #2 Q-X9 peripheral class — L678);**已知 collision:#20 Z5 REST panel(bottom slide-up)+ Z6 silent-mode banner(bottom-center)同 #24 bottom banner 撞 region** — `/ux-design` 必解(CD-GDD-ALIGN C4);#24 banner 唔援引 #20 pulse formula(Rule 8 — #20 F3 pulse 真存在 L226,係刻意唔用) | 各 own 各 region;確切劃分由 /ux-design layout spec 釘 |
+| **#20 Gym-Mode HUD** | spatial contract | banner 喺螢幕底部 ≤10%(數值沿用 #2 Q-X9 peripheral class — L678);**region collision 已 GDD-level arbitrate(Rule 7 — ux BF-1):REST panel(Z5)出現 #24 banner 讓位 / Z6 toast 同 #24 TRANSIENT toast 共用單 slot 排隊 / ONGOING-WIPE persistent 同 REST 同時 → collapse 做 glyph 讓 REST**;確切 pixel region 由 `/ux-design` 釘但讓位方向已 locked;#24 banner 唔援引 #20 pulse formula(Rule 8 — #20 F3 pulse 真存在 L226,刻意唔用) | 各 own region;讓位優先權 GDD-locked,pixel 由 /ux-design |
 | **#9 WST** | transitive(note) | #9 EC-24 期望「`wst.persist_failed` → downstream UI banner」— **transitive 兌現**:同一 write failure #3 自己 emit `critical_save_failed`(帶 key)→ #24 banner 照出;#24 **唔**直訂 #9 任何 signal(channel enumeration 完整性 note — CD-GDD-ALIGN A1) | #9 doc 對齊喺 #9 next revision |
 | **#4 AudioManager** | none(silent) | **#24 零 audio cue**:banner 零 audio(Rule 8);login 成功/失敗 silent(#23 silent 紀律先例);唔開 #4 catalog gate | — |
 | **#27 Onboarding** | host 關係 | #27 choreograph 首 5 分鐘流程(連接帳號→demo→首爆裝),#24 只提供 login surface 本身;first-run tutorial 內容唔入 #24 | #27 owns flow;#24 owns surface |
 | **#5 / #6 / #26** | none | 零 particle / 零 shake / 零 avatar render(#26 喺 GameLayer 自己 render — SHELL_IDLE 唔 duplicate) | — |
 
-### Interactions with Other Systems
-
-[To be designed]
 
 ## Formulas
 
-> **誠實申報**:#24 係 thin presentation shell,**零 gameplay 數值** — 本 section 唔發明唔存在嘅 math,只 formalize 三條 UI timing/display logic(systems-designer 諮詢 2026-06-08)。全部 timing 用 `Time.get_ticks_msec()` monotonic clock(唔跟系統時間 — wall-clock tamper 免疫,見 EC-D2),test seam 用 injected clock(#22/#23 `advance(delta_ms)` 模式)。
+> **誠實申報**:#24 係 thin presentation shell,**零 gameplay 數值** — 本 section 唔發明唔存在嘅 math,只 formalize **兩條** UI timing/display logic(systems-designer 諮詢 2026-06-08;**原 Formula 1 Directional Debounce Gate 已隨 Rule 10 debounce 整套移除** — 入口喺 IDLE/DISCONNECTED 一律 enabled,flicker 天然消失)。全部 timing 用 `Time.get_ticks_msec()` monotonic clock(唔跟系統時間 — wall-clock tamper 免疫,見 EC-D2),test seam 用 injected clock(#22/#23 `advance(delta_ms)` 模式)。**Integer-ms 比較紀律(ui-programmer R2 / godot R3)**:knob 雖以 float sec 申報,但載入時 `knob_ms := int(knob_sec * 1000.0)`,**所有 formula 內部用 integer ms 比較**(`now_ms < t_start_ms + knob_ms`)— 徹底去除 float `2.49` 非精確可表示嘅 boundary-flaky 疑慮,同 injected-clock-in-ms seam 對齊。任何 formula 路徑**唔可直 call `Time.get_ticks_msec()`**(必須讀注入 clock,否則 `advance(delta_ms)` 影響唔到 → AC 變 wall-clock 依賴 phantom — AC-51 守)。
 
-### Formula 1 — Directional Debounce Gate(入口 affordance,Rule 10)
-
-```
-entry_state(t) =
-    current_entry_state    if direction == WORSE and t < t_signal + ENTRY_DISABLE_DEBOUNCE_SEC   # hold
-    target_entry_state     otherwise                                                              # BETTER 即時 / WORSE settle 完
-```
-
-**Variables:**
-
-| Variable | Symbol | Type | Range | Description |
-|----------|--------|------|-------|-------------|
-| direction | d | enum | `{WORSE, BETTER}` | WORSE = enabled→greyed;BETTER = greyed→enabled |
-| t_signal | t_s | float | [0, ∞) monotonic sec | 呢次方向改變嘅 timestamp;**每次 WORSE signal 重置**(flicker 期間永不 settle — EC-C1) |
-| ENTRY_DISABLE_DEBOUNCE_SEC | G | float | [1.0, 5.0](knob,default 2.5) | WORSE 方向 settle window |
-| entry_state | — | enum | `{ENABLED, GREYED}` | 本 frame rendered 狀態 |
-
-**Output Range:** discrete 2-value;BETTER 方向 delay 恆等 0(誠實:好消息即時)。
-**Example:** t=0 WORSE fire → 保持 ENABLED;t=1.2 仍 ENABLED;t=2.5 settle → GREYED;t=3.0 BETTER fire → **即時** ENABLED。
-
-### Formula 2 — Rate-Limited Countdown(Rule 4)
+### Formula 1 — Rate-Limited Countdown(Rule 4)
 
 ```
 display_seconds(t) = max(0, ceil(retry_after - (t - t_start)))
@@ -159,10 +138,10 @@ submit_enabled(t)  = (display_seconds(t) == 0)
 | display_seconds | N | int | [0, 3600] | 「等 {N} 秒再試」嘅整數倒數 |
 | submit_enabled | — | bool | — | N == 0 即時 re-enable |
 
-**Output Range:** N clamp 下界 0(永不顯示負數);`retry_after = 0` → 即時 re-enable + **唔顯示**倒數 copy(EC-D1)。
-**Example:** r=30, t_0=100:t=115 → N=15;t=129.5 → N=1;t=130 → N=0 re-enable。
+**Output Range:** N clamp 下界 0(永不顯示負數);`retry_after = 0`(或負/absent — N1)→ 即時 re-enable + **唔顯示**倒數 copy(EC-D1)。**Display format(systems-designer R1)**:`N ≤ 99` → 「等 {N} 秒再試」;`N > 99`(documented 上界 3600 = 一個鐘,live 倒數秒制不可讀)→ **`m:ss` format**「等 {m}:{ss} 再試」。**Integer-ms internal(intro 紀律 / N3)**:`display_seconds = max(0, ceili((r*1000 - (now_ms - t_start_ms)) / 1000.0))`(`ceili` 返 int 防「等 15.0 秒」)。
+**Example:** r=30, t_0=100:t=115 → N=15;t=129.5 → N=1;t=130 → N=0 re-enable。r=3600 → 「等 60:00 再試」逐秒遞減。
 
-### Formula 3 — Banner Auto-Expire(TRANSIENT + 通知類,Rules 6/12)
+### Formula 2 — Banner Auto-Expire(TRANSIENT + 通知類,Rules 6/12)
 
 ```
 banner_visible(t) = (t - t_banner_start) < banner_ttl
@@ -175,12 +154,12 @@ banner_visible(t) = (t - t_banner_start) < banner_ttl
 | t_banner_start | t_b | float | [0, ∞) monotonic sec | banner 出現 timestamp |
 | banner_ttl | TTL | float | by class | TRANSIENT = `TRANSIENT_BANNER_TTL_SEC`(5.0);drain/reconnect 成功通知 = `DRAIN_SUCCESS_EXPIRE_SEC`(2.0);**ONGOING/WIPE/FEATURE_DEGRADED 唔用本 formula**(由 resolved / acknowledge / next-success trigger 消除,無限期 persistent — Rule 6) |
 
-**Output Range:** boolean。
-**Example:** drain ✓ banner @ t_b=200,TTL=2.0:t=201.5 visible;t=202.1 消失。
+**Output Range:** boolean。strict `<` → **boundary `t = t_b + TTL` 已唔 visible**(t=202.0 exact = false — qa R4 boundary-exact 補測 AC-19)。**Per-banner timer(qa N2)**:每條 banner(含「+N」collapsed 嗰啲)各自行自己 `t_banner_start` timer,與主-slot 位置無關 — collapsed TRANSIENT 仍會自己 expire。
+**Example:** drain ✓ banner @ t_b=200,TTL=2.0:t=201.5 visible;t=202.0 已消失;t=202.1 消失。
 
 ## Edge Cases
 
-23 ECs,5 類(systems-designer 諮詢 2026-06-08)。Severity:6 HIGH / 10 MED / 7 LOW。
+26 ECs,5 類(systems-designer 諮詢 2026-06-08;fresh re-review 2026-06-08 +3:EC-B9 unmapped / EC-E5 auth boot-race / EC-E6 上游 boot sweep,EC-C1 HIGH→LOW)。Severity:7 HIGH / 11 MED / 8 LOW。
 
 ### A — Login / Claim flow
 
@@ -200,17 +179,18 @@ banner_visible(t) = (t - t_banner_start) < banner_ttl
 - **EC-B6 [MED] — If drain 期間斷線(transport fail mid-drain)**:`drain_completed(committed, timeout_count > 0)` → drain banner **替換**做 persistent banner(WIPE-weight 視覺,acknowledge-dismiss):「有 {timeout_count} 樣嘢今次冇儲到,登入返之後系統會試返。」— 永不 silent。*Rationale*:Rule 12 誠實 path;#2 tombstone 下次 boot 接返(「會試返」係真 — 唔係 wipe)。
 - **EC-B7 [LOW] — If「+N」detail list 展開時新 error 到**:即時 append 入 list + counter 更新;唔 close-reopen,唔阻斷閱讀。
 - **EC-B8 [LOW] — If `drain_completed(0, 0)`(logout 時零 pending)**:照顯示「全部儲好喇 ✓」→ 2s expire。*Rationale*:一致性 — 玩家要知 logout 完成,唔因零 pending 靜音。
+- **EC-B9 [HIGH] — If #3 emit 一個唔喺 12-code map 嘅 `error_code`(forward-compat:#3 corrupt path open-ended,將來加 code 而 .tres 未更新)**:`error_severity_map.tres` lookup miss → **default-deny fallback**:當作 ONGOING-weight 重 banner 顯示(copy「偵測到未知存檔問題 — 你嘅進度會由 GymSys 守住」),**never silent**(Rule 5/6 UNMAPPED row)。*Rationale*:silent drop = GDD L30「任何 error 入到 #24 但唔產生 surface = bug」+ 證偽 Pillar 1;40 條 BLOCKING AC 原本冇一條測 unknown code(systems-designer B1 / qa-lead R8)→ AC-52 補。Map↔#3 enum drift 由 G-LS-8 keyset-coverage test 防。
 
 ### C — DISCONNECTED / reconnect
 
-- **EC-C1 [HIGH] — If DISCONNECTED↔IDLE 高速 toggle(網絡 blip,500ms 級)**:Formula 1 — 每次 WORSE signal 重置 `t_signal`,flicker 持續 < debounce window 期間入口一直 ENABLED(唔 flash grey);BETTER 方向仍即時。*Rationale*:Q-CS1(b) 閉環嘅 formalization。
+- **EC-C1 [LOW] — If DISCONNECTED↔IDLE 高速 toggle(網絡 blip,500ms 級)**:入口喺 IDLE + DISCONNECTED **兩個 state 都 enabled**(Rule 10 — 對齊 #22 EC-30 全功能本地 view),toggle 唔改入口狀態 → **flicker 天然唔存在**(原 directional-debounce 機制 + Formula 1 已整套移除)。只有 connection status glyph 跟 GSM 變;banner 永不 debounce(error 即現)。*Rationale*:Q-CS1(b) flicker 問題喺「入口恆 enabled」設計下蒸發 — 唔需 debounce(severity 由 HIGH 降 LOW)。
 - **EC-C2 [LOW] — If claim await 期間 GSM → SUSPENDED(FSM layer 視角)**:shell `_on_state_changed` 收 SUSPENDED → HIDDEN;claim result 冇返 → EC-A1 timeout path。兩個 EC 係同一事件兩個 layer,**零額外 mechanism**。
 - **EC-C3 [MED] — If DISCONNECTED_SHELL 期間 `auth_required` fire(401 latch)**:LOGIN 係最高優先 interrupt → 即入 LOGIN。*Rationale*:States table 明文任何 shell state 可入 LOGIN。
 - **EC-C4 [MED] — If mid-workout 401 latch 後 GSM 直落 DISCONNECTED(唔經 IDLE)**:#24 track `_pending_auth_required: bool` flag — Rule 9(a) banner-defer 期間 set;GSM 落 DISCONNECTED/IDLE 時 flag set → 即入 LOGIN。**LOGIN 入場唔以 IDLE 為 precondition**。*Rationale*:States table mid-workout defer 條款嘅 completion path。
 
 ### D — Timing
 
-- **EC-D1 [MED] — If `retry_after == 0`(或 field absent)**:Formula 2 自然 handle — N=0 → 即時 re-enable,**唔顯示**「等 0 秒」copy。
+- **EC-D1 [MED] — If `retry_after == 0`(或 field absent)**:Formula 1 自然 handle — N=0 → 即時 re-enable,**唔顯示**「等 0 秒」copy。
 - **EC-D2 [LOW] — If 玩家改系統時間(wall-clock tamper)**:Formulas 1-3 全部用 `Time.get_ticks_msec()` monotonic — 唔受影響。*Implementation requirement,非 behavior edge case。*
 
 ### E — Shell FSM
@@ -218,11 +198,27 @@ banner_visible(t) = (t - t_banner_start) < banner_ttl
 - **EC-E1 [LOW] — If GSM 喺 LOGIN cross-fade 途中直落 LOOT_DROP**:cross-fade 跑完(唔 abort mid-tween — hard-cut 嘅 onset transient 係 attention event,Rule 10 binding)→ fade 完 check GSM state → HIDDEN。*Rationale*:動畫 integrity > immediacy;GSM state continuously observable。
 - **EC-E2 [MED] — If DRAINING 期間新 error signal fire**:BannerStack orthogonal — 新 banner 照 append(per Rule 6 class),priority 機制處理;drain 唔係 silent zone。
 - **EC-E3 [MED] — If shell HIDDEN(e.g. WORKOUT_ACTIVE)期間 ONGOING/WIPE error fire**:`ErrorBannerLayer`(111 ALWAYS)獨立於 shell state — banner 照顯示喺 workout 之上。*Rationale*:Rule 1 兩 layer 分離;HIDDEN 只收 LoginShellLayer。
-- **EC-E4 [LOW] — If `request_open()` 目標 screen `can_open()` 返 false**:shell 唔 force open;affordance 保持/回復 greyed + log warning(唔 silent)。*Rationale*:Rule 11 double guard respect,唔 bypass。
+- **EC-E4 [LOW] — If `request_open()` 目標 screen `can_open()` 返 false**:shell 唔 force open;affordance **保持 enabled + tap 出 inline reason**(唔 silent + log warning;**唔再 greyed** — Rule 10 enabled/hidden 二態,greyed 已刪)。*Rationale*:Rule 11 double guard respect,唔 bypass。
+- **EC-E5 [HIGH] — If #2 `auth_required()` 喺 #24 `_ready()`/connect 之前 fire(boot-race;#2 AC-08 contract `_ready()` 同步 emit,#2 pos 4 早過 #24 tail)**:signal drop → LOGIN 永不觸發 → **首次開機黑屏**。**Resolution**:#24 `_ready()` 首批動作 **pull-check** `GymSysClient.is_auth_required() -> bool`(G-LS-4(c) additive),返 true → 直入 LOGIN(唔靠 signal)。*Rationale*:同 EC-B1 boot-window gap 同根 — signal-only model 對 tail autoload 必有此 race;`get_auth_block_reason()` 只分流 reason 唔 cover「是否需 login」(godot B1)。
+- **EC-E6 [MED] — If #8/#11/#12 喺自己 boot `_ready()` reconciliation 期間 emit persistence_failed(早過 #24 tail connect)**:FEATURE_DEGRADED banner 有 silent-drop 風險。**Grep-verified 現況**:#8 `streak_system.gd` 嘅 emit 喺 runtime `_persist_streak`(workout flow),boot `_ready()` 只 read 唔 write(L152「Called once during _ready, before READY」)→ boot-window 風險低但非零(若 #3 boot corrupt + #8 namespace match);#11/#12 handler body Story 009+。**Contract assert(GDD-level)**:上游 persistence_failed signal **唔可喺自己 `_ready()` 同步 emit**(對齊 #3 persistence_layer.gd file header「_ready 內用 `call_deferred` schedule emit」紀律)— 令 tail #24 connect 完先收到;此 assumption 列入 boot-window sweep 表(下),上游若將來改 boot-emit 須行 #3 同款 deferred pattern。*Rationale*:Rule 5 zero-silent-swallow 對 FEATURE_DEGRADED class 嘅對稱保證(godot R1 — systemic blind spot:「為 category 第一 instance 工程化 pattern 但冇 sweep 成個 category」)。
+
+### Boot-Window Signal Sweep(CD exit bar 1 — systemic blind spot 收口)
+
+**問題本質**:#24 係 ADR-0008 tail autoload,所有 upstream error/auth signal 嘅 producer 都喺 #24 之前 boot。Signal-only model 對 tail subscriber **必有 boot-window race**(producer `_ready()` emit 時 #24 未 connect → drop)。GDD 原本只為 #3 critical_save_failed(EC-B1)工程化 pull-check,**冇 sweep 成個 category** — 以下逐 signal 釘 cover 策略(全部 grep-verified against shipped code):
+
+| Signal | Producer / pos | Boot-emit 風險 | #24 cover 策略 |
+|---|---|---|---|
+| `auth_required()` (#2) | #2 pos 4 | **HIGH 致命** — #2 AC-08(L596)contract `_ready()` 同步 emit count==1;drop = 首次開機黑屏 | `_ready()` pull-check `is_auth_required()`(G-LS-4(c) additive)— EC-E5 / AC-53 |
+| `critical_save_failed(code,key)` (#3) | #3 pos 1 | MED — `_ready()` sync `_load_from_disk()` 可觸 corrupt path emit | `_ready()` pull-check `get_pending_errors()`(G-LS-8 additive)— EC-B1/B3 / AC-28 |
+| `streak_persistence_failed(code,key)` (#8) | #8 Core | LOW — grep-verified:emit 喺 runtime `_persist_streak`(workout flow),boot `_ready()` 只 read(streak_system.gd L152) | Contract assert「上游唔喺 `_ready()` 同步 emit」(EC-E6);若改 boot-emit 須行 #3 deferred pattern |
+| `stat_critical_save_failed(stat_id)` (#11) | #11 Core | LOW — handler body Story 009+,boot reconciliation `_ready()` | 同上 EC-E6 contract assert |
+| `ability_unlock_save_failed(ability_id)` (#12) | #12 Core | LOW — 同 #11 | 同上 EC-E6 contract assert |
+
+**驗證紀律**:呢張表係 epic 「上游 boot-emit contract」story 嘅 ground truth;任何上游將來改成 boot `_ready()` 同步 emit persistence-failed → 必須(a)行 #3 deferred-emit pattern,或(b)提供 pull-getter 畀 #24 boot pull-check,二擇一,唔可默認 signal-only。
 
 ### Cross-reference
 
-- Player Fantasy falsifiable tests 覆蓋:Test 1(Locker-Room WiFi)→ EC-C1 + Rule 9;Test 2(Silent Corruption)→ EC-B1/B2/B3 + Rule 5;Test 3(Mid-Set Logout)→ Rule 12 + EC-B6;Test 4(Honest Door)→ Rule 10 + EC-E4。
+- Player Fantasy falsifiable tests 覆蓋:Test 1(Locker-Room WiFi)→ EC-C1 + Rule 9;Test 2(Silent Corruption)→ EC-B1/B2/B3/**B9** + EC-**E5/E6** boot sweep + Rule 5;Test 3(Mid-Set Logout)→ Rule 12 + EC-B6;Test 4(Honest Door)→ Rule 10 + EC-E4。
 - Sister presentation systems 零重疊:#22/#23 ECs 聚焦 overlay lifecycle/claim/salvage;#24 ECs 聚焦 auth/banner/connection — 唔 duplicate。
 
 ## Dependencies
@@ -266,14 +262,13 @@ banner_visible(t) = (t - t_banner_start) < banner_ttl
 
 ## Tuning Knobs
 
-### Owned by #24(5 knobs + 1 data-driven map)
+### Owned by #24(4 knobs + 1 data-driven map)
 
 | Knob | Default | Safe Range | Source / Used By | Too high | Too low |
 |------|---------|------------|------------------|----------|---------|
-| `ENTRY_DISABLE_DEBOUNCE_SEC` | 2.5 | `[1.0, 5.0]` | Formula 1 / Rule 10 | > 5 → 真斷線後入口好耐先誠實反映(Honest Door 變鈍) | < 1 → blip flicker 重現(Q-CS1(b) 問題返晒嚟) |
 | `SHELL_FADE_SEC` | 0.25 | `[0.1, 0.5]` | States 轉場 / EC-E1 | > 0.5 → 轉場遲滯感,login 成功後遮住 landing state | < 0.1 → 接近 hard-cut,onset transient 變 attention event |
-| `TRANSIENT_BANNER_TTL_SEC` | 5.0 | `[3.0, 10.0]` | Formula 3 / Rule 6 | > 10 → TRANSIENT 變偽 persistent,稀釋 ONGOING/WIPE/FEATURE_DEGRADED 嘅 persistent 語意 | < 3 → 玩家眼角未及讀完 |
-| `DRAIN_SUCCESS_EXPIRE_SEC` | 2.0 | `[1.0, 5.0]` | Formula 3 / Rule 12 | > 5 → 「儲好喇」霸住 banner slot | < 1 → 玩家未見到 closure 確認 |
+| `TRANSIENT_BANNER_TTL_SEC` | 5.0 | `[3.0, 10.0]` | Formula 2 / Rule 6 | > 10 → TRANSIENT 變偽 persistent,稀釋 ONGOING/WIPE/FEATURE_DEGRADED 嘅 persistent 語意 | < 3 → 玩家眼角未及讀完 |
+| `DRAIN_SUCCESS_EXPIRE_SEC` | 2.0 | `[1.0, 3.0]`(**上界收窄 5.0→3.0 — systems R2 cartesian fix**:原 [1.0,5.0] × TRANSIENT [3.0,10.0] 有 DRAIN=5.0+TRANSIENT=3.0 兩個各自合法但違反 invariant 2 嘅組合;收窄令笛卡兒積恆安全) | Formula 2 / Rule 12 | > 3 → 「儲好喇」可能長過 TRANSIENT toast 語意倒錯 | < 1 → 玩家未見到 closure 確認 |
 | `BANNER_MAX_HEIGHT_PCT` | 0.10 | `[0.06, 0.10]`(**#24 自有 knob**;上限數值沿用 #2 Q-X9 L678 peripheral class ≤10% — 對 #20 spinner 嘅 CD cascade binding,#24 採納同一紀律,**唔係** #20 契約 — CD-GDD-ALIGN C4 attribution 修正) | Rule 7 | > 0.10 → 脫離 peripheral class,banner 變 attention surface | < 0.06 → CJK 12px + glyph 擺唔落 |
 | `error_severity_map.tres` | Rule 6 表 | data-driven(新 error code 加入時 designer 改 .tres 唔改 code) | Rules 5/6 | — | — |
 
@@ -281,7 +276,7 @@ banner_visible(t) = (t - t_banner_start) < banner_ttl
 
 | Knob | Owner | #24 用途 |
 |------|-------|---------|
-| `SessionClaimResult.retry_after` | #2 | Formula 2 倒數 |
+| `SessionClaimResult.retry_after` | #2 | Formula 1 倒數 |
 | `SESSION_TOKEN_TTL_HOURS`(720) | #2 | re-login 頻率假設(Rule 13 誠實申報嘅依據) |
 | GSM 9-state enum | #1 | shell FSM 分流 |
 | #3 12 error codes enumeration | #3 | severity map keys(#3 係 source of truth — code 列表變更 = #3 GDD 改,#24 map 跟) |
@@ -293,15 +288,15 @@ banner_visible(t) = (t - t_banner_start) < banner_ttl
 | Banner 靜態紀律 | 零 animation / pulse / audio | Rule 8 — Pillar 2 binding;改 = urgency gesture 入侵 |
 | Banner `max_visible` | 1 | Rule 7 — 疊 banner = 迫近 modal 體感 |
 | Banner backdrop | opacity-only,禁第二 BackBufferCopy | ADR-0001 #21 blur-CUT 同源裁決 |
-| 入口 affordance 模式 | greyed,永不 hidden | Honest Door Test binding |
-| Debounce 方向性 | 只 delay 變差方向 | Formula 1 — 「好消息即時」係誠實紀律,變 knob 會畀人 tune 反咗 |
+| 入口 enabled/hidden 二態 | 永不 greyed | Rule 10 — 對齊 #22 EC-30 全功能本地 view;grey 全功能 surface = 細講大話 |
 | TELEMETRY-CLASS 訂閱禁令 | 4-signal whitelist | #2 L120 CI lint |
 
 ### Cross-knob invariants
 
-1. `SHELL_FADE_SEC < ENTRY_DISABLE_DEBOUNCE_SEC`(fade 必須完成於 settle window 內 — 否則 grey cross-fade 同 debounce 重置互相打架);at defaults:0.25 < 2.5 ✓
-2. `DRAIN_SUCCESS_EXPIRE_SEC ≤ TRANSIENT_BANNER_TTL_SEC`(通知類唔可以長過 TRANSIENT — 語意一致);at defaults:2.0 ≤ 5.0 ✓
-3. `BANNER_MAX_HEIGHT_PCT ≤ 0.10`(#20 契約 hard ceiling);boot assert(ADR-0006 C8 pattern)
+1. `DRAIN_SUCCESS_EXPIRE_SEC ≤ TRANSIENT_BANNER_TTL_SEC`(通知類唔可以長過 TRANSIENT — 語意一致);at defaults:2.0 ≤ 5.0 ✓。**DRAIN range 上界收窄 3.0 ≤ TRANSIENT 下界 3.0 → 笛卡兒積恆安全**(systems R2 — 原 invariant 1 `SHELL_FADE < ENTRY_DEBOUNCE` 隨 debounce 移除而刪)。
+2. `BANNER_MAX_HEIGHT_PCT ≤ 0.10`(#20 契約 hard ceiling)。
+
+**驗證紀律(qa-lead B2 — release-safe,非 raw assert)**:兩條 invariant + 每個 TTL/fade knob 喺自己 safe range 內(含 `> 0` 下界 — 防 `DRAIN_SUCCESS=0` 令 Formula 2 banner 永不顯示 — systems N4),由 `_validate_knobs() -> bool`(return false / `push_error` + clamp)守,**唔淨靠 raw `assert()`**(Godot release build strip `assert()` → shipped build 唔 trip;GUT 亦捉唔到 raw assert failure → tautological phantom pass)。AC-21 測 **pass + violation 兩路**(注入違反組合驗 `_validate_knobs()` 返 false)。
 
 ## Visual/Audio Requirements
 
@@ -329,11 +324,11 @@ banner_visible(t) = (t - t_banner_start) < banner_ttl
 - 共用:1px ink hard shadow on text;固定底部 ≤10%;零 animation/pulse/audio;backdrop opaque flat 禁 blur
 - 重 weight vs 中 weight 同 shape ⚠ 靠 modulate 區分 — acceptable,因為重 weight 有 left accent bar 做第二 encode(squint test 守住)
 
-### 入口卡 + greyed state
+### 入口卡 + disabled state(罕見)
 
 - 卡:`ui_ink_bg` frameless + 16×16 solid silhouette icon(amber modulate @ enabled)+ Zpix label + 1px shadow;tap target ≥48px;可借用 #22 `ui_card_item_bg` 9-slice
 - Settings gear:corner、`ui_text_dim`、唔用 amber(logout 係破壞性動作 — amber 保留畀可賺取 action)
-- **Greyed = alpha 55%(整卡)+ slash glyph 疊 icon** — 唔用 desaturate(desaturate 係 §4.E World Layer/MoodController 工具,UI chrome disabled 語言 = alpha,#22 offline banner / #17 greyed slots 同款);disabled tap → inline text strip(#22 lock nudge 同款 L2 motion)「連線返先撳得」
+- **入口卡喺 IDLE/DISCONNECTED 恆 enabled**(amber modulate;對齊 #22 EC-30 全功能本地 view — 唔 grey)。**Disabled 狀態只喺罕見 `can_open()` false(EC-E4)出現**:整卡 alpha 55% + inline text strip(#22 lock nudge 同款 L2 motion)出 reason,**唔用 desaturate**(desaturate 係 §4.E World Layer/MoodController 工具;UI chrome disabled 語言 = alpha)。**非 permitted state(workout 系)= 整個 shell hidden,入口唔 render**(對齊 #22「pin:hidden 唔係 greyed」紀律)
 - 變差 cross-fade 0.25s @ settle 後;變好即時 cross-fade — 玩家感知:**恢復永遠比斷線反應快**
 
 ### Audio
@@ -351,14 +346,15 @@ banner_visible(t) = (t - t_banner_start) < banner_ttl
 (ux-designer 諮詢 2026-06-08;`/ux-design login-gymsys-connection-ui` 出 wireframe-level spec 先入 epic — UX Flag 見文末)
 
 - **Login form**:username + password + show-password toggle + submit;**無** remember-me(token persist 係 default)/ 無註冊 / 無忘記密碼;全部 interactive target ≥44×44px;input font ≥16px;keyboard-only 可完成(tab 順序 username → password → toggle → submit)
-- **錯誤顯示**:inline(form 內),廣東話口語 witness register;`rate_limited` live 倒數;error 區 ARIA live `assertive`;唔純靠色(⚠ glyph)
+- **錯誤顯示**:inline(form 內),廣東話口語 witness register;`rate_limited` live 倒數;error 區 ARIA live `assertive` — **經 `PlatformDetect.announce_aria` JS-bridge 推入 DOM ARIA-live element,唔靠 4.5 AccessKit**(godot R6:AccessKit native-only,canvas 對 DOM accessibility tree 不透明,VoiceOver 讀唔到 canvas 內容;ADR-001 raw JavaScriptBridge.eval 只准喺 platform_detect.gd);唔純靠色(⚠ glyph)
 - **IDLE shell 佈局**:world avatar 自然置中(#26 render — 情感焦點);#22/#23 兩張入口卡並排(平等、大 target、icon + text label 雙 channel);settings gear corner(logout 收一層);connection status dot
-- **Banner**:固定底部 ≤10%;單 slot + 「+N」;ONGOING 唔可 dismiss(問題未解決唔畀眼不見為淨)/ WIPE acknowledge-dismiss(一次性事件,確認已讀)/ FEATURE_DEGRADED auto-clear on success,TRANSIENT/通知 auto-expire;ARIA live `polite`(peripheral 唔打斷 SR 朗讀);零 flashing(WCAG;Rule 8 靜態紀律順帶滿足)
+- **Banner**:固定底部 ≤10%;單 slot + 「+N」;**ONGOING acknowledge-to-minimize**(tap 確認 → collapse 做 status glyph,唔永久全 banner — game-designer B2,SR 唔被永久 re-announce nag)/ WIPE acknowledge-dismiss(一次性事件)/ FEATURE_DEGRADED auto-clear on success,TRANSIENT/通知 auto-expire;ARIA live `polite` **經 `PlatformDetect.announce_aria`**(peripheral 唔打斷 SR;唔靠 AccessKit — godot R6);零 flashing(WCAG;Rule 8 靜態紀律順帶滿足)
 - **Drain banner**:non-interactive;text 狀態 + ✓ glyph(唔純 spinner — reduce-motion + SR)
 - **Reconnect**:「再試一次」text 掣 ≥44px;狀態用 text(「連緊…」/「仲係連唔到」)唔純 spinner
+- **A11y(canvas web 限制 — ux BF-2 / godot R6)**:canvas 對 DOM accessibility tree 不透明 → 所有 SR 公告(error / banner / status / drain)**必經 `PlatformDetect.announce_aria`**(#21/#22/#23 已建立 seam);keyboard tab 順序喺 banner 出現時唔搶 form focus;G-LS-6 spike 連帶驗 SR 實機行為
 - **誠實申報(玩家預期管理)**:MVP 無 browser password manager / Keychain autofill(canvas 結構限制);靠 30 日 token TTL 令 re-login 罕見;DOM overlay v0.2 候選
 
-> 📌 **UX Flag — Login / GymSys Connection UI**:本系統有 UI requirements。Epic 前必行 `/ux-design login-gymsys-connection-ui`(重點:login form wireframe + banner anatomy/region 同 #20 non-overlap 釘實 + shell 入口佈局 + greyed/disabled 狀態 spec)。Stories 引用 `design/ux/login-gymsys-connection-ui.md`,唔直接引 GDD。
+> 📌 **UX Flag — Login / GymSys Connection UI**:本系統有 UI requirements。Epic 前必行 `/ux-design login-gymsys-connection-ui`(重點:login form wireframe + banner anatomy/region 同 #20 non-overlap 釘實 + shell 入口佈局 + enabled/disabled 狀態 spec)。Stories 引用 `design/ux/login-gymsys-connection-ui.md`,唔直接引 GDD。
 
 ## Acceptance Criteria
 
@@ -374,47 +370,53 @@ banner_visible(t) = (t - t_banner_start) < banner_ttl
 
 ### Claim flow(Integration,BLOCKING)
 
-- **AC-06**: GIVEN form submit enabled,WHEN tap submit,THEN 即時 disable + loading;`claim_session_calls == 1`(防 double-submit)。Source: Rule 3 | Integration | BLOCKING | `tests/unit/login_shell/test_login_shell_claim_flow.gd`
-- **AC-07**: GIVEN claim success,WHEN mock GSM 仍喺 BOOTING,THEN shell 唔切換 state — 等 `state_changed`(yield landing state)。Source: Rule 3 | Integration | BLOCKING | 同上
-- **AC-08**: GIVEN claim success + mock GSM emit `(BOOTING → LOOT_DROP)`,THEN shell 入 `HIDDEN` 唔入 SHELL_IDLE(EC-A5 deferred reveal path)。Source: Rule 3 / EC-A5 | Integration | BLOCKING | 同上
-- **AC-22**: GIVEN claim await 掛起,WHEN mock GSM emit SUSPENDED + injected clock 超 timeout,THEN submit re-enable + copy 含「程序中途中斷」、**唔**含「登入失敗」。Source: EC-A1 | Integration | BLOCKING | `tests/unit/login_shell/test_claim_edge_cases.gd`
+- **AC-06 [GATED G-LS-3]**: GIVEN form submit enabled,WHEN tap submit,THEN 即時 disable + loading;`claim_session_calls == 1`(防 double-submit)。Source: Rule 3 | Integration | BLOCKING | `tests/unit/login_shell/test_login_shell_claim_flow.gd`
+- **AC-07 [GATED G-LS-3]**: GIVEN claim success,WHEN mock GSM 仍喺 BOOTING,THEN shell 唔切換 state — 等 `state_changed`(yield landing state)。Source: Rule 3 | Integration | BLOCKING | 同上
+- **AC-08 [GATED G-LS-3]**: GIVEN claim success + mock GSM emit `(BOOTING → LOOT_DROP)`,THEN shell 入 `HIDDEN` 唔入 SHELL_IDLE(EC-A5 deferred reveal path)。Source: Rule 3 / EC-A5 | Integration | BLOCKING | 同上
+- **AC-22 [GATED G-LS-3]**: GIVEN claim await 掛起,WHEN mock GSM emit SUSPENDED + injected clock 超 timeout,THEN submit re-enable + copy 含「程序中途中斷」、**唔**含「登入失敗」。Source: EC-A1 | Integration | BLOCKING | `tests/unit/login_shell/test_claim_edge_cases.gd`
 
 ### Error map(Integration,BLOCKING)
 
-- **AC-09**: GIVEN claim 返 `invalid_credentials`,THEN inline copy 含「username 或者 password 唔啱」+ submit re-enable + **零** raw HTTP 字串(「401」「HTTP」etc.)。Source: Rule 4 | Integration | BLOCKING | `tests/unit/login_shell/test_login_shell_error_map.gd`
-- **AC-10**: GIVEN claim 返 `network_error`,THEN inline「而家連唔到」+ retry 掣 + 零 raw HTTP。Source: Rule 4 | Integration | BLOCKING | 同上
-- **AC-11**: GIVEN claim 返 `server_error`,THEN inline「伺服器嗰邊出咗少少問題」+ retry + re-enable + 零 raw HTTP。Source: Rule 4 | Integration | BLOCKING | 同上
+- **AC-09**: GIVEN claim 返 `invalid_credentials`,THEN inline copy 含「username 或者 password 唔啱」+ submit re-enable + **零** raw HTTP 字串 — copy 唔 match regex `\d{3}`(任何三位 code)**且**唔含字面 `HTTP`/`http`(qa R6 deny-list,非開放式「etc.」)。Source: Rule 4 | Integration | BLOCKING | `tests/unit/login_shell/test_login_shell_error_map.gd`
+- **AC-10**: GIVEN claim 返 `network_error`,THEN inline「而家連唔到」+ retry 掣 + 零 raw HTTP(deny-list regex 同 AC-09)。Source: Rule 4 | Integration | BLOCKING | 同上
+- **AC-11**: GIVEN claim 返 `server_error`,THEN inline「伺服器嗰邊出咗少少問題」+ retry + re-enable + 零 raw HTTP(deny-list regex 同 AC-09)。Source: Rule 4 | Integration | BLOCKING | 同上
 - **AC-23**: GIVEN session conflict 場景(另一 tab claim — #2 落 `server_error` bucket),THEN server_error copy,零 conflict-specific / raw HTTP 字串(EC-A2)。Source: EC-A2 / Rule 4 | Integration | BLOCKING | 同上
 - **AC-12**: GIVEN form render,WHEN `find_children()` 檢查,THEN 存在 username/password(`secret==true`)/toggle/submit;**唔**存在 remember-me / 註冊 / 忘記密碼元素。Source: Rule 13 | Integration | BLOCKING | `tests/unit/login_shell/test_login_form_spec.gd`
 
 ### Formulas(Logic,BLOCKING — injected clock boundary-exact)
 
-- **AC-13**: GIVEN ENABLED + `ENTRY_DISABLE_DEBOUNCE_SEC=2.5`,WHEN WORSE @ t=0 + advance 到 t=2.49,THEN `entry_state == ENABLED`(settle 未到)。Source: F1 / EC-C1 | Logic | BLOCKING | `tests/unit/login_shell/test_debounce_formula.gd`
-- **AC-14**: GIVEN 同上,WHEN advance 到 t=2.50,THEN `GREYED`(boundary inclusive)。Source: F1 | Logic | BLOCKING | 同上
-- **AC-15**: GIVEN WORSE @ t=0 + BETTER @ t=1.0,THEN ENABLED 即時(delay 0);再 WORSE @ t=1.2 → `t_signal` 重置(flicker 期間永不 settle — EC-C1)。Source: F1 / EC-C1 | Logic | BLOCKING | 同上
-- **AC-16**: GIVEN `retry_after=30, t_start=100`,WHEN t=115,THEN `display_seconds == 15`。Source: F2 | Logic | BLOCKING | `tests/unit/login_shell/test_rate_limit_formula.gd`
-- **AC-17**: GIVEN 同上,WHEN t=130,THEN `display_seconds == 0` + `submit_enabled == true` + 倒數 copy 消失。Source: F2 / EC-D1 | Logic | BLOCKING | 同上
-- **AC-18**: GIVEN claim 返 `rate_limited` + `retry_after == 0`,THEN 即時 re-enable + **唔**顯示任何倒數 copy。Source: F2 / EC-D1 | Logic | BLOCKING | 同上
-- **AC-19**: GIVEN drain ✓ banner @ t=200 + `DRAIN_SUCCESS_EXPIRE_SEC=2.0`,WHEN t=201.5 → visible;t=202.1 → 消失。Source: F3 / Rule 12 | Logic | BLOCKING | `tests/unit/login_shell/test_banner_expire_formula.gd`
-- **AC-20**: GIVEN `NOT_READY` TRANSIENT banner + TTL 5.0,WHEN t 超 TTL → 消失;同場 ONGOING/WIPE/FEATURE_DEGRADED banner 不受 F3 影響(persistent)。Source: F3 / Rule 6 | Logic | BLOCKING | 同上
-- **AC-21a/b/c**: GIVEN `_ready()`,THEN 三條 cross-knob invariants boot assert:(a) `SHELL_FADE_SEC < ENTRY_DISABLE_DEBOUNCE_SEC`;(b) `DRAIN_SUCCESS_EXPIRE_SEC ≤ TRANSIENT_BANNER_TTL_SEC`;(c) `BANNER_MAX_HEIGHT_PCT ≤ 0.10`;違反 → debug assert trip。Source: Cross-knob invariants 1-3 | Logic ×3 | BLOCKING | `tests/unit/login_shell/test_knob_invariants.gd`
+- **AC-13/14/15**: *(已移除 — 原 directional-debounce formula 隨 Rule 10 debounce 整套刪除,fresh re-review 2026-06-08;入口恆 enabled,flicker 天然消失,無 boundary 可測。編號留空避免 cascade renumber。)*
+- **AC-16**: GIVEN `retry_after=30, t_start=100`,WHEN t=115,THEN `display_seconds == 15`。Source: F1 | Logic | BLOCKING | `tests/unit/login_shell/test_rate_limit_formula.gd`
+- **AC-17**: GIVEN 同上,WHEN t=130,THEN `display_seconds == 0` + `submit_enabled == true` + 倒數 copy 消失。Source: F1 / EC-D1 | Logic | BLOCKING | 同上
+- **AC-18**: GIVEN claim 返 `rate_limited` + `retry_after == 0`,THEN 即時 re-enable + **唔**顯示任何倒數 copy。Source: F1 / EC-D1 | Logic | BLOCKING | 同上
+- **AC-19**: GIVEN drain ✓ banner @ t=200 + `DRAIN_SUCCESS_EXPIRE_SEC=2.0`,WHEN t=201.5 → visible;t=202.1 → 消失。Source: F2 / Rule 12 | Logic | BLOCKING | `tests/unit/login_shell/test_banner_expire_formula.gd`
+- **AC-19b**: GIVEN drain ✓ banner @ t_b=200 + TTL 2.0,WHEN advance 到 **exactly t=202.0**,THEN banner **已唔 visible**(strict `<` boundary — qa R4)。Source: F2 boundary | Logic | BLOCKING | 同上
+- **AC-20**: GIVEN `NOT_READY` TRANSIENT banner(TTL 5.0)**+ 同場一條 `READ_ONLY_FILESYSTEM` ONGOING persistent banner**,WHEN t 超 5.0 → TRANSIENT 消失而 **ONGOING/WIPE/FEATURE_DEGRADED 仍 visible**(不受 F2 影響 — qa R7 GIVEN 補 persistent)。Source: F2 / Rule 6 | Logic | BLOCKING | 同上
+- **AC-21a/b**: GIVEN 合法 default knobs,WHEN `_validate_knobs()`,THEN 返 `true`;GIVEN **注入違反組合**(a: `DRAIN_SUCCESS_EXPIRE_SEC=3.5 > TRANSIENT_BANNER_TTL_SEC=3.0`;b: `BANNER_MAX_HEIGHT_PCT=0.12 > 0.10`),THEN 返 `false`(或 `push_error`)+ clamp。**用 `_validate_knobs()` 唔用 raw `assert()`**(release-safe — qa B2;原 invariant 1 debounce 已刪,3→2 條)。Source: Cross-knob invariants 1-2 | Logic ×2(pass+fail 各) | BLOCKING | `tests/unit/login_shell/test_knob_invariants.gd`
 
 ### Banner 系統(BLOCKING)
 
-- **AC-26**: GIVEN 4 個 upstream error signal 已 connect,WHEN 逐一 mock emit 每條,THEN 每次 emit 後 BannerStack 內容有可量度變化 — **零** silent-swallow path。Source: Rule 5 / Fantasy Test 2 | Integration | BLOCKING | `tests/unit/login_shell/test_zero_silent_swallow.gd`
-- **AC-29**: GIVEN 空 stack,WHEN 同 frame emit FEATURE_DEGRADED(#8 sibling)+ ONGOING(`READ_ONLY_FILESYSTEM`),THEN 主 slot = ONGOING、FEATURE_DEGRADED 入「+N」— severity order 唔係 arrival order(EC-B2)。Source: Rule 7 / EC-B2 | Integration | BLOCKING | `tests/unit/login_shell/test_banner_stack.gd`
-- **AC-30/31/32**: GIVEN `error_severity_map.tres` 載入,WHEN 逐 code 查詢,THEN(30)ONGOING 2 codes(`QUOTA_EXHAUSTED`/`READ_ONLY_FILESYSTEM`)→ `dismissable=false`;(31)WIPE 8 codes 全部 → `acknowledge_dismissable=true` + 誠實 wipe copy key,#8/#11/#12 sibling 全部 → `FEATURE_DEGRADED + auto_clear_on_success=true`;(32)TRANSIENT 2 codes → F3 TTL(Rule 6 表逐項,12+3 mappings 全 assert)。Source: Rule 6 | Logic ×3 | BLOCKING | `tests/unit/login_shell/test_severity_map.gd`
+- **AC-26**: GIVEN 空 BannerStack + 4 個 upstream error signal 已 connect,WHEN 逐一 mock emit 每條(帶已知 payload),THEN 每次 emit 後 `BannerStack.entries.size()` **恰好 +1**,且新 entry 嘅 `dedupe_key == 預期 (source, error_code, key)` **且** `severity_class == Rule 6 對應 class`(非 tautological「有嘢郁」— qa B1:錯 severity/錯 key/空 banner 都 fail)。Source: Rule 5 / Fantasy Test 2 | Integration | BLOCKING | `tests/unit/login_shell/test_zero_silent_swallow.gd`
+- **AC-29**: GIVEN 空 stack,WHEN 同 frame emit FEATURE_DEGRADED(#8 sibling)+ ONGOING(`READ_ONLY_FILESYSTEM`),THEN 主 slot = ONGOING、FEATURE_DEGRADED 入「+N」(severity order 唔係 arrival order — EC-B2)。Source: Rule 7 / EC-B2 | Integration | BLOCKING | `tests/unit/login_shell/test_banner_stack.gd`
+- **AC-29b**: GIVEN 空 stack,WHEN 同 frame emit **兩個同 class** banner(#11 + #12 兩個 FEATURE_DEGRADED),THEN 主 slot 由 `arrival_sequence`(單調 int counter)決定、跨 run 一致 — **deterministic tie-break**(`sort_custom` 非 stable + StringName pointer-sort gotcha 收口;comparator total-order `(severity, arrival_sequence)`,StringName 比較先轉 String)。Source: Rule 7 / EC-B2 | Integration | BLOCKING | 同上
+- **AC-30/31/32**: GIVEN `error_severity_map.tres` 載入,WHEN 逐 code 查詢,THEN(30)ONGOING 2 codes(`QUOTA_EXHAUSTED`/`READ_ONLY_FILESYSTEM`)→ `dismissable=false`;(31)WIPE 8 codes 全部 → `acknowledge_dismissable=true` + 誠實 wipe copy key,#8/#11/#12 sibling 全部 → `FEATURE_DEGRADED + auto_clear_on_success=true`;(32)TRANSIENT 2 codes → F2 TTL(Rule 6 表逐項,12+3 mappings 全 assert)。Source: Rule 6 | Logic ×3 | BLOCKING | `tests/unit/login_shell/test_severity_map.gd`
 - **AC-33**: GIVEN ONGOING banner 喺主 slot,WHEN DISCONNECTED status 出現,THEN DISCONNECTED 佔主 slot、ONGOING 入「+N」;DISCONNECTED resolved → ONGOING 升返(EC-B4)。Source: Rule 7 | Integration | BLOCKING | 同上
 - **AC-34**: GIVEN `(FLUSH_FAILED, "k1")` banner 存在,WHEN 同 key 再 fire,THEN entry count 唔變、timestamp 更新、「+N」唔虛高(EC-B5)。Source: Rule 7 | Integration | BLOCKING | 同上
 - **AC-25 [GATED G-LS-9]**: GIVEN `tools/ci/check_no_ui_subscribes_telemetry.sh` 已創建 **且 scope 已含 UI-class autoload coordinators**(#2 L120 原 spec 只掃 `src/ui/**` — 唔 cover #24,直接照 spec implement = zero-coverage 假 green,CD-GDD-ALIGN C2),WHEN 行 lint,THEN exit 0;coordinator 只 connect 4-signal whitelist,11 個 forbidden signal 零 `connect(` 痕跡。Source: Rule 2 / G-LS-9 | Static-CI | GATED | CI step(epic CI story 連 script 創建一齊做)
-- **AC-35**: GIVEN #24 全部 source files,WHEN grep banner code path,THEN 零 `create_tween`/pulse/`AudioStreamPlayer`/`play(` 出現(banner 靜態紀律 + login 零 audio)。Source: Rule 8 | Static-CI | BLOCKING | CI grep step(epic 新增)
+- **AC-35a**: GIVEN **獨立 banner file** `src/ui/login_shell/banner_stack.gd`(Rule 1 拆 file),WHEN source grep(排除 comment line — #21 `test_banner_telemetry.gd` 先例),THEN 零 `create_tween` / `pulse` / `AudioStreamPlayer` / `\.play(`(token 收窄,唔誤殺合法 state-transition cross-fade tween — 嗰啲喺 `shell_transitions.gd`)。Source: Rule 8 | Static-CI | BLOCKING | CI grep step(epic 新增)
+- **AC-35b**: GIVEN `ErrorBannerLayer` scene,WHEN `find_children("*","AnimationPlayer",true)` 同 `find_children("*","AudioStreamPlayer",true)`,THEN **皆空**(鏡 AC-36 scene-tree pattern — 捉 .tscn instanced autoplay node,source grep 漏網嗰類;qa B4 / ui R1)。Source: Rule 8 / ADR-0001 | Integration | BLOCKING | `tests/unit/login_shell/test_layer_spec.gd`
 - **AC-36**: GIVEN 兩個 #24 layer scene,WHEN `find_children("*","BackBufferCopy",true)`,THEN 空(禁第二 BackBufferCopy)。Source: Rule 8 / ADR-0001 | Integration | BLOCKING | `tests/unit/login_shell/test_layer_spec.gd`
+- **AC-50**: GIVEN #24 claim / error 全部 source path,WHEN static grep,THEN 零 credential var(username/password)入 `print(` / `push_error(`;password `LineEdit.text` 喺 claim resolve 後 clear。Source: Rule 15 / ui R5 | Static-CI | BLOCKING | CI grep step + `tests/unit/login_shell/test_credential_residue.gd`
+- **AC-51**: GIVEN Formula 1/2 路徑 source,WHEN grep,THEN **零直 call `Time.get_ticks_msec()`**(必讀注入 clock — 否則 advance() 影響唔到 → wall-clock phantom;ui R2 / qa R1)。Source: Formulas intro | Static-CI | BLOCKING | CI grep step
+- **AC-52**: GIVEN `error_severity_map.tres` 載入,WHEN mock #3 emit 一個 **唔喺 12-code 嘅 error_code**(e.g. `"FUTURE_CODE_13"`),THEN BannerStack 出現 ONGOING-weight 可見 banner(`dismissable` per UNMAPPED row)— **零 silent drop**(default-deny;EC-B9 / B1)。Source: Rule 5/6 UNMAPPED | Integration | BLOCKING | `tests/unit/login_shell/test_severity_map.gd`
+- **AC-54**: GIVEN shell `HIDDEN`(mock GSM WORKOUT_ACTIVE),WHEN mock #3 emit ONGOING(`READ_ONLY_FILESYSTEM`),THEN `ErrorBannerLayer` banner `visible == true` 而 `LoginShellLayer.visible == false`(two-layer 獨立性 — banner 喺 workout 之上;EC-E3 / qa R3)。Source: Rule 1 / EC-E3 | Integration | BLOCKING | `tests/unit/login_shell/test_layer_spec.gd`
 
 ### DISCONNECTED / 入口 / logout(Integration,BLOCKING)
 
 - **AC-37**: GIVEN mock GSM `WORKOUT_ACTIVE → DISCONNECTED`,THEN shell **唔**入 DISCONNECTED_SHELL(留 HIDDEN);ErrorBannerLayer 顯示 peripheral banner 含「GymSys 照記住」copy + tappable「再試一次」;零全屏轉場。Source: Rule 9(a) / Fantasy Test 1 | Integration | BLOCKING | `tests/unit/login_shell/test_disconnected_surface.gd`
+- **AC-37b [GATED G-LS-4]**: GIVEN AC-37 banner,WHEN tap「再試一次」,THEN spy 收到 `GymSysClient.request_immediate_poll()` call ==1(retry 掣真接 #2 — G-LS-4(b) additive,mock-scoped 先行;qa R4)。Source: Rule 9(a) / G-LS-4 | Integration | GATED | 同上
 - **AC-38**: GIVEN `_pending_auth_required == true`(mid-workout defer),WHEN GSM → IDLE(或 DISCONNECTED — EC-C4),THEN 即入 LOGIN + flag 清零;LOGIN 入場唔以 IDLE 為 precondition。Source: EC-C4 / Rule 9 | Integration | BLOCKING | 同上
-- **AC-39**: GIVEN DISCONNECTED_SHELL,WHEN render 入口,THEN #22/#23 卡 `visible == true` + `modulate.a < 1.0`(greyed)+ tap 出 inline reason — **零** hidden 入口(Honest Door)。Source: Rule 10 | Integration | BLOCKING | `tests/unit/login_shell/test_entry_affordance.gd`
+- **AC-39**: GIVEN DISCONNECTED_SHELL,WHEN render 入口,THEN #22/#23 卡 `visible == true` + **`modulate.a == 1.0`(enabled,非 greyed — 對齊 #22 EC-30 全功能本地 view)**;`can_open()` false 時 tap 出 inline reason(唔 force open — EC-E4)。**零 greyed 狀態 / 零 hidden 入口**(Honest Door 新義 — Rule 10)。Source: Rule 10 / EC-E4 | Integration | BLOCKING | `tests/unit/login_shell/test_entry_affordance.gd`
 - **AC-40**: GIVEN #22 open,WHEN `request_open(&"inventory")`,THEN #22 close(deferred)→ #23 open;`can_open()` 被查詢(double guard 唔 bypass);false → 唔 force open + log warning(EC-E4)。Source: Rule 11 | Integration | BLOCKING | `tests/unit/login_shell/test_shell_arbiter.gd`
 - **AC-41**: GIVEN SHELL_IDLE,WHEN logout tap,THEN `clear_session_token(USER_EXPLICIT)` 即時 call + 「已登出」banner(count=N)+ 入 DRAINING + **零** blocking modal(Fantasy Test 3)。Source: Rule 12 | Integration | BLOCKING | `tests/unit/login_shell/test_logout_drain.gd`
 - **AC-42**: GIVEN DRAINING,WHEN `drain_completed(5, 2)`,THEN drain banner **替換**做 persistent banner 含「2 樣嘢今次冇儲到」(acknowledge-dismiss,WIPE-weight 視覺 — EC-B6,永不 silent)。Source: Rule 12 / EC-B6 | Integration | BLOCKING | 同上
@@ -424,22 +426,23 @@ banner_visible(t) = (t - t_banner_start) < banner_ttl
 - **AC-04 [GATED G-LS-4]**: GIVEN LOGIN 入場,WHEN mock `get_auth_block_reason()` 返 `&"update_required"`,THEN 顯示 update prompt、唔顯示 form。Source: Rule 2 | Integration | `tests/unit/login_shell/test_login_shell_block_reason.gd`
 - **AC-05 [GATED G-LS-4]**: 同上 `&"carve_out_misconfig"` → operator prompt + `acknowledge_carve_out_fix()` 指引。Source: Rule 2 | Integration | 同上
 - **AC-28 [GATED G-LS-8]**: GIVEN mock `get_pending_errors()` 返 `["QUOTA_EXHAUSTED"]`(add_child 前注入),WHEN `_ready()` 完成,THEN BannerStack 已有 ONGOING banner(`dismissable=false`)— boot-window gap 由 pull-check cover(EC-B1/B3)。Source: EC-B1 | Integration | `tests/unit/login_shell/test_boot_window_pull_check.gd`
+- **AC-53 [GATED G-LS-4]**: GIVEN mock `is_auth_required()` 返 `true`(add_child 前注入,模擬 #2 `_ready()` 同步 emit 已走漏),WHEN #24 `_ready()` 完成,THEN shell 已入 `LOGIN`(`LoginShellLayer.visible == true`)— **boot-race 由 pull-check cover,唔靠 signal**(EC-E5 / godot B1)。Source: EC-E5 / Rule 2 | Integration | `tests/unit/login_shell/test_boot_window_pull_check.gd`
 
 ### ADVISORY / EXTERNAL(Manual — `production/qa/evidence/`)
 
 - **AC-43 [ADVISORY]**: login form 截圖 sign-off:`ui_ink_bg` 全屏底 / submit 唯一 amber / error ⚠ 零 red / toggle ≥44px。`ac43-login-form-visual.png`
 - **AC-44 [ADVISORY]**: banner 視覺截圖:重 weight(ONGOING/WIPE)amber bar / FEATURE_DEGRADED dim / TRANSIENT @40%;squint-test 可區分;零 pulse/flashing。`ac44-banner-visual.png`
-- **AC-45 [ADVISORY]**: greyed 入口截圖:alpha 55% + slash glyph + tap inline reason + 0.25s cross-fade smooth。`ac45-entry-greyed.png`
+- **AC-45 [ADVISORY]**: 入口截圖:IDLE/DISCONNECTED **皆 enabled(無 greyed)**;非 permitted state shell 整個 hidden;`can_open()` false 時 tap 出 inline reason + 0.25s cross-fade smooth。`ac45-entry-affordance.png`
 - **AC-46 [ADVISORY]**: drain banner walkthrough:text + ✓ glyph(唔純 spinner)/ non-interactive / 底部 ≤10% / 零 modal。`ac46-drain-banner.md`
-- **AC-47 [EXTERNAL]**: iOS Safari real-device:keyboard 唔遮 form(或 scroll 補救)/ font ≥16px 零 auto-zoom / submit 可達 / tab 順序正確(G-LS-6 spike 連動)。`ac47-ios-keyboard.md`
+- **AC-47 [EXTERNAL]**: iOS Safari real-device(G-LS-6 spike 連動):keyboard 唔遮 form(或 scroll 補救)/ submit 可達 / **canvas LineEdit 路線實測 auto-zoom 是否存在**(16px 對 canvas 大機會 no-op — ui R8/godot R4,唔可預設已解決)/ **dual-focus 兩種 input(touch-tap + keyboard tab)都驗**(4.6 breaking change — godot R5)。`ac47-ios-keyboard.md`
 - **AC-48 [ADVISORY]**: Locker-Room WiFi Test playtest:mid-set 斷線 30s 自動恢復全程零 tap 零 modal,進度完整。`ac48-locker-room-wifi-test.md`
 - **AC-49 [ADVISORY]**: SHELL_IDLE 佈局 walkthrough:兩卡並排 icon+label / gear corner / status dot / avatar 由 #26 render(shell 唔 own)/ logout 收一層。`ac49-shell-idle-layout.png`
 
 ### Total count + breakdown
 
-**51 ACs total**(AC-01..49,其中 AC-21 = a/b/c 三條;CD-GDD-ALIGN C2 後 AC-25 轉 GATED):
-- **40 BLOCKING** = 14 Logic(F1×3 + F2×3 + F3×2 + invariants×3 + severity map×3)+ 25 Integration + 1 Static-CI(AC-35)
-- **4 GATED**(AC-04/05 ← G-LS-4;AC-28 ← G-LS-8;AC-25 ← G-LS-9)— mock-scoped / script-gated 先行
+**56 ACs active**(AC-01..54 + AC-19b/29b/35b/37b 子條;**AC-13/14/15 已移除留空 placeholder**;fresh re-review 2026-06-08 大改 — debounce 刪 / claim relabel GATED / 4 條 AC-integrity / boot-race + unmapped + banner-獨立 + credential + clock seam 新增):
+- **39 BLOCKING** = 11 Logic(rate-limit×3 [AC-16/17/18] + banner-expire×3 [AC-19/19b/20] + invariants×2 [AC-21a/b] + severity map×3 [AC-30/31/32])+ 25 Integration + 3 Static-CI(AC-35a/50/51)
+- **10 GATED**:**G-LS-3 ← AC-06/07/08/22**(claim delivery mechanism 未釘 — qa B3,改 GATED);**G-LS-4 ← AC-04/05/37b/53**;**G-LS-8 ← AC-28**;**G-LS-9 ← AC-25** — mock-scoped / script-gated 先行
 - **6 ADVISORY**(AC-43/44/45/46/48/49 — Manual/playtest)
 - **1 EXTERNAL**(AC-47 iOS real-device — G-LS-6 連動)
 
@@ -447,23 +450,23 @@ banner_visible(t) = (t - t_banner_start) < banner_ttl
 
 | Source | ACs | Coverage |
 |--------|-----|----------|
-| Rules 1-15 | 每條 ≥1(Rule 14 由 AC-01 shape 驗證;Rule 13 → AC-12/47/49) | 15/15 ✓ |
-| Formulas 1-3 | F1→13/14/15;F2→16/17/18;F3→19/20 | 3/3 ✓ boundary-exact |
-| HIGH ECs(6) | A1→22;A2→23;B1→28;B2→29;B3→28;C1→13/15 | 6/6 ✓ |
-| Cross-knob invariants | 1→21a;2→21b;3→21c | 3/3 ✓ |
-| Fantasy Tests 1-4 | T1→37/48;T2→26;T3→41;T4→39 | 4/4 ✓ |
-| Gates | G-LS-4→04/05;G-LS-6→47;G-LS-8→28;G-LS-9→25;G-LS-5→40(arbiter 面) | tracked |
+| Rules 1-15 | 每條 ≥1(Rule 14 = design decision / G-LS-7 doc edit,**唔由 AC-01 testable** — qa R9;Rule 13 → AC-12/47/49) | 15/15 ✓ |
+| Formulas(2 active) | F1[rate-limit]→16/17/18;F2[banner-expire]→19/19b/20 | 2/2 ✓ boundary-exact(19b = exactly t=202.0) |
+| HIGH ECs(7) | A1→22;A2→23;B1→28;B2→29;B3→28;**B9→52;E5→53**(C1 已降 LOW;E6 MED→EC-E6 sweep contract) | 7/7 ✓ |
+| Cross-knob invariants | 1→21a;2→21b(原 invariant 1 debounce 已刪,3→2 條) | 2/2 ✓ pass+fail 兩路 |
+| Fantasy Tests 1-4 | T1→37/48;T2→26/52/54(zero-silent-swallow 擴:真斷言 + unmapped + banner 獨立);T3→41;T4→39 | 4/4 ✓ |
+| Gates | G-LS-3→06/07/08/22;G-LS-4→04/05/37b/53;G-LS-5→40;G-LS-6→47;G-LS-8→28;G-LS-9→25 | tracked |
 
 ## Open Questions / Cross-System Gates
 
-### Cross-System Gates(G-LS-1..8)
+### Cross-System Gates(G-LS-1..9)
 
 | # | Gate | Resolution path | Owner |
 |---|------|-----------------|-------|
 | **G-LS-1** | ADR-0001 amendment:`LoginShellLayer`(62,PAUSABLE,capture enumeration → 0/10/50/60/61/62)+ `ErrorBannerLayer`(111,ALWAYS,>100 immune / <120 below loot modal)+ banner 禁第二 BackBufferCopy 注記 | #24 epic story(#22 G-CS-7 / #23 G-IU-2 先例) | technical-director |
 | **G-LS-2** | ADR-0008 amendment:`LoginShellCoordinator` tail append(InventoryUICoordinator 之後;#28 仍最尾)— 零 #21/#22/#23 constraint | #24 epic story(同 G-LS-1 一齊) | technical-director |
-| **G-LS-3** | **#2 `claim_session` async 簽名 pin**(await-coroutine vs completion-signal — GDD 簽名返 Resource 但 HTTP async,#2 signal 列表冇 claim-completed signal;**blocking**:login form story 前必須釘實)+ username charset(ASCII?)同 GymSys schema 確認 | #2 erratum / focused amendment | #2 owner / technical-director |
-| **G-LS-4** | **#2 additive APIs ×2**:(a)`get_auth_block_reason() -> StringName`(`&"none"/&"update_required"/&"carve_out_misconfig"`)— P0-6/P0-7 prompt 嘅 pull-model 渠道(forbidden-signal 禁令下唯一合法路徑);(b)`request_immediate_poll()`(Rule 9 retry 掣 — #2 公開 surface 現時**冇** immediate-poll API,「fire immediate poll」全係 internal 行為;CD-GDD-ALIGN C1) | #2 erratum(additive,#23 G-IU-1 consumer-forward 先例) | #2 owner |
+| **G-LS-3** | **#2 `claim_session` async 簽名 + cancellation 語意 pin**(await-coroutine vs completion-signal — GDD 簽名返 Resource 但 HTTP async,#2 signal 列表冇 claim-completed signal;**blocking**:login form story 前必須釘實)。**新增 cancellation 約束(godot B2)**:#2 L184/L188 grep-verified「cancel 唔 wait `request_completed` + `RESULT_CANCELED` 同 silent drop 都 acceptable」→ SUSPENDED-cancel 時 `await claim_session()` 會掛死;必須二擇一:(a) `claim_session` 保證 resolve cancelled `SessionClaimResult`,或 (b) completion-signal + #24 race injected-clock timer。+ username charset(ASCII?)同 GymSys schema 確認 | #2 erratum / focused amendment | #2 owner / technical-director |
+| **G-LS-4** | **#2 additive APIs ×2**:(a)`get_auth_block_reason() -> StringName`(`&"none"/&"update_required"/&"carve_out_misconfig"`)— P0-6/P0-7 prompt 嘅 pull-model 渠道(forbidden-signal 禁令下唯一合法路徑);(b)`request_immediate_poll()`(Rule 9 retry 掣 — #2 公開 surface 現時**冇** immediate-poll API,「fire immediate poll」全係 internal 行為;CD-GDD-ALIGN C1);**(c)`is_auth_required() -> bool`(boot-race pull-check — 致命:#2 AC-08 `_ready()` 同步 emit auth_required,#24 tail 必 miss → 黑屏;godot B1 / EC-E5 / AC-53)** | #2 erratum(additive,#23 G-IU-1 consumer-forward 先例) | #2 owner |
 | **G-LS-5** | #22 `loadout_view_all_tap` 遷移:直 call #23 → `request_open(&"inventory")`(Q-IU1 已承諾嘅遷移);grep 晒 `_inventory_ui` / `loadout_view_all_tap` 全部 mention(orphan-cleanup 紀律) | #24 epic story | #24 epic / #22 |
 | **G-LS-6** | **iOS Safari spike**:`DisplayServer.virtual_keyboard_show` web 行為 / keyboard→canvas resize reflow / IME(4.6 post-cutoff,全部要 verify)— epic 第一個 story,結果決定 LineEdit vs DOM overlay 路線 | #24 epic story 001(HIGH risk) | #24 epic |
 | **G-LS-7** | FSM extraction closure:#22/#23 coordinator header fork notice 引到 Rule 14 裁決(唔 extract — login ≠ overlay lifecycle);兩個 header 加一行 closure 注記 | #24 epic story(doc edits;godot-specialist 覆核) | #24 epic |
@@ -478,7 +481,7 @@ banner_visible(t) = (t - t_banner_start) < banner_ttl
 | #3 **Q-E1**(Private Mode UX) | Rule 6 — 跟 ADR-0003 detect-and-gate:banner + loot disable,同一條 banner,唔 refuse-to-start |
 | #2 **Q-X10**(logout drain UX) | Rule 12 — CD path (a) optimistic + silent drain |
 | #2 **Q-X4**(re-login UX 形態) | Rule 2 + States — 全屏 form(non-workout)/ banner-defer(mid-workout);唔用 modal-over-game |
-| #22 **Q-CS1**(入口 affordance) | Rule 10 — greyed + cross-fade + directional debounce |
+| #22 **Q-CS1**(入口 affordance) | Rule 10 — **enabled/hidden 二態 + cross-fade**(debounce 刪除,對齊 #22 EC-30 全功能本地 view — fresh re-review 2026-06-08) |
 | #23 **Q-IU1**(shell 入口/互斥) | Rule 11 — `request_open` 中央 arbiter |
 | #23 FSM extraction 注記 | Rule 14 — 唔觸發 extraction(裁決 + closure G-LS-7) |
 
