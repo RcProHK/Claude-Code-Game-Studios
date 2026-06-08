@@ -28,6 +28,16 @@
 ##   - no _advance_tweens / _advance_settings (no stat rows, no settings)
 ##   - layer 61 (vs 60); SFX cues REUSED from #22 family
 ##     (ui_charscreen_open/close — cue 係質感唔係 screen ID;G-IU-3 errata)
+##
+## ---- G-LS-7 CLOSURE (#24 Rule 14 review — 2026-06-09) ----
+## The「shared base/component ADR opens at #24 Shell authoring」question above is
+## now CLOSED: #24 reviewed the rule-of-three and decided NOT to extract a shared
+## ScreenLifecycleFsm. #24's three lifecycles (login main-surface / always-on error
+## banner / stateless shell-entry) do NOT fit this 5-state OVERLAY FSM — login is a
+## boot-surface, not an overlay lifecycle, so a forced extraction would be a wrong
+## abstraction. The #22↔#23 fork stays mirror-maintained; extract only when a THIRD
+## genuine overlay appears (e.g. a standalone settings screen).
+## See design/gdd/login-gymsys-connection-ui.md Rule 14.
 ## ====================================================================
 ##
 ## Pure overlay (Rule 2 cite #22): owns ONLY UI state (screen FSM ×

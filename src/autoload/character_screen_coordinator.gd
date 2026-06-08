@@ -13,6 +13,15 @@
 ## Pure overlay review surface (Rule 2): owns ONLY UI state (screen FSM ×
 ## active_panel × modal × offline banner). Game data is never owned here.
 ##
+## ---- G-LS-7 CLOSURE (#24 Rule 14 review — 2026-06-09) ----
+## This 5-state OVERLAY FSM is the source the #23 InventoryUICoordinator forked from
+## (rule-of-three pending #24 Shell authoring). That question is now CLOSED: #24
+## reviewed and decided NOT to extract a shared ScreenLifecycleFsm — login is a
+## boot-surface, not an overlay lifecycle, so the abstraction does not fit. The
+## #22↔#23 fork stays mirror-maintained; extract only on a THIRD genuine overlay.
+## See design/gdd/login-gymsys-connection-ui.md Rule 14 + inventory_ui_coordinator.gd
+## FSM FORK NOTICE closure.
+##
 ## CLOSED invariant (Rule 8): zero active upstream subscriptions while CLOSED.
 ## Subscribe on open(); disconnect happens AT CLOSED entry — deliberately NOT
 ## earlier: CLOSING must still hear GSM (upgrade to FORCE_CLOSING / SUSPENDED

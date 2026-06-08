@@ -1,12 +1,12 @@
 # Story 018: G-LS-7 FSM extraction closure(#22/#23 coordinator header fork notice)
 
 > **Epic**: Login / GymSys Connection UI(Shell)
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Presentation
 > **Type**: Config/Data(doc)
 > **Estimate**: S
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-09
 
 ## Context
 
@@ -67,3 +67,13 @@
 
 - Depends on: None(doc-only)
 - Unlocks: None
+
+---
+
+## Completion Notes
+**Completed**: 2026-06-09
+**Criteria**: G-LS-7 ✅ — #23 `inventory_ui_coordinator.gd` FSM FORK NOTICE block 加 G-LS-7 CLOSURE 注記(指向 Rule 14)+ #22 `character_screen_coordinator.gd` header 加對應 closure。裁決:**#24 唔 extract 共用 ScreenLifecycleFsm**(login = boot-surface ≠ overlay lifecycle;將來第三個真 overlay 先 extract)。零 FSM code 改動。
+**Test Evidence**: `production/qa/smoke-login-shell-fsm-closure.md`(doc 注記確認)+ combined gate green(comment-only,#22/#23 + tests 不變)。
+**godot-specialist review**: degraded-inline(harness no-spawn)— closure 注記裁決一致(兩 header 指向同一 GDD Rule 14),抽象判斷正確(boot-surface 三 lifecycle 唔 fit 5-態 overlay FSM)。
+**Deviations**: None(純 comment doc closure)。
+**Code Review**: N/A(doc-only)。
