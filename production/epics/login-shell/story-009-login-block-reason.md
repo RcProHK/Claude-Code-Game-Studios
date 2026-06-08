@@ -1,12 +1,12 @@
 # Story 009: LOGIN sub-variant dispatch(get_auth_block_reason → normal / update / misconfig)
 
 > **Epic**: Login / GymSys Connection UI(Shell)
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Presentation
 > **Type**: Integration
 > **Estimate**: S
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-09
 
 ## Context
 
@@ -72,3 +72,14 @@
 
 - Depends on: Story 004(FSM — LOGIN entry)；**G-LS-4 mock-scoped**
 - Unlocks: None
+
+---
+
+## Completion Notes
+**Completed**: 2026-06-09
+**Criteria**: 全 pass — `&"none"`→NORMAL(show form)/ **AC-04** `&"update_required"`→UPDATE_REQUIRED(no form)/ **AC-05** `&"carve_out_misconfig"`→MISCONFIG(no form)+ `acknowledge_carve_out()` 調 #2 `acknowledge_carve_out_fix()`(L149 真存在)/ pull-model 每次 LOGIN 入場 re-pull getter(reason 變 → re-entry 反映)。
+**Test Evidence**: `tests/unit/login_shell/test_login_shell_block_reason.gd` — **4 funcs / 本地 4/4**(login_shell 全 99/99)。Combined gate + 全 lint(見 commit)。
+**Design**: `LoginVariant` enum(NORMAL/UPDATE_REQUIRED/MISCONFIG)+ `_refresh_login_variant()`(LOGIN 入場喺 `_begin_transition_if_needed` 調,has_method 防禦 pull `get_auth_block_reason`)+ `should_show_form()`(只 NORMAL show form)+ `acknowledge_carve_out()`。
+**G-LS-4 mock-scoped**: `get_auth_block_reason` 係 #2 additive getter(未 ship)→ mock-scoped;real boot(#2 stub 無 method)→ has_method skip,default NORMAL。真接線 = #2 erratum external。
+**Deviations**: None。MVP misconfig prompt = instruction text only(Q-LS3;operator console 都得)— copy render 留 story 015,本 story 釘 variant dispatch + acknowledge hook。
+**Code Review**: N/A spawn(本地全套 GUT + lint 等效)。

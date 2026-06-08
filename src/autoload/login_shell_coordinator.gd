@@ -73,6 +73,14 @@ enum ShellState {
 	DRAINING,            ## logout tap — optimistic「已登出」+ drain banner (story 014 fills content)
 }
 
+## LOGIN sub-variant (story 009 — pulled from #2 get_auth_block_reason() on LOGIN entry).
+## NORMAL shows the credential form; the other two replace it with a prompt (no form).
+enum LoginVariant {
+	NORMAL,           ## &"none" — username/password/toggle/submit form
+	UPDATE_REQUIRED,  ## &"update_required" — 「呢個版本舊咗」prompt, NO form (AC-04)
+	MISCONFIG,        ## &"carve_out_misconfig" — operator prompt + acknowledge guidance (AC-05)
+}
+
 ## ---- DI seams (UNTYPED — reference_gdscript_di_seam: a typed Node hint fails the
 ## compile-time member check against autoload scripts that expose no class_name). ----
 var _gsm = null          ## GameStateMachine (#1) — cfis subscribe at _ready (AC-27)
@@ -114,6 +122,8 @@ var _fade_elapsed_ms: float = 0.0
 ## How many times LOGIN was freshly entered (AC-24 idempotence observability —
 ## a re-fired auth_required while already LOGIN must NOT re-enter / re-render).
 var _login_entry_count: int = 0
+## LOGIN sub-variant (story 009 — refreshed from #2 on each fresh LOGIN entry).
+var _login_variant: int = LoginVariant.NORMAL
 
 ## Scaffold-only: last lifecycle event tag (AC-02 cycle observability; zero persist).
 var _last_lifecycle_event: StringName = &""
@@ -429,6 +439,7 @@ func _begin_transition_if_needed() -> void:
 		_shell_layer.visible = true
 	if target == ShellState.LOGIN:
 		_login_entry_count += 1
+		_refresh_login_variant()  # story 009 — pull the block reason on each fresh entry
 	_fade_elapsed_ms = 0.0
 	_fading = true
 
@@ -549,6 +560,41 @@ func get_rate_limit_seconds() -> int:
 	if _rate_limit_retry_after <= 0:
 		return 0
 	return ShellFormulas.display_seconds(_rate_limit_retry_after, _rate_limit_t_start_ms, _now_ms())
+
+
+## ---- LOGIN sub-variant dispatch (story 009 — G-LS-4 mock-scoped) ----
+
+## Pull the auth-block reason on LOGIN entry (forbidden-signal ban → a pull-model getter
+## is the only legal channel for these P0-6/P0-7 prompts). get_auth_block_reason() is a
+## #2 additive getter (not yet shipped — G-LS-4); has_method-guarded, defaults to NORMAL.
+func _refresh_login_variant() -> void:
+	var reason: StringName = &"none"
+	if _client != null and _client.has_method("get_auth_block_reason"):
+		reason = _client.get_auth_block_reason()
+	match reason:
+		&"update_required":
+			_login_variant = LoginVariant.UPDATE_REQUIRED
+		&"carve_out_misconfig":
+			_login_variant = LoginVariant.MISCONFIG
+		_:
+			_login_variant = LoginVariant.NORMAL
+
+
+func get_login_variant() -> int:
+	return _login_variant
+
+
+## Only the NORMAL variant shows the credential form — UPDATE_REQUIRED / MISCONFIG
+## replace it with a prompt (AC-04/05: no form input behind an unactionable block).
+func should_show_form() -> bool:
+	return _login_variant == LoginVariant.NORMAL
+
+
+## Operator action for the MISCONFIG carve-out prompt (AC-05). Calls the real #2 hook
+## (#2 L149 acknowledge_carve_out_fix() — already exists) when present.
+func acknowledge_carve_out() -> void:
+	if _client != null and _client.has_method("acknowledge_carve_out_fix"):
+		_client.acknowledge_carve_out_fix()
 
 
 ## ---- getters (test surface + later-story wiring points) ----
