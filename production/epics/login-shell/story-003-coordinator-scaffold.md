@@ -1,12 +1,12 @@
 # Story 003: Coordinator scaffold + 2 CanvasLayer + project.godot tail + file split + cfis connect
 
 > **Epic**: Login / GymSys Connection UI(Shell)
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Presentation
 > **Type**: Integration
 > **Estimate**: M
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: 2026-06-08
+> **Last Updated**: 2026-06-09
 
 ## Context
 
@@ -85,3 +85,15 @@
 
 - Depends on: Story 002(ADR amendment — layer/位置 授權)
 - Unlocks: Stories 004/005/006/007/010/013(全部依賴 coordinator 殼 + 2 layer + cfis)
+
+---
+
+## Completion Notes
+**Completed**: 2026-06-09
+**Criteria**: 3/3 passing — AC-01(layers 62 PAUSABLE / 111 ALWAYS pre-warmed hidden + file-split banner_stack.gd/shell_transitions.gd 存在 + 零第二 autoload + 4 sub-controller)/ AC-02(claim+logout cycle 零 PersistenceLayer write)/ AC-27(cfis connect + boot sentinel)
+**Test Evidence**: `tests/unit/login_shell/test_login_shell_coordinator.gd` — **7 funcs / 22 asserts,本地 GUT 7/7 pass**。Combined gate(tests/unit,tests/integration)= **2381 tests / 2380 pass / 0 fail / 1 pre-existing pending**(AC-37 ADR-gated,非本 story);全 `.gd` + `.sh` CI lint PASS。
+**Files**: `src/autoload/login_shell_coordinator.gd`(thin boot-surface coordinator)+ `src/ui/login_shell/banner_stack.gd`(Node sub-controller,severity = story 010)+ `src/ui/login_shell/shell_transitions.gd`(RefCounted cross-fade helper,story 004 wires)+ `project.godot`(tail autoload after #23)+ `tools/ci/check_loot_reveal_boot_order.gd`(ALLOWED_SUCCESSORS += LoginShellCoordinator)
+**Deviations**:
+- **OUT OF SCOPE(valid — 必要 cross-cutting propagation)**: `tests/integration/inventory_ui/test_invui_lifecycle.gd` 嘅 #23 tail-assert 由「絕對最尾」放寬為「#24 緊隨其後 + 只 ADR-sanctioned successor 可跟」。由 project.godot autoload 登記(ADR-0008 G-LS-2)觸發 — 同 check_loot_reveal_boot_order ALLOWED_SUCCESSORS sync 同理(feedback_lint_allowlist_adr_sync)。combined gate 捉到,per-dir run 會漏。
+- **ADVISORY(scaffold scope）**: FSM 5-state dispatch = story 004;banner severity/dedup = story 010;claim/logout 真流程 = stories 008/014。本 story 只建殼 + connect + zero-persist invariant pin(Out of Scope 已聲明)。
+**Code Review**: N/A spawn(harness no-spawn → 本地全套 GUT + lint 驗證等效)。Lint safety 逐個驗:check_attention_subscription(cfis 非 plain)/ check_connect_for_initial_state_bind(無 .bind)/ check_autoload_process_modes(#24 非 required)/ check_loot_reveal_boot_order(allowlist synced)。
