@@ -117,6 +117,19 @@ CharacterScreenCoordinator="*res://src/autoload/character_screen_coordinator.gd"
 ; ADR-0001 #23 revision). #28 Telemetry stays last.)
 InventoryUICoordinator="*res://src/autoload/inventory_ui_coordinator.gd"
 
+; Login Shell Coordinator (#24 — ADR-0008 G-LS-2: tail append after
+; InventoryUICoordinator (convention, NOT binding — NO #21/#22/#23 boot-order
+; constraint; the downstream #22/#23 request_open arbiter glue is a runtime
+; has_method-guarded call, zero boot dependency — #23 G-IU-2 precedent).
+; Predecessor constraints {GSM (C6), GymSysBackendClient (#2), PersistenceLayer
+; (#3), StreakSystem (#8), StatSystem (#11), AbilitySystem (#12), AttentionBudget
+; (#33), PlatformDetect} ≺ #24 all boot earlier (subscribe/pull consumers).
+; Boot-surface (≠ #22/#23 overlay): connects GSM via connect_for_initial_state at
+; _ready() — the shell is always-listening from boot (AC-27). Zero persist (#24
+; owns no keys — AC-02). Owns LoginShellLayer(62, PAUSABLE) + ErrorBannerLayer(111,
+; ALWAYS) — ADR-0001 #24 revision. #28 Telemetry stays last.)
+LoginShellCoordinator="*res://src/autoload/login_shell_coordinator.gd"
+
 [display]
 
 window/size/viewport_width=1280

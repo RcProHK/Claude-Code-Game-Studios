@@ -39,14 +39,17 @@ const HARD_PREDECESSORS: Array[String] = [
 ## ADR-0008-sanctioned tail-append amendments that came after G-LM-5:
 ##   - CharacterScreenCoordinator (#22 G-CS-8, ADR-0008 amendment 2026-06-07)
 ##   - InventoryUICoordinator (#23 G-IU-2, ADR-0008 amendment 2026-06-07)
+##   - LoginShellCoordinator (#24 G-LS-2, ADR-0008 amendment 2026-06-08)
 ## The #21 invariant this lint protects is "boots after its predecessor set"
 ## (the #5 LOOT pool reparent handshake) — NOT absolute-tail; ADR-0008 is the
 ## ground truth for who may follow. Update this list per ADR-0008 amendment
-## (2026-06-08 main-RED hotfix — list was stale since the #22 epic merge).
+## (feedback_lint_allowlist_adr_sync — keep in sync or main goes RED on the next
+## tail-append epic, as happened silently after the #22 merge).
 const ALLOWED_SUCCESSORS: Array[String] = [
 	"Telemetry",
 	"CharacterScreenCoordinator",
 	"InventoryUICoordinator",
+	"LoginShellCoordinator",
 ]
 
 
