@@ -1,12 +1,12 @@
 # Story 005: Boot-window pull-check sweep(is_auth_required + get_pending_errors + sweep contract)
 
 > **Epic**: Login / GymSys Connection UI(Shell)
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Presentation
 > **Type**: Integration
 > **Estimate**: M
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-09
 
 ## Context
 
@@ -74,3 +74,17 @@
 
 - Depends on: Story 003(coordinator)+ Story 010(banner stack — pending error 要 enqueue 落 stack)
 - Unlocks: None(boot-window 收口)
+
+---
+
+## Completion Notes
+**Completed**: 2026-06-09
+**Criteria**: 全 pass —
+- **AC-53 [G-LS-4]**:mock `is_auth_required()==true`(注入,**無** auth_required signal、**無** GSM sentinel)→ `_ready()` 完成後 `_state==LOGIN` + `LoginShellLayer.visible==true`(pure pull,證明唔靠 signal/advance)
+- **AC-28 [G-LS-8]**:mock `get_pending_errors()==["QUOTA_EXHAUSTED"]` → `_ready()` 後 BannerStack +1 ONGOING(dismissable=false)+ ErrorBannerLayer.visible;空 array → 0 banner;多 code → 各 enqueue
+- **EC-E6 contract**:source-inspection 證 `streak_system`/`stat_system`/`ability_system` 三者 `_ready()` body **無** `*_save_failed.emit`(boot-window sweep 表依賴呢個 contract — #8/#11/#12 LOW 唔 pull)
+**Test Evidence**: `tests/unit/login_shell/test_boot_window_pull_check.gd` — **6 funcs / 本地 6/6**(login_shell 全 78/78)。Combined gate + 全 lint(見 commit)。
+**Design**: coordinator `_boot_pull_check_sweep()`(`_ready` 尾)— `has_method` 防禦 pull `is_auth_required`(found→`_auth_required=true`+ synchronous `_begin_transition_if_needed` 入 LOGIN)+ `get_pending_errors`(逐 code dispatch_error PERSISTENCE + refresh banner layer)。**found_auth 先 synchronous settle** → 保留 story 004 normal-boot(cfis sentinel + advance)behavior 不變。
+**GATED/mock-scoped**: `is_auth_required`/`get_pending_errors` 係 #2/#3 additive getter(未 ship — G-LS-4(c)/G-LS-8)→ mock-scoped;真接線 = #2/#3 erratum external。real boot(#2 stub 無 method / #3 無 get_pending_errors)→ 兩 guard skip,sweep no-op,零 regression。
+**Deviations**: None。
+**Code Review**: N/A spawn(本地全套 GUT + lint 等效)。

@@ -137,9 +137,39 @@ func _ready() -> void:
 		_client.auth_required.connect(_on_auth_required)
 	# Rule 5: #24 is the sole UI consumer of the 4 upstream error signals.
 	_wire_error_consumers()
+	# Boot-window race close (story 005 / Rule 2): a tail autoload misses any signal a
+	# producer sync-emitted from its own _ready() before #24 connected. Pull the two
+	# critical ones (auth + pending errors) instead of trusting the signal.
+	_boot_pull_check_sweep()
 	# Idle unless the cfis sentinel already queued a settle (real GSM defers it to
 	# next frame; a mock may fire synchronously). _request_settle re-enables _process.
 	set_process(_settle_pending or _fading)
+
+
+## Boot-Window Signal Sweep (story 005 — GDD Rule 2 boot-race table). The signal-only
+## model leaves a tail autoload (ADR-0008 — #24 boots last) racing every producer's
+## _ready() sync-emit. The two HIGH/MED-severity signals are PULLED, not awaited:
+##   - #2 is_auth_required() (G-LS-4(c) — fatal: a missed auth_required = black screen)
+##   - #3 get_pending_errors() (G-LS-8 — buffered backlog the connect missed)
+## #8/#11/#12 are NOT pulled: they are LOW-severity and rely on the EC-E6 contract that
+## they never sync-emit at boot. GSM is covered by cfis. Both pulled APIs are #2/#3
+## ADDITIVE getters (not yet implemented — G-LS-3/4/8 erratum), so has_method-guarded
+## and mock-scoped here; real wiring lands with the #2/#3 erratum.
+func _boot_pull_check_sweep() -> void:
+	var found_auth: bool = false
+	if _client != null and _client.has_method("is_auth_required") and _client.is_auth_required():
+		_auth_required = true
+		found_auth = true
+	if _persistence != null and _persistence.has_method("get_pending_errors"):
+		for code in _persistence.get_pending_errors():
+			_banner_stack.dispatch_error(ESM.Source.PERSISTENCE, StringName(code), &"", _now_ms())
+		_refresh_banner_layer_visibility()
+	# Force a synchronous LOGIN entry ONLY when auth was pull-detected (AC-53 — the shell
+	# must already be LOGIN by end of _ready, never waiting on a signal/advance). Other
+	# boot states settle normally via the cfis sentinel + advance (story 004 unchanged).
+	if found_auth:
+		_settle_pending = false
+		_begin_transition_if_needed()
 
 
 ## Pre-warmed, hidden until a shell state opens them (FSM = story 004).
