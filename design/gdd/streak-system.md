@@ -1,8 +1,16 @@
 # Streak System
 
-> **Status**: In Design
+> **Status**: Approved(2026-05-26 CD-GDD-ALIGN)+ **EG-4 Amendment 2026-06-08**
 > **Author**: Frank + (specialists TBD per section)
-> **Last Updated**: 2026-05-26
+> **Last Updated**: 2026-06-08
+
+> **⚡ EG-4 Amendment(2026-06-08,CD adjudication binding — `production/escalations/EG-4-streak-reachability.md`)**:
+> streak 語意由「連續 calendar day(零 grace)」改為「**unbroken training-day chain(rest-day grace)**」— chain 繼續條件 = `1 ≤ gap_days ≤ STREAK_GRACE_GAP_DAYS`(新 knob,default **3** = 容忍 ≤2 個完整 rest day)。
+> **理由**:原版零 grace 令 milestone 7+ 對 3x/week 默認玩家數學上不可達(永不,唔係難),且誘發 daily junk-workout degenerate strategy(anti-Pillar 1)。Grace 後 3x/week → milestone 7 @ ~2.3 週 / 90 @ ~30 週,全可達。
+> **計數語意**:每 workout day +1(grace 只改 reset predicate,唔改 increment)— streak 值 = chain 內 training day 數。
+> **Falsifiable Tests #1-#7 期望值逐一驗證全部不變**(Sick Day gap 5 > 3 仍 reset / Travel Week gap 7 仍斷 / Phone-Lost retro-credit 不受影響)。
+> **連帶裁決**:shipped const `MILESTONE_THRESHOLDS [1,7,14,30,60,90]` 實為 buff step table(含 s=1 baseline boundary)同 milestone gate set `[7,14,30,60,90]` 兩概念合一 — 改名 `BUFF_STEP_THRESHOLDS`/`BUFF_STEP_MULTIPLIERS`;將來 AC-38 milestone emit 機制必須用獨立 `[7,14,30,60,90]` set,不得 iterate 含 1 嘅 buff table。
+> **觀察到但 out-of-scope(deferred erratum)**:shipped buff 值 `[1.1,1.25,1.4,1.6,1.8,2.0]`(story-004 authoring 起)≠ GDD Formula 1 `[1.05,1.15,1.30,1.50,1.75,2.00]`;API 名 shipped `get_streak_buff_multiplier` ≠ spec `get_loot_rarity_modifier`。CI-green 一週,canonical 值待 balance pass 裁定 — 本 amendment 唔郁。
 > **Implements Pillar**: Pillar 1 (Real Body, Real Power) primary; Pillar 3 (Drop Euphoria) supporting; Pillar 5 (Mirror Moment) supporting
 > **System #**: 8 (Foundation / Pre-MVP tier)
 > **Depends On**: #3 PersistenceLayer (read/write storage)
@@ -11,7 +19,7 @@
 
 ## Overview
 
-Streak System 係 Mirror Hero 計算「連續完成 workout 嘅日數」嘅 Foundation 層 singleton autoload — 訂閱 #2 GymSys Backend Client 嘅 `workout_completed` event，update streak counter，via #3 PersistenceLayer atomic 持久化 `streak_count`、`last_workout_date_local`、`streak_milestones_unlocked` 三條核心 state keys。系統暴露 read-only public API 畀 downstream consumers 查詢當前 streak value (`get_current_streak() -> int`) + 提供 streak modifier 計算 (`get_loot_rarity_modifier() -> float`) — 每日 `workout_completed` event fire 之後 atomic update streak counter；若連續日數 hit milestone (7 / 14 / 30 / 60 / 90) 自動 emit `streak_milestone_reached(milestone: int)` signal 畀 #15 Loot Drop System (rarity gate) 同 #29 Mirror Moment (weekly progression marker) 各自響應。系統嚴格 anti-pillar enforcement：缺一日 workout 觸發 streak reset 但 **只 lose streak buff、never permadeath** — 玩家已 unlock 嘅 zone / cosmetic / equipment 永久保留 (per game-concept Anti-Pillar #3 「NOT Permadeath / weekly reset / progress 懲罰」)；reset 只係令 `streak_count` 回 0、loot rarity modifier 回 baseline 1.0x。Streak buff 純粹係 forward-looking incentive，唔係 retrospective punishment。
+Streak System 係 Mirror Hero 計算「unbroken training-day chain 嘅 workout 日數」(EG-4 amendment — 容忍 ≤`STREAK_GRACE_GAP_DAYS` 日 gap)嘅 Foundation 層 singleton autoload — 訂閱 #2 GymSys Backend Client 嘅 `workout_completed` event，update streak counter，via #3 PersistenceLayer atomic 持久化 `streak_count`、`last_workout_date_local`、`streak_milestones_unlocked` 三條核心 state keys。系統暴露 read-only public API 畀 downstream consumers 查詢當前 streak value (`get_current_streak() -> int`) + 提供 streak modifier 計算 (`get_loot_rarity_modifier() -> float`) — 每日 `workout_completed` event fire 之後 atomic update streak counter；若連續日數 hit milestone (7 / 14 / 30 / 60 / 90) 自動 emit `streak_milestone_reached(milestone: int)` signal 畀 #15 Loot Drop System (rarity gate) 同 #29 Mirror Moment (weekly progression marker) 各自響應。系統嚴格 anti-pillar enforcement：chain 斷裂(gap > `STREAK_GRACE_GAP_DAYS` 日)觸發 streak reset 但 **只 lose streak buff、never permadeath** — 玩家已 unlock 嘅 zone / cosmetic / equipment 永久保留 (per game-concept Anti-Pillar #3 「NOT Permadeath / weekly reset / progress 懲罰」)；reset 只係令 `streak_count` 由下一個 workout 起重新由 1 計(Rule 6)、loot rarity modifier 回 baseline。Streak buff 純粹係 forward-looking incentive，唔係 retrospective punishment。
 
 系統 **wall-clock-aware** via ADR-006 Contract 9 同源 drift-tolerance helper：跨時區、夏令時切換、device clock tampering 都唔可以人為 inflate streak (Pillar 1 anti-fake stance)。Daily boundary 用 **user-local-midnight** 計算 (default device timezone，onboarding 時鎖定 timezone choice)，GymSys backend 提供 UTC ISO 8601 timestamp 作 source of truth；client 做 local-day conversion。系統 stateless from gameplay perspective — 唔 trigger animation / VFX / SFX、唔 own UI surface；HUD streak chip + flame icon + counter display 由 #20 Gym-Mode HUD render，streak reset toast 由 #25 Combat Visual Feedback 觸發、weekly milestone celebration 由 #29 Mirror Moment 處理。Streak System 本身只係「連續日數係幾多 + 邊個 milestones 解咗鎖」嘅 reactive accounting service。Foundation tier scope 鎖死 cross-platform single behaviour — mobile / desktop 行為一致。
 
@@ -19,11 +27,11 @@ Streak System 係 Mirror Hero 計算「連續完成 workout 嘅日數」嘅 Foun
 
 **Indirect Foundation Fantasy — 未斷嘅鏈 (The Unbroken Chain) / Consistency Witness**:
 
-玩家心入面嘅 felt promise：「**我朝早 6:45 喺更衣室著好衫，鏡入面嘅自己有少少眼瞓，但我知今日係 Day 23。打開個 app，個 streak counter 由 22 跳到 23 嗰一下，唔係 fanfare、唔係 popup，係一種沉實嘅「我冇令自己失望」感覺。今日 leg day，我做完 squat 第一組落到 bench 抖氣，個遊戲後台已經幫我 roll 完今朝第一個 chest — 因為我 streak 夠長，rarity tier 升咗一檔，drop 出嚟係件 epic。我冇睇個 phone，我只係知：呢件嘢之所以 epic，係因為我連續 23 日無論幾忙都返咗 gym。如果第 24 日我病咗冇返，個 streak 會清零，但我練咗 23 日所得到嘅件 epic 同所有解鎖嘅 zone 一樣會喺度等我 — 我冇被罰，我只係要重新累積下一條鏈。**」
+玩家心入面嘅 felt promise：「**我朝早 6:45 喺更衣室著好衫，鏡入面嘅自己有少少眼瞓，但我知今日係 Day 23。打開個 app，個 streak counter 由 22 跳到 23 嗰一下，唔係 fanfare、唔係 popup，係一種沉實嘅「我冇令自己失望」感覺。今日 leg day，我做完 squat 第一組落到 bench 抖氣，個遊戲後台已經幫我 roll 完今朝第一個 chest — 因為我 streak 夠長，rarity tier 升咗一檔，drop 出嚟係件 epic。我冇睇個 phone，我只係知：呢件嘢之所以 epic，係因為我連續 23 日無論幾忙都返咗 gym。如果我病咗成個禮拜冇返(超過 grace 容忍嘅 rest day),條鏈會斷,但我練咗 23 日所得到嘅件 epic 同所有解鎖嘅 zone 一樣會喺度等我 — 我冇被罰，我只係要重新累積下一條鏈。平時隔日練、週末抖兩日 — 條鏈唔會斷,因為真實訓練本來就需要休息(EG-4)。**」
 
 呢個 fantasy 唔由 Streak System 自己 emit 任何敘事 text、VFX、SFX、或 animation — 而係由佢嘅 **architectural posture** 強制：
 
-- **Forward-pull modifier，唔係 backward punisher** — Streak 永遠 *加乘* 當下嘅 loot rarity / unlock progress；miss 一日 = `loot_rarity_modifier` 歸 baseline 1.0x (buff 消失)，但所有歷史 drop、已解鎖 zone、milestone equipment **永久保留** (anti-pillar 嘅「NOT Permadeath / progress 懲罰」hard guarantee enforced at data layer — streak reset 只 nuke current modifier state，never touch inventory / unlock manifest)
+- **Forward-pull modifier，唔係 backward punisher** — Streak 永遠 *加乘* 當下嘅 loot rarity / unlock progress；chain 斷裂(連續休息超過 `STREAK_GRACE_GAP_DAYS` 容忍日數,EG-4)= `loot_rarity_modifier` 歸 baseline 1.0x (buff 消失)，但所有歷史 drop、已解鎖 zone、milestone equipment **永久保留** (anti-pillar 嘅「NOT Permadeath / progress 懲罰」hard guarantee enforced at data layer — streak reset 只 nuke current modifier state，never touch inventory / unlock manifest)
 - **Day-scale temporal accumulation，partition 自 #1 GSM 嘅 ms-scale continuity** — #1 owns within-session millisecond-grain reliability (state transitions never drop frames)；本 system owns *across-session, across-day* temporal accumulation。即使 app crash、即使連續一週冇開過 game 但每日返咗 gym (streak 由 GymSys workout event 驅動，非由 app launch event)，streak 都會繼續累積。Architectural partition 嘅核心：#1 = milliseconds, #8 = days
 - **Threshold milestones 係 *permanent unlocks*，唔係 *renewable buffs*** — 過咗 7/14/30/60/90 milestone 嗰一刻解鎖嘅 zone / boss / cosmetic / equipment slot，**永久屬於玩家**。Streak 斷咗都唔會 lock 返。Streak's *current* value 只控制 ongoing modifier；歷史 milestone artifacts 屬玩家所有，呢個 contract enforced via `streak_milestones_unlocked: Array[int]` 持久化 (一旦寫入永不 delete)
 - **Streak HUD presence below-threshold，唔搶 attention** — Counter tick 應該 *understated dignified* (small number tick + 低調 chime via #4 AudioManager)，唔可以係 DNF-style 爆裝級別 fanfare (#3 Pillar 嘅 dopamine peak 屬 loot drop，唔屬 streak tick)。本 system 唔 own UI surface — #20 Gym-Mode HUD render counter chip + flame icon；本 system 只提供 read-only `get_current_streak() -> int` query API
@@ -46,6 +54,8 @@ Streak System 係 Mirror Hero 計算「連續完成 workout 嘅日數」嘅 Foun
 - **Pillar 5 (鏡像時刻 — supporting via milestone markers)** — Weekly milestone (Day 7 / 14 / 30 / 60 / 90) trigger `streak_milestone_reached(milestone: int)` signal，畀 #29 Mirror Moment 作為 weekly progression marker 之一 (其他 markers 包括 PR count + volume threshold + zone unlock)
 
 **Falsifiable design test** — 任何 client-side path 引致以下情境 = bug，唔係 acceptable behavior：
+
+> **EG-4 grace 注**(2026-06-08):以下 7 個 test 嘅「連續 N 日」敘事喺 chain 語意下解讀為「unbroken training-day chain 達 N」(daily cadence 係 valid chain 嘅特例)。每個 test 嘅期望結果已逐一用 grace=3 重新驗證,**全部不變**:#1 gap 5 日 > 3 → 仍 reset ✓;#2 gap 7 日 → 仍斷 ✓;#3 retro-credit 機制獨立於 chain predicate ✓;#5/#7 同 grace 無關 ✓;#6 chain 斷裂語意不變 ✓。
 
 1. **The Sick Day Test** — 玩家連續 45 日返 gym，第 46 日發燒躺床。Recovery 後第 50 日返 gym：UI 應該顯示「Day 1 of new streak」 + inventory 仍然有 Day 45 milestone unlock 嘅 epic gear + 所有 30/45 milestone zone 仍然 accessible。**Violation**：inventory 任何嘢被 grey-out / locked / removed → anti-pillar permadeath 違反
 2. **The Travel Week Test** — 玩家連續 60 日，然後出 trip 7 日完全冇 access to gym (非 phone-skip, 真實 life circumstance)。Return 後第一次 workout，app 唔會彈出「You lost your 60-day streak!」嘅 punitive notification — 最多係 neutral「New streak starting」。**Violation**：出現 guilt-tripping copy (e.g.「You let us down」/「Don't disappoint your avatar again」) → Pillar 1 嘅 dignity contract 違反
@@ -244,9 +254,11 @@ func _utc_to_local_date(utc_seconds: int, offset_minutes: int) -> String:
 
 Rationale: Section B Falsifiable Test #3「Phone-Lost Test」+ Test #6「Long-Haul Test」binding — 跨日 boundary 必須 calendar-correct。
 
-#### Rule 6 — Consecutive-day computation (next-day vs same-day vs gap)
+#### Rule 6 — Chain-continuation computation (training-day chain with rest-day grace — EG-4 amendment)
 
 ```gdscript
+const STREAK_GRACE_GAP_DAYS: int = 3  # EG-4: tolerate ≤2 full rest days (gap ≤ 3 calendar days)
+
 func _compute_new_streak(workout_date_local: String, prior_date: String, prior_streak: int) -> int:
     if prior_date.is_empty() or prior_streak == 0:
         return 1  # First-ever workout
@@ -254,28 +266,33 @@ func _compute_new_streak(workout_date_local: String, prior_date: String, prior_s
     if workout_date_local == prior_date:
         return prior_streak  # Same day — idempotent
 
-    if _is_next_calendar_day(prior_date, workout_date_local):
-        return prior_streak + 1  # Next day — increment
+    var gap: int = _gap_days(prior_date, workout_date_local)  # noon-anchored calendar-day delta
+    if gap >= 1 and gap <= STREAK_GRACE_GAP_DAYS:
+        return prior_streak + 1  # Chain continues — increment (one per training day)
 
-    return 1  # Gap > 1 day — reset to 1 (forward-pull, NOT punisher)
+    return 1  # Gap > STREAK_GRACE_GAP_DAYS — reset to 1 (forward-pull, NOT punisher)
 
-func _is_next_calendar_day(prior_iso: String, current_iso: String) -> bool:
+func _gap_days(prior_iso: String, current_iso: String) -> int:
+    # Noon-anchored unix conversion on BOTH dates, integer day delta.
+    # hour=12 avoids DST ±1h boundary ambiguity (same protection as the
+    # pre-EG-4 _is_next_calendar_day helper — noon + N×86400 always lands
+    # on the target day's noon).
     var prior_dict: Dictionary = _parse_iso_date(prior_iso)
-    prior_dict["hour"] = 12  # noon to avoid DST ±1h boundary ambiguity
-    prior_dict["minute"] = 0
-    prior_dict["second"] = 0
+    prior_dict["hour"] = 12
+    var current_dict: Dictionary = _parse_iso_date(current_iso)
+    current_dict["hour"] = 12
     var prior_unix: int = int(Time.get_unix_time_from_datetime_dict(prior_dict))
-    var next_unix: int = prior_unix + 86400
-    var next_dict: Dictionary = Time.get_datetime_dict_from_unix_time(next_unix)
-    var next_iso: String = "%04d-%02d-%02d" % [next_dict.year, next_dict.month, next_dict.day]
-    return next_iso == current_iso
+    var current_unix: int = int(Time.get_unix_time_from_datetime_dict(current_dict))
+    return int(round(float(current_unix - prior_unix) / 86400.0))
 ```
 
-Noon-anchored arithmetic (`hour: 12`) 避免 DST spring-forward / fall-back 嗰一日 ±1 hour shift 將 86400 跨 0:00 boundary。+86400 from noon 永遠 land 喺第二日 noon。
+Noon-anchored arithmetic (`hour: 12`) 避免 DST spring-forward / fall-back 嗰一日 ±1 hour shift 將 86400 跨 0:00 boundary。
 
-**Reset semantics**: gap > 1 day → streak = 1 (NOT 0)。對應 Section B「The Travel Week Test」嘅 dignity framing — 玩家返到嚟之後個 counter 由 1 開始，唔係由 0。
+**EG-4 chain 語意**:streak 值 = unbroken chain 內嘅 **training day 數**(每 workout day +1)— grace 只放寬 reset predicate,唔令 rest day 計數。3x/week 玩家 +3/week → milestone 7 ≈ 2.3 週 / 90 ≈ 30 週(原版零 grace 下數學上不可達 — 見 escalation file)。
 
-Rationale: Section B Falsifiable Test #2「Travel Week」locked — 唔 emit `streak_broken`，silent reset-to-1。Section B 鎖死「forward-pull modifier, not backward punisher」架構 posture。
+**Reset semantics**: gap > `STREAK_GRACE_GAP_DAYS` → streak = 1 (NOT 0)。對應 Section B「The Travel Week Test」嘅 dignity framing — 玩家返到嚟之後個 counter 由 1 開始，唔係由 0。
+
+Rationale: Section B Falsifiable Test #2「Travel Week」locked — 唔 emit `streak_broken`，silent reset-to-1。Section B 鎖死「forward-pull modifier, not backward punisher」架構 posture。EG-4 grace rationale:零 grace 誘發 daily junk-workout degenerate strategy + 懲罰生理必需嘅 rest day,直接 anti-Pillar 1;grace=3 對齊「唔好連續休息太耐」嘅真實訓練建議。
 
 #### Rule 7 — Milestone thresholds + emit-once-per-Array contract
 
@@ -413,7 +430,7 @@ func _drain_deferred_if_any() -> void:
         _on_workout_completed(deferred)  # Re-enter via normal handler — Rule 4 + monotonicity still apply
 ```
 
-**Single-slot, latest-wins** drain policy: streak 只關心「最近一次完成 workout 嘅 calendar day」決定 next-day vs same-day vs gap，唔係 set 一次都增 streak。Latest-wins 簡化 + 避免 queue overflow + 保證 monotonicity。
+**Single-slot, latest-wins** drain policy: streak 只關心「最近一次完成 workout 嘅 calendar day」決定 chain-continue vs same-day vs gap-reset(Rule 6 grace predicate),唔係 set 一次都增 streak。Latest-wins 簡化 + 避免 queue overflow + 保證 monotonicity。
 
 **Sync handler = no abort race**: Rule 3 handler 完全 sync (no `await`)，所以 GSM 喺 Updating 中間 emit Suspended 嘅情況下 GDScript event loop 唔會搶 — handler 跑完先輪到 GSM signal handler。Updating → Suspended transition 唔會留 partial write 狀態。
 
@@ -506,7 +523,7 @@ modifier(streak_count) =
 
 | Variable | Symbol | Type | Range | Description |
 |----------|--------|------|-------|-------------|
-| streak_count | s | int | [0, ∞) | Current consecutive-day streak; reset to 0 on Booting first-launch, to 1 on workout after streak break (Rule 6) |
+| streak_count | s | int | [0, ∞) | Current training-day chain count (EG-4 chain 語意); reset to 0 on Booting first-launch, to 1 on workout after chain break (Rule 6) |
 | MILESTONE_THRESHOLDS | M | Array[int] | `[7, 14, 30, 60, 90]` (Section G locked) | Step boundary points; milestone-aligned |
 | modifier(s) | m | float | `[1.00, 2.00]` | Output multiplier for #15 Loot Drop System base rarity formula |
 
@@ -524,35 +541,36 @@ modifier(streak_count) =
 | Day 7 workout | 6 | 7 | 1.05 | **1.15** | `streak_milestone_reached(7)` |
 | Day 8 workout | 7 | 8 | 1.15 | 1.15 | — |
 
-**Worked example — Streak break + recovery:**
+**Worked example — Chain break + recovery (EG-4 grace=3):**
 
 | Event | streak_count | modifier | Notes |
 |-------|--------------|----------|-------|
 | Day 45 workout | 45 | 1.50 | Mid-30-tier |
-| Day 46 missed | 45 | 1.50 | No workout event — no state change |
-| Day 47 workout | 1 | 1.05 | Rule 6 gap reset → modifier 1.50 → 1.05; `streak_changed(1, 45)` emit; milestone Array unchanged (Rule 7 emit-once-permanent) |
-| Day 53 workout | 7 | 1.15 | Crossed 7-day boundary; `streak_milestone_reached(7)` already in Array → silent (Rule 9 emit-once contract) |
+| Day 47 workout | 46 | 1.50 | gap=2 ≤ grace 3 → **chain continues**(EG-4 — rest day 唔斷鏈,rest day 本身唔計數)|
+| Day 48-51 missed | 46 | 1.50 | No workout event — no state change(4 日無 workout)|
+| Day 52 workout | 1 | 1.05 | gap=5 > grace 3 → Rule 6 reset → modifier 1.50 → 1.05; `streak_changed(1, 46)` emit; milestone Array unchanged (Rule 7 emit-once-permanent) |
+| Day 58 workout(連續日練到)| 7 | 1.15 | Crossed 7-day boundary; `streak_milestone_reached(7)` already in Array → silent (Rule 9 emit-once contract) |
 
-### Formula 2 (Helper) — `consecutive_day_classification` (Rule 6 logic)
+### Formula 2 (Helper) — chain-continuation classification (Rule 6 logic — EG-4 amendment)
 
-Pure function encapsulating Rule 6 next-day vs same-day vs gap classification。
-
-The `consecutive_day_classification` function is defined as:
+Pure function encapsulating Rule 6 chain-continue vs same-day vs gap classification。
 
 ```
 classify(workout_date_local, prior_date, prior_streak) =
-    "first_workout"   if prior_date.is_empty() OR prior_streak == 0
+    "first_workout"    if prior_date.is_empty() OR prior_streak == 0
     "same_day"         if workout_date_local == prior_date
-    "next_day"         if next_calendar_day(prior_date) == workout_date_local
+    "chain_continue"   if 1 ≤ gap_days(prior_date, workout_date_local) ≤ STREAK_GRACE_GAP_DAYS
     "gap_reset"        otherwise
 ```
 
 ```
-next_calendar_day(iso_date) =
-    let dt = parse(iso_date)
-    let noon_unix = unix_from(dt.year, dt.month, dt.day, 12, 0, 0)  # noon-anchored to avoid DST ±1h
-    return format_iso(datetime_from_unix(noon_unix + 86400))
+gap_days(prior_iso, current_iso) =
+    let prior_noon   = unix_from(parse(prior_iso),   hour=12)   # noon-anchored to avoid DST ±1h
+    let current_noon = unix_from(parse(current_iso), hour=12)
+    return round((current_noon - prior_noon) / 86400)
 ```
+
+> **Shipped-code 對應**(EG-4):`consecutive_day_classification(a, b)`(exact-1-day primitive,YYYYMMDD int 版)保留為 calendar formula;production caller 改用新 `chain_continuation_classification(a, b)` = `1 ≤ _days_between(a, b) ≤ STREAK_GRACE_GAP_DAYS`。
 
 **Variables:**
 
@@ -561,24 +579,27 @@ next_calendar_day(iso_date) =
 | workout_date_local | d_w | String | "YYYY-MM-DD" | Output of Formula 3 — workout completion timestamp in user-local-day |
 | prior_date | d_p | String | "YYYY-MM-DD" or "" | Previously persisted `streak.last_workout_date_local` |
 | prior_streak | s_p | int | [0, ∞) | Previously persisted `streak.streak_count` |
-| result | r | enum | `{first_workout, same_day, next_day, gap_reset}` | 4-state classification used by Rule 6 update logic |
+| STREAK_GRACE_GAP_DAYS | G | int | [1, 4] (knob — Section G) | Chain 容忍嘅最大 calendar-day gap;default 3 = ≤2 個完整 rest day |
+| result | r | enum | `{first_workout, same_day, chain_continue, gap_reset}` | 4-state classification used by Rule 6 update logic |
 
-**Output Range:** Discrete enum of 4 states。`first_workout` → streak = 1。`same_day` → streak unchanged。`next_day` → streak += 1。`gap_reset` → streak = 1 (NOT 0)。
+**Output Range:** Discrete enum of 4 states。`first_workout` → streak = 1。`same_day` → streak unchanged。`chain_continue` → streak += 1。`gap_reset` → streak = 1 (NOT 0)。
 
-**Worked examples (DST spring-forward edge case):**
+**Worked examples (grace boundary + DST edge case):**
 
 | Workout UTC | Local TZ (UTC+8) | Prior date | Prior streak | Expected classification |
 |-------------|------------------|-----------|--------------|------------------------|
 | 2026-05-25 17:00 UTC (= local 2026-05-26 01:00) | +480 min | "" | 0 | `first_workout` |
-| 2026-05-26 17:00 UTC (= local 2026-05-27 01:00) | +480 min | "2026-05-26" | 1 | `next_day` (streak → 2) |
+| 2026-05-26 17:00 UTC (= local 2026-05-27 01:00) | +480 min | "2026-05-26" | 1 | `chain_continue` (gap=1, streak → 2) |
 | 2026-05-26 22:00 UTC (= local 2026-05-27 06:00) | +480 min | "2026-05-27" | 2 | `same_day` (still 2) |
-| 2026-05-28 17:00 UTC (= local 2026-05-29 01:00) | +480 min | "2026-05-27" | 2 | `gap_reset` (Day skipped, streak → 1) |
+| 2026-05-28 17:00 UTC (= local 2026-05-29 01:00) | +480 min | "2026-05-27" | 2 | `chain_continue` (gap=2 ≤ G,streak → 3 — **EG-4:原版係 gap_reset**) |
+| 2026-05-31 17:00 UTC (= local 2026-06-01 01:00) | +480 min | "2026-05-29" | 3 | `chain_continue` (gap=3 = G boundary,streak → 4) |
+| 2026-06-05 17:00 UTC (= local 2026-06-06 01:00) | +480 min | "2026-06-01" | 4 | `gap_reset` (gap=5 > G,streak → 1) |
 
 **DST robustness — Sydney spring-forward (UTC+10 → UTC+11 at 2026-10-04 02:00 local):**
 
 | Workout UTC | Local TZ (pre-DST = +600 min, locked at onboarding) | Prior date | Expected |
 |-------------|------------------------------------------------------|-----------|---------|
-| 2026-10-04 14:50 UTC (= local 00:50 next day, before spring-forward) | +600 (locked) | "2026-10-03" | `next_day` ✓ |
+| 2026-10-04 14:50 UTC (= local 00:50 next day, before spring-forward) | +600 (locked) | "2026-10-03" | `chain_continue` (gap=1) ✓ |
 | 2026-10-04 18:00 UTC (= local 04:00 next day, after spring-forward — but TZ stays locked +600) | +600 (locked) | "2026-10-04" | `same_day` ✓ |
 
 **Note**: Locked timezone offset (per Rule 5 design choice) means actual DST events don't shift streak day boundaries — predictable from player's onboarding-time POV。Player who travels timezones must explicitly call `set_local_timezone_offset_minutes(new_offset)` via future API (Rule 1) to reset boundary semantics。
@@ -660,7 +681,7 @@ Will be registered喺 Phase 5b after Section H ratification。
 ### bfcache / Web Export resume (EC-10 ~ EC-12)
 
 - **EC-10 — If bfcache resume 後 `_last_accepted_completed_at_utc` in-memory 已 lost** (Godot autoload state 喺 bfcache 期間應該 preserved，但 defensive)：Rule 4 monotonicity guard 嘅 `_last_accepted_completed_at_utc == 0` fallback path 觸發 (accept first event after reset)。Subsequent events 重新建立 monotonicity baseline。*Rationale*: bfcache restore 失誤 worst case = 第一個 resume 之後嘅 event 唔做 monotonicity check (但仍做 future_skew + drift check) — risk 係 GymSys queue replay 可能 retro-credit 一個過去 event。Mitigation: Rule 6 same-day check 仍 catch 「same day already counted」case (因為 persistence `streak.last_workout_date_local` 已存住)。
-- **EC-11 — If WASM hard-reload (page refresh) 期間 in-flight `_write_streak_state_atomic` 中斷 (count written, date NOT yet)**: 重啟後 Rule 2 Booting read 拎到 `_streak_count = N+1` 但 `_last_workout_date_local = old_date`。下次 `workout_completed` 同一 calendar day → Rule 6 same-day check returns `prior_streak` (which is N+1) → noop (avoid double-credit)。下次跨日 → Rule 6 next_day check uses old_date → 若 today == old_date + 1 → streak = N+2 (correct continuation)；若 today > old_date + 1 → gap_reset to 1 (treats prior partial write as if N+1 was "real" prior streak)。*Rationale*: ordered write (count → date) 確保 partial-fail self-detecting；double-credit prevented；唯一 cost = 玩家可能 see streak inflated by 1 vs. reality (acceptable，因為 IDB atomic flush 99.9% case work，呢個 edge case rare)。
+- **EC-11 — If WASM hard-reload (page refresh) 期間 in-flight `_write_streak_state_atomic` 中斷 (count written, date NOT yet)**: 重啟後 Rule 2 Booting read 拎到 `_streak_count = N+1` 但 `_last_workout_date_local = old_date`。下次 `workout_completed` 同一 calendar day → Rule 6 same-day check returns `prior_streak` (which is N+1) → noop (avoid double-credit)。下次跨日 → Rule 6 chain check uses old_date → 若 gap_days(old_date, today) ≤ `STREAK_GRACE_GAP_DAYS` → streak = N+2 (correct continuation)；若 gap > grace → gap_reset to 1 (treats prior partial write as if N+1 was "real" prior streak)。*Rationale*: ordered write (count → date) 確保 partial-fail self-detecting；double-credit prevented；唯一 cost = 玩家可能 see streak inflated by 1 vs. reality (acceptable，因為 IDB atomic flush 99.9% case work，呢個 edge case rare)。
 - **EC-12 — If browser tab refresh during Suspended state**: WASM hot reload → Streak autoload 重 boot → Rule 2 Booting reads persistence → `_state = Ready`。`_deferred_workout_event` in-memory 失蹤 — **acceptable loss**：因為 `_deferred_workout_event` 內容係未 process 嘅 future event，但同樣 event 會喺 GymSys backend 重 emit (GymSys Rule 14 idempotent commits)。*Rationale*: backend retry 補；本 system 唔 persist `_deferred_workout_event`，避免 IDB write 增加 frequency (Pillar 2 frictionless contract — Streak 唔可以加重 PersistenceLayer 寫負擔)。
 
 ### Cross-system race / dependency (EC-13 ~ EC-15)
@@ -672,7 +693,7 @@ Will be registered喺 Phase 5b after Section H ratification。
 ### Timezone / DST boundary (EC-16 ~ EC-18)
 
 - **EC-16 — If device timezone shifts mid-session** (e.g. flight crossing time zone, system clock auto-adjust): Rule 5 用 **locked** `_local_timezone_offset_minutes` (boot 時 read from persistence)，唔每次 read device timezone。Result: workout 同 calendar day boundary 跟 onboarding 鎖定 timezone，唔被 mid-session 改變影響。*Rationale*: predictable behavior over device-sync convenience。Player travelling timezones 需要 explicit `set_local_timezone_offset_minutes(new_offset)` call (Rule 1 future API) 重設。
-- **EC-17 — If DST spring-forward 喺 workout 跨日嘅關鍵時刻**: Formula 2 `next_calendar_day` 用 noon-anchored arithmetic (+86400 from local noon 永遠 land 喺第二日 noon — DST 變動 ±1h 唔跨日)。Result: streak day-boundary 不受 DST jolt 影響。*Rationale*: real-world timezone math 嘅 standard practice — noon anchoring 防 midnight ±1h 邊界 ambiguity。
+- **EC-17 — If DST spring-forward 喺 workout 跨日嘅關鍵時刻**: Formula 2 `gap_days` 用 noon-anchored arithmetic (noon + N×86400 永遠 land 喺目標日 noon — DST 變動 ±1h 唔跨日;EG-4 前身 `next_calendar_day` 同款保護)。Result: streak day-boundary 不受 DST jolt 影響。*Rationale*: real-world timezone math 嘅 standard practice — noon anchoring 防 midnight ±1h 邊界 ambiguity。
 - **EC-18 — If `streak.local_timezone_offset_minutes` value 喺 Persistence read 拎到 NaN / Array / 非-int**: Rule 2 `(tz_raw as int)` cast → Godot 4.6 GDScript invalid cast → 0 (numeric default) or null。If null → `_detect_device_timezone_offset_minutes()` fallback。*Rationale*: legacy persistence corruption recovery — device timezone fallback is acceptable default (Section B Pillar 1 dignity 唔嚴重 violated 因為 GymSys backend timestamp 仍係 UTC ground truth)。
 
 ### Persistence failure (EC-19 ~ EC-20)
@@ -680,10 +701,11 @@ Will be registered喺 Phase 5b after Section H ratification。
 - **EC-19 — If `PersistenceLayer.write("streak.streak_count", N+1)` returns `true` but actual IDB flush 失敗 silently** (PersistenceLayer Contract 11 VS-tier accept up to 1/10K loss rate): subsequent `critical_save_failed(error_code, key)` signal fires → Rule 10 catch → Failed state entry → in-memory cache continues serving last good value。**Risk window**: 喺 `write_completed` return `true` 同 `critical_save_failed` 之間 (1 frame ~ 16ms VS-tier)，玩家可能讀到 modifier 已 updated 但 disk 未 flush。*Rationale*: PersistenceLayer GDD 嘅 Contract 11 acceptable loss rate 喺本 system inherit；玩家極端 edge case (browser kill mid-frame) 可能漏 1 day credit — 接受呢個 tradeoff 為咗 Web Export performance。
 - **EC-20 — If `PersistenceLayer.write("streak.streak_milestones_unlocked", [...], true)` 失敗 喺 Rule 7 milestone emit 之前**: Rule 7 erase append-attempt + return (halt further milestone checks)。`streak_milestone_reached` 唔 emit (correctness over UX 一致 — 唔可以 fake-emit milestone 然後 next boot disagree)。*Rationale*: persistence是 milestone unlock 嘅 source of truth — 信 the disk over the moment。下次 boot 後若 streak ≥ milestone 仍未 unlock，Rule 7 自動 retry emit (因為 `streak_milestones_unlocked` 仍未 include milestone)。
 
-### Numerical boundary (EC-21 ~ EC-22)
+### Numerical boundary (EC-21 ~ EC-23)
 
 - **EC-21 — If `streak.streak_count` value 已 overflow int (理論 ~2^31 = ~5.9 billion days)**: 唔可能達到 (玩家壽命 ~30,000 days max)。但 Formula 1 step function 喺 90+ tier 已 cap，所以 even theoretical overflow 都唔影響 modifier output。`streak_changed` signal payload 用 int — Godot 4.6 默認 int64 — no concern。*Rationale*: theoretical safety — 100-year-streak 仍係 36,500 << int64 ceiling。
 - **EC-22 — If `streak.streak_milestones_unlocked: Array[int]` 增長到 5 entries (full set: [7, 14, 30, 60, 90])**: 之後 milestone check `has(m)` 永遠 true → 永遠 silent。Array 永不超過 5 entries (因為 `MILESTONE_THRESHOLDS` const 鎖死 5 個)。*Rationale*: Array size bounded by const — no unbounded growth risk。
+- **EC-23(EG-4)— Grace boundary 精確行為**: gap == `STREAK_GRACE_GAP_DAYS`(default 3)→ `chain_continue`(streak += 1);gap == `STREAK_GRACE_GAP_DAYS + 1` → `gap_reset`(streak = 1)。gap == 0 case 不可達(same-day branch 先 short-circuit)。Degenerate knob check:`STREAK_GRACE_GAP_DAYS = 1` 時行為精確等於原版零-grace 語意(boundary 收返去 exact-next-day)。*Rationale*: off-by-one 喺 grace boundary = 玩家「啱啱守住條鏈」被誤判斷裂 — dignity contract 要求 predicate 精確(AC-40 binding)。
 
 ### Cross-reference verification
 
@@ -750,13 +772,14 @@ Will be registered喺 Phase 5b after Section H ratification。
 
 ## Tuning Knobs
 
-呢個 section 列出所有 designer / programmer-facing tunable values，安全範圍同 extreme behavior。8 個 owned knobs (6 step values + 1 thresholds + 1 timezone fallback flag) + cross-knob invariants。
+呢個 section 列出所有 designer / programmer-facing tunable values，安全範圍同 extreme behavior。9 個 owned knobs (6 step values + 1 thresholds + 1 timezone fallback flag + 1 grace gap [EG-4]) + cross-knob invariants。
 
 ### Owned by Streak System (designer-facing — designers 可 tune without code change)
 
 | Knob | Default | Safe Range | Source / Used By | Too high (above safe range) | Too low (below safe range) |
 |------|---------|------------|------------------|----------------------------|---------------------------|
 | `MILESTONE_THRESHOLDS` | `[7, 14, 30, 60, 90]` | Each milestone ∈ `[3, 365]`; Array length ∈ `[3, 8]`; strictly ascending | Rule 7 + Rule 8 step boundaries | Each > 365 → milestone year-long achievable，玩家難以感受 progression cadence | Each < 3 → milestone 過早 emit，dilute Pillar 5 ritual moment dignity；Array < 3 entries → 唔夠 progression marker support #29 weekly evolution |
+| `STREAK_GRACE_GAP_DAYS`(EG-4)| 3 | `[1, 4]` int | Rule 6 chain predicate + Formula 2 | > 4 →「持續」語意失效(一週練一次都唔斷,streak 軸同 #19 WORKOUT_COUNT 軸冗餘)| = 1 → 回復原版 daily-only(EG-4 問題重現:3x/week milestone 不可達 + daily junk-workout incentive,anti-Pillar 1)|
 | `MODIFIER_AT_STREAK_0` | 1.00 | `[1.00, 1.00]` (locked baseline — `streak == 0` 永遠 1.00 per Section B) | Formula 1 baseline | N/A (locked = invariant) | N/A (locked = invariant) |
 | `MODIFIER_AT_TIER_1` (1–6 days) | 1.05 | `[1.00, 1.20]` | Formula 1 tier 1 value | > 1.20 → "first workout" buff 過大，dilute milestone tier ritual feel (玩家「reset 後第一日就 +20%」感覺好 OP) | < 1.00 → 違反 monotonicity invariant (AC-D1) |
 | `MODIFIER_AT_TIER_7` (7–13 days) | 1.15 | `[1.10, 1.30]` | Formula 1 tier 7 | > 1.30 → 同 tier 14 嘅 jump 太細 → step boundary feel mute | < 1.10 → 7-day milestone unlock 嘅 mechanical bonus 唔顯著，Pillar 3 binding 弱化 |
@@ -782,12 +805,12 @@ Will be registered喺 Phase 5b after Section H ratification。
 |----------|-------|------------------------|
 | Streak input edge | GymSys `workout_completed` only | Section B Falsifiable Test #5 「Pay-to-Streak」locked Pillar 1 anti-pillar #2；改 = anti-pillar violation |
 | Milestone emit-once-permanent contract | `streak_milestones_unlocked` Array 永不 erase | Section B Falsifiable Test #6 「Long-Haul」 locked Pillar 5 milestone ownership；改 = retroactive content loss possibility |
-| Streak reset semantics | gap > 1 day → streak = 1 (NOT 0, NO `streak_broken` signal) | Section B Falsifiable Test #2「Travel Week」 locked dignity framing；改 = punitive UX framing |
+| Streak reset semantics | gap > `STREAK_GRACE_GAP_DAYS` → streak = 1 (NOT 0, NO `streak_broken` signal)(EG-4:grace 日數本身係 knob,reset-to-1-not-0 語意先係 locked)| Section B Falsifiable Test #2「Travel Week」 locked dignity framing；改 = punitive UX framing |
 | Persistence write order | count → date → (flush) → milestones | Rule 9 atomic-pair semantics；改 = double-credit risk on partial fail |
 | Persistence ban scope | Streak only writes `streak.*` namespace | Rule 14 namespace isolation + Pillar 1 dignity；改 = cross-system state pollution |
 | Closed API surface | No public mutator method (read-only getters + signals) | Rule 1 + Section B Falsifiable Test #5 architectural enforcement |
 | `_state` enum membership | `Booting`, `Ready`, `Updating`, `Suspended`, `Failed` (5 states) | Section C State table；改 = upstream of Section H AC test suite refactor |
-| Noon-anchored DST arithmetic | `hour: 12` in `_is_next_calendar_day` helper | Formula 2 DST robustness invariant；改 = false-credit / false-loss spring-forward edge case |
+| Noon-anchored DST arithmetic | `hour: 12` in `_gap_days` helper(EG-4 前身 `_is_next_calendar_day` 同款保護)| Formula 2 DST robustness invariant；改 = false-credit / false-loss spring-forward edge case |
 
 ### Tuning Knob Interaction Warnings (invariants — Section H AC binding)
 
@@ -801,6 +824,8 @@ Will be registered喺 Phase 5b after Section H ratification。
 3. **Milestone thresholds ascending + bounded**: `MILESTONE_THRESHOLDS` strictly ascending, no duplicates, all ∈ [3, 365]
    - At default: `[7, 14, 30, 60, 90]` ✓
 4. **Step boundary <-> milestone alignment**: Formula 1 step boundaries `{1, 7, 14, 30, 60, 90}` ⊇ `MILESTONE_THRESHOLDS` (milestones are step boundaries plus implicit s=1 baseline boundary)
+5. **Grace bounds(EG-4)**: `STREAK_GRACE_GAP_DAYS` int ∈ `[1, 4]`
+   - At default: 3 ∈ [1, 4] ✓;boundary 行為:gap == G → chain_continue,gap == G+1 → gap_reset(AC-40 binding)
    - At default: `[7, 14, 30, 60, 90]` ⊂ `{1, 7, 14, 30, 60, 90}` ✓
 5. **Drift tolerance inheritance**: Streak uses PersistenceLayer's `WALL_CLOCK_DRIFT_TOLERANCE_SECONDS` constant (300) — same value, single source of truth
    - At default: `Streak.WALL_CLOCK_DRIFT_TOLERANCE_SECONDS == PersistenceLayer.WALL_CLOCK_DRIFT_TOLERANCE_SECONDS == 300` ✓ (no local override)
@@ -881,11 +906,11 @@ Streak autoload 嘅 implementation 內絕對唔可以 reference `AudioStreamPlay
 
 ### Streak Math (Rules 5, 6, Formula 2-3)
 
-- **AC-12**: GIVEN Ready state with `_streak_count==5`, `_last_workout_date_local=="2026-05-26"`, `_local_timezone_offset_minutes==480`, WHEN `_on_workout_completed(completed_at_utc=1748275200)` arrives (UTC `2026-05-26 16:00` + offset 480min → local `2026-05-27 00:00`), THEN Rule 6 classifies as `next_day` (2026-05-26 + 1 day == 2026-05-27)，∴ `_compute_new_streak` returns 6，`streak_changed.emit(6, 5)` fires exactly 1 time, persistence written via Rule 9 atomic order。Source: Rule 5, Rule 6, Formula 2-3 | Type: Logic | Gate: BLOCKING | File: `tests/unit/streak/streak_next_day_test.gd`
+- **AC-12**: GIVEN Ready state with `_streak_count==5`, `_last_workout_date_local=="2026-05-26"`, `_local_timezone_offset_minutes==480`, WHEN `_on_workout_completed(completed_at_utc=1748275200)` arrives (UTC `2026-05-26 16:00` + offset 480min → local `2026-05-27 00:00`), THEN Rule 6 classifies as `chain_continue` (gap=1 ≤ G)，∴ `_compute_new_streak` returns 6，`streak_changed.emit(6, 5)` fires exactly 1 time, persistence written via Rule 9 atomic order。Source: Rule 5, Rule 6, Formula 2-3 | Type: Logic | Gate: BLOCKING | File: `tests/unit/streak/streak_next_day_test.gd`
 - **AC-13**: GIVEN Ready state with `_streak_count==5`, `_last_workout_date_local=="2026-05-26"`, WHEN second `_on_workout_completed(...)` arrives same local calendar day (workout_date_local resolves to `"2026-05-26"`), THEN Rule 6 returns `same_day` → handler short-circuits before `_write_streak_state_atomic` → no persistence write, `streak_changed` NOT emitted, `_streak_count` 維持 5。Source: Rule 6 idempotent, EC-06 | Type: Logic | Gate: BLOCKING | File: `tests/unit/streak/streak_same_day_idempotent_test.gd`
-- **AC-14**: GIVEN Ready state with `_streak_count==45`, `_last_workout_date_local=="2026-05-25"`, `_streak_milestones_unlocked==[7,14,30]`, WHEN `_on_workout_completed(...)` arrives with workout_date_local `"2026-05-28"` (3-day gap), THEN Rule 6 returns `gap_reset` → `_streak_count == 1` (NOT 0), `streak_changed.emit(1, 45)` fires exactly 1 time, **NO `streak_broken` signal exists / no punitive signal emit**, `_streak_milestones_unlocked` 維持 `[7,14,30]` (Rule 7 emit-once-permanent)。Source: Rule 6, Rule 7, Falsifiable Test #2 | Type: Logic | Gate: BLOCKING | File: `tests/unit/streak/streak_gap_reset_test.gd`
+- **AC-14**: GIVEN Ready state with `_streak_count==45`, `_last_workout_date_local=="2026-05-25"`, `_streak_milestones_unlocked==[7,14,30]`, WHEN `_on_workout_completed(...)` arrives with workout_date_local `"2026-05-30"` (5-day gap > `STREAK_GRACE_GAP_DAYS`=3 — EG-4), THEN Rule 6 returns `gap_reset` → `_streak_count == 1` (NOT 0), `streak_changed.emit(1, 45)` fires exactly 1 time, **NO `streak_broken` signal exists / no punitive signal emit**, `_streak_milestones_unlocked` 維持 `[7,14,30]` (Rule 7 emit-once-permanent)。Source: Rule 6, Rule 7, Falsifiable Test #2 | Type: Logic | Gate: BLOCKING | File: `tests/unit/streak/streak_gap_reset_test.gd`
 - **AC-15**: GIVEN fresh boot with `_streak_count==0`, `_last_workout_date_local==""`, WHEN `_on_workout_completed(1748275200)` arrives, THEN Rule 6 returns `first_workout` → `_streak_count == 1`, `streak_changed.emit(1, 0)` fires exactly 1 time, modifier flips from 1.00 to 1.05 (Formula 1 tier 1)。Source: Rule 6 first-workout branch, Formula 1 | Type: Logic | Gate: BLOCKING | File: `tests/unit/streak/streak_first_workout_test.gd`
-- **AC-16**: GIVEN `_local_timezone_offset_minutes==600` (Sydney UTC+10, locked at onboarding), `prior_date=="2026-10-03"`, WHEN workout occurs spanning DST spring-forward (UTC `2026-10-04 14:50` and again UTC `2026-10-04 18:00`), THEN noon-anchored arithmetic in `_is_next_calendar_day` yields `next_day` classification for first event (streak 1 → 2) and `same_day` for second (streak stays 2) — no false-credit / false-loss from DST ±1h boundary。Source: Rule 5, Rule 6, Formula 2 worked example, EC-17 | Type: Logic | Gate: BLOCKING | File: `tests/unit/streak/streak_dst_robustness_test.gd`
+- **AC-16**: GIVEN `_local_timezone_offset_minutes==600` (Sydney UTC+10, locked at onboarding), `prior_date=="2026-10-03"`, WHEN workout occurs spanning DST spring-forward (UTC `2026-10-04 14:50` and again UTC `2026-10-04 18:00`), THEN noon-anchored arithmetic in `_gap_days` yields `chain_continue` (gap=1) classification for first event (streak 1 → 2) and `same_day` for second (streak stays 2) — no false-credit / false-loss from DST ±1h boundary。Source: Rule 5, Rule 6, Formula 2 worked example, EC-17 | Type: Logic | Gate: BLOCKING | File: `tests/unit/streak/streak_dst_robustness_test.gd`
 
 ### Milestones (Rule 7, Formula 1)
 
@@ -924,14 +949,18 @@ Streak autoload 嘅 implementation 內絕對唔可以 reference `AudioStreamPlay
 
 ### ADR-003 RATIFICATION-GATED (3 ACs)
 
-- **AC-37 [FR-1, Risk Register binding — Phone-Lost retro-credit contract]**: GIVEN GymSys backend retro-workout window query API specified in ADR-002 / ADR-003 (pending), WHEN integration test scenario: Day 30 workout occurs but `phone_offline=true`, Day 32 player reconnects, backend delivers retro `workout_completed(completed_at_utc=Day30_timestamp)` then current `workout_completed(completed_at_utc=Day32_timestamp)`, THEN Streak's Rule 4 monotonicity gate accepts both in order (Day30 < Day32), Rule 6 yields `next_day` (prior was Day 29) → streak goes 29 → 30 → then gap_reset OR next_day depending on Day31 status — net result matches ADR-003 ratification spec for the retro-credit window contract. **AC structure locked**; exact pass criteria fill-in-blank pending ADR-003 ratification。Source: Risk Register FR-1, Rule 12 provisional, Falsifiable Test #3 | Type: Integration | Gate: ADR-003 RATIFICATION-GATED | File: `tests/integration/streak/streak_phone_lost_retro_test.gd`
+- **AC-37 [FR-1, Risk Register binding — Phone-Lost retro-credit contract]**: GIVEN GymSys backend retro-workout window query API specified in ADR-002 / ADR-003 (pending), WHEN integration test scenario: Day 30 workout occurs but `phone_offline=true`, Day 32 player reconnects, backend delivers retro `workout_completed(completed_at_utc=Day30_timestamp)` then current `workout_completed(completed_at_utc=Day32_timestamp)`, THEN Streak's Rule 4 monotonicity gate accepts both in order (Day30 < Day32), Rule 6 yields `chain_continue` (prior was Day 29, gap=1) → streak goes 29 → 30 → then Day32 event gap=2 ≤ G → `chain_continue` → 31(EG-4:原版係 gap_reset)— net result matches ADR-003 ratification spec for the retro-credit window contract. **AC structure locked**; exact pass criteria fill-in-blank pending ADR-003 ratification。Source: Risk Register FR-1, Rule 12 provisional, Falsifiable Test #3 | Type: Integration | Gate: ADR-003 RATIFICATION-GATED | File: `tests/integration/streak/streak_phone_lost_retro_test.gd`
 - **AC-38 [FR-2, Risk Register binding — drift tolerance false-positive rate]**: GIVEN VS-tier playtest with telemetry instrumented to count `_drift_rejected_count` increments tagged `cause=future_skew_>300s`, WHEN measured over ≥ 100 baseline-device sessions across geographic regions (UTC offset diversity), THEN false-positive reject rate ≤ threshold defined in **ADR-003 (pending ratification)** (acceptable rate per Pillar 1 dignity / Phone-Lost retro path). If exceeded → fallback: introduce backend-timestamp comparison ground truth, client-only drift gate downgrades to advisory `push_warning` (no reject)。Source: Risk Register FR-2, Rule 4, EC-02 | Type: Performance | Gate: ADR-003 RATIFICATION-GATED | File: `tests/performance/streak/drift_gate_false_positive_test.md` (telemetry analysis doc)
 - **AC-39 [FR-3, Risk Register binding — cross-system rarity modifier discipline]**: GIVEN expanded CI gate `tools/ci/check_streak_callers.gd` covering ALL future system paths (e.g. `src/gameplay/stats/`, `src/gameplay/abilities/`, `src/gameplay/pr/`, `src/gameplay/zones/`), WHEN scanned, THEN any `Streak.get_loot_rarity_modifier()` call OUTSIDE `WHITELIST_PATHS_LOOT_RARITY = ["src/gameplay/loot/", "src/gameplay/mirror_moment/", "src/autoload/streak.gd", "tests/"]` → exit(1) blocking. **Q-O3 resolved (post-ratification)**: whitelist explicit, requires PR review for any expansion. ADR-003 ratification confirms #15 + #29 are the only authorized callers。Source: Risk Register FR-3, Rule 13 | Type: Static / CI | Gate: ADR-003 RATIFICATION-GATED | File: `tools/ci/check_streak_callers.gd` + `tests/unit/ci/streak_caller_whitelist_test.gd`
 
+### EG-4 Amendment AC(2026-06-08)
+
+- **AC-40 [EC-23 / Tuning Knob invariant #5 binding — grace boundary]**: GIVEN `STREAK_GRACE_GAP_DAYS == 3` (default) and Ready state with `_streak_count==5`, prior date D, WHEN workout arrives at (a) D+1 / (b) D+2 / (c) D+3, THEN each yields `chain_continue` → streak 6 (boundary inclusive); WHEN instead workout arrives at (d) D+4, THEN `gap_reset` → streak 1。Additionally GIVEN `STREAK_GRACE_GAP_DAYS == 1` (degenerate knob floor), THEN behavior is exactly the pre-EG-4 zero-grace semantics (only D+1 continues)。Source: EG-4 adjudication, Rule 6, Formula 2, EC-23 | Type: Logic | Gate: BLOCKING | File: `tests/unit/streak/test_calendar_formulas.gd`
+
 ### Total count + breakdown
 
-**33 ACs total** (qa-lead synthesis + 1 main-session math fix to AC-12 worked example):
-- **28 BLOCKING**: AC-01 to AC-35 excluding AC-36/37/38/39
+**34 ACs total** (qa-lead synthesis + 1 main-session math fix to AC-12 worked example + EG-4 amendment AC-40):
+- **29 BLOCKING**: AC-01 to AC-35 + AC-40, excluding AC-36/37/38/39
 - **2 ADVISORY**: AC-36 (Numb Counter perceptual playtest, gated on #20 HUD GDD)
 - **3 ADR-003 RATIFICATION-GATED**: AC-37 (FR-1 Phone-Lost retro-credit), AC-38 (FR-2 drift tolerance FPR), AC-39 (FR-3 caller whitelist expansion)
 
@@ -944,7 +973,7 @@ Streak autoload 嘅 implementation 內絕對唔可以 reference `AudioStreamPlay
 | C — Rule 3 (handler skeleton) | 1 rule | AC-08, 09 | 2/1 ✓ over |
 | C — Rule 4 (drift gate) | 1 rule | AC-02, 03, 04 | 3/1 ✓ over |
 | C — Rule 5 (local-day calc) | 1 rule | AC-12, 16 | 2/1 ✓ over |
-| C — Rule 6 (consecutive-day) | 1 rule | AC-12, 13, 14, 15, 16 | 5/1 ✓ over |
+| C — Rule 6 (chain-continuation,EG-4) | 1 rule | AC-12, 13, 14, 15, 16, 40 | 6/1 ✓ over |
 | C — Rule 7 (milestones) | 1 rule | AC-17, 18, 19 | 3/1 ✓ over |
 | C — Rule 8 (modifier curve) | 1 rule | AC-20, 21, 22 | 3/1 ✓ over |
 | C — Rule 9 (persist atomic order) | 1 rule | AC-23, 24 | 2/1 ✓ over |
@@ -954,7 +983,7 @@ Streak autoload 嘅 implementation 內絕對唔可以 reference `AudioStreamPlay
 | C — Rule 13 (CI script) | 1 rule | AC-27, 28, 29, 39 | 4/1 ✓ over |
 | C — Rule 14 (namespace) | 1 rule | AC-11, 25, 34 | 3/1 ✓ over |
 | D — Formula ACs (D1-D5) | 5 candidates | D1→AC-20, D2→AC-21, D3→AC-22, D4→AC-16, D5→AC-19 | 5/5 ✓ |
-| E — Edge cases (HIGH impact) | 22 ECs | 01→AC02, 02→AC03, 03→AC04, 05→AC08, 06→AC09/13, 17→AC16, 19→AC10/24, 22→AC34 | HIGH covered (LOW-impact ECs covered by code review + manual smoke) |
+| E — Edge cases (HIGH impact) | 23 ECs | 01→AC02, 02→AC03, 03→AC04, 05→AC08, 06→AC09/13, 17→AC16, 19→AC10/24, 22→AC34, 23→AC40 | HIGH covered (LOW-impact ECs covered by code review + manual smoke) |
 | F — Cross-system contracts | 5 downstream | AC-06 (GSM subscription), AC-27/39 (#15+#29 whitelist), AC-36 (#20 HUD pending) | partial (#24 / #27 ACs pending GDDs) |
 | G — Knob ACs (G1-G4) | 4 candidates | G1→AC-30, G2→AC-31, G3→AC-32, G4→AC-33 | 4/4 ✓ |
 | B — Falsifiable Tests #1-7 | 7 tests | T#1→AC34, T#2→AC35, T#3→AC37, T#4→AC36, T#5→AC01/28, T#6→AC17/34, T#7→AC03/04 | 7/7 ✓ |

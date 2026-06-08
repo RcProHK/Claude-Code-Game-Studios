@@ -1,8 +1,36 @@
 # EG-4 — #8 Streak Milestone Reachability Erratum
 
-> **Status**: OPEN(2026-06-06,#19 Zone review Pass 1 經 CD 開立)
+> **Status**: ✅ **ADJUDICATED 2026-06-08(fresh-session CD adjudication — Option (a) Rest-day grace)**
 > **Route**: fresh-session CD adjudication(影響面跨 #8/#15/#29 — 唔好喺 #19 session 內裁)
 > **唔 block**: #19 revision(#19 已按 P1 裁決刪 STREAK 軸,獨立於本 EG)
+
+## CD Adjudication(2026-06-08 — binding)
+
+**裁決:Option (a) Rest-day grace 採納。** Grep 實證(裁決前 verification-first):
+
+- Shipped `consecutive_day_classification` = `_days_between == 1`(`streak_system.gd:240-241`)— 零 grace 確認
+- #15 下游唔係 signal 訂閱,係 `streak_factor = 1.0 + min(streak/scale, max_bonus)`(`loot_rarity_calc.gd:149`)— streak 不可達 → factor inert 實證成立
+- `streak_milestone_reached` signal **未 shipped**(AC-38 deferred)— milestone emit 機制仲係 paper contract,改動零 runtime 訂閱 churn
+- Shipped `MILESTONE_THRESHOLDS = [1,7,14,30,60,90]` 實際只用於 buff step function(`get_streak_buff_multiplier`)— 係 GDD L803「step boundaries {1,…} ⊇ milestones」嘅 **buff step table**,同 GDD milestone gate set `[7,14,30,60,90]` 兩個概念被合成一個 const(命名誤導,非單純 drift)
+
+**選項評估:**
+
+| 選項 | 判定 | 理由 |
+|---|---|---|
+| (a) grace | ✅ 採納 | S-size(一 knob + 一 predicate)達到 reachability + 消 junk-workout incentive;persistence 零 migration;下游零 churn |
+| (b) weekly 重定義 | ❌ | core formula + milestone 單位(日→週)+ 7 個 Fantasy Test 全重寫 = XL churn;(a) 實證唔夠先升級(v0.2+ 候選) |
+| (c) thresholds 改細 | ❌ | 治標 — 3x/week 玩家 streak 仍 cap 1-2 |
+| (d) 接受現狀 | ❌ | 保留 overtraining/junk-workout incentive = anti-Pillar 1;#15 streak_factor + buff ladder 對多數玩家 inert |
+
+**Binding 細節(#8 focused amendment — EG-1 先例):**
+
+1. **Chain predicate**:streak 繼續條件由「gap == 1」改「`1 ≤ gap ≤ STREAK_GRACE_GAP_DAYS`」;新 knob `STREAK_GRACE_GAP_DAYS = 3`(容忍 ≤2 個完整 rest day),safe range [1, 4]。數學驗證:3x/week Mon/Wed/Fri max gap = Fri→Mon = 3 ✓;PPL 6x/week gap ≤ 2 ✓;2x/week gap ≥ 4 ✗ 斷 — 行 #19 WORKOUT_COUNT 軸(streak = consistency prestige 軸 / count = persistence 軸,partition 跟 #19 P1/P2 裁決)
+2. **計數語意**:streak = **unbroken training-day chain**(每 workout day +1;grace 只改 reset predicate,唔改 increment)。Reachability:3x/week → 7 @ ~2.3 週 / 30 @ 10 週 / 90 @ 30 週 — 全可達且 prestige cadence 合理
+3. **Const 概念分離**:shipped const 改名 `BUFF_STEP_THRESHOLDS`/`BUFF_STEP_MULTIPLIERS`(對應唯一用途);milestone gate set `[7,14,30,60,90]` 留返將來 AC-38 emit 機制先引入 — 唔可以 iterate 含 1 嘅 buff table 做 milestone emit
+4. **Fantasy Test 語意 sweep**:7 個 test 期望值喺 grace 語意下逐一驗證**全部不變**(Sick Day gap 5 > 3 仍 reset ✓ / Travel Week gap 7 仍斷 ✓ / Phone-Lost retro-credit 不受影響 ✓)— GDD 只需加 amendment 注釋,唔重寫 test 敘事
+5. **殘餘 incentive 申報**:連休 2 日後第 3 日為保 streak 做輕 workout 嘅 incentive 仍存在,但同「唔好連續休息太耐」嘅真實訓練建議方向一致 — 唔再 anti-Pillar 1(原版係誘發**每日** junk workout)
+
+**Resolution 執行**:同 session focused amendment(GDD Rule 6 + 知識 sweep + code + tests + CI gate)— 見 git history `fix(#8): EG-4 rest-day grace`。
 
 ## 問題(grep 實證)
 

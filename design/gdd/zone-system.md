@@ -181,7 +181,7 @@ on workout_completed_forwarded(completed_at, transition_id):
 ## Future Extensions(v0.2+,非 MVP)
 
 - **PR_SCORE kind**(float threshold,Σmagnitude 軸)— CD ratify 後加 enum + `threshold_f` field;#18 嘅 Σmagnitude data surface 已備(pr-detection.md Rule 6.5 persist field),屆時開 #18 additive getter gate。
-- **Streak 軸 rehabilitation** — pending **EG-4** 裁決(rest-day grace / weekly-frequency 重定義)。
+- **Streak 軸 rehabilitation** — **EG-4 已裁決(2026-06-08,Option (a) rest-day grace,`STREAK_GRACE_GAP_DAYS=3`)**:#8 milestone 已可達,streak 軸 v0.2+ 可重新評估(streak = consistency prestige / WORKOUT_COUNT = persistence — 兩軸 partition 照 P1 裁決保留)。
 - **Composite any-of conditions**(`Array[UnlockCondition]`)— 有真實需求先加。
 - **Zone 選擇 UI**(#22/#24)+ low-regret 斷言(Rule 9)。
 - **Time-to-unlock pacing 表**(per threshold × cadence)— v0.2 content design 必交。
@@ -195,6 +195,6 @@ on workout_completed_forwarded(completed_at, transition_id):
 | **G-Z-3** | #3 `zone.` namespace:VALID_NAMESPACES 一行 + Rule 12 registry 一行 + lint create-or-amend(未 shipped — #18 G-PR-6 同款) | #19 epic story | #19 epic / #3 |
 | **Q-Z-1** | v0.2 zone 2-3 thresholds:**依據 = #9 workouts/week 分佈 + D7/D30 retention**(#28 Telemetry 未存在 — 依賴佢 ship 或 manual query GymSys DB;small-N 下係「設計 rationale + 觀察」唔係統計,誠實申報) | v0.2 content design | balance |
 | **Q-Z-2** | Zone 切換嘅 #14/#26 場景重載協議(workout 開始時鎖定 — 邊個觸發 reload?) | v0.2(MVP 單 zone 無切換) | v0.2 architecture |
-| **EG-4** | #8 streak reachability erratum(上游,唔 block #19)— streak 軸喺 #19 重新考慮嘅前提 | `production/escalations/EG-4-streak-reachability.md` → fresh-session CD adjudication | CD / #8 |
+| **EG-4** | ✅ **RESOLVED 2026-06-08**(CD adjudication Option (a) rest-day grace — #8 amendment 落地,milestone 可達)| `production/escalations/EG-4-streak-reachability.md` | CD / #8 |
 
 > **Review 處理紀錄**:Pass 1(MAJOR,5 specialists + CD)→ 本 revision 按 CD P1-P6 + R1-R5 重寫(軸重裁 / signal contract / envelope / boot chain / ceremony + seams + 12 ACs)。詳見 `design/gdd/reviews/zone-system-review-log.md`。**Pending fresh re-review** — exit bar 12 項 grep-verifiable + 0 new phantom。

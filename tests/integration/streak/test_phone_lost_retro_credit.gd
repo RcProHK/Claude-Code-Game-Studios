@@ -63,6 +63,7 @@ func test_retro_then_current_event_credits_then_gap_resets() -> void:
 	var day29_utc := _noon_utc(2026, 4, 29)
 	var day30_utc := _noon_utc(2026, 4, 30)
 	var day32_utc := _noon_utc(2026, 5, 2)
+	var day37_utc := _noon_utc(2026, 5, 7)
 	var streak := _make_streak(day32_utc)
 	streak._streak_count = 29
 	streak._last_workout_date_local = 20260429
@@ -72,18 +73,29 @@ func test_retro_then_current_event_credits_then_gap_resets() -> void:
 	# Act 1 — the retro (offline Day30) event arrives late, 2 days in the past.
 	streak._on_workout_completed(day30_utc)
 
-	# Assert 1 — accepted (NOT rejected as drift); Day29→Day30 consecutive → streak 30.
+	# Assert 1 — accepted (NOT rejected as drift); Day29→Day30 chain continues → streak 30.
 	assert_signal_not_emitted(streak, "streak_persistence_failed",
 		"AC-37: a real past (retro) workout must NOT be rejected as drift")
-	assert_eq(streak._streak_count, 30, "AC-37: Day29→Day30 consecutive retro credit → streak 30")
+	assert_eq(streak._streak_count, 30, "AC-37: Day29→Day30 retro credit → streak 30")
 	assert_almost_eq(streak.get_streak_buff_multiplier(), 1.6, 0.0001,
-		"AC-37: buff multiplier reflects streak 30 (MILESTONE_MULTIPLIERS[3])")
+		"AC-37: buff multiplier reflects streak 30 (BUFF_STEP_MULTIPLIERS[3])")
 
-	# Act 2 — the current (Day32) event; Day30→Day32 is a 2-day gap.
+	# Act 2 — the current (Day32) event; Day30→Day32 gap=2 ≤ STREAK_GRACE_GAP_DAYS.
 	streak._on_workout_completed(day32_utc)
 
-	# Assert 2 — gap resets to 1 (forward-pull, current state matters).
-	assert_eq(streak._streak_count, 1, "AC-37: Day30→Day32 gap (>1 day) resets streak to 1")
+	# Assert 2 — EG-4 grace: a 2-day gap CONTINUES the chain (was gap_reset pre-EG-4).
+	assert_eq(streak._streak_count, 31,
+		"AC-37/EG-4: Day30→Day32 gap (2 ≤ grace 3) continues the chain → streak 31")
+	assert_almost_eq(streak.get_streak_buff_multiplier(), 1.6, 0.0001,
+		"AC-37/EG-4: buff multiplier stays at the 30-step (1.6) — chain unbroken")
+
+	# Act 3 — Day37 event after 4 missed days; Day32→Day37 gap=5 > grace 3.
+	streak._now_utc_override = day37_utc  # advance pinned clock past the gap
+	streak._on_workout_completed(day37_utc)
+
+	# Assert 3 — beyond-grace gap resets to 1 (forward-pull, current state matters).
+	assert_eq(streak._streak_count, 1,
+		"AC-37/EG-4: Day32→Day37 gap (5 > grace 3) resets streak to 1")
 	assert_almost_eq(streak.get_streak_buff_multiplier(), 1.1, 0.0001,
 		"AC-37: buff multiplier drops to the streak-1 step (1.1) — current state, not peak")
 

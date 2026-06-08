@@ -41,7 +41,7 @@ const _DEFAULT_CONFIG_PATH := "res://assets/data/loot/loot_rarity_config.tres"
 ##
 ## @param completed_exercises  Exercises completed this session (volume signal).
 ## @param pr_breakthrough_count Personal records broken this session.
-## @param streak_count         Consecutive-day streak (days).
+## @param streak_count         Training-day chain count (#8 EG-4 grace semantics).
 ## @param transition_id        Stable seed source for the RNG roll (anti-fabrication).
 ## @param config               LootRarityConfig, or null to load the default .tres.
 ## @return                     RarityTier ordinal, floored at COMMON (Pillar 3).

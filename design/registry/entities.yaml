@@ -1581,8 +1581,20 @@ constants:
     value: "[7, 14, 30, 60, 90]"
     unit: days
     added: 2026-05-26
+    revised: "2026-06-08 (EG-4 注: chain 計數語意 — training-day chain count 命中 threshold = emit。shipped buff step table 改名 BUFF_STEP_THRESHOLDS [1,7,...] — 同本 milestone gate set 概念分離,emit 機制不得 iterate buff table)"
+    notes: "Streak milestone threshold array (Rule 7 const)。training-day chain count (EG-4 grace 語意) 命中其中一個 = emit `streak_milestone_reached(milestone)`。Safe range: each milestone ∈ [3, 365], Array length ∈ [3, 8], strictly ascending, no duplicates。Loss case (each > 365): milestone year-long achievable，玩家難以感受 progression cadence。Loss case (each < 3): milestone 過早 emit，dilute Pillar 5 ritual moment dignity。Array < 3 entries: 唔夠 progression marker support #29 weekly evolution。AC-19 + AC-32 binding。emit-once-permanent contract per Rule 7 (Falsifiable Test #6 Long-Haul)。"
+
+  - name: streak_grace_gap_days
+    status: active
+    source: design/gdd/streak-system.md
+    referenced_by:
+      - design/gdd/streak-system.md
+      - production/escalations/EG-4-streak-reachability.md
+    value: 3
+    unit: calendar_days
+    added: 2026-06-08
     revised: ""
-    notes: "Streak milestone threshold array (Rule 7 const)。連續日數命中其中一個 = emit `streak_milestone_reached(milestone)`。Safe range: each milestone ∈ [3, 365], Array length ∈ [3, 8], strictly ascending, no duplicates。Loss case (each > 365): milestone year-long achievable，玩家難以感受 progression cadence。Loss case (each < 3): milestone 過早 emit，dilute Pillar 5 ritual moment dignity。Array < 3 entries: 唔夠 progression marker support #29 weekly evolution。AC-19 + AC-32 binding。emit-once-permanent contract per Rule 7 (Falsifiable Test #6 Long-Haul)。"
+    notes: "EG-4 rest-day grace knob (Rule 6 chain predicate)。Chain 繼續條件 = 1 ≤ gap_days ≤ STREAK_GRACE_GAP_DAYS;default 3 = 容忍 ≤2 個完整 rest day(3x/week Mon/Wed/Fri max gap Fri→Mon = 3 ✓)。Safe range int ∈ [1, 4]。Loss case (> 4):「持續」語意失效,streak 軸同 #19 WORKOUT_COUNT 軸冗餘。Loss case (= 1): 回復 pre-EG-4 zero-grace — milestone 7+ 對 3x/week 數學不可達 + daily junk-workout incentive (anti-Pillar 1)。EC-23 + AC-40 binding。"
 
   - name: loot_workout_weight
     status: active

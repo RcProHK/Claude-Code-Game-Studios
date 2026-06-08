@@ -35,12 +35,23 @@ const LEGAL_ARCS: Dictionary = {
 ## assert in _ready() below (mirrors GameStateMachine Invariant 7 cross-system pattern).
 const WALL_CLOCK_DRIFT_TOLERANCE_SECONDS: int = 300
 
-## Streak-day milestones (ascending, strictly increasing — asserted at boot). (Story 004)
-const MILESTONE_THRESHOLDS: Array[int] = [1, 7, 14, 30, 60, 90]
-## Buff multiplier per milestone step (non-decreasing — asserted at boot). (Story 004)
-const MILESTONE_MULTIPLIERS: Array[float] = [1.1, 1.25, 1.4, 1.6, 1.8, 2.0]
+## Buff step boundaries (ascending, strictly increasing — asserted at boot). (Story 004)
+## EG-4 rename (was MILESTONE_THRESHOLDS): this is the Formula 1 step table INCLUDING the
+## s=1 baseline boundary — NOT the milestone gate set ([7,14,30,60,90], GDD Rule 7).
+## Future milestone-emit machinery (AC-38) must NOT iterate this table (the leading 1
+## would emit a phantom day-1 milestone). See production/escalations/EG-4-streak-reachability.md.
+const BUFF_STEP_THRESHOLDS: Array[int] = [1, 7, 14, 30, 60, 90]
+## Buff multiplier per step boundary (non-decreasing — asserted at boot). (Story 004)
+const BUFF_STEP_MULTIPLIERS: Array[float] = [1.1, 1.25, 1.4, 1.6, 1.8, 2.0]
 ## Hard cap on the streak buff multiplier. (Story 004)
 const MAX_BUFF_MULTIPLIER: float = 2.0
+
+## EG-4 rest-day grace: the chain continues when the calendar-day gap between the prior
+## workout day and the new workout day is within this knob (3 = up to 2 full rest days).
+## Reachability fix: zero grace made milestones 7+ mathematically unreachable for the
+## default 3x/week cadence and incentivised daily junk workouts (anti-Pillar 1).
+## Safe range [1, 4]; 1 reproduces the pre-EG-4 exact-next-day semantics. (GDD Rule 6)
+const STREAK_GRACE_GAP_DAYS: int = 3
 
 ## Persistence keys — streak.* namespace per GDD Rule 12 (Story 005). Closed API:
 ## these are the ONLY keys StreakSystem writes; CI bans external streak.* writes.
@@ -234,11 +245,22 @@ func local_calendar_date_from_utc(utc: int, tz_offset_seconds: int) -> int:
 	return dt["year"] * 10000 + dt["month"] * 100 + dt["day"]
 
 
-## Formula 2: true iff date_a and date_b (YYYYMMDD integers) are exactly one calendar
-## day apart. Same day → false. Month/year boundaries handled via noon-anchored unix
-## conversion (raw integer subtraction is unsafe across boundaries, e.g. 20240131→20240201).
+## Calendar primitive: true iff date_a and date_b (YYYYMMDD integers) are exactly one
+## calendar day apart. Same day → false. Month/year boundaries handled via noon-anchored
+## unix conversion (raw integer subtraction is unsafe across boundaries, e.g. 20240131→20240201).
+## NOTE (EG-4): no longer the production chain predicate — kept as the exact-1-day
+## calendar formula. Production uses chain_continuation_classification below.
 func consecutive_day_classification(date_a: int, date_b: int) -> bool:
 	return _days_between(date_a, date_b) == 1
+
+
+## Formula 2 (EG-4 amendment): true iff the calendar-day gap between date_a and date_b
+## (YYYYMMDD integers) is within the rest-day grace window — `1 ≤ gap ≤
+## STREAK_GRACE_GAP_DAYS`. Same day → false (the same-day idempotent branch
+## short-circuits earlier in record_today_workout). GDD Rule 6 / EC-23 / AC-40.
+func chain_continuation_classification(date_a: int, date_b: int) -> bool:
+	var gap: int = _days_between(date_a, date_b)
+	return gap >= 1 and gap <= STREAK_GRACE_GAP_DAYS
 
 
 ## Returns the absolute number of calendar days between two YYYYMMDD integers,
@@ -264,28 +286,28 @@ func _yyyymmdd_to_noon_unix(yyyymmdd: int) -> int:
 # Story 004 — Buff multiplier (step function over milestones)
 # ============================================================================
 
-## Returns the streak buff multiplier as a step function over MILESTONE_THRESHOLDS.
-## Baseline 1.0 below the first milestone; capped at MAX_BUFF_MULTIPLIER.
+## Returns the streak buff multiplier as a step function over BUFF_STEP_THRESHOLDS.
+## Baseline 1.0 below the first step boundary; capped at MAX_BUFF_MULTIPLIER.
 func get_streak_buff_multiplier() -> float:
 	var result: float = 1.0
-	for i in range(MILESTONE_THRESHOLDS.size()):
-		if _streak_count >= MILESTONE_THRESHOLDS[i]:
-			result = MILESTONE_MULTIPLIERS[i]
+	for i in range(BUFF_STEP_THRESHOLDS.size()):
+		if _streak_count >= BUFF_STEP_THRESHOLDS[i]:
+			result = BUFF_STEP_MULTIPLIERS[i]
 		else:
 			break
 	return min(result, MAX_BUFF_MULTIPLIER)
 
 
-## Boot-time invariant guard (ADR-0006 Contract 8 pattern): milestone thresholds
+## Boot-time invariant guard (ADR-0006 Contract 8 pattern): buff step boundaries
 ## strictly ascending + multipliers non-decreasing. Trips in debug builds.
-func _assert_milestone_invariants() -> void:
-	assert(MILESTONE_THRESHOLDS.size() == MILESTONE_MULTIPLIERS.size(),
-		"Milestone thresholds and multipliers must be the same length")
-	for i in range(MILESTONE_THRESHOLDS.size() - 1):
-		assert(MILESTONE_THRESHOLDS[i] < MILESTONE_THRESHOLDS[i + 1],
-			"Milestone thresholds must be strictly ascending")
-		assert(MILESTONE_MULTIPLIERS[i] <= MILESTONE_MULTIPLIERS[i + 1],
-			"Milestone multipliers must be non-decreasing")
+func _assert_buff_step_invariants() -> void:
+	assert(BUFF_STEP_THRESHOLDS.size() == BUFF_STEP_MULTIPLIERS.size(),
+		"Buff step thresholds and multipliers must be the same length")
+	for i in range(BUFF_STEP_THRESHOLDS.size() - 1):
+		assert(BUFF_STEP_THRESHOLDS[i] < BUFF_STEP_THRESHOLDS[i + 1],
+			"Buff step thresholds must be strictly ascending")
+		assert(BUFF_STEP_MULTIPLIERS[i] <= BUFF_STEP_MULTIPLIERS[i + 1],
+			"Buff step multipliers must be non-decreasing")
 
 
 # ============================================================================
@@ -302,8 +324,11 @@ func _assert_knob_invariants() -> void:
 		"Streak drift tolerance must match PersistenceLayer (%d vs %d)" %
 			[WALL_CLOCK_DRIFT_TOLERANCE_SECONDS, PersistenceLayer.WALL_CLOCK_DRIFT_TOLERANCE_SECONDS]
 	)
-	# Story 004: milestone invariants
-	_assert_milestone_invariants()
+	# Story 004: buff step invariants (EG-4 rename)
+	_assert_buff_step_invariants()
+	# EG-4: grace knob bounds — [1, 4]; 1 = pre-EG-4 zero-grace degenerate floor.
+	assert(STREAK_GRACE_GAP_DAYS >= 1 and STREAK_GRACE_GAP_DAYS <= 4,
+		"STREAK_GRACE_GAP_DAYS must be within [1, 4] (EG-4 invariant #5)")
 
 
 # ============================================================================
@@ -312,7 +337,8 @@ func _assert_knob_invariants() -> void:
 
 ## Records a completed workout for its local calendar day, then persists.
 ## Idempotent: a second call on the same local day is a no-op (no duplicate write).
-## Consecutive days increment the streak; a gap resets it to 1.
+## A workout day within the grace window (gap ≤ STREAK_GRACE_GAP_DAYS) extends the
+## chain; a longer gap resets it to 1 (EG-4 — GDD Rule 6).
 ## No-op while in FAILED substate (sticky — Story 006).
 func record_today_workout(completed_at_utc: int) -> void:
 	if _substate == Substate.FAILED:
@@ -323,7 +349,7 @@ func record_today_workout(completed_at_utc: int) -> void:
 		return
 	var new_count: int = 1
 	if _last_workout_date_local != 0 \
-			and consecutive_day_classification(_last_workout_date_local, local_date):
+			and chain_continuation_classification(_last_workout_date_local, local_date):
 		new_count = _streak_count + 1
 	_persist_streak(new_count, local_date)
 

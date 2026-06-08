@@ -55,14 +55,14 @@ func test_above_last_milestone_caps_at_max() -> void:
 
 func test_milestone_invariants_pass() -> void:
 	var s := _make_streak()
-	s._assert_milestone_invariants()  # must not trip in debug build
+	s._assert_buff_step_invariants()  # must not trip in debug build (EG-4 rename)
 	# Direct verification of the invariant the assert guards:
-	for i in range(StreakSystemScript.MILESTONE_THRESHOLDS.size() - 1):
-		assert_lt(StreakSystemScript.MILESTONE_THRESHOLDS[i], StreakSystemScript.MILESTONE_THRESHOLDS[i + 1],
+	for i in range(StreakSystemScript.BUFF_STEP_THRESHOLDS.size() - 1):
+		assert_lt(StreakSystemScript.BUFF_STEP_THRESHOLDS[i], StreakSystemScript.BUFF_STEP_THRESHOLDS[i + 1],
 			"thresholds strictly ascending at index %d" % i)
 	assert_eq(
-		StreakSystemScript.MILESTONE_THRESHOLDS.size(),
-		StreakSystemScript.MILESTONE_MULTIPLIERS.size(),
+		StreakSystemScript.BUFF_STEP_THRESHOLDS.size(),
+		StreakSystemScript.BUFF_STEP_MULTIPLIERS.size(),
 		"thresholds and multipliers arrays must be the same length"
 	)
 
