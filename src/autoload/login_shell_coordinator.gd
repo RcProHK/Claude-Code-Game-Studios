@@ -111,6 +111,10 @@ var _gsm_state: int = -1
 var _auth_required: bool = false
 ## Logout in progress (DRAINING; story 014 fills the optimistic surface + drain banner).
 var _draining: bool = false
+## DISCONNECTED entered FROM a workout-family state (story 012 — mid-workout network drop):
+## stay HIDDEN + peripheral banner instead of the full DISCONNECTED_SHELL (Rule 9a — do not
+## interrupt the workout with a full-screen surface; it may resume).
+var _workout_disconnect: bool = false
 ## A re-derive is queued for the next advance() tick (the「下一 frame」discipline:
 ## observer handlers never transition synchronously — they flag + settle next tick).
 var _settle_pending: bool = false
@@ -363,14 +367,31 @@ func advance(delta_ms: float) -> void:
 
 ## GSM observer (cfis-subscribed). Untyped params (project DI discipline). Records
 ## the live GSM state and queues a settle — never transitions inline.
-func _on_gsm_state_changed(_from_state, to_state, _payload) -> void:
+func _on_gsm_state_changed(from_state, to_state, _payload) -> void:
+	var from: int = int(from_state)
 	_gsm_state = int(to_state)
 	# A SUSPENDED interrupt cancels an in-flight claim (EC-A1 — backgrounded mid-claim;
 	# the await would hang, so cancel deterministically rather than show a false failure).
 	if _gsm_state == GSMScript.GameState.SUSPENDED and _claim_pending:
 		_cancel_claim()
+	_update_disconnect_surface(from)  # story 012 — DISCONNECTED status banner + workout flag
 	_try_complete_landing()  # yield landing — exit LOGIN once GSM has left BOOTING
 	_request_settle()
+
+
+## Manage the DISCONNECTED status banner + the workout-disconnect flag (story 012).
+## Entering DISCONNECTED from a workout-family state = a mid-workout drop → stay HIDDEN
+## with a peripheral banner (Rule 9a); from non-workout → DISCONNECTED_SHELL. The banner
+## is set/cleared immediately — never debounced (EC-C1: a DISCONNECTED↔IDLE flicker just
+## toggles the banner; both shell states keep entry affordances enabled).
+func _update_disconnect_surface(from_state: int) -> void:
+	if _gsm_state == GSMScript.GameState.DISCONNECTED:
+		_workout_disconnect = _is_workout_family(from_state)
+		_banner_stack.set_disconnected_status(true, _now_ms())
+	else:
+		_workout_disconnect = false
+		_banner_stack.set_disconnected_status(false)
+	_refresh_banner_layer_visibility()
 
 
 ## #2 auth_required observer (mock-scoped). reason is forwarded by #2 (G-LS-4
@@ -405,7 +426,9 @@ func _shell_state_for_gsm(gsm: int) -> int:
 		GSMScript.GameState.IDLE:
 			return ShellState.SHELL_IDLE
 		GSMScript.GameState.DISCONNECTED:
-			return ShellState.DISCONNECTED_SHELL
+			# A mid-workout drop stays HIDDEN (banner-only, Rule 9a); a non-workout
+			# disconnect surfaces the full DISCONNECTED_SHELL (story 012 / AC-37).
+			return ShellState.HIDDEN if _workout_disconnect else ShellState.DISCONNECTED_SHELL
 		_:
 			return ShellState.HIDDEN
 
@@ -595,6 +618,21 @@ func should_show_form() -> bool:
 func acknowledge_carve_out() -> void:
 	if _client != null and _client.has_method("acknowledge_carve_out_fix"):
 		_client.acknowledge_carve_out_fix()
+
+
+## ---- DISCONNECTED reconnect (story 012 — G-LS-4 mock-scoped) ----
+
+## The「再試一次」/ reconnect affordance. Requests an immediate #2 poll — a sense-of-agency
+## affordance ONLY; #24 never writes its own backoff (the cadence is #2's job — ADR-0002).
+## request_immediate_poll() is a #2 additive getter (not yet shipped — G-LS-4); guarded.
+func request_reconnect() -> void:
+	if _client != null and _client.has_method("request_immediate_poll"):
+		_client.request_immediate_poll()
+
+
+## True while a mid-workout drop is showing the peripheral banner (shell stays HIDDEN).
+func is_workout_disconnect() -> bool:
+	return _workout_disconnect
 
 
 ## ---- getters (test surface + later-story wiring points) ----

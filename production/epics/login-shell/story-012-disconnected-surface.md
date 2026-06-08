@@ -1,12 +1,12 @@
 # Story 012: DISCONNECTED surface + reconnect(workout banner-defer / non-workout shell)
 
 > **Epic**: Login / GymSys Connection UI(Shell)
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Presentation
 > **Type**: Integration
 > **Estimate**: M
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-09
 
 ## Context
 
@@ -75,3 +75,18 @@
 
 - Depends on: Story 004(FSM)+ Story 010(banner)；**G-LS-4 mock-scoped(37b)**
 - Unlocks: None
+
+---
+
+## Completion Notes
+**Completed**: 2026-06-09
+**Criteria**: 全 pass —
+- **AC-37**:GSM WORKOUT_ACTIVE → DISCONNECTED(from-state = workout-family)→ shell **留 HIDDEN**(唔入 DISCONNECTED_SHELL,Rule 9a 唔打斷 workout)+ ErrorBannerLayer peripheral DISCONNECTED banner visible
+- **AC-37b [GATED]**:`request_reconnect()` → spy `request_immediate_poll()` call==1(唔自己寫 backoff — #2 職責)
+- non-workout(IDLE → DISCONNECTED)→ `DISCONNECTED_SHELL`;`is_workout_disconnect()` 區分
+- **EC-C1**:DISCONNECTED↔IDLE toggle ×3 → 乾淨 settle(無 flicker)+ banner reconnect 後清;workout resume 後 banner 清 + flag 清
+**Test Evidence**: `tests/unit/login_shell/test_disconnected_surface.gd` — **5 funcs / 本地 5/5**(login_shell 全 104/104)。Combined gate + 全 lint(見 commit)。
+**Design**: `_workout_disconnect` flag(by from-state)+ `_shell_state_for_gsm` DISCONNECTED 分流(workout→HIDDEN / 否則 DISCONNECTED_SHELL)+ `_update_disconnect_surface(from)`(GSM handler 接 set_disconnected_status story 011 機制,immediate 唔 debounce — EC-C1)+ `request_reconnect()`(request_immediate_poll mock-scoped)。
+**G-LS-4 mock-scoped**: `request_immediate_poll` 係 #2 additive(未 ship)→ has_method 防禦;real boot no-op。真接線 = #2 erratum external。
+**Deviations**: None。banner copy「GymSys 照記住」+「再試一次」render 留 UI(story 015/019);本 story 釘 DISCONNECTED status banner + reconnect hook + from-state 分流。
+**Code Review**: N/A spawn(本地全套 GUT + lint 等效)。
