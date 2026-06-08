@@ -1,12 +1,12 @@
 # Story 002: G-LS-1 ADR-0001 + G-LS-2 ADR-0008 amendment(layer 拓撲 + autoload 位置)
 
 > **Epic**: Login / GymSys Connection UI(Shell)
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Presentation
 > **Type**: Config/Data(doc + config)
 > **Estimate**: S
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-08
 
 ## Context
 
@@ -71,3 +71,13 @@
 
 - Depends on: None
 - Unlocks: Story 003(scaffold — layer/位置 ADR 授權前提)
+
+---
+
+## Completion Notes
+**Completed**: 2026-06-08
+**Criteria**: 3/3 passing(AC-1 ADR-0001 amendment / AC-2 ADR-0008 amendment / AC-3 CLAUDE.md log 同步 — 全部 grep-verified)
+**Deviations**: None — GDD 對齊;manifest 2026-05-29 match;scope 內(adr-0001 / adr-0008 / .claude/docs/technical-preferences.md[CLAUDE.md @-include 嘅 ADR log 實際位置] / smoke doc / 本 story)
+**Test Evidence**: Config/Data smoke pass — `production/qa/smoke-login-shell-adr.md`(layer 62/111 唯一性 grep-verified:0/10/50/60/61/62/100/110/111/120 各一次,零衝突)
+**Code Review**: N/A — doc-only,零 `.gd` implementation file(consistency review = smoke 等效)
+**Amendment 落地**: ADR-0001 #24 G-LS-1 revision(L13 header + topology L118/L128 + capture enum sync L122/L140/L147/L154 + #24 detailed section L158-164)+ ADR-0008 #24 G-LS-2(header amendment line + reserved insertion rules table row)+ technical-preferences.md ADR-0001/0008 log row。**Story 003 scaffold ADR 授權前提滿足**。
