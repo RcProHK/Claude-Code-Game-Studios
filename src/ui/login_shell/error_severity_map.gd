@@ -20,9 +20,10 @@ extends Resource
 
 const ShellFormulas := preload("res://src/ui/login_shell/shell_formulas.gd")
 
-## 4 semantic classes (Rule 6) + UNMAPPED forward-compat default-deny. Ordinal order
-## is NOT the priority order — use priority_weight() for the main-slot comparator.
-enum Severity { TRANSIENT, FEATURE_DEGRADED, WIPE, ONGOING, UNMAPPED }
+## 4 semantic error classes (Rule 6) + UNMAPPED forward-compat default-deny +
+## DISCONNECTED connection-status class (story 011 — ranks ABOVE all error classes).
+## Ordinal order is NOT the priority order — use priority_weight() for the comparator.
+enum Severity { TRANSIENT, FEATURE_DEGRADED, WIPE, ONGOING, UNMAPPED, DISCONNECTED }
 
 ## The 4 upstream error sources (Rule 5). #3 = PersistenceLayer (code-classified);
 ## #8/#11/#12 = STREAK/STAT/ABILITY (source-classified → FEATURE_DEGRADED).
@@ -62,12 +63,23 @@ func classify_source_first(source: int, error_code: StringName) -> int:
 	return classify_code(error_code)  # source == PERSISTENCE (#3)
 
 
-## Main-slot priority weight (Rule 7 order: ONGOING > WIPE > FEATURE_DEGRADED >
-## TRANSIENT). UNMAPPED ranks AS ONGOING (default-deny is highest-safe weight).
+## Main-slot priority weight (Rule 7 ladder: DISCONNECTED > ONGOING > WIPE >
+## FEATURE_DEGRADED > TRANSIENT). UNMAPPED ranks AS ONGOING (default-deny is
+## highest-safe error weight). Explicit mapping — the enum ordinal is not the order.
 static func priority_weight(severity: int) -> int:
-	if severity == Severity.UNMAPPED:
-		return Severity.ONGOING
-	return severity
+	match severity:
+		Severity.DISCONNECTED:
+			return 5
+		Severity.ONGOING, Severity.UNMAPPED:
+			return 4
+		Severity.WIPE:
+			return 3
+		Severity.FEATURE_DEGRADED:
+			return 2
+		Severity.TRANSIENT:
+			return 1
+		_:
+			return 0
 
 
 ## ---- per-class flags (AC-30/31/32) ----

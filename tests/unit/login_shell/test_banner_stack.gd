@@ -70,3 +70,50 @@ func test_arrival_sequence_is_monotonic() -> void:
 	assert_eq(s.entries()[0]["arrival_sequence"], 1, "first = 1")
 	assert_eq(s.entries()[1]["arrival_sequence"], 2, "second = 2")
 	assert_eq(s.entries()[2]["arrival_sequence"], 3, "monotonic +1")
+
+
+# --- AC-33: DISCONNECTED status outranks ONGOING; resolving restores ONGOING (EC-B4) ---
+
+func test_ac33_disconnected_takes_main_slot_over_ongoing() -> void:
+	var s := _make()
+	s.dispatch_error(ESM.Source.PERSISTENCE, &"QUOTA_EXHAUSTED", "p")
+	assert_eq(s.main_slot()["severity"], ESM.Severity.ONGOING, "ONGOING holds slot first")
+	s.set_disconnected_status(true)
+	assert_eq(s.main_slot()["severity"], ESM.Severity.DISCONNECTED, "AC-33: DISCONNECTED takes main slot")
+	assert_eq(s.overflow_count(), 1, "ONGOING pushed to「+N」")
+
+
+func test_ac33_resolving_disconnected_restores_ongoing() -> void:
+	var s := _make()
+	s.dispatch_error(ESM.Source.PERSISTENCE, &"QUOTA_EXHAUSTED", "p")
+	s.set_disconnected_status(true)
+	assert_eq(s.main_slot()["severity"], ESM.Severity.DISCONNECTED, "DISCONNECTED in slot")
+	s.set_disconnected_status(false)
+	assert_eq(s.main_slot()["severity"], ESM.Severity.ONGOING, "AC-33/EC-B4: ONGOING rises back after resolve")
+	assert_eq(s.count(), 1, "DISCONNECTED status entry removed")
+
+
+func test_disconnected_status_is_single_not_duplicated() -> void:
+	var s := _make()
+	s.set_disconnected_status(true, 100)
+	s.set_disconnected_status(true, 200)  # re-assert
+	assert_eq(s.count(), 1, "single DISCONNECTED status banner (re-assert refreshes, not duplicates)")
+
+
+# --- AC-34: dedupe — same key re-fire refreshes timestamp, does not inflate「+N」 ---
+
+func test_ac34_same_key_refire_does_not_add_entry() -> void:
+	var s := _make()
+	s.dispatch_error(ESM.Source.PERSISTENCE, &"FLUSH_FAILED", "k1", 100)
+	assert_eq(s.count(), 1, "first fire → 1 entry")
+	s.dispatch_error(ESM.Source.PERSISTENCE, &"FLUSH_FAILED", "k1", 200)  # same key
+	assert_eq(s.count(), 1, "AC-34: same key re-fire → count UNCHANGED (no dupe)")
+	assert_eq(s.entries()[0]["timestamp_ms"], 200, "AC-34: timestamp refreshed (100 → 200)")
+	assert_eq(s.overflow_count(), 0, "「+N」not inflated")
+
+
+func test_ac34_different_key_same_code_does_add() -> void:
+	var s := _make()
+	s.dispatch_error(ESM.Source.PERSISTENCE, &"FLUSH_FAILED", "k1", 100)
+	s.dispatch_error(ESM.Source.PERSISTENCE, &"FLUSH_FAILED", "k2", 100)  # different key
+	assert_eq(s.count(), 2, "different key (k1 vs k2) → distinct entries")

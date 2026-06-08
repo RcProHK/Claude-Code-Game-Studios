@@ -35,10 +35,23 @@ func set_severity_map(map) -> void:
 		_severity_map = map
 
 
+## Connection-status dedupe key (story 011 — single DISCONNECTED status banner).
+const DISCONNECTED_DEDUPE_KEY: String = "STATUS|DISCONNECTED"
+
+
 ## The 4-system error consumer entry point (Rule 5 — every error edge terminates in a
 ## visible entry; zero silent-swallow). Classifies SOURCE-FIRST, enqueues, returns the
-## severity. error_code is ignored for #8/#11/#12 (source → FEATURE_DEGRADED).
-func dispatch_error(source: int, error_code: StringName, key: Variant) -> int:
+## severity. error_code is ignored for #8/#11/#12 (source → FEATURE_DEGRADED). DEDUPE
+## (story 011 / AC-34): a re-fire of the same (source, error_code, key) does NOT add a
+## second entry — it refreshes the existing entry's timestamp + TTL window (so「+N」is
+## not inflated). `now_ms` is the injected arrival clock (banner t_banner_start for F2).
+func dispatch_error(source: int, error_code: StringName, key: Variant, now_ms: int = 0) -> int:
+	var dkey: String = _dedupe_key(source, error_code, key)
+	var existing: Dictionary = _find_by_dedupe(dkey)
+	if not existing.is_empty():
+		existing["timestamp_ms"] = now_ms
+		existing["t_banner_start_ms"] = now_ms  # re-fire refreshes the TTL window
+		return existing["severity"]
 	var severity: int = _severity_map.classify_source_first(source, error_code)
 	_arrival_sequence += 1
 	_entries.append({
@@ -47,9 +60,46 @@ func dispatch_error(source: int, error_code: StringName, key: Variant) -> int:
 		"key": key,
 		"severity": severity,
 		"arrival_sequence": _arrival_sequence,
-		"dedupe_key": _dedupe_key(source, error_code, key),
+		"dedupe_key": dkey,
+		"timestamp_ms": now_ms,
+		"t_banner_start_ms": now_ms,
 	})
 	return severity
+
+
+## Set / clear the DISCONNECTED connection-status banner (story 011 / AC-33). It ranks
+## above every error class (Rule 7 ladder). A single status banner — re-asserting while
+## active just refreshes its timestamp; clearing removes it so the next-highest error
+## rises back into the main slot (EC-B4).
+func set_disconnected_status(active: bool, now_ms: int = 0) -> void:
+	var existing: Dictionary = _find_by_dedupe(DISCONNECTED_DEDUPE_KEY)
+	if active:
+		if existing.is_empty():
+			_arrival_sequence += 1
+			_entries.append({
+				"source": -1,
+				"error_code": &"",
+				"key": null,
+				"severity": ESM.Severity.DISCONNECTED,
+				"arrival_sequence": _arrival_sequence,
+				"dedupe_key": DISCONNECTED_DEDUPE_KEY,
+				"timestamp_ms": now_ms,
+				"t_banner_start_ms": now_ms,
+			})
+		else:
+			existing["timestamp_ms"] = now_ms
+	elif not existing.is_empty():
+		_entries.erase(existing)
+
+
+## Find an entry by dedupe_key (returns the live dict by reference, or {} if absent).
+## Dictionaries in a Godot Array are reference-shared, so mutating the result mutates
+## the stored entry.
+func _find_by_dedupe(dkey: String) -> Dictionary:
+	for e: Dictionary in _entries:
+		if e["dedupe_key"] == dkey:
+			return e
+	return {}
 
 
 ## Dedupe key = (signal_source, error_code, key/id). StringName → String BEFORE any

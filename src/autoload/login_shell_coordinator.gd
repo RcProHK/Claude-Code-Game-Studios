@@ -116,6 +116,9 @@ var _login_entry_count: int = 0
 ## Scaffold-only: last lifecycle event tag (AC-02 cycle observability; zero persist).
 var _last_lifecycle_event: StringName = &""
 
+## Test clock override for banner timestamps (>= 0 → use this instead of Time; story 011).
+var _clock_override_ms: int = -1
+
 
 func _ready() -> void:
 	_instantiate_layers()
@@ -231,21 +234,42 @@ func _wire_error_consumers() -> void:
 ## ---- 4-system error handlers (Rule 5 → BannerStack.dispatch_error) ----
 
 func _on_persistence_error(error_code: String, key: String) -> void:
-	_banner_stack.dispatch_error(ESM.Source.PERSISTENCE, StringName(error_code), key)
+	_banner_stack.dispatch_error(ESM.Source.PERSISTENCE, StringName(error_code), key, _now_ms())
+	_refresh_banner_layer_visibility()
 
 
 func _on_streak_error(error_code: String, key: String) -> void:
-	_banner_stack.dispatch_error(ESM.Source.STREAK, StringName(error_code), key)
+	_banner_stack.dispatch_error(ESM.Source.STREAK, StringName(error_code), key, _now_ms())
+	_refresh_banner_layer_visibility()
 
 
 func _on_stat_error(stat_id: StringName) -> void:
 	# #11/#12 are source-classified FEATURE_DEGRADED — error_code is irrelevant; the
 	# stat_id is the dedupe key.
-	_banner_stack.dispatch_error(ESM.Source.STAT, &"", stat_id)
+	_banner_stack.dispatch_error(ESM.Source.STAT, &"", stat_id, _now_ms())
+	_refresh_banner_layer_visibility()
 
 
 func _on_ability_error(ability_id: StringName) -> void:
-	_banner_stack.dispatch_error(ESM.Source.ABILITY, &"", ability_id)
+	_banner_stack.dispatch_error(ESM.Source.ABILITY, &"", ability_id, _now_ms())
+	_refresh_banner_layer_visibility()
+
+
+## Banner arrival clock. The coordinator is NOT a formula path (the AC-51 clock-seam
+## grep targets shell_formulas.gd), so it is the legitimate injected-clock SOURCE here;
+## tests override via `_clock_override_ms` (>= 0) for deterministic timestamps.
+func _now_ms() -> int:
+	if _clock_override_ms >= 0:
+		return _clock_override_ms
+	return Time.get_ticks_msec()
+
+
+## ErrorBannerLayer (111 ALWAYS) visibility is driven SOLELY by whether a banner
+## exists — INDEPENDENT of the shell FSM / LoginShellLayer (two-layer separation,
+## Rule 1 / AC-54 / EC-E3): an ONGOING/WIPE banner surfaces over a paused
+## WORKOUT_ACTIVE world even while the login surface stays hidden.
+func _refresh_banner_layer_visibility() -> void:
+	_banner_layer.visible = _banner_stack.count() > 0
 
 
 ## ---- shell FSM (story 004) ----

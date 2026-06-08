@@ -1,12 +1,12 @@
 # Story 011: Banner stacking + dedupe + DISCONNECTED priority + two-layer 獨立性
 
 > **Epic**: Login / GymSys Connection UI(Shell)
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Presentation
 > **Type**: Integration
 > **Estimate**: S
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-09
 
 ## Context
 
@@ -74,3 +74,19 @@
 
 - Depends on: Story 010(banner core)
 - Unlocks: None
+
+---
+
+## Completion Notes
+**Completed**: 2026-06-09
+**Criteria**: 全 pass —
+- **AC-33**:`set_disconnected_status(true)` → DISCONNECTED(priority_weight 5)佔主 slot,ONGOING 入「+N」;`(false)` → ONGOING 升返(EC-B4),DISCONNECTED entry 移除
+- **AC-34**:同 dedupe_key `(PERSISTENCE, FLUSH_FAILED, k1)` 再 fire → count 不變、`timestamp_ms` 100→200 更新、overflow 唔虛高;不同 key(k1 vs k2)→ 兩 entry
+- **AC-54**:shell HIDDEN(GSM WORKOUT_ACTIVE,LoginShellLayer.visible==false)+ #3 ONGOING emit → `ErrorBannerLayer.visible==true`(two-layer 獨立 — EC-E3)
+**Test Evidence**: `test_banner_stack.gd`(+5 = 11/11,AC-33/34)+ `test_layer_spec.gd`(2/2,AC-54)— **本地 7/7 新增**(login_shell 全 72/72)。
+**Design**:
+- ESM 加 `Severity.DISCONNECTED` + explicit `priority_weight` match(DISCONNECTED 5 > ONGOING/UNMAPPED 4 > WIPE 3 > FEATURE_DEGRADED 2 > TRANSIENT 1)。
+- banner_stack:`dispatch_error` 加 `now_ms` + dedupe(`_find_by_dedupe` by-reference dict mutate)+ `timestamp_ms`/`t_banner_start_ms`;`set_disconnected_status(active, now_ms)` 單 status banner(STATUS|DISCONNECTED dedupe_key)。
+- coordinator:handlers 加 `_now_ms()`(Time seam,`_clock_override_ms` test 注入;非 formula path 故可讀 Time)+ `_refresh_banner_layer_visibility()`(ErrorBannerLayer.visible = count>0,**獨立 shell FSM**)。
+**Deviations**: None。「+N」detail-list live-append(EC-B7)= UI render 層(本 story `overflow_count` 機制就位,render 留後);DISCONNECTED status 由 GSM 觸發 wiring = story 012(本 story 直驗 banner_stack 機制)。
+**Code Review**: N/A spawn(本地全套 GUT + lint 等效)。
