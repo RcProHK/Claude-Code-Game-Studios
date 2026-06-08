@@ -1,12 +1,12 @@
 # Story 006: Formula 1 — Rate-Limited Countdown(injected clock, integer-ms, m:ss)
 
 > **Epic**: Login / GymSys Connection UI(Shell)
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Presentation
 > **Type**: Logic
 > **Estimate**: S
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-09
 
 ## Context
 
@@ -80,3 +80,13 @@
 
 - Depends on: Story 003(coordinator — clock seam）
 - Unlocks: Story 008(claim flow rate_limited path 用本 formula）
+
+---
+
+## Completion Notes
+**Completed**: 2026-06-09
+**Criteria**: 全 pass — AC-16(t=115 → 15;ceil t=129.5→1 / t=129.999→1)/ AC-17(t=130 → 0 + submit_enabled)/ AC-18(retry_after 0/負 → 0 即 re-enable)+ display format(N≤99 inline / N=100→1:40 / 3600→60:00 / zero-pad ss)。
+**Test Evidence**: `tests/unit/login_shell/test_rate_limit_formula.gd` — **9 funcs,本地 9/9 pass**(login_shell 全 31 pass,零 regression)。
+**Design**: `src/ui/login_shell/shell_formulas.gd`(RefCounted static funcs;F1 = `display_seconds`/`submit_enabled`/`format_countdown`)。Integer-ms internal(`r*1000 - (now_ms - t_start_ms)`,`ceili(/1000.0)`)去 float boundary-flaky;injected `now_ms`(AC-51 — 零 `Time.get_ticks_msec()` 直 call)。
+**Deviations**: None(pure formula,無 ADR / 無 boot impact)。F2 + knob validation = story 007(同 file 增量)。
+**Code Review**: N/A spawn(本地 GUT 等效)。
