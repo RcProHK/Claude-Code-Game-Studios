@@ -90,6 +90,12 @@ var _streak = null       ## StreakSystem (#8) — streak_persistence_failed → 
 var _stat = null         ## StatSystem (#11) — stat_critical_save_failed → FEATURE_DEGRADED banner
 var _ability = null      ## AbilitySystem (#12) — ability_unlock_save_failed → FEATURE_DEGRADED banner
 var _platform = null     ## PlatformDetect — announce_aria (story 019 a11y)
+var _character_screen = null  ## CharacterScreenCoordinator (#22) — request_open arbiter target
+var _inventory_ui = null      ## InventoryUICoordinator (#23) — request_open arbiter target
+
+## request_open last-wins pending target (story 013 — rapid-tap / concurrent race guard;
+## a later request_open inside the same deferred window overwrites it, never double-opens).
+var _pending_open_target: StringName = &""
 
 ## ---- owned CanvasLayers (Rule 1: coordinator is the sole instantiator) ----
 var _shell_layer: CanvasLayer = null
@@ -272,6 +278,10 @@ func _resolve_default_seams() -> void:
 		_ability = get_node_or_null("/root/AbilitySystem")
 	if _platform == null:
 		_platform = get_node_or_null("/root/PlatformDetect")
+	if _character_screen == null:
+		_character_screen = get_node_or_null("/root/CharacterScreenCoordinator")
+	if _inventory_ui == null:
+		_inventory_ui = get_node_or_null("/root/InventoryUICoordinator")
 
 
 ## Wire the 4 upstream error signals into the BannerStack (Rule 5 — #24 is the SOLE
@@ -633,6 +643,68 @@ func request_reconnect() -> void:
 ## True while a mid-workout drop is showing the peripheral banner (shell stays HIDDEN).
 func is_workout_disconnect() -> bool:
 	return _workout_disconnect
+
+
+## ---- entry affordance + mutual-exclusion arbiter (story 013 — Rule 10/11) ----
+
+## Central mutual-exclusion arbiter (Rule 11). Closes whatever screen is open, then
+## defer-opens the target (last-wins latch — a rapid second request_open overwrites the
+## pending target rather than queueing a double-open). #24 NEVER subscribes #22/#23 state
+## — it actively calls them behind has_method guards (the #22 G-IU-4 glue discipline).
+func request_open(screen_id: StringName) -> void:
+	_pending_open_target = screen_id
+	_close_open_screens()
+	call_deferred("_apply_pending_open")
+
+
+func _close_open_screens() -> void:
+	if _character_screen != null and _character_screen.has_method("close"):
+		_character_screen.close()
+	if _inventory_ui != null and _inventory_ui.has_method("close"):
+		_inventory_ui.close()
+
+
+## Deferred open of the latched target (AC-40). Double guard: NEVER bypass the screen's
+## own can_open() (defense in depth) — a false result is logged and the open is skipped,
+## never forced (EC-E4). last-wins: only the final pending target is honoured.
+func _apply_pending_open() -> void:
+	var target: StringName = _pending_open_target
+	_pending_open_target = &""
+	var screen = _resolve_open_target(target)
+	if screen == null:
+		return
+	if screen.has_method("can_open") and not screen.can_open():
+		push_warning("LoginShellCoordinator.request_open(%s) — can_open() false, not forced (EC-E4)" % target)
+		return
+	if screen.has_method("open"):
+		screen.open()
+
+
+func _resolve_open_target(screen_id: StringName):
+	match screen_id:
+		&"character_screen":
+			return _character_screen
+		&"inventory":
+			return _inventory_ui
+		_:
+			return null
+
+
+## Entry affordances are rendered only in the steady shell states (SHELL_IDLE /
+## DISCONNECTED_SHELL); workout-family / LOGIN / DRAINING states hide them entirely
+## (Rule 10 — enabled/hidden two-state, NEVER a greyed disabled full-feature surface).
+func is_entry_visible() -> bool:
+	return _state == ShellState.SHELL_IDLE or _state == ShellState.DISCONNECTED_SHELL
+
+
+## Entry-card alpha (Rule 10 three-state, applied only while is_entry_visible()):
+## 1.0 = enabled (screen can_open()); 0.55 = interactive-dimmed (rare can_open()==false
+## race — still tappable → inline reason, NOT greyed-disabled). alpha != desaturate.
+func get_entry_card_alpha(screen_id: StringName) -> float:
+	var screen = _resolve_open_target(screen_id)
+	if screen != null and screen.has_method("can_open") and not screen.can_open():
+		return 0.55
+	return 1.0
 
 
 ## ---- getters (test surface + later-story wiring points) ----

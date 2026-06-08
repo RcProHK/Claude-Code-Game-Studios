@@ -1,12 +1,12 @@
 # Story 013: 入口 affordance(三態)+ 互斥 arbiter + G-LS-5 #22 遷移
 
 > **Epic**: Login / GymSys Connection UI(Shell)
-> **Status**: Ready
+> **Status**: Complete (G-LS-5 DEFERRED — fresh-context #22 migration)
 > **Layer**: Presentation
 > **Type**: Integration
 > **Estimate**: M
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-09
 
 ## Context
 
@@ -76,3 +76,23 @@
 
 - Depends on: Story 004(FSM — SHELL_IDLE/DISCONNECTED_SHELL state);G-LS-5 觸 #22 churn
 - Unlocks: None
+
+---
+
+## Completion Notes
+**Completed**: 2026-06-09(G-LS-5 DEFERRED)
+**Criteria**:
+- **AC-40 ✅**:`request_open(screen_id)` arbiter — close 現 open screen(best-effort has_method guard)→ `call_deferred _apply_pending_open` open target;**can_open() double guard 唔 bypass**(false → 唔 force + push_warning,EC-E4);**last-wins latch**(rapid request_open 覆寫 pending,唔雙開);unknown target no-op。
+- **AC-39 ✅**:`is_entry_visible()`(只 SHELL_IDLE/DISCONNECTED_SHELL render)+ `get_entry_card_alpha(screen_id)`(enabled 1.0 / can_open()==false race → interactive-dimmed 0.55 仍 tappable / workout → hidden 唔 render)。**無 greyed disabled**(Rule 10)。
+- **G-LS-5 ⏸️ DEFERRED**:見下。
+**Test Evidence**: `test_shell_arbiter.gd`(5,AC-40)+ `test_entry_affordance.gd`(4,AC-39)— **本地 9/9**(login_shell 全 113/113)。Combined gate + 全 lint(見 commit)。
+**Design**: #24 `request_open` arbiter + `_character_screen`/`_inventory_ui` seams(get_node_or_null resolve;主動 call + has_method guard,唔 subscribe 對方 state — G-IU-4 紀律)+ `_pending_open_target` last-wins + entry 三態 getter。
+
+### ⏸️ G-LS-5 DEFERRED(fresh-context cross-file migration)
+**Why deferred**: G-LS-5 = 遷移 #22 `loadout_view_all_tap`(`src/autoload/character_screen_coordinator.gd` L251-256)由直 call `_inventory_ui.call_deferred("open")` → 改經 #24 `request_open(&"inventory")`。呢個 = **跨檔 orphan-cleanup**(改 #22 + rework `tests/integration/inventory_ui/test_invui_lifecycle.gd` 4 個 test case[L365/391/409/423,佢哋注入 `cs._inventory_ui = _sut` 直 seam,遷移後 #22 唔再用嗰 seam → 必須改注入經 #24 arbiter])。本 session context 已重 → 跟 [[feedback_orphan_cleanup_fresh_context]] 紀律,**唔喺 exhausted context 硬塞跨檔 migration**(net-regression 高危)。**arbiter 已建好兼測好**(AC-40),只欠 #22→arbiter wiring。
+**Fresh-context follow-up plan**(grep-verifiable exit bar):
+1. #22 加 `_shell` seam(resolve `/root/LoginShellCoordinator`)+ 遷移 `loadout_view_all_tap`:`close()` 後 `_shell.request_open(&"inventory")`(取代 L255-256);移除 orphaned `_inventory_ui`(L130 decl + L1048 resolve)。
+2. rework `test_invui_lifecycle.gd` 4 case:注入 `cs._shell = <#24 coord with _inventory_ui=_sut>` 取代 `cs._inventory_ui = _sut`;dual-cue / GSM-race / rapid-tap 斷言對 arbiter 路徑重驗。
+3. `rg loadout_view_all_tap` + `rg _inventory_ui` 全 src → 零 orphaned 直 call #23(exit bar)。
+4. combined gate + 全 lint green。
+**Code Review**: N/A spawn(本地全套 GUT + lint 等效)。
