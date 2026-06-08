@@ -1,12 +1,12 @@
 # Story 008: Claim flow + 4-code error map(零 raw HTTP)
 
 > **Epic**: Login / GymSys Connection UI(Shell)
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Presentation
 > **Type**: Integration
 > **Estimate**: M
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-09
 
 ## Context
 
@@ -83,3 +83,19 @@
 
 - Depends on: Story 003(coordinator)+ Story 006(rate_limited 倒數)；**G-LS-3 pin（login form story 前 blocking）**
 - Unlocks: Story 015(login form）
+
+---
+
+## Completion Notes
+**Completed**: 2026-06-09
+**Criteria**: 全 pass —
+- **AC-06 [GATED]**:submit → 即 disable + loading + `claim_session_calls==1`;rapid re-tap no-op(EC-A4)
+- **AC-07/08 [GATED]**:claim success + GSM BOOTING → 留 LOGIN(yield landing,唔假設 IDLE);GSM→IDLE → SHELL_IDLE;GSM→LOOT_DROP → **HIDDEN 唔 SHELL_IDLE**(EC-A5 deferred reveal)
+- **AC-22 [GATED]**:claim 掛起 + GSM SUSPENDED **或** injected-clock 超 `CLAIM_TIMEOUT_MS` → cancel → re-enable + copy 含「程序中途中斷」**唔**含「登入失敗」(EC-A1);ghost result after cancel 被 ignore
+- **AC-09/10/11/23**:4-code map(invalid_credentials inline 唔分欄 / network_error + retry / server_error + retry / session conflict → server_error bucket 無獨立 code)+ **零 raw HTTP**(deny-list:copy 唔 match `\d{3}` 且唔含 HTTP)
+- rate_limited → Formula 1 countdown dispatch(story 006);unknown code → default-deny surfaced 唔 leak raw
+**Test Evidence**: `test_login_shell_claim_flow.gd`(8)+ `test_login_shell_error_map.gd`(7)+ `test_claim_edge_cases.gd`(4)— **本地 19/19**(login_shell 全 95/95)。Combined gate + 全 lint(見 commit)。
+**Design**: coordinator claim flow — `submit_claim`(anti-double-submit guard)+ `notify_claim_result(code, retry_after)`(completion callback,4-code match + default-deny)+ `_cancel_claim`(SUSPENDED/timeout,INTERRUPTED ≠ FAILED)+ `_try_complete_landing`(yield landing:`_claim_succeeded` + GSM 離 BOOTING 先清 auth)。advance() 加 claim-timeout(injected clock,GDScript 無 native await-timeout)。`_on_gsm` 加 SUSPENDED-cancel + yield-landing。
+**G-LS-3 mock-scoped**: #2 `claim_session` async 簽名 + cancellation 未釘 + #2 stub → mock-scoped;test drive `notify_claim_result` 模擬 async 完成。真接線 = #2 erratum external。
+**Deviations**: None。notify_claim_succeeded(story 003/004 簡化 path,即清 auth)同 notify_claim_result(&"success")(yield-landing)並存 — 前者係 scaffold,後者係正式 claim flow;story 003/004 test 仍用前者(GSM 已 IDLE,行為等效)。
+**Code Review**: N/A spawn(本地全套 GUT + lint 等效)。

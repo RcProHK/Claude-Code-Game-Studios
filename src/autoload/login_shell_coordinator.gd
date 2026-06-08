@@ -52,6 +52,8 @@ const GSMScript := preload("res://src/autoload/game_state_machine.gd")
 
 ## Error severity classification (Rule 5/6 — Source enum for the 4-system consumer).
 const ESM := preload("res://src/ui/login_shell/error_severity_map.gd")
+## Formula 1 rate-limit countdown (claim rate_limited path — story 006/008).
+const ShellFormulas := preload("res://src/ui/login_shell/shell_formulas.gd")
 ## Data-driven severity map instance (designer edits .tres, not code — Rule 6).
 const ERROR_SEVERITY_MAP_PATH: String = "res://assets/data/error_severity_map.tres"
 
@@ -118,6 +120,24 @@ var _last_lifecycle_event: StringName = &""
 
 ## Test clock override for banner timestamps (>= 0 → use this instead of Time; story 011).
 var _clock_override_ms: int = -1
+
+## ---- claim flow (story 008) ----
+## G-LS-3 GATED: #2 claim_session async signature + cancellation are unpinned and #2 is
+## a stub, so the claim is mock-scoped — submit_claim() initiates; notify_claim_result()
+## is the completion callback the #2 client (or a test) invokes. The await/signal
+## mechanism is pinned later in the #2 erratum.
+const CLAIM_TIMEOUT_MS: float = 10000.0  ## injected-clock cancel fallback (no native await-timeout)
+
+var _claim_loading: bool = false       ## submit disabled + loading shown
+var _claim_pending: bool = false       ## a claim is in flight (timeout/cancel window)
+var _claim_succeeded: bool = false     ## claim OK — yield landing until GSM leaves BOOTING
+var _claim_elapsed_ms: float = 0.0     ## injected-clock cancel timer
+var _claim_session_calls: int = 0      ## anti-double-submit observability (AC-06)
+var _claim_error_copy: String = ""     ## inline error message ("" = none); zero raw HTTP
+var _claim_show_retry: bool = false    ## network_error / server_error show a retry button
+## rate_limited countdown state (dispatched to Formula 1 — story 006).
+var _rate_limit_retry_after: int = 0
+var _rate_limit_t_start_ms: int = 0
 
 
 func _ready() -> void:
@@ -317,11 +337,17 @@ func advance(delta_ms: float) -> void:
 	if _settle_pending:
 		_settle_pending = false
 		_begin_transition_if_needed()
+	if _claim_pending:
+		# Injected-clock cancel fallback (AC-22 / EC-A1): GDScript has no native
+		# await-timeout, so a hung claim is bounded here.
+		_claim_elapsed_ms += delta_ms
+		if _claim_elapsed_ms >= CLAIM_TIMEOUT_MS:
+			_cancel_claim()
 	if _fading:
 		_fade_elapsed_ms += delta_ms
 		if _fade_elapsed_ms >= SHELL_FADE_MS:
 			_complete_fade()
-	if not _settle_pending and not _fading:
+	if not _settle_pending and not _fading and not _claim_pending:
 		set_process(false)  # idle — zero processing when settled (#23 precedent)
 
 
@@ -329,6 +355,11 @@ func advance(delta_ms: float) -> void:
 ## the live GSM state and queues a settle — never transitions inline.
 func _on_gsm_state_changed(_from_state, to_state, _payload) -> void:
 	_gsm_state = int(to_state)
+	# A SUSPENDED interrupt cancels an in-flight claim (EC-A1 — backgrounded mid-claim;
+	# the await would hang, so cancel deterministically rather than show a false failure).
+	if _gsm_state == GSMScript.GameState.SUSPENDED and _claim_pending:
+		_cancel_claim()
+	_try_complete_landing()  # yield landing — exit LOGIN once GSM has left BOOTING
 	_request_settle()
 
 
@@ -438,6 +469,88 @@ func request_logout() -> void:
 	_request_settle()
 
 
+## ---- claim flow (story 008 — G-LS-3 mock-scoped) ----
+
+## Submit the login form. Disables submit + shows loading immediately and counts the
+## call (AC-06 anti-double-submit: a second tap while loading is a no-op). Initiates the
+## claim through #2 if present; the completion arrives via notify_claim_result().
+func submit_claim(username: String, password: String) -> void:
+	if _claim_loading:
+		return  # anti-double-submit (AC-06 / EC-A4)
+	_claim_loading = true
+	_claim_error_copy = ""
+	_claim_show_retry = false
+	_claim_succeeded = false
+	_claim_session_calls += 1
+	_claim_pending = true
+	_claim_elapsed_ms = 0.0
+	set_process(true)  # arm the injected-clock cancel timer
+	if _client != null and _client.has_method("claim_session"):
+		_client.claim_session(username, password)  # mock-scoped; result via notify_claim_result
+
+
+## Claim completion callback (#2 client or test invokes). Maps the result to a 4-code
+## error surface — NEVER leaks a raw HTTP code (Rule 3 / #2 L310 contract). Ghost-safe:
+## a result arriving after a cancel/timeout is ignored.
+func notify_claim_result(code: StringName, retry_after: int = 0) -> void:
+	if not _claim_pending:
+		return  # ghost result after cancel/timeout (AC-22 race) — ignore
+	_claim_pending = false
+	_claim_loading = false
+	match code:
+		&"success":
+			# Yield landing (AC-07/08): do NOT assume IDLE. Stay LOGIN until GSM actually
+			# leaves BOOTING, then derive the landing state from the live GSM.
+			_claim_succeeded = true
+			_try_complete_landing()
+		&"invalid_credentials":
+			_claim_error_copy = "username 或者 password 唔啱"  # field-level, no side disclosed
+		&"network_error":
+			_claim_error_copy = "而家連唔到，請再試一次"
+			_claim_show_retry = true
+		&"server_error":
+			# session conflict also buckets here (AC-23) — no conflict-specific copy.
+			_claim_error_copy = "伺服器嗰邊出咗少少問題，請再試一次"
+			_claim_show_retry = true
+		&"rate_limited":
+			_rate_limit_retry_after = retry_after
+			_rate_limit_t_start_ms = _now_ms()  # Formula 1 countdown (story 006)
+		_:
+			# Defensive default-deny — an unknown result code is still surfaced, never
+			# silently swallowed, and never leaks the raw value.
+			_claim_error_copy = "登入遇到未知問題，請再試一次"
+			_claim_show_retry = true
+
+
+## Cancel an in-flight claim (SUSPENDED interrupt or injected-clock timeout — EC-A1).
+## Re-enables submit with an INTERRUPTED message — explicitly NOT a「登入失敗」(the claim
+## never failed; it was interrupted), so the player is not falsely told they were rejected.
+func _cancel_claim() -> void:
+	_claim_pending = false
+	_claim_loading = false
+	_claim_succeeded = false
+	_claim_error_copy = "登入程序中途中斷，請再試一次"
+
+
+## Complete the yield-landing once the claim succeeded AND GSM has left BOOTING (States
+## table LOGIN exit). Clears auth so the FSM derives the real landing state.
+func _try_complete_landing() -> void:
+	if not _claim_succeeded:
+		return
+	if _gsm_state == GSMScript.GameState.BOOTING or _gsm_state == -1:
+		return  # still booting — keep showing the login/loading surface
+	_auth_required = false
+	_claim_succeeded = false
+	_request_settle()
+
+
+## Rate-limit countdown seconds remaining (0 = submit re-enabled). Formula 1 (story 006).
+func get_rate_limit_seconds() -> int:
+	if _rate_limit_retry_after <= 0:
+		return 0
+	return ShellFormulas.display_seconds(_rate_limit_retry_after, _rate_limit_t_start_ms, _now_ms())
+
+
 ## ---- getters (test surface + later-story wiring points) ----
 
 func get_shell_layer() -> CanvasLayer:
@@ -494,3 +607,21 @@ func get_fade_alpha() -> float:
 ## How many times LOGIN was freshly entered (AC-24 idempotence assertion seam).
 func get_login_entry_count() -> int:
 	return _login_entry_count
+
+
+## ---- claim getters (story 008) ----
+
+func is_claim_loading() -> bool:
+	return _claim_loading
+
+
+func get_claim_session_calls() -> int:
+	return _claim_session_calls
+
+
+func get_claim_error_copy() -> String:
+	return _claim_error_copy
+
+
+func get_claim_show_retry() -> bool:
+	return _claim_show_retry
