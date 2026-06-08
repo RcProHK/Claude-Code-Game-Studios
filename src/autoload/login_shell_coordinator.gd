@@ -47,6 +47,25 @@ const ERROR_BANNER_LAYER: int = 111  ## ALWAYS, >100 immune / <120 below #21 mod
 const BannerStack := preload("res://src/ui/login_shell/banner_stack.gd")
 const ShellTransitions := preload("res://src/ui/login_shell/shell_transitions.gd")
 
+## GSM enum source (referenced for state mapping — #21/#23 precedent).
+const GSMScript := preload("res://src/autoload/game_state_machine.gd")
+
+## Cross-fade duration (GDD「轉場紀律」SHELL_FADE_SEC default 0.25s; story 004).
+## No hard-cut — onset transient = attention event. No abort mid-tween (EC-E1).
+const SHELL_FADE_MS: float = 250.0
+
+## Shell internal FSM (story 004 — 5 states; NOT GSM states. The shell OBSERVES
+## GSM + #2 signals and derives its own state; it NEVER requests a GSM transition
+## [ADR-0006 — GSM owns states, #24 owns 分流]. Banner stack is an orthogonal
+## overlay [Rule 7], independent of this FSM.)
+enum ShellState {
+	HIDDEN,              ## GSM in BOOTING(token)/workout-family/SUSPENDED — no shell surface
+	LOGIN,               ## auth_required (highest-priority interrupt) — full-screen form
+	SHELL_IDLE,          ## GSM IDLE + token — entry affordances + green status
+	DISCONNECTED_SHELL,  ## GSM DISCONNECTED (non-workout) — reconnect + entry still enabled
+	DRAINING,            ## logout tap — optimistic「已登出」+ drain banner (story 014 fills content)
+}
+
 ## ---- DI seams (UNTYPED — reference_gdscript_di_seam: a typed Node hint fails the
 ## compile-time member check against autoload scripts that expose no class_name). ----
 var _gsm = null          ## GameStateMachine (#1) — cfis subscribe at _ready (AC-27)
@@ -65,8 +84,27 @@ var _banner_stack: Node = null       ## BannerStack (banner_stack.gd; severity =
 var _shell_entry: Node = null        ## IDLE entry affordances (story 013)
 var _shell_transitions = null        ## ShellTransitions cross-fade helper (story 004 wires)
 
-## Scaffold-only: coarse last-seen GSM state. Real 5-state shell FSM = story 004.
+## ---- shell FSM state (story 004) ----
+var _state: int = ShellState.HIDDEN
+## Last-seen GSM state (observability; drives _derive_target).
 var _gsm_state: int = -1
+## Outstanding auth requirement — set on #2 auth_required, cleared on claim success.
+## When true + GSM not workout-family ⇒ LOGIN; + GSM workout-family ⇒ deferred (Rule 9a).
+var _auth_required: bool = false
+## Logout in progress (DRAINING; story 014 fills the optimistic surface + drain banner).
+var _draining: bool = false
+## A re-derive is queued for the next advance() tick (the「下一 frame」discipline:
+## observer handlers never transition synchronously — they flag + settle next tick).
+var _settle_pending: bool = false
+## Cross-fade in progress (no abort mid-tween — EC-E1). `_state` is the LOGICAL
+## state (flips at transition start); `_fading` is the visual catch-up animating
+## from the previous surface.
+var _fading: bool = false
+var _fade_elapsed_ms: float = 0.0
+## How many times LOGIN was freshly entered (AC-24 idempotence observability —
+## a re-fired auth_required while already LOGIN must NOT re-enter / re-render).
+var _login_entry_count: int = 0
+
 ## Scaffold-only: last lifecycle event tag (AC-02 cycle observability; zero persist).
 var _last_lifecycle_event: StringName = &""
 
@@ -80,6 +118,15 @@ func _ready() -> void:
 	# implements cfis; a fallback would be dead code, #23 _subscribe_all precedent).
 	if _gsm != null and _gsm.has_method("connect_for_initial_state"):
 		_gsm.connect_for_initial_state(_on_gsm_state_changed)
+	# #2 GymSysBackendClient auth_required (mock-scoped — the real #2 is a STUB with
+	# no signals yet: G-LS-3/4 erratum, VS-tier-gated. The has_signal guard makes
+	# this a no-op against the stub and live for an injected mock / future real #2.
+	# drain_started/drain_completed = story 014.) #24 never requests a GSM transition.
+	if _client != null and _client.has_signal("auth_required"):
+		_client.auth_required.connect(_on_auth_required)
+	# Idle unless the cfis sentinel already queued a settle (real GSM defers it to
+	# next frame; a mock may fire synchronously). _request_settle re-enables _process.
+	set_process(_settle_pending or _fading)
 
 
 ## Pre-warmed, hidden until a shell state opens them (FSM = story 004).
@@ -144,12 +191,116 @@ func _resolve_default_seams() -> void:
 		_platform = get_node_or_null("/root/PlatformDetect")
 
 
-## Scaffold GSM handler — records the latest state so story 004 can build the
-## 5-state shell FSM on top. Untyped params (project DI discipline). Ghost-safe:
-## a deferred cfis sentinel may call this after teardown, but a bare int record
-## is harmless.
+## ---- shell FSM (story 004) ----
+## Discipline (= #22/#23): ONE injected clock. Production _process feeds
+## advance(delta*1000); tests call advance(delta_ms) directly. No engine Tween /
+## SceneTreeTimer for any state-bearing timing. Observer handlers NEVER transition
+## synchronously — they flag + settle on the next advance tick (the「下一 frame」rule).
+
+func _process(delta: float) -> void:
+	advance(delta * 1000.0)
+
+
+## Single timing entry point — settle queued re-derives, then tick the cross-fade.
+func advance(delta_ms: float) -> void:
+	if _settle_pending:
+		_settle_pending = false
+		_begin_transition_if_needed()
+	if _fading:
+		_fade_elapsed_ms += delta_ms
+		if _fade_elapsed_ms >= SHELL_FADE_MS:
+			_complete_fade()
+	if not _settle_pending and not _fading:
+		set_process(false)  # idle — zero processing when settled (#23 precedent)
+
+
+## GSM observer (cfis-subscribed). Untyped params (project DI discipline). Records
+## the live GSM state and queues a settle — never transitions inline.
 func _on_gsm_state_changed(_from_state, to_state, _payload) -> void:
 	_gsm_state = int(to_state)
+	_request_settle()
+
+
+## #2 auth_required observer (mock-scoped). reason is forwarded by #2 (G-LS-4
+## get_auth_block_reason分流 = story 009); story 004 only latches the requirement.
+func _on_auth_required(_reason = null) -> void:
+	_auth_required = true
+	_request_settle()
+
+
+## Queue a next-tick re-derive (the「下一 frame」discipline — AC-03/AC-38).
+func _request_settle() -> void:
+	_settle_pending = true
+	set_process(true)
+
+
+## Derive the correct shell state from the live GSM state + flags.
+## LOGIN is the highest-priority interrupt — EXCEPT mid-workout, where Rule 9(a)
+## defers it (banner-only; the full-screen form must not seize a workout moment —
+## Pillar 2 binding). DRAINING ranks above the plain GSM mapping.
+func _derive_target() -> int:
+	if _auth_required and not _is_workout_family(_gsm_state):
+		return ShellState.LOGIN
+	if _draining:
+		return ShellState.DRAINING
+	return _shell_state_for_gsm(_gsm_state)
+
+
+## GSM → shell state map (non-LOGIN/DRAINING band). Only IDLE/DISCONNECTED surface
+## a shell; everything else (BOOTING/workout-family/SUSPENDED) is HIDDEN.
+func _shell_state_for_gsm(gsm: int) -> int:
+	match gsm:
+		GSMScript.GameState.IDLE:
+			return ShellState.SHELL_IDLE
+		GSMScript.GameState.DISCONNECTED:
+			return ShellState.DISCONNECTED_SHELL
+		_:
+			return ShellState.HIDDEN
+
+
+## Workout-family = the in-session states where a full-screen login form would
+## seize a sacred moment (Rule 9a defer). SUSPENDED/BOOTING are NOT workout-family.
+func _is_workout_family(gsm: int) -> bool:
+	return gsm == GSMScript.GameState.WORKOUT_ACTIVE \
+		or gsm == GSMScript.GameState.REST_PERIOD \
+		or gsm == GSMScript.GameState.COMBAT_ACTIVE \
+		or gsm == GSMScript.GameState.BOSS_ENCOUNTER \
+		or gsm == GSMScript.GameState.LOOT_DROP
+
+
+## Transition toward the derived target if it differs from the current state.
+## The LOGICAL `_state` flips immediately (so「下一 frame 入 LOGIN」holds — AC-03),
+## and a cross-fade animates the visual catch-up. While a fade is in flight we do
+## NOT start another (EC-E1: no abort mid-tween — the in-flight fade re-derives the
+## live target on completion).
+func _begin_transition_if_needed() -> void:
+	if _fading:
+		return  # EC-E1 — the current fade owns the screen until it completes
+	var target: int = _derive_target()
+	if target == _state:
+		return  # already there — no re-enter / no re-render (AC-24 idempotence)
+	_state = target
+	# Incoming surface becomes visible immediately so「下一 frame ... visible == true」
+	# holds (AC-03); a HIDDEN target keeps the surface visible during the fade-out
+	# and is hidden at completion. The alpha ramp itself is cosmetic.
+	if target != ShellState.HIDDEN:
+		_shell_layer.visible = true
+	if target == ShellState.LOGIN:
+		_login_entry_count += 1
+	_fade_elapsed_ms = 0.0
+	_fading = true
+
+
+## Cross-fade complete: finalize layer visibility (a HIDDEN target hides now), then
+## re-derive against the LIVE GSM state — GSM may have moved during the fade, which
+## we deliberately did not chase mid-tween (EC-E1).
+func _complete_fade() -> void:
+	_fading = false
+	_fade_elapsed_ms = 0.0
+	_shell_layer.visible = (_state != ShellState.HIDDEN)
+	var live: int = _derive_target()
+	if live != _state:
+		_request_settle()  # GSM changed mid-fade — chase the live target (EC-E1)
 
 
 ## ---- lifecycle entry points (scaffold — zero-persist invariant, AC-02) ----
@@ -157,16 +308,23 @@ func _on_gsm_state_changed(_from_state, to_state, _payload) -> void:
 ## entry points exist so the zero-persist invariant is pinned from day one:
 ## neither touches PersistenceLayer (the only token write is #2's, story 008).
 
-## Claim succeeded → shell leaves LOGIN toward the landing state. Scaffold:
-## records the event; performs ZERO persist writes (#24 owns no persisted state).
+## Claim succeeded → clears the auth requirement so the shell leaves LOGIN and
+## cross-fades to the landing state derived from the live GSM state (States table
+## LOGIN exit). Performs ZERO persist writes — the only token write is #2's (AC-02).
 func notify_claim_succeeded() -> void:
 	_last_lifecycle_event = &"claim_succeeded"
+	_auth_required = false
+	_draining = false
+	_request_settle()
 
 
-## Logout requested → shell returns to LOGIN. Scaffold: records the event;
-## performs ZERO persist writes (the #2 token drain is story 014, not a #24 write).
+## Logout requested → DRAINING (optimistic「已登出」; story 014 fills the surface +
+## drain banner). DRAINING exits to LOGIN when the token is cleared and #2 fires
+## auth_required. Performs ZERO persist writes (#2 owns the token drain — AC-02).
 func request_logout() -> void:
 	_last_lifecycle_event = &"logout"
+	_draining = true
+	_request_settle()
 
 
 ## ---- getters (test surface + later-story wiring points) ----
@@ -193,3 +351,35 @@ func get_gsm_state() -> int:
 
 func get_last_lifecycle_event() -> StringName:
 	return _last_lifecycle_event
+
+
+## ---- FSM getters (story 004) ----
+
+## Current settled shell state (ShellState enum).
+func get_state() -> int:
+	return _state
+
+
+## Rule 9(a) mid-workout defer flag (AC-38) — auth is required but the live GSM
+## state is workout-family, so LOGIN entry is deferred (banner-only). Clears
+## automatically once GSM leaves the workout family (LOGIN is then derivable).
+func get_pending_auth_required() -> bool:
+	return _auth_required and _is_workout_family(_gsm_state)
+
+
+## Whether a cross-fade is currently in flight (EC-E1 — no abort mid-tween).
+func is_fading() -> bool:
+	return _fading
+
+
+## Cross-fade progress 0.0→1.0 (cosmetic; sub-controllers read this to modulate
+## their incoming/outgoing alpha — CanvasLayer itself has no modulate).
+func get_fade_alpha() -> float:
+	if not _fading:
+		return 1.0
+	return ShellTransitions.cross_fade_alpha(_fade_elapsed_ms)
+
+
+## How many times LOGIN was freshly entered (AC-24 idempotence assertion seam).
+func get_login_entry_count() -> int:
+	return _login_entry_count
