@@ -1,12 +1,12 @@
 # Story 007: Formula 2 — Banner Auto-Expire(strict-< boundary)+ _validate_knobs()
 
 > **Epic**: Login / GymSys Connection UI(Shell)
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Presentation
 > **Type**: Logic
 > **Estimate**: S
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-09
 
 ## Context
 
@@ -79,3 +79,17 @@
 
 - Depends on: Story 003(coordinator — clock seam）
 - Unlocks: Story 010/014(banner expire 機制）
+
+---
+
+## Completion Notes
+**Completed**: 2026-06-09
+**Criteria**: 全 pass —
+- **AC-19/19b**:`banner_visible` strict-`<`(t=201.5 visible / t=202.0 exact **唔** visible / t=202.1 gone）
+- **AC-20**:TRANSIENT(TTL 5.0)過期 expire,而 ONGOING persistent(`PERSISTENT_TTL_SENTINEL` ttl≤0)永遠 visible(F2 唔 govern persistent class)
+- **AC-21a/b**:`validate_knobs()` default → true;注入違反(DRAIN=3.5>TRANSIENT=3.0 / HEIGHT=0.12>0.10 / DRAIN=0 >0下界 / range 越界)→ false + push_error(release-safe,唔用 raw assert)
+- per-banner timer 獨立 + clamp helper
+**Test Evidence**: `test_banner_expire_formula.gd`(8 funcs)+ `test_knob_invariants.gd`(7 funcs)— **本地 15/15 pass**(login_shell 全 46/46;reject-path 的 push_error backtrace 係預期輸出,GUT exit 0)。
+**Design**: extend `src/ui/login_shell/shell_formulas.gd`(F2 `banner_visible` strict-< + 4 knob consts + safe-range bounds + `validate_knobs()` + `clamp_knob()`)。`ttl≤0` = persistent sentinel(Rule 6)。integer-ms internal;injected `now_ms`(AC-51)。
+**Deviations**: None(pure formula;`SHELL_FADE_SEC` knob 喺 formula file validate,coordinator `SHELL_FADE_MS=250` = 0.25s 一致 — 同源值無衝突)。
+**Code Review**: N/A spawn(本地 GUT 等效;release-safe validate_knobs 非 raw assert — qa B2 binding)。
