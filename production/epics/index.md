@@ -1,6 +1,6 @@
 # Epics Index
 
-Last Updated: 2026-06-07 (+ **#22 Character Screen — 第三個 Presentation epic**; GDD + UX spec 雙 APPROVED 2026-06-07 同日; PR-EPIC degraded inline REALISTIC w/ 6 binding directives [單一 epic; baseline 16–22; G-CS-7+8 scaffold 前提; per-gate combined CI; G-CS-10 contract-pin scope; F1 core early; G-CS-1 先行 loadout/picker])
+Last Updated: 2026-06-08 (+ **#24 Login/Shell — 第四個 Presentation epic**; GDD REVISED+cold-verify + UX spec APPROVED 2026-06-08 同日; PR-EPIC degraded inline REALISTIC w/ 7 binding directives [單一 epic; baseline 16–20; story 001 = G-LS-6 iOS spike; G-LS-1+2 ADR amendment scaffold 前提; G-LS-3 claim signature+cancellation = login form 前 blocking; per-gate combined CI; formula stories early]) — prior: #22 Character Screen 2026-06-07
 Engine: Godot 4.6 (Web Export, Compatibility Renderer)
 Created by: /create-epics Foundation + Core (16 systems); #10 Exercise→Class Mapping promoted Placeholder→Ready 2026-06-02; #4 Audio Manager promoted Placeholder→Ready 2026-06-02 (GDD Approved Pass 6 + ADR-0008 Accepted); **#20 Gym-Mode HUD (first Presentation epic) created 2026-06-03** (GDD R8 APPROVED + UX spec APPROVED); **#33 Attention Budget promoted Placeholder→Ready 2026-06-04** (GDD Approved re-review pass 2 + ADR-0006/0008 Accepted)
 
@@ -57,6 +57,7 @@ Created by: /create-epics Foundation + Core (16 systems); #10 Exercise→Class M
 | [Loot Drop Modal](loot-drop-modal/EPIC.md) | Presentation | #21 | loot-drop-modal.md ✅ APPROVED (Pass 3 2026-06-06, 0 phantom) + UX spec ✅ APPROVED | **27 stories — 26 ✅ Complete + 027 protocol** | **✅ INTERNAL COMPLETE**(2026-06-07 單日 pipeline;gate 2101/2100/0 fail;AC-78 BLOCKED-ON #20;manual evidence EXTERNAL)— `LootRevealCoordinator` autoload (tail, G-LM-5)。94 ACs (71 unit ungated 先行; 23 gated 有 fake-seam); 10 cross-system gates G-LM-1..10 全部 epic 內 stories (CD 順序: doc-only 1/5/7 → G-LM-4 critical path → parallel 3/10/8+9); G-LM-3 拆 2 + G-LM-4 拆 2–3 (producer 指令); 4 組 upstream errata 隨 gate stories。Governing ADR-0001 (HIGH) + 0005/0006/0007/0008/0009。★ Pillar 3 signature ritual |
 | [Character Screen](character-screen/EPIC.md) | Presentation | #22 | character-screen.md ✅ APPROVED (2026-06-07 同日兩 pass, 0 new phantom) + UX spec ✅ APPROVED | **20/20 ✅ Complete** | **✅ INTERNAL COMPLETE**(2026-06-07 單 session GDD→UX→epic→20 stories;gate 336scr/2247/2246/0 fail + 7 lints PASS;G-CS-1..11 全落地;camera story 011 連帶 Complete;deferred = manual evidence protocol / AC-49 GATED / UI skin ← /asset-spec) — `CharacterScreenCoordinator` autoload + CanvasLayer 60 PAUSABLE (G-CS-8 tail)。57 ACs (50B=11L+39I / 6A / 1 GATED); 11 cross-system gates G-CS-1..11 全部 epic 內 stories (G-CS-7+8 ADR revisions = scaffold 前提; G-CS-10 contract-pin, AC-12 GATED; G-CS-1 先行 loadout/picker)。PR-EPIC REALISTIC inline (baseline 16–22)。Governing ADR-0001 (HIGH) + 0003/0006/0007/0008/0009。★ Pillar 1 retention surface(門框刻度)|
 | [Inventory UI](inventory-ui/EPIC.md) | Presentation | #23 | inventory-ui.md ✅ APPROVED (2026-06-07 同日全 pipeline, 0 phantom) + UX spec ✅ APPROVED | **18 stories** (1 Logic, 15 Integration, 2 Config/Data) | **Ready** — `InventoryUICoordinator` autoload + CanvasLayer 61 PAUSABLE (G-IU-2 tail after #22; NO-#22-constraint);FSM fork #22 (extraction 留 #24)。37 ACs (33B=3L+30I / 3A / 1 GATED; G-IU-1 run-level blocks 全 integration); 5 cross-system gates G-IU-1..5 全部 epic 內 stories (G-IU-2 = story 001 scaffold 前提; G-IU-1 最早 code story; G-IU-5 #22-churn 單 story 管控)。PR-EPIC REALISTIC degraded inline (baseline 14–18)。Governing ADR-0001 (HIGH) + 0003/0006/0007/0008/0009。★ Pillar 1 收據庫(儲物房)|
+| [Login / GymSys Connection UI (Shell)](login-shell/EPIC.md) | Presentation | #24 | login-gymsys-connection-ui.md ✅ REVISED+cold-verify (2026-06-08 fresh /design-review NEEDS REVISION→REVISED inline) + UX spec ✅ APPROVED (2026-06-08) | **19 stories** (2 Logic, 11 Integration, 2 Static-CI, 4 Config/Data/doc/spike) | **Ready** — `LoginShellCoordinator` autoload + 2 CanvasLayer (LoginShellLayer **62** PAUSABLE + ErrorBannerLayer **111** ALWAYS;G-LS-2 tail after #23)。56 GDD ACs (39B=11L+25I+3CI / 10 GATED / 6A / 1 EXTERNAL) + 11 AC-UX (9 measure / 2 visual; AC-UX-4 GATED)。9 cross-system gates G-LS-1..9 全部 epic 內 stories (**story 001 = G-LS-6 iOS spike HIGH**;G-LS-1+2 ADR amendment = scaffold 前提;G-LS-3 claim signature+cancellation = login form story 前 blocking;G-LS-3/4/8/9 errata cluster mock-scoped 先行)。PR-EPIC REALISTIC degraded inline (baseline 16–20;現 19)。Governing ADR-0001 (HIGH) + 0002/0004/0006/0003/0009。★ Pillar 1 anti-lie 收口 + Pillar 2 守護者(肯認衰嘅守門人)|
 
 ---
 
@@ -64,8 +65,8 @@ Created by: /create-epics Foundation + Core (16 systems); #10 Exercise→Class M
 
 | Metric | Count |
 |--------|-------|
-| Total epics | 23 (16 Foundation+Core + 4 Feature + 3 Presentation) |
-| Ready (GDD Approved) | 22 |
+| Total epics | 24 (16 Foundation+Core + 4 Feature + 4 Presentation) |
+| Ready (GDD Approved) | 23 |
 | Blocked (ADR Proposed — stories auto-blocked) | 1 (#2 GymSys — ADR-0002/0004 transport VS-gated) |
 | Placeholder (no GDD) | 0 |
 | Pending GDD approval | 0 |
