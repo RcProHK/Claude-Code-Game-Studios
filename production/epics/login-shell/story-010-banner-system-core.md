@@ -1,12 +1,12 @@
 # Story 010: Banner 系統 core(severity map + source-first dispatch + UNMAPPED + total-order comparator)
 
 > **Epic**: Login / GymSys Connection UI(Shell)
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Presentation
 > **Type**: Integration
 > **Estimate**: M
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-09
 
 ## Context
 
@@ -78,3 +78,25 @@
 
 - Depends on: Story 003(banner_stack.gd 殼)+ Story 007(F2 TTL)
 - Unlocks: Stories 005/011/012/014(全部依賴 banner stack)
+
+---
+
+## Completion Notes
+**Completed**: 2026-06-09
+**Criteria**: 全 pass —
+- **AC-26**:4 upstream signal(#3/#8/#11/#12)wire → 逐 emit `entries.size()` 恰好 +1 + `dedupe_key == (source, error_code, key)` + `severity_class` 正確(non-tautological:#8 FLUSH_FAILED → FEATURE_DEGRADED by SOURCE,**唔** WIPE — collision guard)
+- **AC-29**:同 frame FEATURE_DEGRADED + ONGOING → main slot = ONGOING(severity order,arrival 唔override)
+- **AC-29b**:同 class(#11+#12)→ main slot 由 `arrival_sequence`(monotonic int)deterministic,跨 5 run 一致
+- **AC-30/31/32**:`error_severity_map.tres` — 2 ONGOING(dismissable=false)/ 8 WIPE(acknowledge-dismissable)/ 2 TRANSIENT(F2 TTL 5.0)/ 3 sibling source-first FEATURE_DEGRADED(auto_clear_on_success)— 12+3 全 assert
+- **AC-52**:unmapped #3 code(FUTURE_CODE_13)→ UNMAPPED(ONGOING-weight)可見 banner,零 silent drop(EC-B9 default-deny)
+**Test Evidence**: `test_severity_map.gd`(8)+ `test_zero_silent_swallow.gd`(5)+ `test_banner_stack.gd`(6)— **本地 19/19**(login_shell 全 65/65)。Combined **2439 tests / 2438 pass / 0 fail / 1 pre-existing pending**;全 `.gd`+`.sh` CI lint PASS。
+**Design**:
+- `error_severity_map.gd`(Resource,**no class_name** 避 global-class cache risk)+ `assets/data/error_severity_map.tres`(data-driven 12 codes)— Severity{TRANSIENT/FEATURE_DEGRADED/WIPE/ONGOING/UNMAPPED} + Source{PERSISTENCE/STREAK/STAT/ABILITY} + classify + priority_weight(UNMAPPED 同 ONGOING weight)+ flags(is_dismissable/is_auto_clear/ttl_sec)。
+- `banner_stack.gd` rework:`dispatch_error` source-first + `main_slot` total-order comparator `(priority_weight desc, arrival_sequence asc)`(唔用 sort_custom / StringName pointer sort — reference_stringname_sort;dedupe_key StringName→String)。
+- coordinator extend:+#8/#11/#12 seams + `_wire_error_consumers`(load .tres + plain-connect 4 error signal — transient event 非 state,boot-race 由 story 005 pull-check 收;has_signal 防禦 erratum)。真 #3/#8/#11/#12 signal shipped 都係 2/2/1/1 arg(#8 shipped 2-arg,G-LS-9 doc-erratum 係指 #8 GDD 寫單參 stale)。
+**Lint safety**:`critical_save_failed`/`streak_persistence_failed`/`stat_critical_save_failed`/`ability_unlock_save_failed` 全部唔 match domain lint(stat_changed / ability_(unlocked|cast|...) / get_streak_buff_multiplier)。
+**Deviations**:
+- **OUT OF SCOPE(scaffold→core)**:rework 咗 story 003 `banner_stack.gd` scaffold(enqueue→dispatch_error）— story 003 test 只驗 node 存在,零 enqueue 斷言,無 regression。
+- **ADVISORY(story 011)**:dedupe(同 key 唔疊)/「+N」collapse/DISCONNECTED priority/two-layer 獨立 = story 011(本 story `overflow_count` 係 raw size-1,full collapse 留 011)。
+- **DEFERRED(G-LS-8)**:map↔#3 live enum drift keyset-coverage test 留 #3 additive erratum(get_pending_errors)story；本 story test 直驗 12+3 mapping。
+**Code Review**: N/A spawn(本地全套 GUT + lint 等效)。

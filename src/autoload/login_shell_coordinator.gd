@@ -50,6 +50,11 @@ const ShellTransitions := preload("res://src/ui/login_shell/shell_transitions.gd
 ## GSM enum source (referenced for state mapping — #21/#23 precedent).
 const GSMScript := preload("res://src/autoload/game_state_machine.gd")
 
+## Error severity classification (Rule 5/6 — Source enum for the 4-system consumer).
+const ESM := preload("res://src/ui/login_shell/error_severity_map.gd")
+## Data-driven severity map instance (designer edits .tres, not code — Rule 6).
+const ERROR_SEVERITY_MAP_PATH: String = "res://assets/data/error_severity_map.tres"
+
 ## Cross-fade duration (GDD「轉場紀律」SHELL_FADE_SEC default 0.25s; story 004).
 ## No hard-cut — onset transient = attention event. No abort mid-tween (EC-E1).
 const SHELL_FADE_MS: float = 250.0
@@ -70,7 +75,10 @@ enum ShellState {
 ## compile-time member check against autoload scripts that expose no class_name). ----
 var _gsm = null          ## GameStateMachine (#1) — cfis subscribe at _ready (AC-27)
 var _client = null       ## GymSysBackendClient (#2) — auth/claim (stories 005/008)
-var _persistence = null  ## PersistenceLayer (#3) — get_pending_errors (story 010); #24 NEVER writes
+var _persistence = null  ## PersistenceLayer (#3) — critical_save_failed + get_pending_errors; #24 NEVER writes
+var _streak = null       ## StreakSystem (#8) — streak_persistence_failed → FEATURE_DEGRADED banner
+var _stat = null         ## StatSystem (#11) — stat_critical_save_failed → FEATURE_DEGRADED banner
+var _ability = null      ## AbilitySystem (#12) — ability_unlock_save_failed → FEATURE_DEGRADED banner
 var _platform = null     ## PlatformDetect — announce_aria (story 019 a11y)
 
 ## ---- owned CanvasLayers (Rule 1: coordinator is the sole instantiator) ----
@@ -124,6 +132,8 @@ func _ready() -> void:
 	# drain_started/drain_completed = story 014.) #24 never requests a GSM transition.
 	if _client != null and _client.has_signal("auth_required"):
 		_client.auth_required.connect(_on_auth_required)
+	# Rule 5: #24 is the sole UI consumer of the 4 upstream error signals.
+	_wire_error_consumers()
 	# Idle unless the cfis sentinel already queued a settle (real GSM defers it to
 	# next frame; a mock may fire synchronously). _request_settle re-enables _process.
 	set_process(_settle_pending or _fading)
@@ -187,8 +197,55 @@ func _resolve_default_seams() -> void:
 		_client = get_node_or_null("/root/GymSysBackendClient")
 	if _persistence == null:
 		_persistence = get_node_or_null("/root/PersistenceLayer")
+	if _streak == null:
+		_streak = get_node_or_null("/root/StreakSystem")
+	if _stat == null:
+		_stat = get_node_or_null("/root/StatSystem")
+	if _ability == null:
+		_ability = get_node_or_null("/root/AbilitySystem")
 	if _platform == null:
 		_platform = get_node_or_null("/root/PlatformDetect")
+
+
+## Wire the 4 upstream error signals into the BannerStack (Rule 5 — #24 is the SOLE
+## UI consumer; zero silent-swallow). Plain `.connect` (not cfis): these are transient
+## EVENTS, not state — there is no initial-state to deliver, and the boot-window race
+## is closed by story 005's get_pending_errors() pull-check, not by cfis. has_signal
+## guards keep this safe if an upstream signature drifts (G-LS-9 erratum territory).
+func _wire_error_consumers() -> void:
+	# Data-driven severity map: prefer the .tres; fall back to script defaults.
+	if ResourceLoader.exists(ERROR_SEVERITY_MAP_PATH):
+		var map = load(ERROR_SEVERITY_MAP_PATH)
+		if map != null:
+			_banner_stack.set_severity_map(map)
+	if _persistence != null and _persistence.has_signal("critical_save_failed"):
+		_persistence.critical_save_failed.connect(_on_persistence_error)
+	if _streak != null and _streak.has_signal("streak_persistence_failed"):
+		_streak.streak_persistence_failed.connect(_on_streak_error)
+	if _stat != null and _stat.has_signal("stat_critical_save_failed"):
+		_stat.stat_critical_save_failed.connect(_on_stat_error)
+	if _ability != null and _ability.has_signal("ability_unlock_save_failed"):
+		_ability.ability_unlock_save_failed.connect(_on_ability_error)
+
+
+## ---- 4-system error handlers (Rule 5 → BannerStack.dispatch_error) ----
+
+func _on_persistence_error(error_code: String, key: String) -> void:
+	_banner_stack.dispatch_error(ESM.Source.PERSISTENCE, StringName(error_code), key)
+
+
+func _on_streak_error(error_code: String, key: String) -> void:
+	_banner_stack.dispatch_error(ESM.Source.STREAK, StringName(error_code), key)
+
+
+func _on_stat_error(stat_id: StringName) -> void:
+	# #11/#12 are source-classified FEATURE_DEGRADED — error_code is irrelevant; the
+	# stat_id is the dedupe key.
+	_banner_stack.dispatch_error(ESM.Source.STAT, &"", stat_id)
+
+
+func _on_ability_error(ability_id: StringName) -> void:
+	_banner_stack.dispatch_error(ESM.Source.ABILITY, &"", ability_id)
 
 
 ## ---- shell FSM (story 004) ----

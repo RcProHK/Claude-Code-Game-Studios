@@ -1,0 +1,9 @@
+[gd_resource type="Resource" load_steps=2 format=3 uid="uid://besm24loginshellmap"]
+
+[ext_resource type="Script" path="res://src/ui/login_shell/error_severity_map.gd" id="1_esm"]
+
+[resource]
+script = ExtResource("1_esm")
+ongoing_codes = Array[StringName]([&"QUOTA_EXHAUSTED", &"READ_ONLY_FILESYSTEM"])
+wipe_codes = Array[StringName]([&"INVALID_JSON", &"EMPTY_FILE", &"UNREGISTERED_PAYLOAD_TYPE", &"FLUSH_FAILED", &"MIGRATION_TIMEOUT", &"MIGRATION_CHAIN_TOO_LONG", &"SCHEMA_DOWNGRADE", &"FILE_TOO_LARGE"])
+transient_codes = Array[StringName]([&"NOT_READY", &"MIGRATION_IN_PROGRESS"])
