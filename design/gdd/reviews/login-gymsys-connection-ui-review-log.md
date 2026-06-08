@@ -25,3 +25,15 @@ finding #1(unmapped)+ #5(boot-race)+ #12(#8/#11/#12 boot sweep)= 同一元缺陷
 
 Prior verdict resolved: 是(authoring-session CD-GDD-ALIGN CONCERNS 已 REVISED;本輪係 fresh independent re-review,獨立紀律)
 NEXT: fresh session re-review(independence — revision author 唔自 re-verify)→ APPROVED 後 /ux-design(Z5/Z6 region 已 GDD-arbitrate,ux 釘 pixel)→ /create-epics
+
+## Cold-Verify Gate — 2026-06-08 — Verdict: RESIDUAL ISSUES (全 MINOR,零 BLOCKING) → CLEARED
+Independent verifier: godot-specialist(cold context,只睇 revised artifact — independence spot-check,非 full 6-agent re-review)
+確認:6 BLOCKING fix **全部真解決**(非 cosmetic);AC 算術 56 = 39B/10G/6A/1E **零錯**;EC 26 = 7H/11M/8L 零錯;4.6 engine claim 全對(dual-focus / AccessKit native-only / sort_custom total-order / CanvasLayer 62+111)。
+5 MINOR residual **全部同 session inline 清**:
+- M1: EC-D2「Formulas 1-3」dangling → 改「1-2」(renumber 漏網)
+- M2: Visual「Disabled state alpha 55%」vs Rule 10「二態永不 greyed」標籤矛盾 → carve「interactive-dimmed rare race-window,仍 tappable ≠ greyed;二態指 steady-state」+ AC-39 race-branch 斷言(modulate.a==0.55 tappable)+ 清 L337「@ settle 後」debounce 殘留
+- M3: 「8-signal sweep 表」只列 5 行 → 補 drain_started/drain_completed(post-boot only)+ state_changed(connect_for_initial_state)= 8 signals 全覆蓋(7 rows,drain×2 合一)
+- M4: AC-21 invariant 注入精度 → 註明 range-tightening 後 invariant 1/2 與 knob range 邊界重合 = defensive-redundant,本 AC 驗 _validate_knobs reject 路徑
+- M5: AC-35a grep target 存在性 phantom 隱患 → AC-01 加 banner_stack.gd/shell_transitions.gd file-split 斷言 + AC-35a「no-file ≠ no-match」CI 紀律
+
+最終:GDD clean(0 backspace / 0 dangling / 0 stale greyed / 8 sections / formula renumber 一致 / 27 exit-bar landmark + M1-M5 全 verified)。**Ready for /ux-design**(NEXT pipeline)。Independence 注記:本輪 cold spot-check 非 full 6-agent re-review;若需 maximal independence,可 fresh session 再跑一次 /design-review,但 cold gate clean + self grep-gate 雙重通過已畀 reasonable confidence 進 /ux-design。
