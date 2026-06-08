@@ -1,12 +1,12 @@
 # Story 016: Static-CI grep cluster(banner 靜態紀律 + credential + clock seam)
 
 > **Epic**: Login / GymSys Connection UI(Shell)
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Presentation
 > **Type**: Config/Data(Static-CI)
 > **Estimate**: S
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-09
 
 ## Context
 
@@ -75,3 +75,18 @@
 
 - Depends on: Story 010(banner_stack.gd)+ Story 015(credential path)+ Story 006/007(formula clock)
 - Unlocks: None
+
+---
+
+## Completion Notes
+**Completed**: 2026-06-09
+**Criteria**: 全 pass —
+- **AC-35a**:`tools/ci/check_login_shell_static_discipline.gd` — banner_stack.gd source grep(strip full-line + trailing comment)→ 零 `create_tween`/`pulse`/`AudioStreamPlayer`/`.play(`;**target file 存在 assert**(missing → exit 2 FAIL,no-file ≠ phantom pass)。合法 cross-fade tween 喺 shell_transitions.gd 唔掃。
+- **AC-35b**:`test_layer_spec.gd` — `ErrorBannerLayer.find_children("*","AnimationPlayer",true,false)` + AudioStreamPlayer 皆空(scene-tree,捉 .tscn instanced autoplay)
+- **AC-36**:兩 #24 layer `find_children("*","BackBufferCopy",true,false)` 皆空(禁第二 BackBufferCopy)
+- **AC-50(static)**:coordinator grep `(print|push_error|push_warning)\(.*(username|password|credential|secret|passwd)` → 零
+- **AC-51**:shell_formulas.gd grep `Time.get_ticks_msec`(strip comment)→ 零(formula 讀注入 clock;AC-51 comment 提及 token 但 strip 後唔誤殺)
+**Test Evidence**: CI lint `check_login_shell_static_discipline.gd`(本地 exit 0)+ `test_layer_spec.gd` AC-35b/36(本地 121/121)。Combined gate + 全 lint(見 commit)。
+**Design**: 一個 `.gd` lint 三 check(AC-35a/50/51 source grep,comment-strip)+ GUT scene-tree(AC-35b/36)。codify 已建紀律(banner_stack 無 animation/audio;layers 無 BackBufferCopy;shell_formulas 無 Time 直 call;coordinator 無 credential log)。
+**Deviations**: None。AC-50 credential runtime-clear 實作 = story 015(本 story static grep 守);現有 coordinator submit_claim 唔 log credential。
+**Code Review**: N/A spawn(本地全套 GUT + lint 等效)。

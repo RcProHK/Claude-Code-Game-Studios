@@ -65,6 +65,29 @@ func test_ac54_banner_surfaces_over_hidden_shell_in_workout() -> void:
 	assert_false(c.get_shell_layer().visible, "AC-54: LoginShellLayer.visible == false (shell stays HIDDEN)")
 
 
+# --- AC-35b: ErrorBannerLayer scene has NO AnimationPlayer / AudioStreamPlayer ---
+# (scene-tree assertion — catches a .tscn-instanced autoplay node that the source grep
+#  would miss. Rule 8: the banner is static — zero animation, zero audio, zero pulse.)
+
+func test_ac35b_error_banner_layer_has_no_animation_or_audio() -> void:
+	var c: Node = _make(G_WORKOUT)
+	var banner: CanvasLayer = c.get_banner_layer()
+	assert_eq(banner.find_children("*", "AnimationPlayer", true, false).size(), 0,
+		"AC-35b: ErrorBannerLayer has NO AnimationPlayer (banner is static)")
+	assert_eq(banner.find_children("*", "AudioStreamPlayer", true, false).size(), 0,
+		"AC-35b: ErrorBannerLayer has NO AudioStreamPlayer (banner is silent)")
+
+
+# --- AC-36: both #24 layers have NO BackBufferCopy (forbidden 2nd framebuffer copy) ---
+
+func test_ac36_no_second_backbuffercopy_on_either_layer() -> void:
+	var c: Node = _make(G_WORKOUT)
+	assert_eq(c.get_banner_layer().find_children("*", "BackBufferCopy", true, false).size(), 0,
+		"AC-36: ErrorBannerLayer has NO BackBufferCopy (opacity-only backdrop)")
+	assert_eq(c.get_shell_layer().find_children("*", "BackBufferCopy", true, false).size(), 0,
+		"AC-36: LoginShellLayer has NO BackBufferCopy")
+
+
 func test_banner_layer_hidden_when_no_banner() -> void:
 	var c: Node = _make(G_WORKOUT)
 	_settle(c)
