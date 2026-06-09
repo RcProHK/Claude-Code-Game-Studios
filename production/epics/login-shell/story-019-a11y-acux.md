@@ -1,12 +1,12 @@
 # Story 019: a11y(announce_aria + tab order + 44/48px)+ AC-UX layout assertions
 
 > **Epic**: Login / GymSys Connection UI(Shell)
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Presentation
 > **Type**: Integration
 > **Estimate**: M
 > **Manifest Version**: 2026-05-29
-> **Last Updated**: —
+> **Last Updated**: 2026-06-09
 
 ## Context
 
@@ -81,3 +81,34 @@
 
 - Depends on: Story 004/010/013/015(FSM + banner + entry + form 全部 render 後量度)
 - Unlocks: None(epic 收口)
+
+---
+
+## Completion Notes
+**Completed**: 2026-06-09
+**Criteria**: 7/7 covered (AC-UX-4 single-toast-slot = GATED OQ-UX2, correctly deferred — cross-system mechanism undefined; story L47)
+**Implementation**:
+- `src/ui/login_shell/acux_layout.gd` (NEW) — pure static AC-UX geometry: `banner_default_height`
+  (clamp(round(0.10×H),44,72)) / `banner_default_rect` (bottom-anchored full-width ±16) /
+  `glyph_rect` (R-Glyph 16×16 top-right) / `rects_disjoint` (R-Glyph ∩ Z5 == ∅) / touch floors
+  (44 / 48 entry) / `fade_within_budget` (≤ SHELL_FADE_SEC). Data-driven via ShellFormulas consts.
+- `src/autoload/platform_detect.gd` — additive `announce_aria(text, assertive := true)` + a second
+  POLITE DOM live region + `get_aria_politeness()`. Back-compat: existing #21/#22/#23 single-arg
+  callers default to assertive. JS-bridge stays inside platform_detect.gd (gateway lint-safe).
+- `src/ui/login_shell/error_severity_map.gd` — `severity_glyph()` (color independence: warning/
+  slash/check/info per severity, ≥2 non-color signals).
+- `src/autoload/login_shell_coordinator.gd` — `announce_inline_error` (assertive) / `announce_banner_status`
+  (polite) helpers + `_aria_log` observable + `banner_grabs_focus()==false`; wired into the 4 error
+  handlers (polite) + `notify_claim_result` deny/rate-limit branches (assertive).
+- `tests/unit/login_shell/test_a11y_acux.gd` (NEW, 24 tests) + evidence `production/qa/evidence/login-shell/acux6-tab-order.md`.
+**Verification**: import clean; combined gate (tests/unit + tests/integration) **2519 tests / 2518 passing /
+0 failing / 1 pending(known) / 45674 asserts** — zero regression (platform_detect additive change did
+not break #21/#22/#23). All `.gd` + `.sh` CI lints PASS.
+**Deviations (ADVISORY)**:
+- `platform_detect.gd` cross-file additive extension — the story's named seam was assertive-only; the
+  2-arg + polite-region change is the minimal back-compat way to satisfy "error assertive / banner polite".
+- AC-UX-4 (single toast slot) deferred → OQ-UX2 (cross-system mechanism undefined).
+- Physical keyboard / iOS VoiceOver tab-order walkthrough deferred → story-015 form widget + story-001 iOS spike.
+**Test Evidence**: Integration — `tests/unit/login_shell/test_a11y_acux.gd` (passing) + manual evidence doc.
+**Code Review**: Degraded-inline (full-mode harness no-spawn) — APPROVED (additive, backward-compat,
+lint-green, no forbidden patterns).

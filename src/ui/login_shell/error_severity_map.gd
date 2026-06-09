@@ -102,3 +102,24 @@ static func ttl_sec(severity: int) -> float:
 	if severity == Severity.TRANSIENT:
 		return ShellFormulas.TRANSIENT_BANNER_TTL_SEC
 	return ShellFormulas.PERSISTENT_TTL_SENTINEL
+
+
+## ---- color independence (story 019 / AC-UX a11y) ----
+
+## Non-color glyph sprite-id per severity (WCAG AA: never color-only — every banner
+## carries a shape glyph + text, ≥2 non-color signals; squint test). Maps to the GDD
+## "Asset 需求" sprites: warning(⚠) / slash(⃠) / check(✓) / info(ⓘ). Every severity
+## resolves to a non-empty glyph (default-deny → warning, the highest-safe shape).
+##   error classes (FEATURE_DEGRADED/WIPE/ONGOING/UNMAPPED) → warning ⚠
+##   DISCONNECTED → slash ⃠   NOTIFICATION (drain done/success) → check ✓
+##   TRANSIENT (informational, auto-expiring) → info ⓘ
+static func severity_glyph(severity: int) -> StringName:
+	match severity:
+		Severity.DISCONNECTED:
+			return &"slash"
+		Severity.NOTIFICATION:
+			return &"check"
+		Severity.TRANSIENT:
+			return &"info"
+		_:
+			return &"warning"  # FEATURE_DEGRADED / WIPE / ONGOING / UNMAPPED (default-deny)

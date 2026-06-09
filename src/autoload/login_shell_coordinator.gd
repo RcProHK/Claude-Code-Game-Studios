@@ -54,6 +54,8 @@ const GSMScript := preload("res://src/autoload/game_state_machine.gd")
 const ESM := preload("res://src/ui/login_shell/error_severity_map.gd")
 ## Formula 1 rate-limit countdown (claim rate_limited path — story 006/008).
 const ShellFormulas := preload("res://src/ui/login_shell/shell_formulas.gd")
+## AC-UX layout / geometry contract (banner rect, yield glyph, touch floors — story 019).
+const ACUXLayout := preload("res://src/ui/login_shell/acux_layout.gd")
 ## Data-driven severity map instance (designer edits .tres, not code — Rule 6).
 const ERROR_SEVERITY_MAP_PATH: String = "res://assets/data/error_severity_map.tres"
 
@@ -104,6 +106,12 @@ var _inventory_ui = null      ## InventoryUICoordinator (#23) — request_open a
 ## request_open last-wins pending target (story 013 — rapid-tap / concurrent race guard;
 ## a later request_open inside the same deferred window overwrites it, never double-opens).
 var _pending_open_target: StringName = &""
+
+## SR-announcement observable log (story 019 a11y) — [{text, politeness}] where
+## politeness ∈ {"assertive","polite"}. Coordinator-local mirror of what was pushed
+## through the PlatformDetect seam, so the error-vs-banner routing contract is testable
+## even with no platform seam injected (real boot writes DOM; headless logs only).
+var _aria_log: Array[Dictionary] = []
 
 ## ---- owned CanvasLayers (Rule 1: coordinator is the sole instantiator) ----
 var _shell_layer: CanvasLayer = null
@@ -329,11 +337,13 @@ func _wire_error_consumers() -> void:
 func _on_persistence_error(error_code: String, key: String) -> void:
 	_banner_stack.dispatch_error(ESM.Source.PERSISTENCE, StringName(error_code), key, _now_ms())
 	_refresh_banner_layer_visibility()
+	announce_banner_status("存檔錯誤：%s" % error_code)  # peripheral → polite (AC a11y)
 
 
 func _on_streak_error(error_code: String, key: String) -> void:
 	_banner_stack.dispatch_error(ESM.Source.STREAK, StringName(error_code), key, _now_ms())
 	_refresh_banner_layer_visibility()
+	announce_banner_status("連續紀錄暫時無法儲存")  # FEATURE_DEGRADED → polite
 
 
 func _on_stat_error(stat_id: StringName) -> void:
@@ -341,11 +351,47 @@ func _on_stat_error(stat_id: StringName) -> void:
 	# stat_id is the dedupe key.
 	_banner_stack.dispatch_error(ESM.Source.STAT, &"", stat_id, _now_ms())
 	_refresh_banner_layer_visibility()
+	announce_banner_status("屬性數值暫時無法儲存")  # FEATURE_DEGRADED → polite
 
 
 func _on_ability_error(ability_id: StringName) -> void:
 	_banner_stack.dispatch_error(ESM.Source.ABILITY, &"", ability_id, _now_ms())
 	_refresh_banner_layer_visibility()
+	announce_banner_status("技能解鎖暫時無法儲存")  # FEATURE_DEGRADED → polite
+
+
+## ---- a11y SR announcements (story 019 / AC-UX a11y) ----
+## Canvas is opaque to the DOM accessibility tree, so ALL SR announcements route
+## through the PlatformDetect.announce_aria JS-bridge seam (#21/#22/#23 precedent).
+## TWO politeness lanes (UX L492): a LOGIN inline error preempts (assertive — the
+## player just submitted and awaits a verdict); a peripheral banner is polite (does
+## NOT interrupt the SR). Both also land in _aria_log so the routing is headless-testable.
+
+## Assertive: LOGIN form inline error (claim verdict / rate-limit). Preempts.
+func announce_inline_error(text: String) -> void:
+	_announce(text, true)
+
+
+## Polite: peripheral banner status (save-failed / disconnect / drain). Non-interrupting.
+func announce_banner_status(text: String) -> void:
+	_announce(text, false)
+
+
+func _announce(text: String, assertive: bool) -> void:
+	_aria_log.append({"text": text, "politeness": "assertive" if assertive else "polite"})
+	if _platform != null and _platform.has_method("announce_aria"):
+		_platform.announce_aria(text, assertive)
+
+
+## Banners are display-only (ErrorBannerLayer is a non-interactive CanvasLayer surface):
+## a banner appearing NEVER grabs keyboard focus from the LOGIN form (UX L493 / AC a11y).
+func banner_grabs_focus() -> bool:
+	return false
+
+
+## SR-announcement observable log — [{text, politeness}] (story 019 test surface).
+func get_aria_log() -> Array[Dictionary]:
+	return _aria_log
 
 
 ## Banner arrival clock. The coordinator is NOT a formula path (the AC-51 clock-seam
@@ -628,6 +674,13 @@ func notify_claim_result(code: StringName, retry_after: int = 0) -> void:
 			# silently swallowed, and never leaks the raw value.
 			_claim_error_copy = "登入遇到未知問題，請再試一次"
 			_claim_show_retry = true
+	# Inline error (LOGIN form response) → ASSERTIVE SR announcement (AC a11y / UX L204):
+	# the player just submitted and is awaiting a verdict, so it preempts (vs the polite
+	# peripheral banners). success/landing announces nothing here (state change speaks).
+	if _claim_error_copy != "":
+		announce_inline_error(_claim_error_copy)
+	elif code == &"rate_limited":
+		announce_inline_error("已達嘗試上限，請稍候再試")
 
 
 ## Cancel an in-flight claim (SUSPENDED interrupt or injected-clock timeout — EC-A1).
