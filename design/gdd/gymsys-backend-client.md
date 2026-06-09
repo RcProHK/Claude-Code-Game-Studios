@@ -117,7 +117,21 @@ enum ClearTokenReason {
 }
 ```
 
-**Telemetry-class signals (UI binding forbidden — added 2026-05-26 per design-review P1-3 game-designer)**: Signals `protocol_error`, `dropped_poll_tick`, `session_evicted_by_browser`, `persistence_volatile`, `inflight_cap_breached`, `logout_drain_timeout` (deprecated — replaced by `drain_completed`), `tombstones_trimmed`, `persistence_quota_exhausted`, `drain_in_progress`, `dropped_event` 屬 **TELEMETRY-CLASS** — UI consumers (#20 HUD, #24 Login UI, anything in `src/ui/`) MUST NOT subscribe to these signals。Only `src/core/networking/telemetry_router.gd` (or equivalent #28 Telemetry consumer) 可以 subscribe。**`substate_changed` 屬 TEST-SEAM ONLY** — only `tests/` may subscribe; UI and production game code MUST NOT。**CI static check** `tools/ci/check_no_ui_subscribes_telemetry.sh` enforces this — greps `src/ui/**/*.gd` for the 11 forbidden signal names (10 telemetry-class + `substate_changed`)。
+**Telemetry-class signals (UI binding forbidden — added 2026-05-26 per design-review P1-3 game-designer)**: Signals `protocol_error`, `dropped_poll_tick`, `session_evicted_by_browser`, `persistence_volatile`, `inflight_cap_breached`, `logout_drain_timeout` (deprecated — replaced by `drain_completed`), `tombstones_trimmed`, `persistence_quota_exhausted`, `drain_in_progress`, `dropped_event` 屬 **TELEMETRY-CLASS** — UI consumers (#20 HUD, #24 Login UI, anything in `src/ui/`) MUST NOT subscribe to these signals。Only `src/core/networking/telemetry_router.gd` (or equivalent #28 Telemetry consumer) 可以 subscribe。**`substate_changed` 屬 TEST-SEAM ONLY** — only `tests/` may subscribe; UI and production game code MUST NOT。**CI static check** `tools/ci/check_no_ui_subscribes_telemetry.sh` enforces this — greps for the 11 forbidden signal names (10 telemetry-class + `substate_changed`)。
+
+> **ERRATUM 2026-06-09 (#24 G-LS-9 / AC-25 — story-017 L120 scope correction)**: The
+> original wording scoped this lint to `src/ui/**/*.gd` only. That is a **zero-coverage
+> false green**: the UI-class coordinators that actually perform the signal wiring —
+> #21 `loot_reveal_coordinator.gd`, #22 `character_screen_coordinator.gd`, #23
+> `inventory_ui_coordinator.gd`, #24 `login_shell_coordinator.gd` — live in
+> `src/autoload/*_coordinator.gd`, **not** in `src/ui/**`. The shipped lint therefore
+> scans **both** `src/ui/**/*.gd` **and** `src/autoload/*_coordinator.gd`. It additionally
+> applies a default-deny `.connect(` whitelist on the #24 coordinator (allowed = the 3
+> #2 lifecycle signals `auth_required`/`drain_started`/`drain_completed` + the 4 Rule-5
+> error-consumer signals from #3/#8/#11/#12; GSM `state_changed` is bound via
+> `connect_for_initial_state`, not `.connect`). Note `drain_started`/`drain_completed`
+> are **legal** lifecycle signals — only `drain_in_progress` is the telemetry-class
+> member of the `drain_*` family.
 
 **Why strong types**: #9 Workout State Tracker consume these directly. Raw Dict emit 等於每個 consumer 重做一次 parsing → drift accumulates。Typed signatures enable signal-contract test (analogous to GDD #1 AC-15 pattern)。
 

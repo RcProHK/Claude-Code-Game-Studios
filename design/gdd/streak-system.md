@@ -127,8 +127,21 @@ func get_last_workout_date_local() -> String               # ISO 8601 YYYY-MM-DD
 # Signals (Interactions #4–#5 + persistence failure)
 signal streak_changed(new_streak: int, prior_streak: int)
 signal streak_milestone_reached(milestone: int)
-signal streak_persistence_failed(error_code: String)        # Rule 10 Failed state entry, emitted once per session
+signal streak_persistence_failed(error_code: String, key: String)  # Rule 10 Failed state entry, emitted once per session (key = failing streak.* persistence key, "" for non-write rejections)
 ```
+
+> **ERRATUM 2026-06-09 (#24 G-LS-9 / AC-25 — story-017 errata cluster)**: The shipped
+> signal signature is **two-param** `streak_persistence_failed(error_code: String, key: String)`,
+> verified against ground truth `src/autoload/streak_system.gd` (decl L70; emit sites
+> L193 `.emit("DRIFT_GATE_REJECTED", "")`, L403 `.emit(error_code, key)`) and the #24
+> consumer handler `login_shell_coordinator.gd:334` `_on_streak_error(error_code, key)`.
+> Any remaining **single-param** `streak_persistence_failed(error_code: String)` mentions
+> elsewhere in this document (Failed-state row L90, Section B narrative L405, the
+> downstream-contract table, and the AC-10/AC-26 prose) are **stale and superseded by
+> this note** — the two-param form above is canonical. The CI lint
+> `tools/ci/check_no_ui_subscribes_telemetry.sh` (#24 G-LS-9) treats
+> `streak_persistence_failed` as a legitimate Rule-5 error-consumer signal — NOT a #2
+> telemetry-class signal — so #24 subscribing to it is permitted.
 
 **No public mutator method.** State transitions happen exclusively through internal `_on_workout_completed(completed_at_utc)` handler (private, connected to GymSys signal). 違反呢條 = caller path 直接 mutate streak counter，相當於 Section B Falsifiable Test #5「Pay-to-Streak」嘅 architectural breach。Rule 13 CI enforce。
 
@@ -752,7 +765,7 @@ Will be registered喺 Phase 5b after Section H ratification。
 | **#15** | Loot Drop System | Core / Pre-MVP | **Pending GDD** | **Hard (rarity modifier consumer)** | Call `Streak.get_loot_rarity_modifier() -> float` 喺 base rarity 公式 (per Section B Pillar 3 supporting role: `base × volume × PR × streak`)。Subscribe `streak_milestone_reached(milestone: int)` trigger ritual-tier rarity unlock。Per Rule 6 + Rule 13 CI gate，#15 是唯一 production-code allowed caller of `get_loot_rarity_modifier()` (除 #29)。**Forbidden**: 唔可以 mutate streak state (Streak is read-only from #15 POV)。 |
 | **#29** | Mirror Moment System | Polish / MVP | **Pending GDD** | **Hard (weekly progression marker)** | Call `Streak.get_current_streak() -> int` 為 weekly progression evaluator；subscribe `streak_milestone_reached(milestone: int)` 作為 weekly evolution trigger candidate。Mirror Moment 自己 own weekly evolution rules (combine streak + PR count + volume threshold)，Streak 只 contribute milestone marker。 |
 | **#20** | Gym-Mode HUD | Presentation / MVP | **Pending GDD** | **Soft (display consumer)** | Call `Streak.get_current_streak() -> int` for HUD counter chip display；subscribe `streak_changed(new_streak: int, prior_streak: int)` for understated tick animation per Section B Falsifiable Test #4 binding。**Forbidden**: 唔 visualize milestone moments with DNF-style fanfare — milestone celebration delegated to #29 + #15。 |
-| **#24** | Login / GymSys Connection UI | Presentation / MVP | **Pending GDD** | **Soft (failure display consumer)** | Subscribe `streak_persistence_failed(error_code: String)` signal → display blocking message「Storage unavailable — streak progress may not save until app restart」per Rule 10。 |
+| **#24** | Login / GymSys Connection UI | **Implemented** (PR pending) | **Soft (failure display consumer)** | Subscribe `streak_persistence_failed(error_code: String, key: String)` signal (two-param — see Erratum 2026-06-09) → display blocking message「Storage unavailable — streak progress may not save until app restart」per Rule 10。 |
 | **#27** | Onboarding Flow | Polish / Pre-MVP | **Pending GDD** | **Soft (timezone capture contract)** | 喺 first-launch onboarding 鎖定玩家 timezone offset → call Streak's future API `set_local_timezone_offset_minutes(offset_min: int)` (per Rule 1 future-reserved API + Q-O1)。**Open**: #27 GDD 尚未存在 — contract provisional pending #27 authoring。 |
 
 **Provisional contract lock note**: 全部 5 個 downstream entries 喺其 GDD 未寫成前 unilaterally locked from Streak side。當 #15, #29, #20, #24, #27 GDDs 寫成時 expect contract delta — submit ADR if downstream needs Streak API change。Streak API 係 source of truth per Section C closed primitive contract。
