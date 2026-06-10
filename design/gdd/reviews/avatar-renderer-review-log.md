@@ -157,3 +157,48 @@ Run headless on Godot 4.6.3-stable. Full evidence + reproducible probe script: `
 ### Next action
 - Open **v2 fresh-template rewrite session** for `design/gdd/avatar-renderer.md` (fresh-template, slimmed render-only scope per ADR-0010; Q-OQ2 Option-C + Blocker-4 empirical facts as seed; Representation-Map section mandatory per Pass-3 "Avatar Renderer Rule"). Then `/design-review` Pass 5 fresh-session adversarial verification.
 - Author **#29 Mirror Moment GDD** (MVP screenshot-only) as the home for the migrated ceremony spec — coupled pair with #26 v2.
+
+## Review — 2026-06-10 — Verdict: NEEDS REVISION (Pass 5 fresh-session verification of v2 fresh-template rewrite)
+- Scope signal: **L** (5 deps shipped + 5+1 formulas + ADR-0010 ratification attached; 唔再係 XL — ceremony 已讓渡 #29)
+- Specialists: degraded inline single-session (no-spawn,#21–#24 先例 + session-state plan of record「degraded inline」) — main reviewer 做晒 structural + citation grep-verify 對 **shipped src/**(唔係淨 GDD 互引)
+- Re-review: Yes — prior verdict Pass 4 MAJOR REVISION NEEDED → BLOCKED on 4 deps → 4 deps RESOLVED → v2 rewrite (commits `ad70400` + `4af019d`) → 本 entry = Pass 5
+- Completeness: **8/8** sections (+ Representation Map / Visual / UI / Open Questions 額外)
+- Blocking items: **6** | Recommended: 4 | Nice-to-have: 3
+
+### Pass-4 四大 architectural fault 驗證 — 全部真解 ✅
+1. **F-2 specialist symmetry** ✓ — Formula 2 雙獨立 path;boundary check 全過(pure specialist 80/70/3/3 → T3,唔會被 CR-12 lock 鎖死)
+2. **ADR-0010 render-only 貫穿** ✓ — ceremony 零殘留(CR-17 + AC-30 enforcement;FT-2 正確讓渡 #29;snapshot seam 完整)
+3. **Representation Map 存在** ✓(but 自身 AC-pointer stale → B-6)
+4. **API facts 貫穿** ✓ — `pause()` 喺 CR-8/States/EC-SUS-2/F5/AC-11 全對;`RENDER_TEXTURE_MEM_USED` 喺 INV-6/CR-14/AC-19/Q-OQ-VRAM 全對;no-AnimationPlayer(CI-6/AC-28);REST_PERIOD 對齊 CR-9/CR-15/F4/AC-09;GSM enum 同 `game_state_machine.gd:80-90` **完全 match**;`get_max_unlocked_class_tier` phantom 已殺 + Q-OQ-DEPTH honest forward dep + EC-TIER-5 fail-safe(shipped ability_id 帶 `tier_N` marker,`ability_system.gd:76-82` → Option B 可行性 grep-confirmed);BFCACHE 30000 parity ✓(`src/core/loot_ttl_calc.gd:49`);cfis ✓(GSM:271);bidirectional deps ✓(#11 L9/L261、#12 L9/L227 列 #26)
+
+### BLOCKING(6 — 全部 citation/consistency 級,零 architectural;ground truth 已 pin,revision session 可機械執行)
+| # | Finding | Ground truth | Fix sites |
+|---|---------|--------------|-----------|
+| **B-1** | **#5 API phantom**:`emit_preset(preset_id, anchor)` 唔存在 — #16 Boss 同款 bug class(spawn→play) | shipped = `play(preset_id: PresetId, position: Vector2, multiplier: float = 1.0) -> ParticleHandle`(`src/autoload/particle_system_wrapper.gd:419`);preset 係 `PresetId` **enum** 唔係 StringName → 3 個新 avatar preset = #5 enum 新 entry(FC-6 wording 同步) | L514(Deps #5 row)+ L620(Visual E)+ Rep Map 加 project-API fact row |
+| **B-2** | **GSM `current_state` phantom property** — #7 Camera epic 同款 lesson | shipped 冇 public var;係 `get_current_state() -> GameState` **method**(`game_state_machine.gd:241`) | L54(Rep Map upstream row)/ L135(CR-2 d)/ L241+L243(States table)/ L512(Deps #1 row) |
+| **B-3** | **`stat_changed` arity 錯**:GDD 寫 4-arg — Godot 4 connect 少 arg → emit-time runtime error | shipped = `stat_changed(stat_id: StringName, old_value: float, new_value: float, source: StatSource, is_base_change: bool)`(`stat_system.gd:85-91`) | L510(Deps #11 row) |
+| **B-4** | **EC-MILE-1 absorb 永久吞 ceremony**:gate_a 過、cadence 唔過 → `last_emitted_tier = current_tier` = 呢個 tier 嘅 milestone 永不 emit。MVP 一世人 ≤4 個 ceremony,中週 tier-up(快進度玩家常見)即蒸發 25%;同 EC-MILE-5「Never silently drop (P5 ritual integrity)」直接矛盾 | Formula 3 table「suppress (cadence)」語意本身啱(suppress ≠ absorb);矛盾只喺 EC-MILE-1 嗰句 | EC-MILE-1 刪 `last_emitted_tier = current_tier` → suppress-only(gate_a 保持 true,cadence 過後下次 check 自然 emit;唔需 pending 機制;formula body 不變) |
+| **B-5** | **AC-02 vs CR-6 scope drift**:AC-02「every AvatarVisualState field → 100% derivable from #11/#12/GSM」— 但 schema `last_emitted_tier`/`last_milestone_emit_unix` 來自 **#3 persistence**(CR-12)→ AC-02 字面必 FAIL,untestable as written | CR-6 限定「every **visible** field」 | AC-02 scope 改 visible/`derived_from`-attributed fields(或 source set 加 #3) |
+| **B-6** | **Representation Map 自身 AC-pointer 系統性 stale**(似乎用咗 renumber 前舊 AC 號;anti-drift 工具自己 drift = 本 GDD 史上致命 bug class)+ `S_peak_t`(Pass-4 F-2 fix 核心 knob)成 row 缺席 + parity assert 寫「CI-4」但 lint table 放 CI-2 | 正確 pointer(對照 AC table):pause()/set_frame_and_progress AC-26→**AC-11**;VRAM AC-29→**AC-19**;POSTURE_HYSTERESIS AC-12→**AC-09/10**;MILESTONE_CADENCE AC-09→**AC-08/14**;MICRO AC-10→**AC-15**;BFCACHE AC-26→**AC-18/24**;CAST_HARD_WINDOW AC-06→**AC-07**;Z_INDEX×2 AC-07→**AC-26**;S_t→**AC-04/05**;A_t→**AC-04**;D_t **AC-03b(唔存在)**→**AC-04**(FIRST_BOOT/MIN_OBSERVED AC-08 ✓ 正確) | Rep Map constants/API 兩 table 全 row sweep + 加 `S_peak_t` row + Formula 5/CF-4「CI-4」→**CI-2** |
+
+### Recommended(4)
+- **R-1** `get_stat() -> float`(`stat_system.gd:511`)vs F1/F2 symbol table「int 0–999」— type 改 float(EC-SIG-3/4 已 float-aware,只係 symbol table 未跟)
+- **R-2** CR-12 `last_posture_switch_unix`(persisted wallclock)vs F4 monotonic cooldown — cross-boot hysteresis semantics 未定義(boot first-swap exempt 已寫 → 似 dead field);刪或定義
+- **R-3** #11 GDD L261 / #12 GDD L227 嘅 #26 downstream 描述係舊 framing(cosmetic threshold gate / placeholder anim)— 唔矛盾但 stale;#26 epic 時出 errata
+- **R-4** CR-13「`INITIAL_STATE` sentinel」實際機制 = `payload.source_event == INITIAL_STATE_PAYLOAD_SOURCE_EVENT`("initial_state",GSM:96)— 寫明 const 名
+
+### Nice-to-have(3)
+- N-1 CR-5 標題「two-gate」實際 3 gates(a/b/c);AC-14 同名 — rename
+- N-2 INV-2 timing assert coverage 掛 AC-24(CI-2)但 CI-2 description 冇 timing assert 字眼
+- N-3 Rep Map constants table 覆蓋唔齊(WORKOUT_END_GRACE_SECONDS / MIRROR_MOMENT_PENDING_BUFFER_FRAMES / GSM_SIGNAL_DEBOUNCE_MS 缺)vs「every load-bearing constant」claim
+
+### Dependency Graph
+- ✓ #11 stat-system.md / #12 ability-system.md / #1 game-state-machine.md / #3 persistence-layer.md / #5 particle-system-wrapper.md / #22 character-screen.md — 全部 exist + shipped
+- ✗ #25 combat-visual-feedback — NOT FOUND(Not Started;GDD 已誠實標明)
+- ✗ #29 mirror-moment — NOT FOUND(Not Started;coupled pair,FC-2/FC-3 frozen contract 已備)
+- ✓ ADR-0010 exists(Proposed — 待 #29 GDD ratify)
+
+### Senior Verdict(inline CD synthesis — degraded mode)
+v2 rewrite **達成目的**:4 個 Pass-4 architectural fault 全部真解、ceremony 零殘留、engine-API facts(pause / set_frame_and_progress / VRAM enum)全 doc 貫穿正確、phantom `get_max_unlocked_class_tier` 已殺。剩低 6 BLOCKING **全部係 citation-level**(2 個 project-API 名 + 1 arity + 1 EC policy 矛盾 + 1 AC scope + Rep Map pointer sweep)— 冇一個係 architecture,冇一個動 formula body(B-4 fix 只刪 EC 一句)。對比 Pass 4(16 BLOCKING 含 P5 FAILED)係質變。**但 Avatar Renderer Rule 兩 trigger 中咗(6 BLOCKING > 5 + secondary-rep drift flagged [B-6])→ 本 session 禁 inline fix** — 唔重演第 5 次 anti-pattern。注意:v2 引入咗 2 個**新** phantom project-API 名(B-1/B-2),證明 Rep Map 嘅「Engine API facts」table 應擴展到 **project-API facts**(#5.play / GSM.get_current_state / #11.stat_changed 5-arg)— 呢個係 revision session 嘅結構性補強。
+- Prior verdict resolved: **Yes** — Pass 4 嘅 4 blockers + 4 architectural faults 全部 verified resolved;Pass 5 發現嘅係 v2 自身新引入嘅 citation 層問題
+- Next action: **dedicated revision session(fresh context)** 執行 B-1..B-6 + R-1..R-4(全部 ground truth 已 pin,機械執行)→ `/clear` → **Pass 6 fresh-session re-review**。Exit bar:① `rg "emit_preset|\.current_state" design/gdd/avatar-renderer.md` = 0 hit;② Rep Map 每 row AC-pointer grep AC table 確認存在 + 語意;③ 0 new phantom;④ EC-MILE-1 suppress 語意同 Formula 3 table + EC-MILE-5 一致;⑤ AC-02 用 CR-6 visible-field scope;⑥ Rep Map 加 project-API facts rows
