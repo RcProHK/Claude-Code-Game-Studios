@@ -1,0 +1,24 @@
+[gd_resource type="SpriteFrames" format=3]
+
+; MVP placeholder avatar SpriteFrames — 3 animation tracks (idle/combat/cast) with
+; no frames yet. Distinct per-(class,tier) silhouette art is produced via /asset-spec
+; (G-AR-5). All 12 PostureConfig entries point here for MVP so the derivation /
+; FSM / resolution logic is testable before art lands.
+
+[resource]
+animations = [{
+"frames": [],
+"loop": true,
+"name": &"idle",
+"speed": 5.0
+}, {
+"frames": [],
+"loop": false,
+"name": &"combat",
+"speed": 10.0
+}, {
+"frames": [],
+"loop": false,
+"name": &"cast",
+"speed": 10.0
+}]

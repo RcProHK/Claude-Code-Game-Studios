@@ -1,6 +1,7 @@
-# CameraController — Story 009: autoload position 14 (after ParticleSystemWrapper 13, before
-# ScreenEffects 15). Static read of project.godot [autoload] (ADR-0008 ground truth).
-# (Shifted 13→14 by #10 Story 005: ExerciseClassMapping inserted at pos 5 — ADR-0008.)
+# CameraController — Story 009: autoload position 15 (after AvatarRenderer 14, before
+# ScreenEffects 16). Static read of project.godot [autoload] (ADR-0008 ground truth).
+# (Shifted 13→14 by #10 Story 005: ExerciseClassMapping at pos 5; then 14→15 by #26 Story 001:
+#  AvatarRenderer inserted at pos 14 — ADR-0008 v2 G-AR-1, project.godot is sole ground truth.)
 extends GutTest
 
 const PROJECT_GODOT: String = "res://project.godot"
@@ -25,12 +26,12 @@ func _read_autoload_order() -> Array[String]:
 	return order
 
 
-func test_camera_controller_is_position_14() -> void:
+func test_camera_controller_is_position_15() -> void:
 	var order := _read_autoload_order()
 	var cam_idx := order.find("CameraController")
 	var psw_idx := order.find("ParticleSystemWrapper")
 	var se_idx := order.find("ScreenEffects")
 	assert_gt(cam_idx, -1, "CameraController must be a registered autoload")
-	assert_eq(cam_idx + 1, 14, "CameraController must be at autoload position 14 (ADR-0008 ground truth)")
+	assert_eq(cam_idx + 1, 15, "CameraController must be at autoload position 15 (ADR-0008 v2 ground truth)")
 	assert_lt(psw_idx, cam_idx, "CameraController boots after ParticleSystemWrapper (pos 13)")
-	assert_lt(cam_idx, se_idx, "CameraController boots before ScreenEffects (pos 15)")
+	assert_lt(cam_idx, se_idx, "CameraController boots before ScreenEffects (pos 16)")

@@ -55,9 +55,14 @@ InventorySystem="*res://src/autoload/inventory_system.gd"
 LootDropSystem="*res://src/autoload/loot_drop_system.gd"
 EnemyDirector="*res://src/autoload/enemy_director.gd"
 
-; Presentation layer (Avatar at pos 11 per avatar-renderer.md F-5)
-AvatarRenderer="*res://src/autoload/avatar_renderer.gd"
+; Presentation layer
 ParticleSystemWrapper="*res://src/autoload/particle_system_wrapper.gd"
+; AvatarRenderer (#26) — ADR-0008 v2 amendment 2026-06-10 (G-AR-1): partial-order preds
+; {#11 Stat, #12 Ability, #3 Persistence, #1 GSM, #5 ParticleSystemWrapper}. v1 "pos 11/F-5"
+; hardcode SUPERSEDED — it placed #26 BEFORE its #5 predecessor (wrong). Now after #5.
+; #29 MirrorMomentCoordinator tail-appends after #26 (G-MM-1). Camera/ScreenEffects/Audio
+; do not read #26 at boot, so #26 before them is order-resilient.
+AvatarRenderer="*res://src/autoload/avatar_renderer.gd"
 CameraController="*res://src/autoload/camera_controller.gd"
 ScreenEffects="*res://src/autoload/screen_effects.gd"
 

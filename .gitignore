@@ -11,9 +11,13 @@ Desktop.ini
 
 # === Claude Code Local ===
 .claude/settings.local.json
+.claude/scheduled_tasks.lock
 CLAUDE.local.md
 production/session-logs/
 production/session-state/active.md
+
+# === Scratch / preview spikes (throwaway, never commit) ===
+tmp_hud_preview/
 
 # === GUT test addon (cloned locally + in CI; not committed, README placeholder kept) ===
 /addons/gut/*

@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="AvatarEvolutionConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/data/avatar_evolution_config.gd" id="1_avcfg"]
+
+[resource]
+script = ExtResource("1_avcfg")
+stat_thresholds = Array[int]([0, 30, 60, 100])
+ability_thresholds = Array[int]([0, 1, 3, 6])
+peak_thresholds = Array[int]([0, 20, 40, 70])
+depth_thresholds = Array[int]([0, 1, 2, 3])
+version_hash = "v1-2026-06-10"

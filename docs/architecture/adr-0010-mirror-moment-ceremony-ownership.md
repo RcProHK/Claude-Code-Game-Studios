@@ -1,10 +1,18 @@
 # ADR-0010: Mirror Moment Ceremony Ownership Split (#26 ↔ #29)
 
 ## Status
-Proposed
+Accepted (2026-06-10)
+
+> Ratified by the coupled pair: **#26 AvatarRenderer APPROVED** (Pass 6, render-only mandate
+> per CR-17 — zero ceremony composition) + **#29 Mirror Moment GDD APPROVED** (/design-review
+> 2026-06-10 — zero tier-derivation per CR-M14 + CI-MM-1; pure gating/selection formulas).
+> All four Validation Criteria met (see below). The Key Interfaces block below was updated at
+> ratification to the **actual shipped #26 contract** (the original Proposed draft named
+> `evolution_tier_changed` / `get_current_evolution_tier()` / `capture_avatar_snapshot()`,
+> none of which exist in the shipped renderer — grep-verified replacement, review item R-2).
 
 ## Date
-2026-05-29
+2026-05-29 (Proposed) · 2026-06-10 (Accepted)
 
 ## Engine Compatibility
 
@@ -85,9 +93,10 @@ Split by the **"identity vs celebration"** seam (already named in avatar-rendere
 ### Architecture Diagram
 ```
 #11 Stat ┐
-         ├─(canonical data)→ #26 AvatarRenderer ──(tier_changed signal,
-#12 Ability ┘                 (owns visible state +   render/snapshot API)
-                               evolution tier+history)        │
+         ├─(canonical data)→ #26 AvatarRenderer ──(avatar_evolution_milestone
+#12 Ability ┘                 (owns visible state +   + avatar_micro_evolution signals,
+                               evolution tier+history)  get_evolution_snapshot API)
+                                                              │
                                                               ▼  (read-only)
                                               #29 MirrorMomentSystem
                                               (owns weekly ceremony:
@@ -97,16 +106,28 @@ Split by the **"identity vs celebration"** seam (already named in avatar-rendere
                                   (NO back-edge: #26 never depends on #29)
 ```
 
-### Key Interfaces
+### Key Interfaces (updated 2026-06-10 to the actual shipped #26 contract — R-2)
 ```gdscript
-# #26 exposes (consumed by #29, #22, #25):
-signal evolution_tier_changed(old_tier: int, new_tier: int, transition_id: String)
-func get_current_evolution_tier() -> int
-func capture_avatar_snapshot() -> Texture2D    # "as it looks now" for before/after framing
+# #26 exposes (consumed by #29; read-API also by #22, #25):
+signal avatar_evolution_milestone(tier: int, source_metrics: Dictionary)        # #26 CR-5 — big ceremony trigger
+signal avatar_micro_evolution(delta_kind: StringName, source_metrics: Dictionary) # #26 CR-5b — weekly shader-delta marker
+func get_evolution_snapshot() -> AvatarEvolutionSnapshot                          # #26 CR-11 — the ceremony seam (read-only)
+# AvatarEvolutionSnapshot { tier, class_posture, sprite_frames_resource_path,
+#   hero_pose_frame, prior_tier, prior_sprite_frames_resource_path,
+#   source_metrics:{stat_total, ability_count, max_class_depth, achieved_at_unix},
+#   snapshot_taken_unix }
 
-# #29 subscribes via connect_for_initial_state-style; gates on GSM state ∉ workout
-# and weekly cadence; composes using #26 snapshots; never writes tier state.
+# #26 defers avatar_evolution_milestone emit while GSM ∈ {WORKOUT_ACTIVE, REST_PERIOD}
+#   (#26 CR-15) so #29 never receives a trigger mid-set (Pillar 2).
+# #29 subscribes via connect_for_initial_state (ADR-0006 Contract 6); gates presentation on
+#   GSM state == IDLE + weekly cadence; composes from get_evolution_snapshot() at present-time;
+#   holds ZERO tier state — always reads #26 (CR-M14 + CI-MM-1).
 ```
+> **Note**: the original Proposed draft used a single `evolution_tier_changed(old, new, transition_id)`
+> signal + `capture_avatar_snapshot() -> Texture2D`. The shipped #26 instead splits the trigger into
+> a **milestone** (tier-up) + **micro-evolution** (weekly shader delta) signal pair, and exposes a
+> self-contained `AvatarEvolutionSnapshot` resource (sprite paths + hero-pose frame index, NOT a
+> rendered Texture2D — #29 owns all composition). Both #26 v2.1 GDD and #29 GDD cite this contract.
 
 ## Alternatives Considered
 
@@ -171,10 +192,10 @@ func capture_avatar_snapshot() -> Texture2D    # "as it looks now" for before/af
 3. No code yet (both Not Started / BLOCKED) — this ADR unblocks authoring.
 
 ## Validation Criteria
-- #26 GDD Pass 3 contains no ceremony-orchestration ownership; exits BLOCKED.
-- #29 GDD holds no evolution-tier computation/state — only reads #26.
-- Ceremony never fires during WORKOUT_ACTIVE (test once #29 implemented).
-- Mobile reveal degrades particles (#29) without altering silhouette (#26).
+- ✅ #26 GDD (v2.1, Pass 6 APPROVED) contains no ceremony-orchestration ownership (CR-17 render-only boundary); exited BLOCKED.
+- ✅ #29 GDD (APPROVED 2026-06-10) holds no evolution-tier computation/state — only reads #26 (CR-M14 + CI-MM-1; Formulas 1/2/3 are pure gating/selection, zero balance math).
+- ✅ (design-level) Ceremony never fires during WORKOUT_ACTIVE — #29 CR-M3 presentation gate (GSM == IDLE only) + #26 CR-15 emit-deferral; AC-03 + FT-M3. (Runtime test once #29 implemented.)
+- ✅ (design-level) Mobile reveal degrades particles (#29 via #5 0.5×, CR-M8) without altering silhouette (#26 substrate, CR-14); AC-15.
 
 ## Related Decisions
 - ADR-0001 (Web Export Budget Caps) — render/particle budget + mobile degradation.

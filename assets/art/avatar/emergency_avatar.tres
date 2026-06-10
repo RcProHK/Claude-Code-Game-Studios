@@ -1,0 +1,12 @@
+[gd_resource type="SpriteFrames" format=3]
+
+; EMERGENCY_AVATAR — T0 STRIKE idle fallback (EC-ASSET-1). Always preloaded; used
+; when a (posture,tier) SpriteFrames fails to load so the silhouette never breaks.
+
+[resource]
+animations = [{
+"frames": [],
+"loop": true,
+"name": &"idle",
+"speed": 5.0
+}]

@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="PostureConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/data/posture_config.gd" id="1_pcfg"]
+
+[resource]
+script = ExtResource("1_pcfg")
+posture_lut = {
+"STRIKE_T0": "res://assets/art/avatar/placeholder_avatar.tres",
+"STRIKE_T1": "res://assets/art/avatar/placeholder_avatar.tres",
+"STRIKE_T2": "res://assets/art/avatar/placeholder_avatar.tres",
+"STRIKE_T3": "res://assets/art/avatar/placeholder_avatar.tres",
+"CONTROL_T0": "res://assets/art/avatar/placeholder_avatar.tres",
+"CONTROL_T1": "res://assets/art/avatar/placeholder_avatar.tres",
+"CONTROL_T2": "res://assets/art/avatar/placeholder_avatar.tres",
+"CONTROL_T3": "res://assets/art/avatar/placeholder_avatar.tres",
+"MOBILITY_T0": "res://assets/art/avatar/placeholder_avatar.tres",
+"MOBILITY_T1": "res://assets/art/avatar/placeholder_avatar.tres",
+"MOBILITY_T2": "res://assets/art/avatar/placeholder_avatar.tres",
+"MOBILITY_T3": "res://assets/art/avatar/placeholder_avatar.tres"
+}

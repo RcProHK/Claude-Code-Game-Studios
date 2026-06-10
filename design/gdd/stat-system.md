@@ -258,7 +258,7 @@ Stat System 唔係 gameplay-stateful system，但 boot + GSM-coupled lifecycle �
 | **#13 CombatResolver** | reads | `get_stat(ATTACK_POWER)` / `get_stat(CRIT_CHANCE)` 等 per combat tick；NO signal subscription (read-on-demand) | None | Pure-function combat math 唔需要 cache stat — read each tick；O(1) get_stat 保證 hot path 唔 bottleneck |
 | **#20 Gym-Mode HUD** | listens | `connect_for_initial_state` to `stat_changed`；HUD redraw per signal payload | None | Pillar 2 Frictionless — HUD update 必 ≤1 frame 內 reflect mutation |
 | **#22 Character Screen** | listens + reads on open | `connect_for_initial_state` for live update；`get_stat` on screen open for static initial render | None | Player-facing comparison view (上週 vs 今週 stat) — screen 自身 own historical snapshot via #28 Telemetry data |
-| **#26 Avatar Renderer** | listens | Subscribe `stat_changed` for cosmetic threshold gate (e.g. STR ≥ 50 unlocks bulk avatar variant) | None | v0.2 layered character system 會深化呢個 dependency；MVP 只用 1-2 stat-gated cosmetic |
+| **#26 Avatar Renderer** | listens | Subscribe `stat_changed` to derive render-only class posture (Formula 1) + evolution tier (Formula 2) from STR/DEX/VIT — render-only per ADR-0010 (weekly ceremony belongs to #29 Mirror Moment) | None | v0.2 layered character system 會深化呢個 dependency；MVP placeholder SpriteFrames |
 | **#28 Telemetry / Analytics** | listens | Subscribe all 4 telemetry signals (`stat_clamped` / `stat_critical_save_failed` / `stat_mutation_rejected` / `boot_completed`)；forward to GymSys backend | None | `stat_mutation_rejected` 係 anti-fabrication telemetry — release build 內 fires = 可能有 cheat 嘗試或 implementation bug |
 
 **Interaction invariants**:
@@ -584,7 +584,7 @@ Stat System 唔係 gameplay-stateful system，但 boot + GSM-coupled lifecycle �
 | **#11 → #18 PR Detection** | Pre-MVP (Not Started) | Calls `apply_stat_delta(stat_id, PR_BREAKTHROUGH, delta)`；caller whitelist `src/feature/pr_detection.gd` | ⚠️ #18 must add Stat System to Section F as upstream；FR-2 ratification cascade |
 | **#11 → #20 Gym-Mode HUD** | MVP (Not Started) | Subscribes `stat_changed`；HUD redraws stat numbers + glow effect per signal payload | ⚠️ #20 must use `connect_for_initial_state` helper |
 | **#11 → #22 Character Screen** | MVP (Not Started) | Subscribes `stat_changed` + reads `get_stat` on screen open；historical comparison via #28 Telemetry | ⚠️ #22 must use `connect_for_initial_state` helper |
-| **#11 → #26 Avatar Renderer** | VS (Not Started) | Subscribes `stat_changed` for cosmetic threshold gates (e.g., STR ≥ 50 unlocks bulk variant)；MVP scope only 1-2 stat-gated cosmetics | ⚠️ #26 must use `connect_for_initial_state` helper；v0.2 layered character system deepens this |
+| **#11 → #26 Avatar Renderer** | VS (Not Started) | Subscribes `stat_changed` to derive render-only class posture + evolution tier (Formula 1/2 from STR/DEX/VIT)；render-only per ADR-0010 | ⚠️ #26 must use `connect_for_initial_state` helper；v0.2 layered character system deepens this |
 | **#11 → #28 Telemetry / Analytics** | Pre-MVP (Not Started) | Subscribes 4 telemetry signals: `stat_clamped` / `stat_critical_save_failed` / `stat_mutation_rejected` / `boot_completed` | ⚠️ `stat_mutation_rejected` release-build fires = cheat attempt or implementation bug — alert routing per #28 |
 
 ### ADR Dependencies (Detailed)
@@ -716,7 +716,7 @@ Stat System 唔係 gameplay-stateful system，但 boot + GSM-coupled lifecycle �
 |------------|-----------|---------|
 | Real-time stat numeric display | #20 Gym-Mode HUD | `connect_for_initial_state` to `stat_changed`；HUD redraw per signal |
 | Detailed stat breakdown (base + equipment + total) | #22 Character Screen | Read-on-open via `get_stat(stat_id)` + subscribe for live update |
-| Stat-gated cosmetic display | #26 Avatar Renderer | Subscribe `stat_changed` for threshold gates (MVP: 1-2 stat-gated cosmetics) |
+| Render-only class posture + evolution tier | #26 Avatar Renderer | Subscribe `stat_changed` → derive posture/tier (Formula 1/2); render-only per ADR-0010 |
 | Equipment effect preview ("equip this for +5 STR") | #23 Inventory UI | Reads `get_stat(stat_id)` + simulates `apply_equipment_modifier` projection (without committing) — design TBD at #23 GDD |
 | Storage error banner | #24 Login / Connection UI | Subscribe `stat_critical_save_failed` |
 

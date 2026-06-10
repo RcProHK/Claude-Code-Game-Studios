@@ -1,5 +1,7 @@
-# ParticleSystemWrapper — Story 007 AC-15: autoload position 13, after AvatarRenderer (12).
-# (Shifted 12→13 by #10 Story 005: ExerciseClassMapping inserted at pos 5 — ADR-0008.)
+# ParticleSystemWrapper — Story 007 AC-15: autoload position 13, BEFORE AvatarRenderer (14).
+# (Shifted 12→13 by #10 Story 005: ExerciseClassMapping at pos 5. The v1 "#26 at pos 12, before
+#  #5" ordering was SUPERSEDED by ADR-0008 v2 G-AR-1 (#26 Story 001, 2026-06-10): #5 ≺ #26 is a
+#  hard predecessor, so AvatarRenderer now boots AFTER ParticleSystemWrapper at pos 14.)
 #
 # Static read of project.godot [autoload] (ADR-0008 — project.godot is the sole ground
 # truth for absolute autoload positions). boot ≤80ms is a PERF claim → ADVISORY, deferred
@@ -30,7 +32,7 @@ func _read_autoload_order() -> Array[String]:
 	return order
 
 
-func test_particle_wrapper_is_position_13_after_avatar_renderer() -> void:
+func test_particle_wrapper_is_position_13_before_avatar_renderer() -> void:
 	var order := _read_autoload_order()
 	var psw_idx := order.find("ParticleSystemWrapper")
 	var avatar_idx := order.find("AvatarRenderer")
@@ -38,4 +40,5 @@ func test_particle_wrapper_is_position_13_after_avatar_renderer() -> void:
 	assert_gt(avatar_idx, -1, "AC-15: AvatarRenderer must be a registered autoload")
 	# 1-based position == index + 1. ADR-0008 ground truth: pos 13 (after #10 inserted at pos 5).
 	assert_eq(psw_idx + 1, 13, "AC-15: ParticleSystemWrapper must be at autoload position 13")
-	assert_lt(avatar_idx, psw_idx, "AC-15: ParticleSystemWrapper must boot AFTER AvatarRenderer (pos 12)")
+	# ADR-0008 v2 G-AR-1: #5 ≺ #26 — ParticleSystemWrapper boots BEFORE AvatarRenderer (pos 14).
+	assert_gt(avatar_idx, psw_idx, "AC-15: AvatarRenderer (pos 14) must boot AFTER ParticleSystemWrapper")

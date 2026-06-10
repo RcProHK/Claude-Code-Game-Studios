@@ -83,8 +83,8 @@ authoritative.
 | 8 | WorkoutStateTracker | Core | After Stat/Ability; provides active-workout context |
 | 9 | LootDropSystem | Combat | **Before EnemyDirector** (#13 EC-43 + Rule 9) |
 | 10 | EnemyDirector | Combat | After LootDropSystem |
-| 11 | AvatarRenderer | Presentation | Pinned pos 11 (avatar-renderer.md F-5) |
-| 12 | ParticleSystemWrapper | Presentation | **Before ScreenEffects** (screen-effects depends on it) |
+| 11 | ParticleSystemWrapper | Presentation | **Before ScreenEffects** (screen-effects depends on it) + **before AvatarRenderer** (#26 hard pred, G-AR-1) |
+| 12 | AvatarRenderer | Presentation | **After {#11 Stat, #12 Ability, #3 Persistence, #1 GSM, #5 ParticleSystemWrapper}** — ADR-0008 v2 amendment 2026-06-10 (G-AR-1, avatar-renderer.md v2.1). v1 "pos 11/F-5" hardcode SUPERSEDED (it placed #26 before its #5 predecessor) |
 | 13 | CameraController | Presentation | Camera mutation single-owner (ADR-0001) |
 | 14 | ScreenEffects | Presentation | After ParticleSystemWrapper |
 
@@ -93,6 +93,7 @@ authoritative.
 2. `PlatformDetect` ≺ every web-export-sensitive autoload (ADR-0001).
 3. `LootDropSystem ≺ EnemyDirector` (#13 EC-43, Rule 9).
 4. `ParticleSystemWrapper ≺ ScreenEffects`.
+4b. `{StatSystem, AbilitySystem, PersistenceLayer, GameStateMachine, ParticleSystemWrapper} ≺ AvatarRenderer` (#26 hard predecessors, avatar-renderer.md v2.1 / **G-AR-1 amendment 2026-06-10** — supersedes v1 "pos 11/F-5" which placed #26 before #5). `AvatarRenderer ≺ MirrorMomentCoordinator` (#29 tail, G-MM-1; one-directional #29→#26).
 5. `StatSystem ≺ AbilitySystem` (class-tier derivation).
 6. Any subscriber using `connect_for_initial_state` is **order-resilient** to GSM
    (Contract 6 sentinel) and need only satisfy its data-producer predecessors.
@@ -177,7 +178,8 @@ downstream, and do NOT write the resulting absolute number into any GDD.
 | (systems-index) #33 AttentionBudget | Pillar 2 owner — gates input from session start | Insertion rule places it before combat/loot gating |
 | loot-drop-system.md / enemy-director.md | LootDrop must boot before EnemyDirector (EC-43, Rule 9) | Constraint 3 + map positions 9<10 |
 | particle-system-wrapper.md / screen-effects-system.md | ParticleSystemWrapper precedes ScreenEffects | Constraint 4 + map positions 12<14 |
-| avatar-renderer.md | Avatar pinned position 11 (F-5) | Recorded in map |
+| avatar-renderer.md (#26) | After {#11 Stat, #12 Ability, #3 Persistence, #1 GSM, #5 ParticleSystemWrapper} — **v2.1 partial-order, G-AR-1 amendment 2026-06-10** (supersedes v1 "pos 11/F-5" which mis-placed #26 before #5) | Constraint 4b + map positions 11(#5)<12(#26) |
+| mirror-moment.md (#29) | MirrorMomentCoordinator tail-appends after AvatarRenderer (#26); one-directional #29→#26; terminal | Constraint 4b (G-MM-1) + insertion rule (tail) |
 
 ## Performance Implications
 - **CPU / Memory / Load Time**: None — boot order does not change runtime cost; it

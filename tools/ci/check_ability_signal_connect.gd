@@ -32,6 +32,17 @@ const FILE_EXTENSION: String = "gd"
 ## ability_system.gd owns the signals — internal connects are permitted.
 const OWNER_FILE: String = "res://src/autoload/ability_system.gd"
 
+## Per-file, signal-SPECIFIC exemptions (ADR-0006 Contract 6 + ADR-0010 #26).
+## `ability_unlocked` has NO connect_for_initial_state path — AbilitySystem.cfis is bound to
+## `ability_cast` (shipped reality, ability_system.gd:406). A subscriber that captures the
+## initial unlock state another way is therefore permitted a plain `ability_unlocked.connect`.
+## avatar_renderer.gd (#26) qualifies: its bootstrap derive sync-reads get_unlocked_abilities()
+## (AC-16 erratum), so Contract 6's missed-initial-delivery concern does not apply. The exemption
+## is signal-scoped: a plain `ability_cast.connect` in the same file is STILL flagged.
+const ALLOWLIST := {
+	"res://src/autoload/avatar_renderer.gd": ["ability_unlocked"],
+}
+
 ## Combined pattern covering both connect styles:
 ##   1. .connect("ability_(unlocked|cast|cooldown_…)"   — string-name connect (legacy/self)
 ##   2. ability_(unlocked|cast|cooldown_started|cooldown_ended).connect(
@@ -58,7 +69,10 @@ func _init() -> void:
 	for file_path: String in scan_files:
 		if file_path == OWNER_FILE:
 			continue  # signal owner is permitted to connect its own signals internally.
-		violations.append_array(_scan_file(file_path, re))
+		for v: Dictionary in _scan_file(file_path, re):
+			if _is_allowlisted(file_path, v["snippet"]):
+				continue  # signal-specific exemption (see ALLOWLIST rationale).
+			violations.append(v)
 
 	if violations.is_empty():
 		print("[check_ability_signal_connect] PASS: scanned %d file(s), 0 plain-connect violations" % scan_files.size())
@@ -116,3 +130,13 @@ func _scan_file(file_path: String, re: RegEx) -> Array[Dictionary]:
 ## A line is a comment if its first non-whitespace character is `#`.
 func _is_comment_line(line: String) -> bool:
 	return line.strip_edges(true, false).begins_with("#")
+
+
+## True when this file has a signal-specific exemption matching the violating snippet.
+func _is_allowlisted(file_path: String, snippet: String) -> bool:
+	if not ALLOWLIST.has(file_path):
+		return false
+	for allowed_signal: String in ALLOWLIST[file_path]:
+		if allowed_signal in snippet:
+			return true
+	return false

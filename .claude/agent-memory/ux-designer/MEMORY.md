@@ -3,3 +3,4 @@
 - [Loot Modal UX positions + review](project_loot_modal_ux_positions.md) — #21 consultation positions + /ux-review 6 BLOCKING; GSM L375 contract row = loot-GDD 必查點
 - [Character Screen UX review](project_character_screen_ux_review.md) — #22 adversarial review: 6 BLOCKING (preview/shake topology, volume 孤兒, #26 接線, tap 衝突, key 名分裂, ARIA), NEEDS REVISION
 - [Inventory UI re-verification](project_inventory_ui_verification.md) — #23 fix-pass verify: 11/12 PASS, 1 BLOCKING (salvage×IN_MAILBOX phantom error code); error-code sweep 要逐 command grep
+- [Login/Shell UX review](project_login_shell_ux_review.md) — #24 adversarial: 3 BLOCKING (bottom-region 三方撞+layer111隱性occlude / canvas-DOM隱形同樣破ARIA非淨autofill / debounce×Honest-Door矛盾); region claim 要 grep ux spec 唔淨GDD

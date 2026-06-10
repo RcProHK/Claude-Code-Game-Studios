@@ -217,3 +217,42 @@ v2 rewrite **達成目的**:4 個 Pass-4 architectural fault 全部真解、cere
 - **Exit bar 全過**:① `rg "emit_preset|\.current_state"` = **0 hit**(negative-assertion 文字都改寫避開 literal token);② Rep Map 每 row AC-pointer 對 AC table 確認;③ 0 new phantom(所有新 citation grep-verified);④ EC-MILE-1 suppress 語意一致;⑤ AC-02 用 CR-6 scope;⑥ project-API facts rows 齊。
 - GDD Status header → **v2.1 REVISED — awaiting Pass 6 fresh-session /design-review**。
 - **Next action**: `/clear` → **Pass 6 fresh-session `/design-review design/gdd/avatar-renderer.md`**(fresh context 強制 — 本 session 寫咗 fix,唔可以自己 review)。
+
+## Review — 2026-06-10 — Verdict: **APPROVED** (Pass 6 fresh-session verification of v2.1 revision)
+- Scope signal: **L**(5 shipped deps + 5+1 formulas + ADR-0010 ratification;ceremony 已讓渡 #29)
+- Specialists: degraded-inline single-session + **grep-verify against shipped src/**(no-spawn,跟 plan-of-record + Pass-5 + #21–#24 先例;Pass-6 決定性工作 = project-API citation vs shipped code 比對,main-session grep 能力 > cold-context agent re-derive)
+- Re-review: Yes — Pass 5 NEEDS REVISION(6 citation BLOCKING)→ dedicated revision session(commit `b5c078e` B-1..B-6 + R-1/R-2/R-4)→ 本 entry = Pass 6 fresh-session(SessionStart hook 確認 fresh,非 revision session)
+- Completeness: **8/8** sections(+ Representation Map / Visual / UI / Open Questions 額外)
+- Blocking items: **0** | Recommended: 1(R-5)| Nice-to-have: 2(N-1/N-2)
+
+### Pass-5 6 BLOCKING 驗證 — 6/6 RESOLVED ✅(全部 grep-confirmed EXACT against shipped src)
+| # | Ground truth verified | Verdict |
+|---|----------------------|---------|
+| B-1 | `play(preset_id: PresetId, position: Vector2, multiplier: float = 1.0) -> ParticleHandle` @ `particle_system_wrapper.gd:419`;`PresetId` enum | ✅ phantom 殺清(0 hit) |
+| B-2 | `get_current_state() -> GameState` method @ `game_state_machine.gd:241`(無 public `current_state` var) | ✅ phantom 殺清(0 hit) |
+| B-3 | `stat_changed(stat_id, old_value, new_value, source, is_base_change)` 5-arg @ `stat_system.gd:85-91` | ✅ 全簽名 |
+| B-4 | EC-MILE-1 suppress-only(刪 `last_emitted_tier = current_tier`;gate_a 保持 true)— 同 Formula 3 table「suppress (cadence)」+ EC-MILE-5 一致 | ✅ |
+| B-5 | AC-02 改 visible/`derived_from`-attributed scope(per CR-6);milestone-track field 標 #3 persistence source | ✅ |
+| B-6 | Rep Map 11 AC-pointer 全對 AC table + `S_peak_t` row 加入 + CI-4→CI-2 ×4 sites + NEW Project-API facts table | ✅ |
+
+### Exit bar 6/6 全過
+① `rg "emit_preset|\.current_state"` = **0 hit**(`get_max_unlocked_class_tier` 命中全 negative-context — phantom/killed/Q-OQ-DEPTH Option A,非引用)· ② Rep Map AC-pointer 逐 row 對 AC table 確認 · ③ **0 new phantom**(`play`/`get_current_state`/`stat_changed`/`get_stat`/`get_unlocked_abilities`/`ability_unlocked` :153/`ability_cast` :156/`INITIAL_STATE_PAYLOAD_SOURCE_EVENT` GSM:96 全 grep-EXACT)· ④ EC-MILE-1 suppress 一致 · ⑤ AC-02 用 CR-6 visible scope · ⑥ project-API facts rows 齊
+
+R-1/R-2/R-4 applied;**R-3 deferred** to #26 epic(#11 GDD L261 / #12 GDD L227 downstream-framing errata — 跨 file)。**Pass-4 四大 architectural fault(F-2 specialist symmetry / ADR-0010 render-only / Rep Map 存在 / API facts 貫穿)維持真解。**
+
+### Recommended(1)
+- **R-5 [新發現]** — FC-6「3 new PresetId entries → flag for #5 next revision」**低估 #5 closed-set coupling**。Shipped #5:`play()` runtime reflection-validate preset_id against enum(membership oracle, Rule 1.1)+ **2 硬 test 斷言 `PRESET_TABLE.size() == 9`**(`tests/unit/particle/test_preset_library.gd:20` + `test_pool_tier_selection.gd:58`)+ pool buffer 32/96/256。#26 epic 加 3 avatar preset 必須同步 amend #5 enum(9→12)+ PRESET_TABLE + 3 material .tres + 嗰 2 條 size==9 test,否則 #5 test suite + `play()` oracle 落地即 RED。forward dep 已誠實 disclose,只係 under-detailed → epic-time 補,唔 block。
+
+### Nice-to-have(2)
+- **N-1** — CR-5「two-gate」label vs 3 sub-gate(a/b/c)。可辯護(gate_a/b = milestone-qualification;gate_c = deferral overlay)但易誤導。
+- **N-2** — INV-2 timing-monotonic assert Coverage Map 掛 AC-24/CI-2,但 CI-2 description 無 timing 字眼 → INV-2 無 AC pin;可補 AC-24 子斷言。
+
+### Dependency Graph
+- ✓ #11 / #12 / #1 / #3 / #5 / #22 — exist + shipped(bidirectional 已驗:#11 列 #26、#12 列 #26)
+- ✗ #25 combat-visual-feedback — Not Started(誠實標明)· ✗ #29 mirror-moment — Not Started(coupled pair;FC-2/FC-3 frozen contract 已備)
+- ✓ ADR-0010 exists(Proposed — 待 #29 GDD 一齊 ratify Proposed→Accepted)
+
+### Senior Verdict(inline CD synthesis — degraded mode)
+v2.1 revision 乾淨收斂:6 個 Pass-5 citation BLOCKING 全部機械落地 + 逐個 grep-confirmed EXACT;v2 自身引入嘅 2 新 phantom(B-1/B-2)已被 NEW「Project API facts」table 結構性堵住(Rep Map 由 anti-drift scaffold 升級成 project-API ground-truth oracle)。**0 new phantom — 對比 Passes 1→4 每輪揭新 phantom 係質變,首個 dedicated revision session 一輪過清。** 剩低全 advisory(R-5 forward-dep 精確化已誠實 disclose;N-1/N-2 cosmetic)。Pass-4 四大 architectural fault 維持真解、ceremony 零殘留。**Avatar Renderer saga 8-pass 拉鋸收線。**
+- Prior verdict resolved: **Yes** — Pass 5 6 BLOCKING 全部 verified RESOLVED + grep-confirmed against shipped src;0 new phantom introduced
+- Next action: `/ux-design avatar-renderer`(UX Flag)+ **#29 Mirror Moment GDD**(coupled pair — migrated ceremony spec 嘅 home;ADR-0010 Proposed→Accepted 由 #26 APPROVED + #29 一齊 ratify)→ `/create-epics avatar-renderer`。R-5/N-1/N-2 epic-time 處理。
