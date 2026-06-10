@@ -128,3 +128,32 @@ CR-2 + AC-05 + Section C States rows + Transition Diagram + Section F Animation 
 - Producer to scope blocker 2 + blocker 3 + blocker 4 resolution work
 - godot-gdscript-specialist to implement `connect_for_initial_state` helper (also addresses Q-OQ8 / Pass 2 F-9 prereq for ALL #26 stories)
 - Once 3 remaining blockers resolved → v2 fresh-template rewrite session (NOT inline patches to current GDD)
+
+## Resolution Note — 2026-06-10 — **Blockers 2 + 3 + 4 (of 4) RESOLVED — v2 rewrite now unblocked** (NOT a Pass 5 attempt)
+
+> **Explicit framing** (same discipline as the Q-OQ2 Resolution Note above): this entry is **blocker-resolution work**, not a Pass-5 review or an inline GDD fix. The Pass-4 mandate「DO NOT REVIEW AGAIN until 4 blockers resolved」+「no further inline patches」is fully respected — **zero edits to `avatar-renderer.md` in this entry**. With this note, all 4 v2-rewrite blockers are cleared and the GDD can transition BLOCKED → ready-for-v2-fresh-template-rewrite.
+
+- **Resolution owner**: Frank (architectural call) + autonomous mode per [feedback_autonomous_decisions] / [feedback_auto_advance]
+- **Trigger**: Godot Engine is now installed locally (Steam **4.6.3-stable**) — the original hard blocker (no engine → no empirical API test) is removed. Blocker 4 became actually executable for the first time.
+
+### Blocker 2 (of 4) — ADR-0006 `connect_for_initial_state` helper implementation — ✅ RESOLVED
+- Ground truth: `func connect_for_initial_state(callable: Callable)` is **defined** at `src/autoload/game_state_machine.gd:271` and **consumed by 18+ shipped autoloads** (stat_system / ability_system / enemy_director / attention_budget / login_shell_coordinator / inventory_ui_coordinator / loot_reveal_coordinator / … grep-verified). The entire Foundation tier shipped since 2026-05-28, including this helper (ADR-0006 Contract 6). The Pass-2 F-9 / Q-OQ8 prerequisite is satisfied by existing production code — no new helper story required for #26.
+
+### Blocker 3 (of 4) — #29 Mirror Moment ceremony sprint slot / ownership reframe — ✅ RESOLVED (design-binding)
+- The Pass-4 **Pillar-5 substrate ownership reframe** is binding and is now codified in **ADR-0010 (Proposed)** — *Mirror Moment Ceremony Ownership Split*: **#26 owns visible avatar state + evolution-tier + `get_evolution_snapshot()` / hook API (render-only); #29 owns the weekly ceremony** (cadence + non-workout gate + reveal + screenshot prompt + celebration VFX), one-directional dep #29→#26. systems-index #29 row = MVP screenshot-only, Polish tier, deps {17,18,26}. The v2 rewrite of #26 is therefore **slimmed** (ceremony composition spec removed — it migrates to the #29 GDD). Sprint sequencing: #26 v2 rewrite → #29 GDD authoring are a coupled pair (the Pillar-5 substrate completion), #29 GDD is the home for the migrated ceremony spec. No further producer escalation needed — the ownership question is answered by ADR-0010.
+
+### Blocker 4 (of 4) — Godot 4.6 empirical API verification — ✅ RESOLVED (empirical, locally executed)
+Run headless on Godot 4.6.3-stable. Full evidence + reproducible probe script: `production/qa/evidence/avatar-renderer/blocker4-empirical-api-verification.md` (+ `blocker4_api_probe.gd`).
+
+1. **`AnimatedSprite2D.stop()` "pauses-in-place" (CR-8) = CONFIRMED HALLUCINATION.** Empirically: `stop()` → `frame == 0` (RESETS); `pause()` → `frame` held (PAUSES in place); `pause()` **is a real method** in 4.6.3. The F-8 snapshot chain must be rebuilt on **`pause()`**, not `stop()`. (Pass-4's "`pause = true` property" wording also corrected: it is a **method**.)
+2. **`set_frame_and_progress(frame: int, progress: float)` = CONFIRMED EXISTS** (ClassDB method-list introspection).
+3. **Texture-memory monitor**: correct enum is **`Performance.RENDER_TEXTURE_MEM_USED` (15)** / **`RenderingServer.RENDERING_INFO_TEXTURE_MEM_USED` (3)** — both present in 4.6.3. Original GDD `Performance.MEMORY_STATIC` (=4, total static mem, not texture) is wrong → INV-6 corrected to `RENDER_TEXTURE_MEM_USED`. **Caveat**: verified on Vulkan desktop; meaningful value on **Compatibility/WebGL2** web backend stays a **VS-tier** empirical item → **Q-OQ11 remains open as a VS-tier gate** (enum name now verified, code can be written correctly regardless).
+
+### Net status
+- **All 4 v2-rewrite blockers RESOLVED**: 1 (Q-OQ2 Option C, 2026-05-28) · 2 (cfis shipped) · 3 (ADR-0010 ownership split) · 4 (empirical API, 2026-06-10).
+- These ground-truth facts become **canonical reference seed** for the v2 fresh-template rewrite (alongside the Q-OQ2 Option-C seed text). The current Pass-1..4 `avatar-renderer.md` stays **reference material — NO further inline patches**.
+- systems-index #26 row status updated: BLOCKED-on-4-deps → **ready for v2 fresh-template rewrite (all 4 deps RESOLVED 2026-06-10)**.
+
+### Next action
+- Open **v2 fresh-template rewrite session** for `design/gdd/avatar-renderer.md` (fresh-template, slimmed render-only scope per ADR-0010; Q-OQ2 Option-C + Blocker-4 empirical facts as seed; Representation-Map section mandatory per Pass-3 "Avatar Renderer Rule"). Then `/design-review` Pass 5 fresh-session adversarial verification.
+- Author **#29 Mirror Moment GDD** (MVP screenshot-only) as the home for the migrated ceremony spec — coupled pair with #26 v2.
