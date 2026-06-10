@@ -1,6 +1,6 @@
 # Avatar Renderer (#26) — v2 (fresh-template rewrite)
 
-> **Status**: **v2 DRAFT 2026-06-10 — awaiting Pass 5 fresh-session /design-review**. This is a **clean-template rewrite** mandated by Pass 4 (2026-05-28): Passes 1–4 of the prior single-file GDD are preserved as reference material in `design/gdd/reviews/avatar-renderer-review-log.md` + git history; this v2 does NOT inherit the prior file's body text. All 4 v2-rewrite blockers RESOLVED before this draft (review-log Resolution Notes 2026-05-28 Q-OQ2 + 2026-06-10 deps 2/3/4). **Scope reframed to render-only per ADR-0010** — Mirror Moment ceremony composition migrates to #29; #26 renders avatar evolution state and exposes a snapshot API + milestone trigger signals.
+> **Status**: **v2.1 REVISED 2026-06-10 — Pass-5 findings B-1..B-6 + R-1/R-2/R-4 applied (dedicated fresh-session revision pass), awaiting Pass 6 fresh-session /design-review**. (Pass 5 verdict: NEEDS REVISION — 6 citation-level BLOCKING, 0 architectural; all 4 Pass-4 architectural faults verified resolved. R-3 = #11/#12 GDD errata, deferred to #26 epic per review log.) This is a **clean-template rewrite** mandated by Pass 4 (2026-05-28): Passes 1–4 of the prior single-file GDD are preserved as reference material in `design/gdd/reviews/avatar-renderer-review-log.md` + git history; this v2 does NOT inherit the prior file's body text. All 4 v2-rewrite blockers RESOLVED before this draft (review-log Resolution Notes 2026-05-28 Q-OQ2 + 2026-06-10 deps 2/3/4). **Scope reframed to render-only per ADR-0010** — Mirror Moment ceremony composition migrates to #29; #26 renders avatar evolution state and exposes a snapshot API + milestone trigger signals.
 > **Author**: Frank + creative-director (autonomous mode per [feedback_auto_advance]) — v2 authored against ground-truth-verified upstream APIs (#11/#12 shipped, Godot 4.6.3 empirical)
 > **Last Updated**: 2026-06-10
 > **Implements Pillar**: **Pillar 5 (Mirror Moment)** PRIMARY *render* substrate — #26 produces the visible evolution state that #29 ceremonies / **Pillar 4 (Muscle = Class)** supporting — class-tagged silhouette differentiation across 3 postures / **Pillar 1 (Real Body, Real Power)** supporting — anti-fabrication 第七件套: every visible field derives only from canonical #11/#12 data / **Pillar 2 (Frictionless Companion)** supporting — 0.3s mid-set silhouette glance + posture hysteresis
@@ -19,29 +19,42 @@
 
 | Fact | Ground truth (4.6.3) | Appears in |
 |------|----------------------|-----------|
-| **Freeze sprite at current frame** | `AnimatedSprite2D.pause()` (method; holds `frame`). `stop()` RESETS `frame`→0 — MUST NOT be used for snapshot. | CR-8 · States "Suspended" row · EC-SUS-2 · Formula 5 · AC-26 |
-| **Fractional frame restore** | `set_frame_and_progress(frame: int, progress: float)` — exists, signature confirmed | CR-8 · Formula 5 · AvatarVisualState `frame_progress` · AC-26 |
-| **Texture VRAM monitor** | `Performance.RENDER_TEXTURE_MEM_USED` (15) / `RenderingServer.RENDERING_INFO_TEXTURE_MEM_USED` (3). `MEMORY_STATIC` measures total static heap — MUST NOT be used for texture budget. | INV-6 · CR-14 · AC-29 · Q-OQ-VRAM |
-| **Sprite + animation node** | `AnimatedSprite2D` + `SpriteFrames` (hand-rolled FSM drives it). NO `AnimationPlayer` anywhere in #26. | CR-2 · CR-8 · States table · EC-ANIM-* · CI-6 |
+| **Freeze sprite at current frame** | `AnimatedSprite2D.pause()` (method; holds `frame`). `stop()` RESETS `frame`→0 — MUST NOT be used for snapshot. | CR-8 · States "Suspended" row · EC-SUS-2 · Formula 5 · AC-11 |
+| **Fractional frame restore** | `set_frame_and_progress(frame: int, progress: float)` — exists, signature confirmed | CR-8 · Formula 5 · AvatarVisualState `frame_progress` · AC-11 |
+| **Texture VRAM monitor** | `Performance.RENDER_TEXTURE_MEM_USED` (15) / `RenderingServer.RENDERING_INFO_TEXTURE_MEM_USED` (3). `MEMORY_STATIC` measures total static heap — MUST NOT be used for texture budget. | INV-6 · CR-14 · AC-19 · Q-OQ-VRAM |
+| **Sprite + animation node** | `AnimatedSprite2D` + `SpriteFrames` (hand-rolled FSM drives it). NO `AnimationPlayer` anywhere in #26. | CR-2 · CR-8 · States table · EC-ANIM-* · CI-6 · AC-28 |
+
+### Project API facts (grep-verified against shipped src/ — Pass-5 structural reinforcement: v1/v2 phantoms 全部出自呢類 project-API 名)
+
+| Fact | Ground truth (shipped) | Appears in |
+|------|------------------------|-----------|
+| **#5 particle trigger** | `ParticleSystemWrapper.play(preset_id: PresetId, position: Vector2, multiplier: float = 1.0) -> ParticleHandle`(`particle_system_wrapper.gd:419`);`preset_id` 係 `PresetId` enum。`play()` 係唯一 trigger method(v2 草稿曾引用一個唔存在嘅 method 名 — Pass-5 B-1 killed)。 | Deps #5 row · Visual E · FC-6 |
+| **GSM state sync read** | `get_current_state() -> GameState` **method**(`game_state_machine.gd:241`)。public `current_state` var 唔存在(v2 phantom,B-2 killed)。 | Rep Map upstream row · CR-2 · States table (IDLE/CAST rows) · Deps #1 row |
+| **#11 stat signal** | `stat_changed(stat_id: StringName, old_value: float, new_value: float, source: StatSource, is_base_change: bool)` **5-arg**(`stat_system.gd:85-91`);`get_stat(stat_id) -> float`(`stat_system.gd:511`) | Deps #11 row · CR-13 · Formula 1 symbol table |
+| **#12 ability reads** | `get_unlocked_abilities() -> Dictionary` + `ability_unlocked(ability_id, source)` + `ability_cast(ability_id, caster, target)`。`get_max_unlocked_class_tier()` 唔存在(v1 phantom,killed)— (class,tier) resolution = Q-OQ-DEPTH。 | Deps #12 row · Formula 2 · Q-OQ-DEPTH |
 
 ### Constants (single definition site = Tuning Knobs §; every reference must match)
 
 | Constant | Value | Owner / parity | Appears in |
 |----------|-------|----------------|-----------|
-| `POSTURE_HYSTERESIS_SECONDS` | 300 | #26 (DESIGN-FROZEN) | CR-9 · Formula 4 · INV-2 · Tuning Knobs · AC-12 |
-| `MILESTONE_CADENCE_SECONDS` | 604800 | #26 (DESIGN-FROZEN) | CR-5 · Formula 3 · Tuning Knobs · AC-09 |
-| `MICRO_EVOLUTION_CADENCE_SECONDS` | 604800 | #26 (TUNABLE) | CR-5b · Formula 3b · Tuning Knobs · AC-10 |
-| `BFCACHE_CONTINUE_THRESHOLD_MS` | 30000 | **MUST == #15.Rule17 + #12.MAX_FRAME_DELTA-class** (INV-5/CI-4) | CR-8 · Formula 5 · INV-5 · Tuning Knobs · AC-26 |
-| `CAST_HARD_WINDOW_MS` | 300 | #26 (LOCKED) | CR-10 · Formula(none) · INV-2 · Tuning Knobs · AC-06 |
+| `POSTURE_HYSTERESIS_SECONDS` | 300 | #26 (DESIGN-FROZEN) | CR-9 · Formula 4 · INV-2 · Tuning Knobs · AC-09/AC-10 |
+| `MILESTONE_CADENCE_SECONDS` | 604800 | #26 (DESIGN-FROZEN) | CR-5 · Formula 3 · Tuning Knobs · AC-08/AC-14 |
+| `MICRO_EVOLUTION_CADENCE_SECONDS` | 604800 | #26 (TUNABLE) | CR-5b · Formula 3b · Tuning Knobs · AC-15 |
+| `BFCACHE_CONTINUE_THRESHOLD_MS` | 30000 | **MUST == #15.Rule17 + #12.MAX_FRAME_DELTA-class** (INV-5/CI-2) | CR-8 · Formula 5 · INV-5 · Tuning Knobs · AC-18/AC-24 |
+| `CAST_HARD_WINDOW_MS` | 300 | #26 (LOCKED) | CR-10 · Formula(none) · INV-2 · Tuning Knobs · AC-07 |
 | `CAST_TOTAL_MS` | 500 | #26 (DESIGN-FROZEN) | CR-10 · Visual B · Tuning Knobs |
 | `CAST_QUEUE_DEPTH` | 1 | #26 (LOCKED) | CR-10 · EC-ANIM-2 · Tuning Knobs |
-| `Z_INDEX_CHARACTER_LAYER` | 10 | ADR-0001 (LOCKED) | CR-7 · INV-3 · Tuning Knobs · AC-07 |
-| `Z_INDEX_PARTICLE_LAYER` | 20 | ADR-0001 (LOCKED) | CR-7 · INV-3 · Tuning Knobs · AC-07 |
-| `S_t` stat thresholds | {0,30,60,100} | #26 (TUNABLE, .tres) | Formula 2 · CR-4 · Tuning Knobs · AC-03/04 |
-| `A_t` ability thresholds | {0,1,3,6} | #26 (TUNABLE, .tres) | Formula 2 · CR-4 · Tuning Knobs · AC-03 |
-| `D_t` class-depth thresholds | {0,1,2,3} | #26 (TUNABLE, .tres) | Formula 2 · CR-4 · Tuning Knobs · AC-03b |
+| `Z_INDEX_CHARACTER_LAYER` | 10 | ADR-0001 (LOCKED) | CR-7 · INV-3 · Tuning Knobs · AC-26 |
+| `Z_INDEX_PARTICLE_LAYER` | 20 | ADR-0001 (LOCKED) | CR-7 · INV-3 · Tuning Knobs · AC-26 |
+| `S_t` stat thresholds | {0,30,60,100} | #26 (TUNABLE, .tres) | Formula 2 · CR-4 · Tuning Knobs · AC-04/AC-05 |
+| `S_peak_t` peak-stat thresholds | {0,20,40,70} | #26 (TUNABLE, .tres) | Formula 2 · CR-4 · Tuning Knobs · AC-04 |
+| `A_t` ability thresholds | {0,1,3,6} | #26 (TUNABLE, .tres) | Formula 2 · CR-4 · Tuning Knobs · AC-04 |
+| `D_t` class-depth thresholds | {0,1,2,3} | #26 (TUNABLE, .tres) | Formula 2 · CR-4 · Tuning Knobs · AC-04 |
 | `FIRST_BOOT_GRACE_SECONDS` | 172800 (48h) | #26 (TUNABLE) | Formula 3 gate_b · CR-5 · AC-08 |
 | `MIN_OBSERVED_SESSIONS` | 1 | #26 (TUNABLE) | Formula 3 gate_b · CR-5 · AC-08 |
+| `MIRROR_MOMENT_PENDING_BUFFER_FRAMES` | 60 | #26 (TUNABLE) | EC-MILE-5 · Tuning Knobs · AC-21 |
+| `WORKOUT_END_GRACE_SECONDS` | 30 | #26 (TUNABLE) | EC-MILE-3 · Tuning Knobs · AC-21 |
+| `GSM_SIGNAL_DEBOUNCE_MS` | 16 | #26 (TUNABLE) | EC-XSYS-2 · Tuning Knobs |
 
 ### Upstream read contracts (ground-truth-verified against shipped src/)
 
@@ -51,7 +64,7 @@
 | ability_count | `#12.get_unlocked_abilities() -> Dictionary` → `.size()` | Formula 2 generalist path |
 | **max_class_depth** | derived client-side from `#12.get_unlocked_abilities()` keys → (class,tier) | Formula 2 specialist path — **(class,tier) resolution = Q-OQ-DEPTH forward dep on #12; `get_max_unlocked_class_tier()` does NOT exist (phantom in v1)** |
 | combat enter/exit | `#1 GSM.state_changed(from,to,payload)`, filter `to ∈ {COMBAT_ACTIVE, BOSS_ENCOUNTER}` | CR-2 (Q-OQ2 Option C — `COMBAT_TICK` does not exist) |
-| workout window | `#1 GSM.current_state ∈ {WORKOUT_ACTIVE, REST_PERIOD}` | CR-9 + Formula 4 + CR-5 gate_c |
+| workout window | `#1 GSM.get_current_state() ∈ {WORKOUT_ACTIVE, REST_PERIOD}` (method — no public `current_state` var; `game_state_machine.gd:241`) | CR-9 + Formula 4 + CR-5 gate_c |
 | suspend/resume | `#1 GSM` SUSPENDED state + ADR-0006 Contract 6 | CR-8 + Formula 5 |
 
 > **GSM enum note (grep-verified `game-state-machine.md`)**: `GameState = {BOOTING, DISCONNECTED, IDLE, WORKOUT_ACTIVE, REST_PERIOD, COMBAT_ACTIVE, BOSS_ENCOUNTER, LOOT_DROP, SUSPENDED}`. The workout window is `{WORKOUT_ACTIVE, REST_PERIOD}` (the enum value is **REST_PERIOD**, renamed from EXERCISE_SWITCHING per GSM Decision #3 — the v1 GDD's `REST_BETWEEN_SETS` was itself a stale name; v2 uses the shipped `REST_PERIOD` everywhere).
@@ -132,7 +145,7 @@ This seam is the binding output of **ADR-0010**. #26 has **zero** ceremony rende
 | # | Rule | Binding |
 |---|------|---------|
 | **CR-1** | **Sprite variant surface LOCKED** — visible state = (a) single base sprite (no layered armor), (b) class posture ∈ `{STRIKE, CONTROL, MOBILITY}`, (c) evolution tier ∈ `{T0,T1,T2,T3}`. Cartesian = 12 `SpriteFrames` resources, each with 3 internal animation tracks (idle/combat/cast). NO cosmetic overlay / equipment slot — adding an axis requires a v0.2 GDD revision. | P5 + game-concept anti-pillar |
-| **CR-2** | **Animation FSM = 3 states** `IDLE / COMBAT / CAST` (mutually exclusive), driven by `AnimatedSprite2D` + hand-rolled FSM (NO `AnimationPlayer`). Signal source (Q-OQ2 Option C — `COMBAT_TICK` does not exist in GSM): (a) GSM `state_changed(_, to ∈ {COMBAT_ACTIVE, BOSS_ENCOUNTER}, _)` → COMBAT (instant cut, boss shares combat anim per CR-1); (b) `#12.ability_cast(ability_id, caster, target)` with `caster == player` → CAST (instant), plays per CR-10, returns to COMBAT if GSM `current_state ∈ {COMBAT_ACTIVE, BOSS_ENCOUNTER}` else IDLE; (c) GSM `state_changed(from ∈ {COMBAT_ACTIVE, BOSS_ENCOUNTER}, to ∉ {…}, _)` → IDLE. | FT-4 + #25 contract + Q-OQ2 |
+| **CR-2** | **Animation FSM = 3 states** `IDLE / COMBAT / CAST` (mutually exclusive), driven by `AnimatedSprite2D` + hand-rolled FSM (NO `AnimationPlayer`). Signal source (Q-OQ2 Option C — `COMBAT_TICK` does not exist in GSM): (a) GSM `state_changed(_, to ∈ {COMBAT_ACTIVE, BOSS_ENCOUNTER}, _)` → COMBAT (instant cut, boss shares combat anim per CR-1); (b) `#12.ability_cast(ability_id, caster, target)` with `caster == player` → CAST (instant), plays per CR-10, returns to COMBAT if GSM `get_current_state() ∈ {COMBAT_ACTIVE, BOSS_ENCOUNTER}` else IDLE; (c) GSM `state_changed(from ∈ {COMBAT_ACTIVE, BOSS_ENCOUNTER}, to ∉ {…}, _)` → IDLE. | FT-4 + #25 contract + Q-OQ2 |
 | **CR-3** | **Class posture derivation** — `dominant_class` from `#11.get_stat(STR/DEX/VIT)` 3 base stats: STRIKE=argmax(STR), CONTROL=argmax(DEX), MOBILITY=argmax(VIT). Deterministic tie-break `STRIKE > CONTROL > MOBILITY`. Re-evaluated on `#11.stat_changed` (stat_id ∈ {STR,DEX,VIT}); sprite swap respects CR-9 hysteresis. Per Formula 1. | FT-4 + P4 |
 | **CR-4** | **Evolution tier derivation** — `evolution_tier` per **Formula 2** (generalist OR specialist path, data-driven via `AvatarEvolutionConfig.tres`). Monotonic non-decreasing — once T-k reached, never regresses (CR-12 historical-max lock; anti-pillar「缺日唔拎走嘢」). | FT-render + P5 |
 
@@ -158,8 +171,8 @@ This seam is the binding output of **ADR-0010**. #26 has **zero** ceremony rende
 | # | Rule | Binding |
 |---|------|---------|
 | **CR-11** | **Read-only public API closure** — exactly these readers: `get_visual_state() -> AvatarVisualState` (returns `.duplicate()` — no external mutation by ref), `get_class_posture() -> StringName`, `get_evolution_tier() -> int`, `get_animation_state() -> StringName`, `is_ready_for_milestone_check() -> bool`, **`get_evolution_snapshot() -> AvatarEvolutionSnapshot`** (#29 ceremony seam). NO `set_*` / `mutate_*` / `force_*` / `inject_*` — any such prefix on public surface = CI-3 failure. Downstream (#22/#25/#29) read-only. | FT-3 + P1 + ADR-0010 |
-| **CR-12** | **Persistence schema (`avatar.evolution_tier_history`)** — via PersistenceLayer (ADR-0003 IPersistence): `current_tier:int` (max ever, monotonic), `last_emitted_tier:int`, `last_milestone_emit_unix:int`, `last_micro_emit_unix:int`, `last_posture_switch_unix:int`, `tier_attainment_log: Array` (append-only, FIFO cap 52 = 1yr), `pending_milestone`. Schema v1; field change → ADR-0003 900ms migration. | P5 + ADR-0003 |
-| **CR-13** | **Bootstrap from canonical state** — `_ready()` uses `connect_for_initial_state` (ADR-0006 Contract 6) for `#11.stat_changed` + `#12.ability_unlocked` + `#12.ability_cast` + GSM `state_changed`. On the `INITIAL_STATE` sentinel → `_derive_state_from_canonical()` via `#11.get_stat()` + `#12.get_unlocked_abilities()` sync read. No special bootstrap path — shares the normal derivation pipeline. Emits one final `avatar_visual_updated`. Milestone replay-safe via CR-5 gate (a). | ADR-0006 Contract 6 |
+| **CR-12** | **Persistence schema (`avatar.evolution_tier_history`)** — via PersistenceLayer (ADR-0003 IPersistence): `current_tier:int` (max ever, monotonic), `last_emitted_tier:int`, `last_milestone_emit_unix:int`, `last_micro_emit_unix:int`, `tier_attainment_log: Array` (append-only, FIFO cap 52 = 1yr), `pending_milestone`. (NO persisted posture-switch timestamp — CR-9 cooldown 係 monotonic-clock per-session,boot first-swap exempt,cross-boot wallclock field 係 dead field,v2.1 刪除。) Schema v1; field change → ADR-0003 900ms migration. | P5 + ADR-0003 |
+| **CR-13** | **Bootstrap from canonical state** — `_ready()` uses `connect_for_initial_state` (ADR-0006 Contract 6) for `#11.stat_changed` + `#12.ability_unlocked` + `#12.ability_cast` + GSM `state_changed`. Sentinel 檢測機制:`payload.source_event == INITIAL_STATE_PAYLOAD_SOURCE_EVENT`(const = `"initial_state"`,`game_state_machine.gd:96`)→ `_derive_state_from_canonical()` via `#11.get_stat()` + `#12.get_unlocked_abilities()` sync read. No special bootstrap path — shares the normal derivation pipeline. Emits one final `avatar_visual_updated`. Milestone replay-safe via CR-5 gate (a). | ADR-0006 Contract 6 |
 
 #### Platform + Operational + Ownership
 
@@ -238,9 +251,9 @@ class_name PostureConfig extends Resource
 | State | Entry | Allowed actions | Exit |
 |-------|-------|-----------------|------|
 | **Booting** | `_ready()`, before `connect_for_initial_state` completes | connect signals + receive `INITIAL_STATE` sentinel + `_derive_state_from_canonical()` | initial derive done + first `avatar_visual_updated` → **IDLE** |
-| **IDLE** | bootstrap done + GSM `current_state ∉ {COMBAT_ACTIVE, BOSS_ENCOUNTER}`, OR exit from COMBAT/CAST | accept `#11.stat_changed` + `#12.ability_unlocked` → re-derive; play idle breathing; posture swap subject to CR-9 | GSM `state_changed(_, to ∈ {COMBAT_ACTIVE, BOSS_ENCOUNTER}, _)` → COMBAT; `#12.ability_cast(caster==player)` → CAST; GSM SUSPENDED → SUSPENDED |
+| **IDLE** | bootstrap done + GSM `get_current_state() ∉ {COMBAT_ACTIVE, BOSS_ENCOUNTER}`, OR exit from COMBAT/CAST | accept `#11.stat_changed` + `#12.ability_unlocked` → re-derive; play idle breathing; posture swap subject to CR-9 | GSM `state_changed(_, to ∈ {COMBAT_ACTIVE, BOSS_ENCOUNTER}, _)` → COMBAT; `#12.ability_cast(caster==player)` → CAST; GSM SUSPENDED → SUSPENDED |
 | **COMBAT** | GSM `state_changed(_, to ∈ {COMBAT_ACTIVE, BOSS_ENCOUNTER}, _)` (Option C; boss shares this anim) | play combat loop; accept `#11.stat_changed` but defer sprite swap to next IDLE (mid-combat flicker guard) | GSM `state_changed(from ∈ {COMBAT_ACTIVE, BOSS_ENCOUNTER}, to ∉ {…}, _)` → IDLE; `#12.ability_cast(caster==player)` → CAST; GSM SUSPENDED → SUSPENDED |
-| **CAST** | `#12.ability_cast(…, caster==player)` (onset ≤100ms) | play cast (300ms hard window uninterruptible; queue ≤1; refuse sprite swap during hard window) | hard window expires → wind-down (queue release) → finish at `CAST_TOTAL_MS` → COMBAT if GSM `current_state ∈ {COMBAT_ACTIVE, BOSS_ENCOUNTER}` else IDLE; GSM SUSPENDED → SUSPENDED |
+| **CAST** | `#12.ability_cast(…, caster==player)` (onset ≤100ms) | play cast (300ms hard window uninterruptible; queue ≤1; refuse sprite swap during hard window) | hard window expires → wind-down (queue release) → finish at `CAST_TOTAL_MS` → COMBAT if GSM `get_current_state() ∈ {COMBAT_ACTIVE, BOSS_ENCOUNTER}` else IDLE; GSM SUSPENDED → SUSPENDED |
 | **SUSPENDED** | GSM SUSPENDED | cache `_suspended_snapshot`; **`AnimatedSprite2D.pause()`** (holds frame); reject canonical signals; no emit | GSM resume → Formula 5: `≤30s` restore snapshot (`play` + `set_frame_and_progress`); `>30s` / negative → IDLE + re-derive (CR-13) |
 
 ```
@@ -288,7 +301,7 @@ else:                         return MOBILITY
 
 | Symbol | Type | Range | Source |
 |--------|------|-------|--------|
-| STR / DEX / VIT | int | 0–999 | `#11.get_stat("str"/"dex"/"vit")` (CI-1 sync read) |
+| STR / DEX / VIT | float (`get_stat() -> float`, `stat_system.gd:511`) | 0.0–999.0 | `#11.get_stat("str"/"dex"/"vit")` (CI-1 sync read) |
 | dominant_class | enum | {STRIKE, CONTROL, MOBILITY} | output |
 
 **Output**: exactly one of {STRIKE, CONTROL, MOBILITY} — never null/multiple (CF-1). Deterministic tie-break `STRIKE > CONTROL > MOBILITY` via the top-down `>=` chain.
@@ -407,7 +420,7 @@ action = RESTORE_SNAPSHOT if delta_ms <= BFCACHE_CONTINUE_THRESHOLD_MS else RESE
 
 - `RESTORE_SNAPSHOT` → `AnimatedSprite2D.play(animation_state)` + `set_frame_and_progress(current_frame, frame_progress)` (verified 4.6.3 API).
 - `RESET_TO_IDLE_REDERIVE` → re-fetch #11/#12 canonical, re-derive, force IDLE.
-- `BFCACHE_CONTINUE_THRESHOLD_MS` = 30000, MUST equal `#15.Rule17` (INV-5 / CI-4).
+- `BFCACHE_CONTINUE_THRESHOLD_MS` = 30000, MUST equal `#15.Rule17` (INV-5 / CI-2 parity assert).
 
 | Δms | action |
 |-----|--------|
@@ -423,7 +436,7 @@ action = RESTORE_SNAPSHOT if delta_ms <= BFCACHE_CONTINUE_THRESHOLD_MS else RESE
 | CF-1 | F1 returns exactly 1 of {STRIKE,CONTROL,MOBILITY} | top-down `>=` chain + STRIKE default |
 | CF-2 | F2 `effective_tier` monotonic non-decreasing | CR-12 historical_max lock + INV-4 |
 | CF-3 | F3 / F4 true only when ALL sub-gates pass | short-circuit AND |
-| CF-4 | F5 threshold == `#15.Rule17.BFCACHE_CONTINUE_THRESHOLD_MS` | shared const + CI-4 |
+| CF-4 | F5 threshold == `#15.Rule17.BFCACHE_CONTINUE_THRESHOLD_MS` | shared const + CI-2 parity assert |
 | CI-INV-1 | F1/F2 stat inputs are `#11.get_stat()` sync reads, never cached | #11 authority (CI-1) |
 | CI-INV-2 | F2 `ability_count`/`max_class_depth` from `#12.get_unlocked_abilities()`, never inferred from stat/equipment | #12 authority (CI-5) |
 | CI-INV-5 | all formula inputs deterministic — no RNG, no time-dependent except explicit wallclock cadence | P1 purity |
@@ -436,7 +449,7 @@ action = RESTORE_SNAPSHOT if delta_ms <= BFCACHE_CONTINUE_THRESHOLD_MS else RESE
 | INV-2 | `POSTURE_HYSTERESIS_SECONDS*1000 ≥ CAST_TOTAL_MS` and `CAST_HARD_WINDOW_MS < CAST_TOTAL_MS` (timing monotonic) |
 | INV-3 | `Z_INDEX_CHARACTER_LAYER(10) < Z_INDEX_PARTICLE_LAYER(20) < 100` (hardcoded const, not a knob) |
 | INV-4 | persisted `current_tier ≥ last_emitted_tier ≥ 0` (load-time assert → migration on violation) |
-| INV-5 | `BFCACHE_CONTINUE_THRESHOLD_MS == #15.Rule17` (cross-system const, CI-4) |
+| INV-5 | `BFCACHE_CONTINUE_THRESHOLD_MS == #15.Rule17` (cross-system const, CI-2 parity assert) |
 | INV-6 | texture VRAM ≤ 600 KB mobile (current+adjacent tier) / ≤ 2.3 MB desktop (all 12), measured via `RENDER_TEXTURE_MEM_USED` (NOT `MEMORY_STATIC`) |
 | INV-G1 | `S_t` strictly increasing; `A_t`, `S_peak_t`, `D_t` monotonic non-decreasing |
 
@@ -482,7 +495,7 @@ action = RESTORE_SNAPSHOT if delta_ms <= BFCACHE_CONTINUE_THRESHOLD_MS else RESE
 - **EC-HYST-3 (HIGH)** — wallclock jumps backward (DST/NTP) during cooldown: cooldown uses `Time.get_ticks_msec()` monotonic — wallclock anomaly cannot affect it.
 
 ### Milestone Trigger (Formula 3)
-- **EC-MILE-1 (HIGH)** — tier-up gate passes but cadence fails: no emit; silently set `last_emitted_tier = current_tier` (absorb without ceremony — prevents stuck-pending-forever).
+- **EC-MILE-1 (HIGH)** — tier-up gate passes but cadence fails: **suppress-only** — no emit, `last_emitted_tier` 不變(gate_a 保持 true),cadence 過咗之後下次 milestone check 自然 emit。NO absorb(寫 `last_emitted_tier = current_tier` = 該 tier 嘅 ceremony 永久蒸發,直接違反 EC-MILE-5「Never silently drop」P5 ritual integrity)。同 Formula 3 table「suppress (cadence)」row 語意一致;唔需要 pending 機制(cadence-suppress ≠ workout-defer EC-MILE-2)。
 - **EC-MILE-2 (HIGH)** — both gates pass but workout window active: defer via `_pending_milestone` (persist); flush on workout-window exit (CR-15).
 - **EC-MILE-3 (CRITICAL)** — pending milestone exists at boot (crash mid-workout): re-validate gate_a + cadence against current state; valid → emit on next workout-exit OR after `WORKOUT_END_GRACE_SECONDS` if no workout; invalid → drop + log `stale_pending_milestone_dropped`.
 - **EC-MILE-4 (MEDIUM)** — bootstrap finds prior-session `pending_milestone`: replay-safe — emission keyed `(tier, emit_attempt_id)` UUID; #29 dedupes on UUID.
@@ -507,11 +520,11 @@ action = RESTORE_SNAPSHOT if delta_ms <= BFCACHE_CONTINUE_THRESHOLD_MS else RESE
 
 | Dep | Type | Interface (verified) | Bidirectional sync |
 |-----|------|----------------------|--------------------|
-| **#11 Stat System** (shipped) | signal + sync read | `stat_changed(stat_id, old, new, source)` via cfis; `get_stat(stat_id)` (lowercase ids) for F1/F2 | #11 GDD lists #26 downstream (highest cascade row) |
+| **#11 Stat System** (shipped) | signal + sync read | `stat_changed(stat_id: StringName, old_value: float, new_value: float, source: StatSource, is_base_change: bool)` **5-arg**(`stat_system.gd:85-91` — Godot 4 connect 少 arg = emit-time runtime error)via cfis; `get_stat(stat_id) -> float` (lowercase ids) for F1/F2 | #11 GDD lists #26 downstream (highest cascade row) |
 | **#12 Ability System** (shipped) | signal + sync read | `ability_unlocked(ability_id, source)` + `ability_cast(ability_id, caster, target)` via cfis; **`get_unlocked_abilities() -> Dictionary`** for ability_count + max_class_depth (NO `get_max_unlocked_class_tier()` — that was a v1 phantom) | #12 GDD lists #26 downstream |
-| **#1 GSM** (shipped) | signal + sync read | `state_changed(from, to, payload)` (CR-2 Option C), `current_state` membership (CR-9/CR-15), SUSPENDED (CR-8); cfis Contract 6 | widely subscribed |
+| **#1 GSM** (shipped) | signal + sync read | `state_changed(from, to, payload)` (CR-2 Option C), `get_current_state() -> GameState` **method**(`game_state_machine.gd:241` — no public `current_state` var)membership check (CR-9/CR-15), SUSPENDED (CR-8); cfis Contract 6 | widely subscribed |
 | **#3 PersistenceLayer** (shipped) | bidirectional | owns `avatar.evolution_tier_history` namespace (CR-12); ADR-0003 IPersistence; 900ms migration | #3 registers `avatar.*` consumer |
-| **#5 ParticleSystemWrapper** (shipped) | downstream API call | `emit_preset(preset_id, anchor)` — 3 presets `avatar_stat_glow` / `avatar_cast_burst` / `avatar_evolution_reveal`; Z-order CR-7; mobile 0.5× delegated | ⚠️ FORWARD: 3 new presets → flag for #5 next revision |
+| **#5 ParticleSystemWrapper** (shipped) | downstream API call | `play(preset_id: PresetId, position: Vector2, multiplier: float = 1.0) -> ParticleHandle` (`particle_system_wrapper.gd:419`); `preset_id` 係 `PresetId` **enum**(NOT StringName)— 3 new avatar entries `AVATAR_STAT_GLOW` / `AVATAR_CAST_BURST` / `AVATAR_EVOLUTION_REVEAL`; Z-order CR-7; mobile 0.5× delegated | ⚠️ FORWARD: 3 new `PresetId` enum entries → flag for #5 next revision (FC-6) |
 
 ### Downstream Dependents
 
@@ -530,7 +543,7 @@ action = RESTORE_SNAPSHOT if delta_ms <= BFCACHE_CONTINUE_THRESHOLD_MS else RESE
 | FC-3 | `AvatarEvolutionSnapshot` schema frozen (the ceremony seam) | #29 |
 | FC-4 | `animation_state_changed(new_state: StringName)` frozen | #25 |
 | FC-5 | avatar z_index ∈ [-10,10] within Character CanvasLayer=10 | #5, #20 HUD |
-| FC-6 | 3 new #5 particle presets | #5 |
+| FC-6 | 3 new #5 `PresetId` **enum entries** (`AVATAR_STAT_GLOW` / `AVATAR_CAST_BURST` / `AVATAR_EVOLUTION_REVEAL`) — consumed via `#5.play()` | #5 |
 
 ### ADR Dependencies
 
@@ -617,7 +630,7 @@ All tier values data-driven via `AvatarEvolutionConfig.tres` (CR-4). **Micro-evo
 
 ### E. Particle / VFX Integration
 
-`#26` **triggers** presets via `ParticleSystemWrapper.emit_preset()`, never instantiates `GPUParticles2D` (ADR-0001 forbidden). 3 MVP presets: `avatar_stat_glow` (T3 passive aura) / `avatar_cast_burst` (cast release frame) / `avatar_evolution_reveal` (tier-up moment — but the *ceremony* around it is #29). Z-order: sprite (Z0 in layer 10) < outline (Z1) < particles (layer 20). Mobile 0.5× density delegated to #5; sprite quality unchanged (CR-14 / AC-20).
+`#26` **triggers** presets via `ParticleSystemWrapper.play(preset_id, position)` (returns `ParticleHandle`; preset_id = `PresetId` enum entry), never instantiates `GPUParticles2D` (ADR-0001 forbidden). 3 MVP presets (new `PresetId` enum entries, FC-6): `AVATAR_STAT_GLOW` (T3 passive aura) / `AVATAR_CAST_BURST` (cast release frame) / `AVATAR_EVOLUTION_REVEAL` (tier-up moment — but the *ceremony* around it is #29). Z-order: sprite (Z0 in layer 10) < outline (Z1) < particles (layer 20). Mobile 0.5× density delegated to #5; sprite quality unchanged (CR-14 / AC-20).
 
 ### F. Asset Spec Flag
 
@@ -641,7 +654,7 @@ All tier values data-driven via `AvatarEvolutionConfig.tres` (CR-4). **Micro-evo
 | AC | Given-When-Then | Source | Type | Gate |
 |----|-----------------|--------|------|------|
 | AC-01 | autoload boot → subscription set == exactly {#11.stat_changed, #12.ability_unlocked, #12.ability_cast, GSM.state_changed}, zero foreign | CR-1+CR-13 | unit | BLOCKING |
-| AC-02 | inspect every AvatarVisualState field → 100% derivable from #11/#12/GSM snapshot via pure fn (re-run on identical input = equal output) | CR-6+INV-1 | unit | BLOCKING |
+| AC-02 | inspect every **visible**(`derived_from`-attributed)AvatarVisualState field → 100% derivable from #11/#12/GSM snapshot via pure fn (re-run on identical input = equal output); milestone-tracking fields (`last_emitted_tier`/`last_milestone_emit_unix`) source 係 #3 persistence (CR-12),屬 attribution-check 而非 pure-fn re-derivation | CR-6+INV-1 | unit | BLOCKING |
 | AC-03 | STR=DEX=VIT=50 → dominant_class==STRIKE (tie-break order) | CR-3+F1 | unit | BLOCKING |
 | AC-04 | pure STRIKE specialist peak_stat=70, max_class_depth=3, stat_total=80, ability_count=3 → evolution_tier==T3 (specialist path, NOT locked — Pass-4 F-2 fix) | F2+CR-4+P4 | unit | BLOCKING |
 | AC-05 | stat at T2 then drop 1 below threshold → tier stays T2 (monotonic + historical lock) | CR-4+CR-12+CF-2 | unit | BLOCKING |
