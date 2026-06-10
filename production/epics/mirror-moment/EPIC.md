@@ -4,29 +4,31 @@
 > **GDD**: design/gdd/mirror-moment.md(✅ APPROVED 2026-06-10 — /design-review NEEDS REVISION→revise→APPROVED 同 session;15 CR / 3 Formula(全 gating logic 零 balance math)/ 4-state FSM(DORMANT/ARMED/PRESENTING/PAUSED)/ 20 EC / **26 AC** / **4 CI lint(CI-MM-1..4)** / 9 own knob)
 > **UX Spec**: design/ux/mirror-moment.md(✅ APPROVED 2026-06-10 — /ux-review 0 BLOCKING / 5 ADVISORY;ceremony overlay 真互動 spec;3-zone[backdrop + CelebrationVFXLayer 110 + ModalLayer 120]+ screenshot flow + **8 UX AC**;2 新 pattern flagged:Share-Card + Screenshot-Share Affordance)
 > **Architecture Module**: `MirrorMomentCoordinator` autoload @ `src/autoload/mirror_moment_coordinator.gd`(thin Node;持有 ceremony overlay CanvasLayer — **復用既有** CelebrationVFXLayer 110 + ModalLayer 120,#21-owned shared infra;**唔開新 layer**)。**Holds ZERO tier-derivation state**(CI-MM-1 守:`src/**/mirror_moment*.gd` 零 `S_t`/`A_t`/`D_t` threshold compare、零 `effective_tier=max()` — tier 只經 `get_evolution_snapshot().tier` 讀入)。Autoload 位置:**tail append 喺 `AvatarRenderer`(#26)之後**(G-MM-1 ADR-0008 amendment;單向 #29→#26 boot order;terminal — 冇下游)
-> **Status**: Ready(coupled pair — #26 先 implement,#29 後;#26 = #29 唯一未 ship 嘅 HARD dep)
-> **Stories**: **16 stories** created(5 Logic/Logic-formula + 8 Integration + 2 UI + 1 Static-CI + 1 Visual/Feel + 1 Config/Data)— run `/story-readiness` → `/dev-story`(建議 #26 epic 先收線)
+> **Status**: ✅ **IMPLEMENTED 2026-06-10**(coupled pair — #26 implemented 先,#29 後;full gate GREEN:GUT unit+integration+static **2698 / 2697 pass / 0 fail**(+1 pre-existing pending)+ 68 .gd + 10 .sh lint exit 0;#29 suite 自身 38 tests)。015 a11y/pattern done;016 playtest = ADVISORY 人手 gate(protocol authored,execution deferred)。
+> **Stories**: **16 stories**(15 implemented + green;016 ADVISORY protocol-authored,playtest deferred)
 
 ## Stories
 
 | # | Story | Type | Status | ADR |
 |---|-------|------|--------|-----|
-| 001 | G-MM-1 ADR-0008 tail amendment + project.godot + G-MM-4 cadence registry | Config/Data | Ready | ADR-0008 |
-| 002 | Coordinator scaffold + 4-state FSM + cfis 3-sub + bootstrap latch rebuild | Integration | Ready | ADR-0006/0008 |
-| 003 | Formula 1 ceremony_arm_check (cadence + change + once-per-window) | Logic | Ready | N/A(pure formula) |
-| 004 | Formula 2 content_tier_selection (EVOLUTION/REFLECTION/NONE honest skip) | Logic | Ready | N/A(pure formula) |
-| 005 | CR-M3 non-workout presentation gate + #33 soft + LOOT_DROP exclude | Integration | Ready | ADR-0006 |
-| 006 | CR-M4 pending-milestone latch + persist (tier-up never lost) | Integration | Ready | ADR-0003/0009 |
-| 007 | Formula 3 before_after collapse + CR-M6 snapshot-at-present | Logic | Ready | ADR-0010 |
-| 008 | Persistence schema mirror_moment.* + boot rebuild + G-MM-6 namespace | Integration | Ready | ADR-0003 |
-| 009 | CR-M12 suspend/bfcache PAUSED | Integration | Ready | ADR-0006/0001 |
-| 010 | Screenshot prompt + share-card (CR-M7) | UI | Ready | ADR-0001 |
-| 011 | Celebration VFX #5 burst + G-MM-2 layer + G-MM-3 LOOT preset | Integration | Ready | ADR-0001/0005 |
-| 012 | CR-M9 once-per-window + dismiss markers | Integration | Ready | ADR-0003 |
-| 013 | Narrative payload CR-M10 + G-MM-5 #9 caption enrich | Integration | Ready | N/A(null-safe read) |
-| 014 | CI lint CI-MM-1..4 + AC-20/AC-25 no-fabrication audit + cadence parity | Static-CI | Ready | ADR-0010 |
-| 015 | Ceremony overlay a11y + transient-IDLE delay + G-MM-7 2 patterns | UI | Ready | N/A(seam shipped) |
-| 016 | Playtest evidence FT-2 / FT-M1 | Visual/Feel | Ready | N/A(ADVISORY) |
+| 001 | G-MM-1 ADR-0008 tail amendment + project.godot + G-MM-4 cadence registry | Config/Data | ✅ Done | ADR-0008 |
+| 002 | Coordinator scaffold + 4-state FSM + cfis 3-sub + bootstrap latch rebuild | Integration | ✅ Done | ADR-0006/0008 |
+| 003 | Formula 1 ceremony_arm_check (cadence + change + once-per-window) | Logic | ✅ Done | N/A(pure formula) |
+| 004 | Formula 2 content_tier_selection (EVOLUTION/REFLECTION/NONE honest skip) | Logic | ✅ Done | N/A(pure formula) |
+| 005 | CR-M3 non-workout presentation gate + #33 soft + LOOT_DROP exclude | Integration | ✅ Done | ADR-0006 |
+| 006 | CR-M4 pending-milestone latch + persist (tier-up never lost) | Integration | ✅ Done | ADR-0003/0009 |
+| 007 | Formula 3 before_after collapse + CR-M6 snapshot-at-present | Logic | ✅ Done | ADR-0010 |
+| 008 | Persistence schema mirror_moment.* + boot rebuild + G-MM-6 namespace | Integration | ✅ Done | ADR-0003 |
+| 009 | CR-M12 suspend/bfcache PAUSED | Integration | ✅ Done | ADR-0006/0001 |
+| 010 | Screenshot prompt + share-card (CR-M7) | UI | ✅ Done | ADR-0001 |
+| 011 | Celebration VFX #5 burst + G-MM-2 layer + G-MM-3 LOOT preset | Integration | ✅ Done | ADR-0001/0005 |
+| 012 | CR-M9 once-per-window + dismiss markers | Integration | ✅ Done | ADR-0003 |
+| 013 | Narrative payload CR-M10 + G-MM-5 #9 caption enrich | Integration | ✅ Done | N/A(null-safe read) |
+| 014 | CI lint CI-MM-1..4 + AC-20/AC-25 no-fabrication audit + cadence parity | Static-CI | ✅ Done | ADR-0010 |
+| 015 | Ceremony overlay a11y + transient-IDLE delay + G-MM-7 2 patterns | UI | ✅ Done | N/A(seam shipped) |
+| 016 | Playtest evidence FT-2 / FT-M1 | Visual/Feel | ⏸ ADVISORY (protocol authored, playtest deferred) | N/A(ADVISORY) |
+
+> **Implementation note (2026-06-10)**: `MirrorMomentCoordinator` autoload + `MirrorMomentFormulas`(static pure F1/F2/F3 + resume)+ `MirrorMomentConfig`(.gd + .tres)+ 4 CI-MM lints。Tests:`tests/unit/mirror_moment/test_mirror_moment_formulas.gd`(17)+ `tests/integration/mirror_moment/test_coordinator_fsm.gd`(21)。G-MM-1 boot-order lint allowlist sync(`check_loot_reveal_boot_order` + `test_invui_lifecycle` 加 MirrorMomentCoordinator,feedback_lint_allowlist_adr_sync)。**Deferred**:CI-MM violation-fixtures(test-evidence completeness,lint CI-gated + clean-pass,#26 同款先例)/ 016 playtest(human)/ #17·#18·#9 真 narrative surface 接線(consumer-forward null-safe extension point shipped,upstream wires later)。
 
 > **Implementation order**:#26 epic 先收線(coupled pair HARD dep,mock-scoped 先行)→ 001(scaffold 前提)→ 002(FSM)→ formula stories(003/004/007 + gate 005)→ latch/persist(006/008)→ suspend(009)→ UI(010/011/012)→ narrative(013)→ CI(014)→ a11y/pattern(015)→ playtest(016)。**must-not-regress guard**:AC-09 tier-up-never-lost / AC-10 collapse-single / AC-11 snapshot-at-present / AC-03 non-workout-gate / AC-20 zero-tier-compute(CI-MM-1 對稱守 #26 AC-30)/ G-MM-3 LOOT-preset-only(B-1)。
 

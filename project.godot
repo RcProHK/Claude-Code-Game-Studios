@@ -135,6 +135,18 @@ InventoryUICoordinator="*res://src/autoload/inventory_ui_coordinator.gd"
 ; ALWAYS) — ADR-0001 #24 revision. #28 Telemetry stays last.)
 LoginShellCoordinator="*res://src/autoload/login_shell_coordinator.gd"
 
+; Mirror Moment Coordinator (#29 — ADR-0008 G-MM-1: tail append after every prior
+; autoload. Partial-order predecessors {AvatarRenderer (#26), GSM (#1, C6),
+; PersistenceLayer (#3), ParticleSystemWrapper (#5)} ≺ #29 all boot earlier; the
+; single binding constraint is #26 ≺ #29 (one-directional #29→#26 per ADR-0010 —
+; #29 subscribes #26.avatar_evolution_milestone/avatar_micro_evolution via
+; connect_for_initial_state + reads get_evolution_snapshot()). TERMINAL: zero
+; downstream — no system reads #29 output, so no autoload need boot after it.
+; Reuses #21 CelebrationVFXLayer(110)+ModalLayer(120) shared infra via runtime
+; has_method-guarded accessors (G-MM-2, zero boot dependency on #21). Holds ZERO
+; tier-derivation state (CI-MM-1). #28 Telemetry, when added, stays last.)
+MirrorMomentCoordinator="*res://src/autoload/mirror_moment_coordinator.gd"
+
 [display]
 
 window/size/viewport_width=1280

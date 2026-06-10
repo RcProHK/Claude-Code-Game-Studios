@@ -3033,6 +3033,41 @@ constants:
     revised: ""
     notes: "#23 BULK_CONFIRM modal receipt 件 itemised 列名上限。Safe range 4-20;too high = modal 細屏超高;too low = 列唔晒 →「+N more」行(總數照報 — 誠實度)。"
 
+  - name: milestone_cadence_seconds
+    status: active
+    source: design/gdd/avatar-renderer.md          # #26 — OWNER (MILESTONE_CADENCE_SECONDS + MICRO_EVOLUTION_CADENCE_SECONDS)
+    referenced_by:
+      - design/gdd/avatar-renderer.md              # #26 Formula 3 milestone gate + Formula 3b micro cadence
+      - design/gdd/mirror-moment.md                # #29 — MIRROR_CADENCE_SECONDS parity-bound to this (G-MM-4, CI-MM-3 hard assert)
+    value: 604800
+    unit: seconds
+    added: 2026-06-10
+    revised: ""
+    notes: "7-day weekly cadence. OWNED by #26 (avatar_renderer.gd MILESTONE_CADENCE_SECONDS = MICRO_EVOLUTION_CADENCE_SECONDS = 604800). Registered from #26 source per registry-5b lesson (referrer #29 does NOT register a duplicate). #29 MIRROR_CADENCE_SECONDS MUST == this value (parity rationale: if #29 cadence < #26, #29 arms with no new milestone = empty REFLECTION spin; if >, milestones latch too long = laggy tier-up). CI-MM-3 (story 014) asserts runtime equality."
+
+  - name: mirror_cadence_seconds
+    status: active
+    source: design/gdd/mirror-moment.md            # #29 — OWNER (MIRROR_CADENCE_SECONDS), parity-bound to #26
+    referenced_by:
+      - design/gdd/mirror-moment.md                # #29 Formula 1 ceremony_arm_check cadence window
+    value: 604800
+    unit: seconds
+    added: 2026-06-10
+    revised: ""
+    notes: "#29 weekly ceremony cadence window (CR-M1 / Formula 1). DESIGN-FROZEN parity: MIRROR_CADENCE_SECONDS == milestone_cadence_seconds (#26, 604800). Loaded from assets/data/mirror_moment_config.tres (CI-MM-3: zero hardcoded literal in .gd) + parity assert against #26 at boot. Window boundary: now_unix - last_ceremony_unix >= MIRROR_CADENCE_SECONDS."
+
+  - name: bfcache_continue_threshold_ms
+    status: active
+    source: design/gdd/avatar-renderer.md          # #26 — OWNER (BFCACHE_CONTINUE_THRESHOLD_MS); also mirrored by #15 loot_ttl_calc
+    referenced_by:
+      - design/gdd/avatar-renderer.md              # #26 Formula 5 bfcache resume-action threshold (== #15 loot_ttl_calc:49, CI-2 parity)
+      - design/gdd/mirror-moment.md                # #29 — CR-M12 suspend/resume continue-vs-collapse threshold, parity to #26
+    value: 30000
+    unit: milliseconds
+    added: 2026-06-10
+    revised: ""
+    notes: "bfcache/SUSPENDED resume continue-window. resume Δ ≤ 30s → continue; > 30s / negative → collapse + keep window marker. OWNED by #26 (parity == #15 loot_ttl_calc BFCACHE_CONTINUE_THRESHOLD_MS, #26 CI-2). #29 CR-M12 mirrors the same constant (parity); registered from #26 source per registry-5b."
+
 # ──────────────────────────────────────────────────────────────────────────────
 # BUILD PINS — asset SHA-256 digests that CI lints compare against on-disk files.
 # These prevent silent formula-constant tampering post-build (ADR-0005 no-hot-swap).

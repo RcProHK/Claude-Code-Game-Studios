@@ -362,6 +362,50 @@ Mirror Hero 係一個 web-based gym companion RPG，設計為 background auto-pl
 
 ---
 
+### P-12: share-card
+
+**Category**: Composition / Capture Target
+**Used In**: #29 Mirror Moment (weekly ceremony reveal)
+**Derived From**: GDD #29 Mirror Moment (CR-M7 / UI Requirements), ADR-0010 (#26 renders the silhouette, #29 frames it), G-MM-7
+
+**Description**: A **bounded, self-contained Control region** that is the *thing the player will screenshot*. Everything inside the card (avatar hero pose + optional ghost + tier badge + caption + narrative rows) is composed 100% from `#26.get_evolution_snapshot()` (+ null-safe #17/#18 narrative) — the card never shows a fabricated value (Pillar 1 / FT-M2). The card's defining property is that on capture it pushes itself to a **clean state**: surrounding chrome (dismiss ✕, backdrop text, the 截圖分享 button) is momentarily hidden so the OS screenshot frames only the card. The card itself is static (no interaction — pure display).
+
+**Specification**:
+- Fixed aspect from `SHARE_CARD_ASPECT` (MVP = `"viewport"` full-screen clean; `"9:16"` / `"1:1"` layered portrait → v0.2)
+- Content layers: avatar hero-pose still (`snap.hero_pose_frame`, full saturation, centred) + ghost (`prior_sprite` @ 30% opacity, EVOLUTION only) + amber-gold tier badge + caption + ≤2 narrative rows (smaller type)
+- World layer behind the card stays desaturated/dimmed so the eye lands on the avatar + badge first (Art Bible明度對比)
+- **Chrome-hide on capture**: when the share affordance fires, every non-card element opacity→0 for the capture window, then restores
+- Residence: card chrome on **ModalLayer 120**; celebration burst (EVOLUTION) on **CelebrationVFXLayer 110** (below the chrome, above the backdrop — B-1)
+- Accessibility: card content carries meaning in silhouette + text (never motion); reduced-motion drops the burst but the card is unchanged
+
+**When to Use**: Any "stop and capture this moment" surface whose value is that the captured image is *honest and shareable* (weekly evolution, future milestone share moments).
+
+**When NOT to Use**: Transient toasts / HUD glances (use P-02 / toast). Interactive panels (the card is display-only — interactions live on the surrounding chrome). Anything showing a value not derivable from canonical state (Pillar 1 violation).
+
+---
+
+### P-13: screenshot-share-affordance
+
+**Category**: Action / Capture Flow
+**Used In**: #29 Mirror Moment (MVP share path)
+**Derived From**: GDD #29 Mirror Moment (CR-M7 / Screenshot Prompt), G-MM-7, technical-preferences (touch primary, web export)
+
+**Description**: A **native-screenshot prompt flow** — the MVP-honest way to let a player share an in-app moment on web export, where in-app capture-to-PNG (`get_viewport().get_texture()` → file) is unreliable across browsers. Instead of capturing for the player, the affordance *prepares the frame and asks the player to use their device's screenshot function*. One amber-gold call-to-action button (44×44 min, single-tap, never disabled) → hide non-card chrome (P-12) + show a one-line hint「用裝置截圖功能影低呢個畫面 📸」+ emit a `share_prompted` telemetry event → after a beat / re-tap, restore chrome with a「影咗喇 ✓ / 跳過」二選 → emit `shared` or `share_skipped` (FT-2 share-rate).
+
+**Specification**:
+- Trigger: one CTA button, amber-gold fill, ≥44×44 px, single-tap (no hover-only, no drag), always enabled
+- Step 1 (prompt): hide all non-card chrome → show native-screenshot hint line → emit `share_prompted`
+- Step 2 (confirm): restore chrome → offer「影咗喇 ✓」(emit `shared` + record `last_shared_unix`) or「跳過」(emit `share_skipped`)
+- **Sharing-agnostic window marking**: whether the player confirms, skips, or just dismisses, the cadence window is marked presented — the ceremony NEVER re-nags because the player didn't screenshot (CR-M9, Pillar 2)
+- Accessibility: button has an ARIA label; the prompt hint is announced via `announce_aria(..., polite)`; dismiss (✕ / backdrop) is always one-tap zero-friction
+- v0.2: add a one-tap "儲存圖片" (desktop download / mobile share-sheet) alongside the native-screenshot path
+
+**When to Use**: Letting a player share an honest in-app moment on a platform where reliable in-app capture isn't available (web export).
+
+**When NOT to Use**: Platforms with reliable native share SDKs (use the SDK share sheet directly — v0.2/native). Forced/automatic capture (always player-initiated — consent + Pillar 2 zero-friction).
+
+---
+
 ## Gaps & Patterns Needed
 
 The following patterns are referenced in GDD UI Requirements sections but not yet fully defined. They should be authored when their corresponding screen UX spec is written:
@@ -373,7 +417,7 @@ The following patterns are referenced in GDD UI Requirements sections but not ye
 | Toast notification / inline message | Progress milestones, streak notifications | Medium (MVP) |
 | Navigation header / back button | All screens | High (before any screen spec) |
 | Settings toggle group | #22 Character Screen accessibility panel | Medium (MVP) |
-| Avatar portrait frame | #22 Character Screen, P5 Mirror Moment | Medium (MVP) |
+| Avatar portrait frame | #22 Character Screen | Medium (MVP) — #29 ceremony framing now covered by [P-12 share-card](#p-12-share-card) |
 | Streak milestone badge | #8 Streak System display | Low (Pre-MVP) |
 | Loading state / spinner | GymSys connection state | Medium (MVP) |
 

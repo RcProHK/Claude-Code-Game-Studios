@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="MirrorMomentConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/data/mirror_moment_config.gd" id="1_mmcfg"]
+
+[resource]
+script = ExtResource("1_mmcfg")
+cadence_seconds = 604800
+weekly_reflection_enabled = true
+present_delay_frames = 6
+celebration_particle_multiplier = 1.0
+auto_dismiss_seconds = 0
+no_change_nudge_enabled = false
+bfcache_continue_threshold_ms = 30000
+share_card_aspect = "viewport"
+celebration_burst_preset = 5
+version_hash = "v1-2026-06-10"
