@@ -41,6 +41,7 @@ const HARD_PREDECESSORS: Array[String] = [
 ##   - InventoryUICoordinator (#23 G-IU-2, ADR-0008 amendment 2026-06-07)
 ##   - LoginShellCoordinator (#24 G-LS-2, ADR-0008 amendment 2026-06-08)
 ##   - MirrorMomentCoordinator (#29 G-MM-1, ADR-0008 amendment 2026-06-10)
+##   - CombatVisualFeedback (#25 G-CV-2, ADR-0008 amendment 2026-06-11)
 ## The #21 invariant this lint protects is "boots after its predecessor set"
 ## (the #5 LOOT pool reparent handshake) — NOT absolute-tail; ADR-0008 is the
 ## ground truth for who may follow. Update this list per ADR-0008 amendment
@@ -52,6 +53,7 @@ const ALLOWED_SUCCESSORS: Array[String] = [
 	"InventoryUICoordinator",
 	"LoginShellCoordinator",
 	"MirrorMomentCoordinator",
+	"CombatVisualFeedback",
 ]
 
 

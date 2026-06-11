@@ -1969,9 +1969,9 @@ constants:
     source: design/gdd/combat-resolver.md
     referenced_by:
       - design/gdd/combat-resolver.md
+      - design/gdd/combat-visual-feedback.md   # #25 — outcome-first routing gate (KILLED/OVERKILL, R-3/R-9/R-10)
       # Expected future referrers:
       # - design/gdd/enemy-director.md (#14 — consumes via HitResult.outcome)
-      # - design/gdd/combat-visual-feedback.md (#25)
       # - design/gdd/telemetry.md (#28)
     value: "NORMAL_HIT | CRITICAL_HIT | KILLED | OVERKILL"
     unit: enum_value_set
@@ -1984,18 +1984,18 @@ constants:
     source: design/gdd/combat-resolver.md
     referenced_by:
       - design/gdd/combat-resolver.md
+      - design/gdd/combat-visual-feedback.md   # #25 — primary VFX router (FR Test #4 consumer, R-2)
       # Expected future referrers (FR Test #4 mandatory consumers):
       # - design/gdd/enemy-director.md (#14)
       # - design/gdd/screen-effects-system.md (#6 — auto-dispatch routing key)
       # - design/gdd/particle-system-wrapper.md (#5 — preset routing key)
-      # - design/gdd/combat-visual-feedback.md (#25 — primary VFX router)
       # - design/gdd/audio-manager.md (#4 — audio cue tier routing)
       # - design/gdd/telemetry.md (#28)
     value: "NEGLIGIBLE | LIGHT | MEDIUM | HEAVY | CRITICAL"
     unit: enum_value_set
     added: 2026-05-27
-    revised: ""
-    notes: "5-tier enum classified by ratio-of-MAX_HP (Formula 4 classify_damage_tier)。FR Test #4 binding — hit_resolved payload MANDATORY field；downstream VFX/audio routing key (NEGLIGIBLE/LIGHT → no shake/sound; MEDIUM → trauma 0.2; HEAVY → trauma 0.4 + hit_pause 65ms; CRITICAL → trauma 0.6 + hit_pause 80ms)。Crit override forces tier ≥ HEAVY (Rule 10) preserve crit excitement on bullet-sponge targets. AC-07 + AC-16 + AC-17 + AC-30 verify."
+    revised: "2026-06-11"
+    notes: "5-tier enum classified by ratio-of-MAX_HP (Formula 4 classify_damage_tier)。FR Test #4 binding — hit_resolved payload MANDATORY field；downstream VFX/audio routing key。Crit override forces tier ≥ HEAVY (Rule 10) preserve crit excitement on bullet-sponge targets. AC-07 + AC-16 + AC-17 + AC-30 verify. **#25 shipped-routing reconciliation (2026-06-11)**: 上面 prose 早期寫嘅 'MEDIUM → trauma 0.2; HEAVY → 0.4+65ms; CRITICAL → 0.6+80ms' 係 pre-#25-design aspirational intent —— combat-visual-feedback.md R-5..R-11 先係 authoritative consumer routing: MEDIUM = HIT_LIGHT 無 shake (micro-shake 0.2 → v0.2); HEAVY+CRITICAL 共用 HIT_HEAVY preset → #6 auto-dispatch shake 0.4 (shipped #6 _DISPATCH 係 binary,無 per-tier 0.4/0.6); #25 direct hit_pause HEAVY=0.065/CRITICAL=0.080 (填 #6 HIT_HEAVY pause=0 缺口); CRITICAL+OVERKILL = flash overlay (CombatOverlayLayer 105, ADR-0001 amendment-gated)。**dual-critical disambiguation**: `DamageTier.CRITICAL` (ratio ≥40% maxHP) ≠ `is_crit` (crit roll) — #25 screen-feel(pause+flash) keys on tier,number-style(暖色+bounce) keys on is_crit (R-12)。"
 
   - name: compute_hit_damage
     status: active
@@ -3067,6 +3067,185 @@ constants:
     added: 2026-06-10
     revised: ""
     notes: "bfcache/SUSPENDED resume continue-window. resume Δ ≤ 30s → continue; > 30s / negative → collapse + keep window marker. OWNED by #26 (parity == #15 loot_ttl_calc BFCACHE_CONTINUE_THRESHOLD_MS, #26 CI-2). #29 CR-M12 mirrors the same constant (parity); registered from #26 source per registry-5b."
+
+  # ── Combat Visual Feedback (#25) tuning knobs — G-CV-5 (2026-06-11) ──────────
+  # OWNER source = design/gdd/combat-visual-feedback.md. Constants live in
+  # src/core/combat_visual_feedback_formulas.gd (+ MAX_FRAME_DELTA in the coordinator).
+  # DUAL-CRITICAL DISAMBIGUATION (R-12): `DamageTier.CRITICAL` (ratio ≥40% maxHP) ≠
+  # `is_crit` (crit roll) — pause/flash key on tier, number style keys on is_crit. See
+  # damage_tier_enum notes for the shipped-routing reconcile (aspirational trauma ladder
+  # vs #25 binary HIT_LIGHT/HIT_HEAVY routing — #25 R-4..R-11 is authoritative).
+  - name: cvf_hit_pause_heavy_sec
+    status: active
+    source: design/gdd/combat-visual-feedback.md   # #25 — Formula 4 (R-7)
+    referenced_by:
+      - design/gdd/combat-visual-feedback.md
+    value: 0.065
+    unit: seconds
+    added: 2026-06-11
+    revised: ""
+    notes: "HEAVY tier hit_pause (#25 fills #6 HIT_HEAVY pause=0 gap). Safe range 0.0–0.12 (≤ #6 MAX_PAUSE_SEC=0.12 or #6 clamps). HIT_PAUSE_HEAVY_SEC."
+  - name: cvf_hit_pause_critical_sec
+    status: active
+    source: design/gdd/combat-visual-feedback.md   # #25 — Formula 4 (R-8/R-10)
+    referenced_by:
+      - design/gdd/combat-visual-feedback.md
+    value: 0.080
+    unit: seconds
+    added: 2026-06-11
+    revised: ""
+    notes: "CRITICAL tier + OVERKILL hit_pause (flash-ratified mode). Safe range 0.0–0.12. HIT_PAUSE_CRITICAL_SEC."
+  - name: cvf_critical_degrade_pause_sec
+    status: active
+    source: design/gdd/combat-visual-feedback.md   # #25 — EC-20 degrade
+    referenced_by:
+      - design/gdd/combat-visual-feedback.md
+    value: 0.100
+    unit: seconds
+    added: 2026-06-11
+    revised: ""
+    notes: "EC-20 flash-unavailable compensation — replaces 0.080 so CRITICAL/OVERKILL pause separates from HEAVY (65ms) by ≥35ms. Safe range 0.085–0.12. CRITICAL_DEGRADE_PAUSE_SEC."
+  - name: cvf_hit_particle_coalesce_ms
+    status: active
+    source: design/gdd/combat-visual-feedback.md   # #25 — Formula 3 (R-15)
+    referenced_by:
+      - design/gdd/combat-visual-feedback.md
+    value: 200
+    unit: milliseconds
+    added: 2026-06-11
+    revised: ""
+    notes: "Per-target particle coalescing window (protect #5 200 cap from LIGHT spam). Safe range 100–300 (align #5 EVICTION_MIN_LIFE_MS=150). HIT_PARTICLE_COALESCE_MS."
+  - name: cvf_max_concurrent_damage_numbers
+    status: active
+    source: design/gdd/combat-visual-feedback.md   # #25 — R-19 pool
+    referenced_by:
+      - design/gdd/combat-visual-feedback.md
+    value: 12
+    unit: count
+    added: 2026-06-11
+    revised: ""
+    notes: "Damage-number Label pool size (oldest-recycle latest-wins). Safe range 8–16. MAX_CONCURRENT_DAMAGE_NUMBERS."
+  - name: cvf_damage_number_lifetime_sec
+    status: active
+    source: design/gdd/combat-visual-feedback.md   # #25 — Formula 1
+    referenced_by:
+      - design/gdd/combat-visual-feedback.md
+    value: 0.8
+    unit: seconds
+    added: 2026-06-11
+    revised: ""
+    notes: "Damage number lifespan. Safe range 0.5–1.2. DAMAGE_NUMBER_LIFETIME_SEC."
+  - name: cvf_damage_number_rise_px
+    status: active
+    source: design/gdd/combat-visual-feedback.md   # #25 — Formula 1
+    referenced_by:
+      - design/gdd/combat-visual-feedback.md
+    value: 40
+    unit: pixels
+    added: 2026-06-11
+    revised: ""
+    notes: "Damage number upward drift distance. Safe range 24–56. DAMAGE_NUMBER_RISE_PX."
+  - name: cvf_damage_number_fade_start_ratio
+    status: active
+    source: design/gdd/combat-visual-feedback.md   # #25 — Formula 1
+    referenced_by:
+      - design/gdd/combat-visual-feedback.md
+    value: 0.5
+    unit: ratio
+    added: 2026-06-11
+    revised: ""
+    notes: "Lifetime fraction at which the number begins fading. Safe range 0.3–0.7. DAMAGE_NUMBER_FADE_START_RATIO."
+  - name: cvf_critical_flash_duration_sec
+    status: active
+    source: design/gdd/combat-visual-feedback.md   # #25 — Formula 2
+    referenced_by:
+      - design/gdd/combat-visual-feedback.md
+    value: 0.18
+    unit: seconds
+    added: 2026-06-11
+    revised: ""
+    notes: "CRITICAL full-screen flash duration. Safe range 0.10–0.25. CRITICAL_FLASH_DURATION_SEC."
+  - name: cvf_overkill_flash_duration_sec
+    status: active
+    source: design/gdd/combat-visual-feedback.md   # #25 — Formula 2
+    referenced_by:
+      - design/gdd/combat-visual-feedback.md
+    value: 0.12
+    unit: seconds
+    added: 2026-06-11
+    revised: ""
+    notes: "OVERKILL flash duration (aligns #6 MAX_PAUSE_SEC peripheral rhythm). Safe range 0.08–0.18. OVERKILL_FLASH_DURATION_SEC."
+  - name: cvf_overlay_max_opacity_critical
+    status: active
+    source: design/gdd/combat-visual-feedback.md   # #25 — Formula 2
+    referenced_by:
+      - design/gdd/combat-visual-feedback.md
+    value: 0.35
+    unit: opacity
+    added: 2026-06-11
+    revised: ""
+    notes: "CRITICAL flash peak opacity (fillrate knob + not occluding the set view, Pillar 2). Safe range 0.2–0.7. OVERLAY_MAX_OPACITY_CRITICAL."
+  - name: cvf_overlay_max_opacity_overkill
+    status: active
+    source: design/gdd/combat-visual-feedback.md   # #25 — Formula 2
+    referenced_by:
+      - design/gdd/combat-visual-feedback.md
+    value: 0.6
+    unit: opacity
+    added: 2026-06-11
+    revised: ""
+    notes: "OVERKILL flash peak opacity (can be higher — shorter-lived). Safe range 0.2–0.7. OVERLAY_MAX_OPACITY_OVERKILL."
+  - name: cvf_anchor_forward_px
+    status: active
+    source: design/gdd/combat-visual-feedback.md   # #25 — Formula 5
+    referenced_by:
+      - design/gdd/combat-visual-feedback.md
+    value: 40
+    unit: pixels
+    added: 2026-06-11
+    revised: ""
+    notes: "Anchor forward offset (facing-scaled). Safe range 16–64. ANCHOR_FORWARD_PX."
+  - name: cvf_anchor_vertical_px
+    status: active
+    source: design/gdd/combat-visual-feedback.md   # #25 — Formula 5
+    referenced_by:
+      - design/gdd/combat-visual-feedback.md
+    value: -16
+    unit: pixels
+    added: 2026-06-11
+    revised: ""
+    notes: "Anchor vertical offset (torso height, −y = up). Safe range -32–0. ANCHOR_VERTICAL_PX."
+  - name: cvf_anchor_jitter_px
+    status: active
+    source: design/gdd/combat-visual-feedback.md   # #25 — Formula 5
+    referenced_by:
+      - design/gdd/combat-visual-feedback.md
+    value: 24
+    unit: pixels
+    added: 2026-06-11
+    revised: ""
+    notes: "Per-hit cosmetic spread (avoid overlap). Presentation-only RNG — excluded from deterministic assertions. Safe range 0–48. ANCHOR_JITTER_PX."
+  - name: cvf_max_frame_delta
+    status: active
+    source: design/gdd/combat-visual-feedback.md   # #25 — _process clamp (EC-09 bfcache)
+    referenced_by:
+      - design/gdd/combat-visual-feedback.md
+    value: 0.1
+    unit: seconds
+    added: 2026-06-11
+    revised: ""
+    notes: "Per-frame delta clamp (bfcache resume — prevents a number jumping to end / overlay lingering on a big resume delta). Safe range 0.05–0.2. MAX_FRAME_DELTA (coordinator const)."
+  - name: cvf_overlay_respects_motion_intensity
+    status: active
+    source: design/gdd/combat-visual-feedback.md   # #25 — AC-25 / UX-04 a11y
+    referenced_by:
+      - design/gdd/combat-visual-feedback.md
+      - design/accessibility-requirements.md
+    value: true
+    unit: bool
+    added: 2026-06-11
+    revised: ""
+    notes: "a11y gate: overlay effective opacity × motion_intensity (=0 → no flash, photosensitivity). hit_pause is NEVER scaled (visual freeze ≠ vestibular). MVP fixed true; the independent reduce-motion≠reduce-flash toggle is Q-CV6 v0.2."
 
 # ──────────────────────────────────────────────────────────────────────────────
 # BUILD PINS — asset SHA-256 digests that CI lints compare against on-disk files.

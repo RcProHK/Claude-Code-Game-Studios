@@ -147,6 +147,20 @@ LoginShellCoordinator="*res://src/autoload/login_shell_coordinator.gd"
 ; tier-derivation state (CI-MM-1). #28 Telemetry, when added, stays last.)
 MirrorMomentCoordinator="*res://src/autoload/mirror_moment_coordinator.gd"
 
+; Combat Visual Feedback (#25 — ADR-0008 G-CV-2: tail append after every prior
+; autoload. Partial-order predecessors {EnemyDirector (#14), ScreenEffects (#6),
+; ParticleSystemWrapper (#5), GameStateMachine (#1, C6)} ≺ #25 all boot earlier;
+; the binding constraints are the data-producer / effect-gateway preds it consumes
+; at runtime — subscribes #14 hit_resolved/enemy_killed via connect_for_initial_state
+; + #1 GSM (lifecycle Active/Suspended), routes particle via #5 play(), shake via
+; #6 auto-dispatch, hit_pause via #6 direct call. Reactive consumer — emits nothing
+; consumed by another autoload, so TERMINAL (zero downstream; tail slot is convention
+; vs #29, NOT a binding #25↔#29 constraint). PROCESS_MODE_ALWAYS (EC-15: receives
+; hit_resolved while #6 HitPaused). Owns CombatNumberLayer (follow_viewport, sort
+; 10-50) + CombatOverlayLayer (105) — ADR-0001 G-CV-1 revision (story 002).
+; #28 Telemetry, when added, stays last.)
+CombatVisualFeedback="*res://src/autoload/combat_visual_feedback.gd"
+
 [display]
 
 window/size/viewport_width=1280

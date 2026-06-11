@@ -43,6 +43,7 @@ Mirror Hero 係一個 web-based gym companion RPG，設計為 background auto-pl
 | P-16 | bottom-sheet-picker | Modal | Character Screen (#22) — SLOT_PICKER;**Inventory UI (#23) — BULK_SELECT + MAKE_ROOM**(G-IU-3 (d):rarity rows re-preview / 雙入口 sheet;#23 Rules 11/15)| **Stub**(slot-filtered + virtualized + count indicator + empty 照開;#22 Rule 17)|
 | P-17 | peripheral-honesty-banner | Feedback / Overlay | Login/Shell (#24) — 4-system error consumer(#3/#8/#11/#12);bottom ≤10% peripheral · severity-stacked(主 slot + 「+N」)· **零 animation/pulse/audio**(誠實非 urgency)· 色+glyph 雙 encode(⚠/⃠/✓/ⓘ)· ONGOING acknowledge-to-minimize / WIPE acknowledge-dismiss / FEATURE_DEGRADED auto-clear / TRANSIENT auto-expire · REST 讓位 collapse-to-glyph(R-Glyph)· announce_aria SR | **Stub**(行為 ground truth 喺 #24 GDD Rules 5-8 + UX spec Banner Region Pixel Pin;對比 #20 silent-mode pulse banner = 邀請式,**唔同類**)|
 | P-18 | shell-entry-card | Input | Login/Shell (#24) — LZ-Entry #22/#23 入口;icon+label 雙 channel · enabled(a=1.0)/ interactive-dimmed(a=0.55 仍 tappable→inline reason)/ hidden 三態 · **無 greyed disabled**(對齊 #22 EC-30 全功能本地 view)· ≥48px · 可借 #22 `ui_card_item_bg` 9-slice | **Stub**(#22 UXQ-2 closure;行為 ground truth 喺 #24 GDD Rule 10 + UX spec States §入口卡三態)|
+| P-19 | [combat-climax-flash](#p-19-combat-climax-flash) | Feedback / Overlay | Combat VFX (#25) — CRITICAL/OVERKILL/critical-kill full-screen luminance pulse;single-instance latest-wins · `ColorRect`+analytic shader(無 texture)· layer 105(>100 immune)· Formula 2 線性衰減 · × motion_intensity(=0 → 無)· WCAG 2.3.1 結構保證 | Defined |
 
 ---
 
@@ -319,6 +320,12 @@ Mirror Hero 係一個 web-based gym companion RPG，設計為 background auto-pl
 **Used In**: Combat VFX (#25)
 **Derived From**: GDD #13 CombatResolver, Art Bible Section 7.D (damage number pop)
 
+> ⚠️ **#25 sync note(G-CV-4,2026-06-11)** — authoritative spec = `design/gdd/combat-visual-feedback.md`(APPROVED). The original P-10 below predates the #25 GDD; **4 drift corrections** apply (G-CS-6/G-LM-7 sync precedent — implementer follows #25 GDD, not the stale bullets):
+> 1. **Concurrent cap 6 → 12** (`MAX_CONCURRENT_DAMAGE_NUMBERS = 12`, oldest-recycle latest-wins).
+> 2. **Spawn-at-hit-position → camera-relative fixed focal point** (`hit_resolved` carries NO position; #26 is render-only so there is no avatar anchor — R-17/Formula 5 + jitter).
+> 3. **Overshoot scale animation → Formula 1 rise+fade** (`_process` self-managed, **no per-label Tween / no runtime alloc** — AC-29; the 1.1× overshoot is v0.2-only, crit-style bounce).
+> 4. **Remove「family color for ability-specific」** — #25 number colour is `is_crit` ONLY (warm-orange vs white). **Tier is NEVER carried by the number** (tier rides particle/pause/flash — R-12 dual-axis); colour is a foveal bonus, not a semantic channel.
+
 **Description**: Floating number that appears above an enemy/avatar when damage is dealt. Uses overshoot animation for satisfying impact feel. Number is proportional to actual damage value, giving player a sense of stat scaling.
 
 **Specification**:
@@ -403,6 +410,28 @@ Mirror Hero 係一個 web-based gym companion RPG，設計為 background auto-pl
 **When to Use**: Letting a player share an honest in-app moment on a platform where reliable in-app capture isn't available (web export).
 
 **When NOT to Use**: Platforms with reliable native share SDKs (use the SDK share sheet directly — v0.2/native). Forced/automatic capture (always player-initiated — consent + Pillar 2 zero-friction).
+
+---
+
+### P-19: combat-climax-flash
+
+**Category**: Feedback / Overlay
+**Used In**: Combat VFX (#25) — CRITICAL (R-8), OVERKILL (R-10), critical-kill carve-out (R-9)
+**Derived From**: GDD `combat-visual-feedback.md` R-11 / Formula 2, ADR-0001 G-CV-1 (CombatOverlayLayer 105), UX spec `design/ux/combat-visual-feedback.md`
+
+**Description**: A brief full-screen luminance pulse that punches the **peripheral** channel at a combat climax — the「Foveal punch, Peripheral pulse」escalation carrier. Because tier escalation must read in the eye's periphery (where number size/colour are illegible), the flash is the load-bearing top-tier signal. **Sparse by design**: most hits are silent; only CRITICAL/OVERKILL/critical-kill fire it (「稀疏即重量」). Single-instance latest-wins — a new climax replaces the in-flight flash, never compounds.
+
+**Specification**:
+- Node: one full-screen `ColorRect` + analytic `canvas_item` shader (or flat `color.a`) — **no texture / no art asset** (procedural, mirrors #6 analytic-noise stance)
+- Layer: `CombatOverlayLayer` (**105**, ALWAYS) — `>100` so shake/saturation/BackBufferCopy-immune (flashes at full contrast over a desaturated world); `<110` so the #21 loot ceremony always covers it
+- Decay: **Formula 2** linear `alpha(t) = MAX_OPACITY × max(0, 1 − t/DURATION)` — CRITICAL `0.35 / 0.18s`, OVERKILL `0.6 / 0.12s`
+- Single-instance latest-wins: new climax resets `t=0` + adopts the new opacity/duration → **≤1 full-screen blend pass** (mobile fillrate); IDLE = `visible=false`, zero per-frame cost
+- **Accessibility (load-bearing)**: effective opacity `× motion_intensity` (=0 → **no flash**, photosensitivity protection); hit-pause is NOT scaled (visual freeze ≠ vestibular). **WCAG 2.3.1** (≤3 flash/sec) is **structurally guaranteed** by single-instance latest-wins + R-15 coalescing — successive climaxes replace, never stack, so >3 flash/sec is impossible
+- Ratification: gated on ADR-0001 G-CV-1; pre-ratification = EC-20 degrade (no flash; CRITICAL pause bumped to `0.100` to carry the tier separation alone)
+
+**When to Use**: A combat climax that must register in the player's periphery while their fovea is on the GymSys set-rep UI — the rare, heavy, "felt" moments.
+
+**When NOT to Use**: Per-hit feedback (use the particle + P-10 number — flashing every hit destroys「稀疏即重量」and trips WCAG). Non-combat celebration (use #21 loot ceremony on CelebrationVFXLayer 110). Any persistent/status overlay (a flash is transient by definition — use P-17 peripheral-honesty-banner for honest status).
 
 ---
 

@@ -7,6 +7,9 @@
 ## the dopamine peak (AC-76b/AC-88).
 ##
 ## Required: audio_manager.gd / loot_reveal_coordinator.gd / screen_effects.gd
+## / combat_visual_feedback.gd (#25 EC-15 — number-pool rise/fade + overlay decay
+## _process must keep ticking while #6 holds a hit_pause tree-pause; a regression
+## here = damage numbers freeze mid-rise during the very freeze they annotate).
 ## (screen_effects's own Rule 10 selective-freeze posture predates #21 — its
 ## marker is the `process_mode` assignment OR PROCESS_MODE_ALWAYS reference).
 ##
@@ -18,6 +21,7 @@ const REQUIRED_FILES: Array[String] = [
 	"res://src/autoload/audio_manager.gd",
 	"res://src/autoload/loot_reveal_coordinator.gd",
 	"res://src/autoload/screen_effects.gd",
+	"res://src/autoload/combat_visual_feedback.gd",
 ]
 const MARKER: String = "PROCESS_MODE_ALWAYS"
 
