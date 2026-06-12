@@ -1,8 +1,8 @@
 # Systems Index: 鏡像勇者 (Mirror Hero)
 
-> **Status**: Draft (pending CD-SYSTEMS gate)
+> **Status**: Active — CD-SYSTEMS gate resolved 2026-05-25 (CONCERNS accepted; see Gate Resolutions table); all MVP-tier systems designed + implemented + CI-green; project entered **Production** 2026-06-12
 > **Created**: 2026-05-25
-> **Last Updated**: 2026-05-27
+> **Last Updated**: 2026-06-12 (Production-gate header refresh)
 > **Source Concept**: design/gdd/game-concept.md
 > **Engine**: Godot 4.6 + Web Export (HIGH knowledge-gap risk)
 

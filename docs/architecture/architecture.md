@@ -4,13 +4,22 @@
 
 | Field | Value |
 |-------|-------|
-| **Version** | 1.1 |
-| **Last Updated** | 2026-05-28 |
+| **Version** | 2.0 |
+| **Last Updated** | 2026-06-12 (Production-gate status refresh) |
+| **Stage** | **Production** (Pre-Production → Production gate CONCERNS-accepted 2026-06-12; see `production/gate-checks/pre-production-to-production-2026-06-12.md`) |
 | **Engine** | Godot 4.6 (Web Export, Compatibility Renderer) |
-| **GDDs Covered** | #1 GSM, #2 GymSys, #3 PersistenceLayer, #5 Particles, #6 ScreenEffects, #7 Camera, #8 Streak, #9 WorkoutStateTracker, #11 StatSystem, #12 AbilitySystem, #13 CombatResolver, #14 EnemyDirector (12 Approved) |
-| **ADRs Referenced** | ADR-0001 (Web Export Budget Caps), ADR-0002 (GymSys Integration), ADR-0003 (Save State Strategy), ADR-0004 (CORS Auth Topology), ADR-0005 (Loot Rarity Formula), ADR-0006 (State Machine Contract) |
-| **Technical Director Sign-Off** | 2026-05-28 — APPROVED WITH CONDITIONS (resolve 5 LP BLOCKING items before sprint planning) |
-| **Lead Programmer Feasibility** | 2026-05-28 — CONCERNS ACCEPTED (5 BLOCKING items documented; inline fixes applied for BLOCKER-1 and BLOCKER-3; BLOCKER-2/4/5 require ADR work in next session) |
+| **GDDs Covered (Foundation/Core baseline, v1.1)** | #1 GSM, #2 GymSys, #3 PersistenceLayer, #5 Particles, #6 ScreenEffects, #7 Camera, #8 Streak, #9 WorkoutStateTracker, #11 StatSystem, #12 AbilitySystem, #13 CombatResolver, #14 EnemyDirector (12 — TR baseline below) |
+| **GDDs Added Since v1.1 (Feature/Presentation/Polish)** | #4 Audio, #10 Exercise→Class, #15 LootDrop, #16 Boss, #17 Equipment/Inventory, #18 PR Detection, #19 Zone, #20 Gym-Mode HUD, #21 Loot Drop Modal, #22 Character Screen, #23 Inventory UI, #24 Login/Shell, #25 Combat Visual Feedback, #26 Avatar Renderer, #27 Onboarding, #28 Telemetry, #29 Mirror Moment, #33 Attention Budget (all design-reviewed + implemented + CI-green — see Post-v1.1 Evolution addendum) |
+| **ADRs Referenced** | ADR-0001..ADR-0012 (12 total, all Accepted variants — see CLAUDE.md Architecture Decisions Log for per-ADR summary; original v1.1 body cites ADR-0001..0008) |
+| **Technical Director Sign-Off** | v1.1: 2026-05-28 — APPROVED WITH CONDITIONS · v2.0 refresh: TD-PHASE-GATE 2026-06-12 CONCERNS (CONCERN-B = this doc was stale; refreshed here) |
+| **Lead Programmer Feasibility** | 2026-05-28 — CONCERNS ACCEPTED (5 BLOCKING items; BLOCKER-1/3 fixed inline; BLOCKER-2/4/5 resolved via subsequent ADR work) |
+
+> **v2.0 refresh scope (honesty note)**: This is a **status-header refresh + Post-v1.1 addendum**, not a full
+> re-derivation of the Technical Requirements Baseline. The TR table below remains the **Foundation/Core baseline
+> (12 GDDs, 38 requirements)** as authored at v1.1 — it is still accurate for those systems. The 18 systems added
+> since v1.1 were each individually design-reviewed and are all implemented + CI-green, but their requirements are
+> **not yet folded into the TR matrix below**. For a complete regenerated traceability matrix across all 33 GDDs +
+> 12 ADRs, run `/architecture-review` (heavy, multi-agent — deferred as a Production task, not blocking).
 
 ---
 
@@ -439,3 +448,59 @@ Additional LP concerns documented (non-blocking):
 - `EnemyDirector = pos LAST` fragility → replaced with `pos 10` specific position
 - `StatSystem` VOLUME_TICK emitter caller-whitelist undefined → to be specified in #11 implementation story
 - `FileAccess.store_var()` bool ≠ IDB commit ack → documented in PersistenceLayer API section
+
+---
+
+## Post-v1.1 Evolution (2026-06-12 Production-Gate Refresh)
+
+This addendum reconciles the v1.1 architecture snapshot (12 GDDs, 2026-05-28) with the project's actual
+state at the Pre-Production → Production gate. **All 5 LP BLOCKER items above are now resolved**:
+
+- **BLOCKER-2** — GymSys differential-cursor schema + 4-channel access pattern locked in ADR-0002 (Accepted-data-contract).
+- **BLOCKER-4** — All ADRs progressed to Accepted variants (ADR-0001 Accepted-structural; ADR-0002/0004 Accepted-data-contract/structural with empirical sub-parts VS-tier-gated; ADR-0003/0005/0006/0007/0008/0009/0010/0011/0012 Accepted). No Proposed ADR remains; no story is auto-blocked on ADR status.
+- **BLOCKER-5** — `tools/ci/*.gd` directory is populated (75+ CI lint scripts gating boot order, closed-API callers, forbidden patterns, telemetry no-PII / no-gameplay-emit / frozen-schema, etc.).
+
+### Systems added since v1.1 — all implemented + CI-green
+
+| # | System | Layer | Governing ADR(s) | Status |
+|---|--------|-------|------------------|--------|
+| #4 | Audio Manager | Foundation | ADR-0008 (boot), ADR-0001 | ✅ implemented, merged |
+| #10 | Exercise→Class Mapping | Core | ADR-0007 | ✅ implemented |
+| #15 | LootDrop System | Core | ADR-0005 | ✅ implemented |
+| #16 | Boss System | Feature | ADR-0005, ADR-0007 | ✅ implemented, merged |
+| #17 | Equipment & Inventory | Feature | ADR-0007, ADR-0009 | ✅ implemented, merged |
+| #18 | PR Detection | Feature | **ADR-0011** (topology + server baseline contract) | ✅ implemented |
+| #19 | Zone System | Feature | (workout-count axis) | ✅ implemented |
+| #20 | Gym-Mode HUD | Presentation | ADR-0001 (layer topology), #33 | ✅ implemented, merged |
+| #21 | Loot Drop Modal | Presentation | ADR-0001 §G-LM (CelebrationVFXLayer 110 + ModalLayer 120) | ✅ implemented |
+| #22 | Character Screen | Presentation | ADR-0001 §G-CS (CharacterScreenLayer 60), ADR-0008 | ✅ implemented |
+| #23 | Inventory UI | Presentation | ADR-0001 §G-IU (InventoryUILayer 61), ADR-0008 | ✅ implemented |
+| #24 | Login / Shell | Presentation | ADR-0001 §G-LS (LoginShellLayer 62 + ErrorBannerLayer 111), ADR-0008 | ✅ implemented |
+| #25 | Combat Visual Feedback | Presentation | ADR-0001 §G-CV (CombatNumberLayer 15* + CombatOverlayLayer 105) | ✅ implemented |
+| #26 | Avatar Renderer | Presentation | **ADR-0010** (Mirror Moment ownership split) | ✅ implemented |
+| #27 | Onboarding Flow | Presentation | ADR-0001 §G-OB (OnboardingOverlayLayer 63), ADR-0008 | ✅ implemented |
+| #28 | Telemetry | Polish | **ADR-0012** (telemetry transport seam) | ✅ implemented |
+| #29 | Mirror Moment | Presentation | **ADR-0010** | ✅ implemented |
+| #33 | Attention Budget & Interaction Policy | Foundation | ADR-0008 (boot), Pillar 2 enforcement | ✅ implemented, merged |
+
+### ADRs added since v1.1
+
+ADR-0007 (Class/Domain Enum Convention), ADR-0008 (Autoload Position Map — sole ground-truth for autoload
+positions, with amendments per #17/#18/#19/#21/#22/#23/#24/#25/#27/#29/#33), ADR-0009 (Signal Payload Schema
+Convention), ADR-0010 (Mirror Moment Ceremony Ownership Split — #26 render-only ↔ #29 ceremony), ADR-0011
+(PR Detection Topology & Server Baseline Contract), ADR-0012 (Telemetry transport seam — Pre-MVP gate instrument).
+
+### Carried VS-tier-gated empirical assumptions (NOT YET VERIFIED)
+
+These are tracked in `production/risk-register/external-gates.md` (Production Sprint 1 deliverable):
+
+- **GymSys backend transport** (ADR-0002/0004) — HTTP polling / CORS same-origin / session-token round-trip never exercised against a live backend; `src/autoload/gym_sys_backend_client.gd` has no real endpoint; no nginx config / docker-compose in repo.
+- **ADR-0001 hardware ratification** — GPUParticles2D + Camera2D position_smoothing + CPU budget numbers + mobile P95 never profiled on iOS Safari WebGL2.
+- **ADR-0001 §G-CV overlay-ratify** (#25 AC-24) and various VS-tier mobile P95 ACs remain `pending()` / honest-pending in the test gate.
+
+### Stale-doc note
+
+`docs/architecture/requirements-traceability.md` and `docs/architecture/control-manifest.md` were authored against
+the v1.1 12-GDD snapshot and have NOT been regenerated for the 33-GDD reality. A full `/architecture-review` pass
+(regenerates the TR matrix + control manifest across all GDDs/ADRs) is the proper fix and is queued as a
+non-blocking Production task. This addendum is the interim source-of-truth reconciliation.

@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="PixelArtImportPreset" load_steps=2 format=3 uid="uid://cpixelartpreset0"]
+
+[ext_resource type="Script" path="res://assets/.godot_import_presets/pixel_art_import_preset.gd" id="1_pxart"]
+
+[resource]
+script = ExtResource("1_pxart")
+texture_filter = "Nearest"
+mipmaps_generate = false
+compression_mode = "Lossless"
+fix_alpha_border = true
