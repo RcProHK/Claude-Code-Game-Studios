@@ -1,0 +1,248 @@
+[gd_resource type="Resource" script_class="ExerciseRegistry" load_steps=33 format=3 uid="uid://cexerregistry01"]
+
+[ext_resource type="Script" path="res://src/core/exercise_registry.gd" id="1_reg"]
+[ext_resource type="Script" path="res://src/core/exercise_entry.gd" id="2_ent"]
+
+[sub_resource type="Resource" id="ee01"]
+script = ExtResource("2_ent")
+exercise_id = "bench_press"
+movement_pattern = 0
+ability_class = 0
+muscle_group = "chest"
+aliases = Array[String](["Bench Press", "barbell_bench_press", "flat_bench_press"])
+
+[sub_resource type="Resource" id="ee02"]
+script = ExtResource("2_ent")
+exercise_id = "incline_bench_press"
+movement_pattern = 0
+ability_class = 0
+muscle_group = "chest"
+aliases = Array[String](["Incline Bench Press", "incline_press"])
+
+[sub_resource type="Resource" id="ee03"]
+script = ExtResource("2_ent")
+exercise_id = "overhead_press"
+movement_pattern = 0
+ability_class = 0
+muscle_group = "shoulders"
+aliases = Array[String](["Overhead Press", "ohp", "military_press", "shoulder_press"])
+
+[sub_resource type="Resource" id="ee04"]
+script = ExtResource("2_ent")
+exercise_id = "push_press"
+movement_pattern = 0
+ability_class = 0
+muscle_group = "shoulders"
+aliases = Array[String](["Push Press"])
+
+[sub_resource type="Resource" id="ee05"]
+script = ExtResource("2_ent")
+exercise_id = "thruster"
+movement_pattern = 0
+ability_class = 0
+muscle_group = "shoulders"
+aliases = Array[String](["Thruster"])
+
+[sub_resource type="Resource" id="ee06"]
+script = ExtResource("2_ent")
+exercise_id = "tricep_dip"
+movement_pattern = 0
+ability_class = 0
+muscle_group = "triceps"
+aliases = Array[String](["Tricep Dip", "dip", "dips"])
+
+[sub_resource type="Resource" id="ee07"]
+script = ExtResource("2_ent")
+exercise_id = "dumbbell_shoulder_press"
+movement_pattern = 0
+ability_class = 0
+muscle_group = "shoulders"
+aliases = Array[String](["Dumbbell Shoulder Press", "db_shoulder_press"])
+
+[sub_resource type="Resource" id="ee08"]
+script = ExtResource("2_ent")
+exercise_id = "chest_fly"
+movement_pattern = 0
+ability_class = 0
+muscle_group = "chest"
+aliases = Array[String](["Chest Fly", "dumbbell_fly", "pec_fly"])
+
+[sub_resource type="Resource" id="ee09"]
+script = ExtResource("2_ent")
+exercise_id = "tricep_pushdown"
+movement_pattern = 0
+ability_class = 0
+muscle_group = "triceps"
+aliases = Array[String](["Tricep Pushdown", "cable_pushdown"])
+
+[sub_resource type="Resource" id="ee10"]
+script = ExtResource("2_ent")
+exercise_id = "dumbbell_bench_press"
+movement_pattern = 0
+ability_class = 0
+muscle_group = "chest"
+aliases = Array[String](["Dumbbell Bench Press", "db_bench_press"])
+
+[sub_resource type="Resource" id="ee11"]
+script = ExtResource("2_ent")
+exercise_id = "deadlift"
+movement_pattern = 1
+ability_class = 1
+muscle_group = "back"
+aliases = Array[String](["Deadlift", "conventional_deadlift"])
+
+[sub_resource type="Resource" id="ee12"]
+script = ExtResource("2_ent")
+exercise_id = "barbell_row"
+movement_pattern = 1
+ability_class = 1
+muscle_group = "back"
+aliases = Array[String](["Barbell Row", "bent_over_row", "bb_row"])
+
+[sub_resource type="Resource" id="ee13"]
+script = ExtResource("2_ent")
+exercise_id = "pull_up"
+movement_pattern = 1
+ability_class = 1
+muscle_group = "back"
+aliases = Array[String](["Pull Up", "pullup", "pull-up"])
+
+[sub_resource type="Resource" id="ee14"]
+script = ExtResource("2_ent")
+exercise_id = "lat_pulldown"
+movement_pattern = 1
+ability_class = 1
+muscle_group = "back"
+aliases = Array[String](["Lat Pulldown", "pulldown"])
+
+[sub_resource type="Resource" id="ee15"]
+script = ExtResource("2_ent")
+exercise_id = "bicep_curl"
+movement_pattern = 1
+ability_class = 1
+muscle_group = "biceps"
+aliases = Array[String](["Bicep Curl", "barbell_curl", "dumbbell_curl"])
+
+[sub_resource type="Resource" id="ee16"]
+script = ExtResource("2_ent")
+exercise_id = "face_pull"
+movement_pattern = 1
+ability_class = 1
+muscle_group = "rear_delts"
+aliases = Array[String](["Face Pull"])
+
+[sub_resource type="Resource" id="ee17"]
+script = ExtResource("2_ent")
+exercise_id = "chin_up"
+movement_pattern = 1
+ability_class = 1
+muscle_group = "back"
+aliases = Array[String](["Chin Up", "chinup"])
+
+[sub_resource type="Resource" id="ee18"]
+script = ExtResource("2_ent")
+exercise_id = "power_clean"
+movement_pattern = 1
+ability_class = 1
+muscle_group = "back"
+aliases = Array[String](["Power Clean", "clean"])
+
+[sub_resource type="Resource" id="ee19"]
+script = ExtResource("2_ent")
+exercise_id = "snatch"
+movement_pattern = 1
+ability_class = 1
+muscle_group = "back"
+aliases = Array[String](["Snatch"])
+
+[sub_resource type="Resource" id="ee20"]
+script = ExtResource("2_ent")
+exercise_id = "seated_cable_row"
+movement_pattern = 1
+ability_class = 1
+muscle_group = "back"
+aliases = Array[String](["Seated Cable Row", "cable_row"])
+
+[sub_resource type="Resource" id="ee21"]
+script = ExtResource("2_ent")
+exercise_id = "squat"
+movement_pattern = 2
+ability_class = 2
+muscle_group = "quads"
+aliases = Array[String](["Squat", "barbell_squat", "back_squat"])
+
+[sub_resource type="Resource" id="ee22"]
+script = ExtResource("2_ent")
+exercise_id = "front_squat"
+movement_pattern = 2
+ability_class = 2
+muscle_group = "quads"
+aliases = Array[String](["Front Squat"])
+
+[sub_resource type="Resource" id="ee23"]
+script = ExtResource("2_ent")
+exercise_id = "lunge"
+movement_pattern = 2
+ability_class = 2
+muscle_group = "quads"
+aliases = Array[String](["Lunge", "walking_lunge", "dumbbell_lunge"])
+
+[sub_resource type="Resource" id="ee24"]
+script = ExtResource("2_ent")
+exercise_id = "leg_press"
+movement_pattern = 2
+ability_class = 2
+muscle_group = "quads"
+aliases = Array[String](["Leg Press"])
+
+[sub_resource type="Resource" id="ee25"]
+script = ExtResource("2_ent")
+exercise_id = "leg_extension"
+movement_pattern = 2
+ability_class = 2
+muscle_group = "quads"
+aliases = Array[String](["Leg Extension"])
+
+[sub_resource type="Resource" id="ee26"]
+script = ExtResource("2_ent")
+exercise_id = "leg_curl"
+movement_pattern = 2
+ability_class = 2
+muscle_group = "hamstrings"
+aliases = Array[String](["Leg Curl", "hamstring_curl"])
+
+[sub_resource type="Resource" id="ee27"]
+script = ExtResource("2_ent")
+exercise_id = "calf_raise"
+movement_pattern = 2
+ability_class = 2
+muscle_group = "calves"
+aliases = Array[String](["Calf Raise"])
+
+[sub_resource type="Resource" id="ee28"]
+script = ExtResource("2_ent")
+exercise_id = "bulgarian_split_squat"
+movement_pattern = 2
+ability_class = 2
+muscle_group = "quads"
+aliases = Array[String](["Bulgarian Split Squat", "split_squat"])
+
+[sub_resource type="Resource" id="ee29"]
+script = ExtResource("2_ent")
+exercise_id = "goblet_squat"
+movement_pattern = 2
+ability_class = 2
+muscle_group = "quads"
+aliases = Array[String](["Goblet Squat"])
+
+[sub_resource type="Resource" id="ee30"]
+script = ExtResource("2_ent")
+exercise_id = "hip_thrust"
+movement_pattern = 2
+ability_class = 2
+muscle_group = "glutes"
+aliases = Array[String](["Hip Thrust", "glute_bridge"])
+
+[resource]
+script = ExtResource("1_reg")
+entries = Array[ExerciseEntry]([SubResource("ee01"), SubResource("ee02"), SubResource("ee03"), SubResource("ee04"), SubResource("ee05"), SubResource("ee06"), SubResource("ee07"), SubResource("ee08"), SubResource("ee09"), SubResource("ee10"), SubResource("ee11"), SubResource("ee12"), SubResource("ee13"), SubResource("ee14"), SubResource("ee15"), SubResource("ee16"), SubResource("ee17"), SubResource("ee18"), SubResource("ee19"), SubResource("ee20"), SubResource("ee21"), SubResource("ee22"), SubResource("ee23"), SubResource("ee24"), SubResource("ee25"), SubResource("ee26"), SubResource("ee27"), SubResource("ee28"), SubResource("ee29"), SubResource("ee30")])

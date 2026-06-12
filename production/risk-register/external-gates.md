@@ -95,6 +95,18 @@ AD-PHASE-GATE conditions C-AD-1/2/3. **These are NOT external — done in this P
 
 ---
 
+## Line G — Discovered gaps (from VS-2 vertical-slice harness, 2026-06-12)
+
+The mock-fed loop harness (`prototypes/vertical-slice/`) surfaced an integration gap the 2861-test
+CI suite cannot catch (tests mock the data, so the missing shipped asset is invisible — phantom-green):
+
+| Gap | Source | Impact | Owner | Status |
+|-----|--------|--------|-------|--------|
+| **`assets/data/exercise_registry.tres` MISSING** | `exercise_class_mapping.gd:67` `_REGISTRY_PATH`; harness boot logged "registry missing → all lookups UNKNOWN" | **Pillar 4 (Muscle=Class) silently degraded in real build** — every exercise → UNKNOWN | main session | ✅ **FIXED 2026-06-12** — authored 30-exercise registry (10/class) from GDD 1:1:1 spine; harness verified `bench_press=STRIKE / deadlift=CONTROL / squat=MOBILITY`; full gate green, zero regression |
+
+> Fixed autonomously (not external-gated). Surfaced by the VS-2 harness — exactly the integration gap the
+> 2861-test CI suite missed because the ECM unit tests inject a mock registry.
+
 ## Summary — the ~14 gates collapse into 4 real external lines + 1 fun line
 
 1. **Deploy GymSys + nginx** (Line A) → clears backend cluster + enables real vertical slice
