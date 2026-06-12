@@ -104,8 +104,14 @@ CI suite cannot catch (tests mock the data, so the missing shipped asset is invi
 |-----|--------|--------|-------|--------|
 | **`assets/data/exercise_registry.tres` MISSING** | `exercise_class_mapping.gd:67` `_REGISTRY_PATH`; harness boot logged "registry missing → all lookups UNKNOWN" | **Pillar 4 (Muscle=Class) silently degraded in real build** — every exercise → UNKNOWN | main session | ✅ **FIXED 2026-06-12** — authored 30-exercise registry (10/class) from GDD 1:1:1 spine; harness verified `bench_press=STRIKE / deadlift=CONTROL / squat=MOBILITY`; full gate green, zero regression |
 
-> Fixed autonomously (not external-gated). Surfaced by the VS-2 harness — exactly the integration gap the
-> 2861-test CI suite missed because the ECM unit tests inject a mock registry.
+| `assets/data/sfx_catalog.tres` MISSING | `audio_manager.gd:630`; harness boot logged "SFX disabled (safe no-op mode)" | SFX silent (AudioManager degrades gracefully — NOT broken) | frank / audio | ⬜ author WHEN sfx `.ogg` assets exist (Line C) — catalog references real audio files |
+| `assets/data/bgm_catalog.tres` MISSING | `audio_manager.gd:776`; harness boot logged "BGM disabled (safe no-op mode)" | BGM silent (graceful no-op) | frank / audio | ⬜ author WHEN bgm `.ogg` assets exist (Line C) |
+
+> exercise_registry was fixed autonomously (pure data, no asset dependency). The audio catalogs are
+> deferred: they reference real `.ogg` files that don't exist yet (Line C), and AudioManager already
+> degrades to safe no-op mode without them — so authoring stub catalogs now would only add dangling refs.
+> All three surfaced by the VS-2 harness — the phantom-green class the CI suite can't catch (tests mock
+> the data, so missing shipped assets stay invisible).
 
 ## Summary — the ~14 gates collapse into 4 real external lines + 1 fun line
 
