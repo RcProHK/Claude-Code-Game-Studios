@@ -120,7 +120,8 @@ func test_project_godot_registers_inventory_ui_after_character_screen() -> void:
 	# #23 was the tail until #24 LoginShellCoordinator tail-appended after it
 	# (ADR-0008 G-LS-2, 2026-06-08), then #29 MirrorMomentCoordinator after that
 	# (ADR-0008 G-MM-1, 2026-06-10), then #25 CombatVisualFeedback after that
-	# (ADR-0008 G-CV-2, 2026-06-11). #23's binding invariant is "after #22"; the
+	# (ADR-0008 G-CV-2, 2026-06-11), then #27 OnboardingCoordinator after that
+	# (ADR-0008 G-OB-1, 2026-06-12). #23's binding invariant is "after #22"; the
 	# autoloads that may follow #23 are the later ADR-0008-sanctioned tail-appends
 	# (#28 Telemetry still reserved Last when written). Mirrors the check_loot_reveal_
 	# boot_order ALLOWED_SUCCESSORS sync — a prior-tail "is last" assertion must
@@ -129,7 +130,7 @@ func test_project_godot_registers_inventory_ui_after_character_screen() -> void:
 	assert_eq(iu_idx, ls_idx - 1,
 		"ADR-0008 G-LS-2: #24 LoginShellCoordinator tail-appends immediately after #23 InventoryUICoordinator")
 	for i in range(iu_idx + 1, order.size()):
-		assert_true(order[i] in ["LoginShellCoordinator", "MirrorMomentCoordinator", "CombatVisualFeedback", "Telemetry"],
+		assert_true(order[i] in ["LoginShellCoordinator", "MirrorMomentCoordinator", "CombatVisualFeedback", "OnboardingCoordinator", "Telemetry"],
 			"only ADR-0008-sanctioned tail-appends may follow #23 — found: %s" % order[i])
 
 

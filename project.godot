@@ -161,6 +161,21 @@ MirrorMomentCoordinator="*res://src/autoload/mirror_moment_coordinator.gd"
 ; #28 Telemetry, when added, stays last.)
 CombatVisualFeedback="*res://src/autoload/combat_visual_feedback.gd"
 
+; Onboarding Coordinator (#27 — ADR-0008 G-OB-1: tail append after every prior
+; autoload (impl-time current tail = CombatVisualFeedback #25; the #27 GDD's early
+; "after #29" wording was stale — B-2 fix). first-run choreography / coaching layer.
+; Partial-order predecessors {GSM (#1, C6), GymSysBackendClient (#2), PersistenceLayer
+; (#3), WorkoutStateTracker (#9), ExerciseClassMapping (#10), LootRevealCoordinator
+; (#21), LoginShellCoordinator (#24), ... every existing coordinator} all boot earlier
+; — #27 is a pure downstream observe-only consumer: subscribes #9 workout signals /
+; #21 modal_dismissed / #24 shell via connect (runtime, not boot), reads the persisted
+; onboarding latch. _ready() sync-reads NO upstream (only runtime signal observe +
+; latch read) → tail-append carries ZERO boot dependency violation. TERMINAL — emits
+; nothing another autoload consumes; holds ZERO gameplay-mutating state (G-OB-2).
+; Owns OnboardingOverlayLayer (<110 captured band — G-OB-3, ADR-0001 #27 revision,
+; story 013). #28 Telemetry, when added, stays last.)
+OnboardingCoordinator="*res://src/autoload/onboarding_coordinator.gd"
+
 [display]
 
 window/size/viewport_width=1280

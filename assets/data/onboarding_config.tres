@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="OnboardingConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/data/onboarding_config.gd" id="1_obcfg"]
+
+[resource]
+script = ExtResource("1_obcfg")
+coach_auto_dismiss_sec = 6.0
+coach_max_defer_sec = 120.0
+coach_fade_sec = 0.25
+preview_duration_sec = 24.0
+preview_enabled = true
+coach_marks_enabled = true
+version_hash = "v1-2026-06-12"

@@ -44,6 +44,8 @@ Mirror Hero 係一個 web-based gym companion RPG，設計為 background auto-pl
 | P-17 | peripheral-honesty-banner | Feedback / Overlay | Login/Shell (#24) — 4-system error consumer(#3/#8/#11/#12);bottom ≤10% peripheral · severity-stacked(主 slot + 「+N」)· **零 animation/pulse/audio**(誠實非 urgency)· 色+glyph 雙 encode(⚠/⃠/✓/ⓘ)· ONGOING acknowledge-to-minimize / WIPE acknowledge-dismiss / FEATURE_DEGRADED auto-clear / TRANSIENT auto-expire · REST 讓位 collapse-to-glyph(R-Glyph)· announce_aria SR | **Stub**(行為 ground truth 喺 #24 GDD Rules 5-8 + UX spec Banner Region Pixel Pin;對比 #20 silent-mode pulse banner = 邀請式,**唔同類**)|
 | P-18 | shell-entry-card | Input | Login/Shell (#24) — LZ-Entry #22/#23 入口;icon+label 雙 channel · enabled(a=1.0)/ interactive-dimmed(a=0.55 仍 tappable→inline reason)/ hidden 三態 · **無 greyed disabled**(對齊 #22 EC-30 全功能本地 view)· ≥48px · 可借 #22 `ui_card_item_bg` 9-slice | **Stub**(#22 UXQ-2 closure;行為 ground truth 喺 #24 GDD Rule 10 + UX spec States §入口卡三態)|
 | P-19 | [combat-climax-flash](#p-19-combat-climax-flash) | Feedback / Overlay | Combat VFX (#25) — CRITICAL/OVERKILL/critical-kill full-screen luminance pulse;single-instance latest-wins · `ColorRect`+analytic shader(無 texture)· layer 105(>100 immune)· Formula 2 線性衰減 · × motion_intensity(=0 → 無)· WCAG 2.3.1 結構保證 | Defined |
+| P-20 | [coach-mark](#p-20-coach-mark) | Feedback / Overlay | Onboarding (#27) — peripheral dismissible in-context hint;single-slot · OnboardingOverlayLayer 63(captured band <100,defers during world-desaturation)· **零 pulse/gaze-draw**(opacity-only fade)· tap-anywhere / 6s auto-dismiss / max-defer silent-latch · workout-critical 永不出(Formula 1 命脈)· announce_aria polite · mouse_filter=IGNORE | Defined |
+| P-21 | [preview-watermark](#p-21-preview-watermark) | Feedback / Overlay | Onboarding (#27) — 非綁定試演標示;角落 badge/watermark 全程可見 · 「試演 / Preview」明文 · anti-deception(Pillar 1 — 玩家絕不誤以為真實 progress)· skip affordance ≥44px · announce「非真實 progress」 | Defined |
 
 ---
 
@@ -432,6 +434,49 @@ Mirror Hero 係一個 web-based gym companion RPG，設計為 background auto-pl
 **When to Use**: A combat climax that must register in the player's periphery while their fovea is on the GymSys set-rep UI — the rare, heavy, "felt" moments.
 
 **When NOT to Use**: Per-hit feedback (use the particle + P-10 number — flashing every hit destroys「稀疏即重量」and trips WCAG). Non-combat celebration (use #21 loot ceremony on CelebrationVFXLayer 110). Any persistent/status overlay (a flash is transient by definition — use P-17 peripheral-honesty-banner for honest status).
+
+---
+
+### P-20: coach-mark
+
+**Category**: Feedback / Overlay
+**Used In**: Onboarding (#27) — welcome (Step 1), muscle=class (Step 3), first-drop framing (Step 4)
+**Derived From**: GDD `onboarding-flow.md` Rule 4 / Formula 1·2 / Visual §, ADR-0001 G-OB-3 (OnboardingOverlayLayer 63), UX spec `design/ux/onboarding-flow.md`
+
+**Description**: A small, peripheral, dismissible in-context hint that **teaches by pointing, never by blocking**. The Pillar-2 (Frictionless Companion) primitive: it explains a thing that just happened on-screen (avatar appeared / class lit up / loot dropped) without a modal wall, a "Next>" button, or a forced confirmation. **Single-slot** — at most one coach-mark on screen; concurrent triggers queue by step order. The teaching counterpart to P-17 (which is for honest *error/status*) — same peripheral restraint, opposite intent (teaching vs alerting).
+
+**Specification**:
+- Node: small `Control` card (PanelContainer + Label), peripheral anchor (e.g. `PRESET_TOP_WIDE` strip), `mouse_filter = IGNORE` everywhere (never steals the player's one-tap — UX-06)
+- Layer: `OnboardingOverlayLayer` (**63**, PAUSABLE) — captured band `<100`; immunity is moot because the coach-mark **defers during all world-desaturating states** (R-2)
+- Gate (**Formula 1, 命脈**): shows only when `fsm != DORMANT ∧ latch unset ∧ gsm ∉ {WORKOUT_ACTIVE, REST_PERIOD, LOOT_DROP} ∧ no other coach-mark` — **NEVER mid-set** (Pillar 2)
+- Dismiss (**Formula 2**): tap-anywhere (immediate, player-led) OR `coach_auto_dismiss_sec` (≈6s) auto. Deferred past `coach_max_defer_sec` → **silent latch** (stale teaching worse than none, EC-12)
+- Animation: **opacity-only fade** (`coach_fade_sec`); **zero pulse / zero gaze-drawing** (teaching is a state, not urgency — #24 banner / P-17 restraint); reduced-motion → hard cut
+- **Accessibility**: WCAG AA text (warm-white/amber on ink); class copy names the class in text (color-independent); `announce_aria(copy, polite)` (non-interrupting); `coach_marks_enabled=false` escape hatch silently latches every step
+
+**When to Use**: First-run / contextual teaching that should ride alongside play — explain a just-happened moment without stopping the player.
+
+**When NOT to Use**: Honest error/status (use P-17 peripheral-honesty-banner). Anything that must read during world desaturation (coach-mark defers there — use a >100 immune layer). A blocking decision (coach-marks never block — if the player must choose, use a modal e.g. P-15). Repeated nagging (each step latches exactly once — never re-show).
+
+---
+
+### P-21: preview-watermark
+
+**Category**: Feedback / Overlay
+**Used In**: Onboarding (#27) — Step 2 non-binding combat "試演" preview
+**Derived From**: GDD `onboarding-flow.md` Rule 5 (Pillar 1 命脈) / Visual §Preview, UX spec `design/ux/onboarding-flow.md` UX-06/07/08
+
+**Description**: A persistent corner badge / watermark that labels a **non-binding showcase** as「試演 / Preview」so the player can never mistake it for real progress. The anti-deception primitive for Pillar 1 (real drop only): a preview that *looks* like real combat but grants zero loot/stat/progress MUST say so, continuously, or it becomes a demo trick that destroys day-one trust.
+
+**Specification**:
+- Persistent badge/watermark, visible **throughout** the preview (not a one-time toast) — corner placement, low-distraction but always legible
+- Copy: explicit「試演 / Preview」+ the announce form「非真實 progress」(screen-reader)
+- Skip affordance: ≥44px tap target, always available (skip is a legal completion — Rule 7)
+- Exit: cross-fade out (no hard cut); a real workout starting **aborts** the preview immediately (real beats demo — EC-03)
+- **Pillar 1 guarantee (load-bearing)**: the preview path mutates ZERO gameplay state (no loot/stat/ability/streak write, no #15 claim) — enforced by the G-OB-2 CI lint, not just the watermark
+
+**When to Use**: Any non-binding showcase / demo that visually resembles a real, rewarding interaction — the watermark keeps the system honest.
+
+**When NOT to Use**: Real, progress-granting gameplay (no watermark — it IS real). A brief one-off label (use a toast). Static UI chrome (the watermark specifically marks *transient non-binding* content).
 
 ---
 
