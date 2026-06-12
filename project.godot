@@ -176,6 +176,19 @@ CombatVisualFeedback="*res://src/autoload/combat_visual_feedback.gd"
 ; story 013). #28 Telemetry, when added, stays last.)
 OnboardingCoordinator="*res://src/autoload/onboarding_coordinator.gd"
 
+; Telemetry (#28 — ADR-0008 G-TEL-1: reserved "Last" promoted to actual entry,
+; tail-append after OnboardingCoordinator #27 (impl-time current tail). Pre-MVP
+; PIVOT/KILL gate instrument — pure passive observer, ZERO downstream consumers,
+; ZERO gameplay-mutating state (G-TEL-2 CI lint). Order-resilient: it uses
+; connect_for_initial_state to back-fill #1 GSM current_state for late join, so
+; booting Last still catches every RUNTIME-emitted upstream signal (#9 workout /
+; #14 combat / #15 loot) with zero silent drop — the combat signals are emitted
+; during CombatActive/boss-kill, far after every autoload _ready(). TERMINAL —
+; nothing boots after it (the canonical "Last" slot). This supersedes the stale
+; #14 enemy-director.md "#28 must boot BEFORE #14" wording (Q-T1 erratum): that
+; pre-dated ADR-0008's canonical map; late-boot is provably safe for runtime emits.)
+Telemetry="*res://src/autoload/telemetry.gd"
+
 [display]
 
 window/size/viewport_width=1280

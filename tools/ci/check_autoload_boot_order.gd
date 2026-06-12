@@ -23,7 +23,11 @@
 ##   (AvatarRenderer, ParticleSystemWrapper, CameraController, ScreenEffects)
 ##   correctly boot AFTER EnemyDirector (positions 11-14). The GDD Rule 9 prose
 ##   "after #5/#6/#7" is superseded — they are presentation layer, not predecessors.
-##   There is NO CombatResolver / TelemetryManager autoload — do NOT require them.
+##   There is NO CombatResolver autoload (#13 is a pure static func). The #28
+##   Telemetry autoload DOES exist (key `Telemetry`, registered Last per ADR-0008
+##   G-TEL-1, 2026-06-12) but it boots AFTER EnemyDirector and is a pure passive
+##   observer — it is NOT a predecessor and is intentionally absent from the
+##   HARD/SOFT lists below (do not require it here).
 ##
 ## Scan target:
 ##   res://project.godot  — `[autoload]` section only.

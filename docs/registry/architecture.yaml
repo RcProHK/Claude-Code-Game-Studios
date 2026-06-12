@@ -30,8 +30,9 @@
 #   Superseded entries:     Grep pattern="status: superseded"
 
 version: 1
-last_updated: "2026-05-26"
+last_updated: "2026-06-12"
 # 2026-05-26: ADR-0001 Web Export Budget Caps (Proposed) — appended CanvasLayer topology state_ownership + PlatformDetect interface + 2 performance_budgets + 2 api_decisions + 1 forbidden_pattern
+# 2026-06-12: ADR-0012 Telemetry Data Pipeline & Privacy (Accepted-contract) — appended gymsys_telemetry_api interface + telemetry_dedicated_http_channel + telemetry_beacon_token_in_body api_decisions (additive to ADR-0002 /api/game/ topology; zero conflict with existing stances)
 
 # ─── STATE OWNERSHIP ─────────────────────────────────────────────────────────
 # Who is the authoritative owner of each piece of shared game state.
@@ -307,6 +308,20 @@ interfaces:
     added: 2026-05-26
     revised: ""
 
+  - contract: gymsys_telemetry_api
+    status: active
+    pattern: http_rest
+    producer: gymsys-backend
+    consumers:
+      - telemetry    # #28 GDD — sole writer (pure observer flush target)
+    adr: docs/architecture/adr-0012-telemetry-data-pipeline-privacy.md
+    endpoints: "POST /api/game/telemetry (X-Session-Token header) → 200 {accepted, duplicates}; POST /api/game/telemetry/beacon (session_token in BODY — sendBeacon cannot set custom headers) → 204. Batch envelope { session_id, client_batch_id, schema_envelope_version, events[] }."
+    note: "First-party-only (same-origin per ADR-0004, relative URL). Backend table game_telemetry with UNIQUE(session_id, client_event_id) = at-least-once idempotent dedup (Q-T6). Retention TELEMETRY_RETENTION_DAYS=180 + player delete-by-account (Q-T7). De-id defense-in-depth: backend rejects out-of-schema payload fields (mirror of client CI-2/CI-3). Opt-out two-layer: client zero-bytes + backend telemetry_opt_out drop (EC-17). Telemetry 401 → keep buffer, NO force-boot (contrast #2 gymsys_session_api 401→force-boot) — pure-observer Rule 1 over the wire."
+    referenced_by:
+      - docs/architecture/adr-0012-telemetry-data-pipeline-privacy.md
+    added: 2026-06-12
+    revised: ""
+
 # Example:
 #
 # interfaces:
@@ -577,6 +592,28 @@ api_decisions:
     referenced_by:
       - docs/architecture/adr-0001-web-export-budget-caps.md
     added: 2026-05-26
+    revised: ""
+
+  - purpose: telemetry_dedicated_http_channel
+    status: active
+    api: "Telemetry owns its OWN orphan HTTPRequest node (a 5th channel) created in the telemetry autoload, SEPARATE from #2 GymSysBackendClient's 4-channel MAX_INFLIGHT_REQUESTS=4 pool (poll/state_write/loot_cache/loot_commit). Single in-flight per telemetry channel; own backoff (Formula 5); lowest priority."
+    not: "Reuse #2's HTTP path / share #2's MAX_INFLIGHT pool (FORBIDDEN — a telemetry batch could occupy a slot and delay a gameplay-critical loot_commit / state_write → Pillar 3 risk + telemetry.md Rule 1 pure-observer violation over the wire)"
+    adr: docs/architecture/adr-0012-telemetry-data-pipeline-privacy.md
+    reason: "Keeps the observer one-directional at the transport layer. 4 (#2) + 1 (telemetry) = 5 concurrent HTTPRequest, within ~6-per-host HTTP/1.1 limit (same headroom analysis as ADR-0002 http_request_per_channel). Telemetry being isolated means a slow/failed telemetry flush can never starve gameplay channels."
+    referenced_by:
+      - docs/architecture/adr-0012-telemetry-data-pipeline-privacy.md
+    added: 2026-06-12
+    revised: ""
+
+  - purpose: telemetry_beacon_token_in_body
+    status: active
+    api: "Page-hide flush uses navigator.sendBeacon('/api/game/telemetry/beacon', blob) via platform_detect.send_beacon(url, body)->bool seam; auth session_token travels IN THE REQUEST BODY (separate endpoint from the X-Session-Token-header main flush). send_beacon false → synchronous best-effort XHR fallback (EC-18)."
+    not: "navigator.sendBeacon with X-Session-Token header (IMPOSSIBLE — browser sendBeacon API cannot set custom headers; header is silently dropped → unauthenticated request); raw JavaScriptBridge.eval in telemetry.gd (FORBIDDEN — ADR-0001 raw_javascript_bridge_eval, must go through platform_detect seam)"
+    adr: docs/architecture/adr-0012-telemetry-data-pipeline-privacy.md
+    reason: "sendBeacon cannot attach custom headers, so token-in-body on a dedicated /beacon endpoint is the standard workaround — kept separate so the main flush path stays header-authed. Same-origin (ADR-0004) means no cross-site exfil; append-only de-identified events with UNIQUE dedup = no privilege escalation. Raw JS confined to platform_detect.gd per ADR-0001."
+    referenced_by:
+      - docs/architecture/adr-0012-telemetry-data-pipeline-privacy.md
+    added: 2026-06-12
     revised: ""
 
 # Example:

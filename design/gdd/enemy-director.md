@@ -590,7 +590,7 @@ Suspended → {previous state}  (GSM exits Suspended)
 | **#17** | Equipment & Inventory (MVP tier order 23, NOT YET DESIGNED) | indirect (via #11 stat aggregation) | #17 applies equipment modifiers to #11 stats BEFORE EnemyDirector reads | #17 owns equipment data + lifecycle; #14 sees post-equipment stats only (via #11) | Inherits #13 FR-Equipment-AntiSnowball forward constraint — equipment ATK ≤ 3× stat ATK invariant flag to #17 GDD authoring |
 | **#20** | Gym-Mode HUD (MVP tier order 25, NOT YET DESIGNED) | emits (downstream) | `hit_resolved(payload: HitResolvedPayload)` signal | **#20 NOT YET DESIGNED — provisional contract** | Rule 5 emit; damage number popup rendering downstream consumer |
 | **#25** | Combat Visual Feedback (MVP tier order 29, NOT YET DESIGNED) | emits (downstream) | `hit_resolved(payload: HitResolvedPayload)` signal | **#25 NOT YET DESIGNED — provisional contract** | Rule 5 emit; routes `damage_tier` → particle preset + popup color per #13 Rule 8 FR Test #4 binding |
-| **#28** | Telemetry (Pre-MVP tier order 21, NOT YET DESIGNED) | emits (downstream) | All 3 signals: `hit_resolved` + `enemy_killed` + `combat_metric_anomaly` | **#28 NOT YET DESIGNED — provisional contract** | Rule 5 emit; Rule 6 anomaly aggregate emit critical channel; FR-5 binding (silent fail prevention)。**[[autoload-boot-order]]**: #28 must boot BEFORE #14 (per #13 EC-50 + Rule 9)。**[[28-recursion-guard]]** inherited from #13 EC-49 |
+| **#28** | Telemetry (Pre-MVP tier order 21, NOT YET DESIGNED) | emits (downstream) | All 3 signals: `hit_resolved` + `enemy_killed` + `combat_metric_anomaly` | **#28 NOT YET DESIGNED — provisional contract** | Rule 5 emit; Rule 6 anomaly aggregate emit critical channel; FR-5 binding (silent fail prevention)。**[[autoload-boot-order]]**: #28 boots **Last** per ADR-0008 (G-TEL-1, GAP-002 canonical map) — **NOT** before #14. The 3 combat signals are runtime emits (CombatActive / boss-kill, far after every autoload `_ready()`), so #28's `connect_for_initial_state` late-boot catches all with zero silent drop (Q-T1 erratum 2026-06-12; supersedes the stale pre-ADR-0008 "before #14" claim; see telemetry.md Dependencies §Cross-system conflict)。**[[28-recursion-guard]]** inherited from #13 EC-49 |
 
 **Provisional contract caveat**: #9 / #15 / #16 / #17 / #20 / #25 / #28 全部 NOT YET DESIGNED — 本 GDD 鎖死 signal payload schema (per Rule 5 inherit from #13 Rule 8/9/13)，下游 GDD authoring 時須 match 呢個 contract，唔可以 redesign payload。
 
@@ -995,7 +995,7 @@ EnemyDirector dependency surface — hard (system 唔可能 function without it)
 | **#17** Equipment & Inventory | Hard (indirect via #11 stat aggregation) | NOT YET DESIGNED (MVP tier order 23) | **FR-Equipment-AntiSnowball** forward constraint inherited from #13 — equipment-derived ATK ≤ 3× stat-derived ATK invariant |
 | **#20** Gym-Mode HUD | Hard | NOT YET DESIGNED (MVP tier order 25) | `hit_resolved` payload `damage_dealt + damage_tier + is_crit` consumer for damage number popup |
 | **#25** Combat Visual Feedback | Hard | NOT YET DESIGNED (MVP tier order 29) | `hit_resolved` payload `damage_tier` routing — FR Test #4 of #13 binding (MUST use damage_tier, 唔可以 re-derive based on damage value) |
-| **#28** Telemetry / Analytics | Hard | NOT YET DESIGNED (Pre-MVP tier order 21) | All 3 signals subscriber；**[[28-recursion-guard]]** inherited from #13 EC-49 — #28 own recursion guard。**[[autoload-boot-order]]**: #28 boots BEFORE #14 per Rule 9。**FR-5 binding** — aggregate emit channel critical |
+| **#28** Telemetry / Analytics | Hard | NOT YET DESIGNED (Pre-MVP tier order 21) | All 3 signals subscriber；**[[28-recursion-guard]]** inherited from #13 EC-49 — #28 own recursion guard。**[[autoload-boot-order]]**: #28 boots **Last** per ADR-0008 (G-TEL-1) — **NOT** before #14 (Q-T1 erratum 2026-06-12; combat signals are runtime so late-boot via `connect_for_initial_state` catches all)。**FR-5 binding** — aggregate emit channel critical |
 
 ### Autoload Boot Order Requirement (cross-system invariant)
 
@@ -1006,12 +1006,15 @@ position 1: #3 PersistenceLayer  (Approved Foundation — locked)
 position 2: #1 GameStateMachine  (Approved Foundation — locked)
 position 3: PlatformDetect       (per ADR-001 ratified position [3..N])
 position 4-N: #2 GymSys / #4 AudioManager (NOT YET DESIGNED) / #11 Stat / #12 Ability /
-              #5 Particle / #6 ScreenEffects / #7 Camera / #15 LootDrop (NOT YET DESIGNED) /
-              #28 Telemetry (NOT YET DESIGNED)
-position N+1: #14 EnemyDirector  (boots LAST among combat-relevant autoloads)
+              #5 Particle / #6 ScreenEffects / #7 Camera / #15 LootDrop (NOT YET DESIGNED)
+position N+1: #14 EnemyDirector  (boots after its #15 loot consumer — last among the
+              combat signal-WIRING autoloads; presentation/coordinator autoloads follow it)
+position Last: #28 Telemetry     (boots LAST per ADR-0008 G-TEL-1 — Q-T1 erratum 2026-06-12:
+              NOT before #14; combat signals are runtime emits so #28's late-boot via
+              connect_for_initial_state catches all with zero silent drop)
 ```
 
-Rationale: per Rule 9 + #13 EC-43 + EC-50 — 所有 upstream provider + downstream consumer 必 ready 之前 EnemyDirector wire signal；否則 `enemy_killed` / `combat_metric_anomaly` listener 未 connect → silent drop。
+Rationale: per Rule 9 + #13 EC-43 — #14's #15 loot consumer (`enemy_killed` → loot wire) MUST be ready before EnemyDirector boots, else the loot listener silent-drops. **#28 Telemetry is the exception (Q-T1 erratum)**: it is a pure observer that boots Last per ADR-0008 and uses `connect_for_initial_state`, so its `combat_metric_anomaly` listener is back-filled even on late boot — no silent drop. The pre-ADR-0008 EC-50「#28 before #14」fear is superseded.
 
 ### Cross-System Forward Constraints (FR-Author flags for future GDDs)
 

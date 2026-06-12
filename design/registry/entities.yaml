@@ -1032,11 +1032,11 @@ constants:
       - design/gdd/game-state-machine.md
       - design/gdd/gymsys-backend-client.md          # #2 — subscribes via connect_for_initial_state per ADR-006 Contract 6
       - design/gdd/workout-state-tracker.md          # #9 — APPROVED 2026-05-27 subscribes via connect_for_initial_state per Section C Rule 12 (ADR-006 Contract 6) for Suspended substate detection
+      - design/gdd/telemetry.md                       # #28 — APPROVED 2026-06-12 subscribes state_changed + connect_for_initial_state per Rule 13 (ADR-006 Contract 6) for game_state envelope stamp + boot order-resilience
       # Expected future referrers (when their GDDs are written):
       # - design/gdd/persistence-layer.md              (#3)
       # - design/gdd/enemy-director.md                 (#14)
       # - design/gdd/loot-drop-system.md               (#15)
-      # - design/gdd/telemetry.md                      (#28)
       # - design/gdd/attention-budget-interaction-policy.md  (#33)
     value: "state_changed(from: String, to: String, payload: StateTransitionPayload)"
     unit: signal_signature

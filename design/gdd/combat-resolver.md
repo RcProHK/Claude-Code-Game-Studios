@@ -769,7 +769,7 @@ CombatResolver 嘅 dependency surface — hard (system 唔可能 function withou
 | **#16 Boss System** (VS tier order 12, NOT YET DESIGNED) | Hard | Same `hit_resolved` + `enemy_killed` (boss = special enemy); boss `EnemyState` 可能含更高 defense + special phase metadata | Boss-specific phase logic 屬 #16 scope — CombatResolver stays generic, doesn't know「呢個係 boss」 |
 | **#17 Equipment & Inventory** (MVP tier order 23, NOT YET DESIGNED) | Hard (indirect via #11 stat aggregation) | #17 applies `StatModifier` to #11 stats BEFORE CombatResolver reads — `caster_stats.attack_power` 已 reflect equipment | **CROSS-SYSTEM FORWARD CONSTRAINT (FR-Equipment-AntiSnowball)**: 為 honor Pillar 1 transduction (gym work = power, NOT gear = power) — equipment-derived ATK ≤ 3× stat-derived ATK 嘅 invariant 應喺 #17 GDD authoring 明確 enforce；本 GDD Section D anti-snowball matrix #4 flag |
 | **#25 Combat Visual Feedback** (MVP tier order 29, NOT YET DESIGNED) | Hard | `hit_resolved.damage_tier` 路由 VFX library: particle preset (#5 caller) + damage number popup color + screen shake (#6 caller) + hit_pause request | FR Test #4 binding — #25 MUST 用 `damage_tier`，唔可以 re-derive from damage value；#25 主要 #5 + #6 caller，CombatResolver 只 trigger source |
-| **#28 Telemetry / Analytics** (Pre-MVP tier order 21, NOT YET DESIGNED) | Hard | All 3 signals (`hit_resolved` + `enemy_killed` + `combat_metric_anomaly`) — `combat_metric_anomaly` 係 anti-fabrication channel (Pillar 1 binding)，#28 escalate 若 rate > threshold | **[[28-recursion-guard]]**: per EC-49 — #28 內部 anomaly handler MUST 有 recursion guard 防止 infinite loop；屬 #28 GDD authoring responsibility，CombatResolver 唔負責。**[[autoload-boot-order]]**: #28 must boot BEFORE #14 (per EC-50) — 否則 anomaly signal listener 未 connect → telemetry 丟失 |
+| **#28 Telemetry / Analytics** (Pre-MVP tier order 21, NOT YET DESIGNED) | Hard | All 3 signals (`hit_resolved` + `enemy_killed` + `combat_metric_anomaly`) — `combat_metric_anomaly` 係 anti-fabrication channel (Pillar 1 binding)，#28 escalate 若 rate > threshold | **[[28-recursion-guard]]**: per EC-49 — #28 內部 anomaly handler MUST 有 recursion guard 防止 infinite loop；屬 #28 GDD authoring responsibility，CombatResolver 唔負責。**[[autoload-boot-order]]**: #28 boots **Last** per ADR-0008 (G-TEL-1, canonical map) — **NOT** before #14 (Q-T1 erratum 2026-06-12). The 3 signals are runtime emits (CombatActive / boss-kill), far after every `_ready()`, so #28's `connect_for_initial_state` late-boot catches all with zero silent drop; the pre-ADR-0008 EC-50「before #14」fear is superseded |
 
 ### Autoload Boot Order Requirement (cross-system invariant)
 
@@ -782,9 +782,13 @@ position 3: #2 GymSys Backend Client + #4 Audio Manager + others (Approved Found
 position 4: #11 Stat System      (Approved Core — already locked)
 position 5: #12 Ability System   (Approved Core — already locked)
 ...
-position N-2: #15 LootDrop System (NOT YET DESIGNED — boot BEFORE #14)
-position N-1: #28 Telemetry      (NOT YET DESIGNED — boot BEFORE #14)
-position N:   #14 EnemyDirector  (NOT YET DESIGNED — boot LAST, after all signal consumers)
+position N-1: #15 LootDrop System (boot BEFORE #14 — EC-43 HARD constraint, still valid)
+position N:   #14 EnemyDirector  (boots after its #15 loot consumer; NOT the absolute
+                                  last — presentation/coordinator autoloads + #28 boot
+                                  after it per ADR-0008)
+position Last: #28 Telemetry     (boots LAST per ADR-0008 G-TEL-1 — Q-T1 erratum 2026-06-12:
+                                  NOT before #14; the 3 combat signals are runtime emits so
+                                  late-boot via connect_for_initial_state catches all)
 ```
 
 Rationale: CombatResolver 唔係 autoload，但由 #14 EnemyDirector instantiate；#14 boot 期間立即 instantiate CombatResolver context + emit 3 signals — 如果 #15 / #28 未 boot → `enemy_killed` + `combat_metric_anomaly` signals 冇 listener → silently 丟失 (Godot signal default behavior，唔 buffer)。本 GDD lock 呢個 boot order requirement 為 #14 + #15 + #28 GDD authoring 嘅 cross-system invariant。

@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="TelemetryConfig" load_steps=2 format=3 uid="uid://ctelemetrycfg01"]
+
+[ext_resource type="Script" path="res://src/telemetry/telemetry_config.gd" id="1_telcfg"]
+
+[resource]
+script = ExtResource("1_telcfg")
+buffer_max = 2000
+critical_reserved = 256
+flush_batch_size = 100
+flush_interval_seconds = 30.0
+flush_base_delay_seconds = 2.0
+flush_retry_cap_seconds = 60.0
+hit_sample_stride = 10
+switch_latency_buckets_ms = Array[int]([5000, 15000, 60000, 180000])
+foreground_sample_interval_ms = 1000
+session_resume_ttl_seconds = 1800
+dup_window_ms = 1000
+telemetry_enabled = true
