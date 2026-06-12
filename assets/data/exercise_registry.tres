@@ -9,7 +9,7 @@ exercise_id = "bench_press"
 movement_pattern = 0
 ability_class = 0
 muscle_group = "chest"
-aliases = Array[String](["Bench Press", "barbell_bench_press", "flat_bench_press"])
+aliases = Array[String](["barbell_bench_press", "flat_bench_press"])
 
 [sub_resource type="Resource" id="ee02"]
 script = ExtResource("2_ent")
@@ -17,7 +17,7 @@ exercise_id = "incline_bench_press"
 movement_pattern = 0
 ability_class = 0
 muscle_group = "chest"
-aliases = Array[String](["Incline Bench Press", "incline_press"])
+aliases = Array[String](["incline_press"])
 
 [sub_resource type="Resource" id="ee03"]
 script = ExtResource("2_ent")
@@ -25,7 +25,7 @@ exercise_id = "overhead_press"
 movement_pattern = 0
 ability_class = 0
 muscle_group = "shoulders"
-aliases = Array[String](["Overhead Press", "ohp", "military_press", "shoulder_press"])
+aliases = Array[String](["ohp", "military_press", "shoulder_press"])
 
 [sub_resource type="Resource" id="ee04"]
 script = ExtResource("2_ent")
@@ -33,7 +33,7 @@ exercise_id = "push_press"
 movement_pattern = 0
 ability_class = 0
 muscle_group = "shoulders"
-aliases = Array[String](["Push Press"])
+aliases = Array[String]([])
 
 [sub_resource type="Resource" id="ee05"]
 script = ExtResource("2_ent")
@@ -41,7 +41,7 @@ exercise_id = "thruster"
 movement_pattern = 0
 ability_class = 0
 muscle_group = "shoulders"
-aliases = Array[String](["Thruster"])
+aliases = Array[String]([])
 
 [sub_resource type="Resource" id="ee06"]
 script = ExtResource("2_ent")
@@ -49,7 +49,7 @@ exercise_id = "tricep_dip"
 movement_pattern = 0
 ability_class = 0
 muscle_group = "triceps"
-aliases = Array[String](["Tricep Dip", "dip", "dips"])
+aliases = Array[String](["dip", "dips"])
 
 [sub_resource type="Resource" id="ee07"]
 script = ExtResource("2_ent")
@@ -57,7 +57,7 @@ exercise_id = "dumbbell_shoulder_press"
 movement_pattern = 0
 ability_class = 0
 muscle_group = "shoulders"
-aliases = Array[String](["Dumbbell Shoulder Press", "db_shoulder_press"])
+aliases = Array[String](["db_shoulder_press"])
 
 [sub_resource type="Resource" id="ee08"]
 script = ExtResource("2_ent")
@@ -65,7 +65,7 @@ exercise_id = "chest_fly"
 movement_pattern = 0
 ability_class = 0
 muscle_group = "chest"
-aliases = Array[String](["Chest Fly", "dumbbell_fly", "pec_fly"])
+aliases = Array[String](["dumbbell_fly", "pec_fly"])
 
 [sub_resource type="Resource" id="ee09"]
 script = ExtResource("2_ent")
@@ -73,7 +73,7 @@ exercise_id = "tricep_pushdown"
 movement_pattern = 0
 ability_class = 0
 muscle_group = "triceps"
-aliases = Array[String](["Tricep Pushdown", "cable_pushdown"])
+aliases = Array[String](["cable_pushdown"])
 
 [sub_resource type="Resource" id="ee10"]
 script = ExtResource("2_ent")
@@ -81,7 +81,7 @@ exercise_id = "dumbbell_bench_press"
 movement_pattern = 0
 ability_class = 0
 muscle_group = "chest"
-aliases = Array[String](["Dumbbell Bench Press", "db_bench_press"])
+aliases = Array[String](["db_bench_press"])
 
 [sub_resource type="Resource" id="ee11"]
 script = ExtResource("2_ent")
@@ -89,7 +89,7 @@ exercise_id = "deadlift"
 movement_pattern = 1
 ability_class = 1
 muscle_group = "back"
-aliases = Array[String](["Deadlift", "conventional_deadlift"])
+aliases = Array[String](["conventional_deadlift"])
 
 [sub_resource type="Resource" id="ee12"]
 script = ExtResource("2_ent")
@@ -97,7 +97,7 @@ exercise_id = "barbell_row"
 movement_pattern = 1
 ability_class = 1
 muscle_group = "back"
-aliases = Array[String](["Barbell Row", "bent_over_row", "bb_row"])
+aliases = Array[String](["bent_over_row", "bb_row"])
 
 [sub_resource type="Resource" id="ee13"]
 script = ExtResource("2_ent")
@@ -105,7 +105,7 @@ exercise_id = "pull_up"
 movement_pattern = 1
 ability_class = 1
 muscle_group = "back"
-aliases = Array[String](["Pull Up", "pullup", "pull-up"])
+aliases = Array[String](["pullup"])
 
 [sub_resource type="Resource" id="ee14"]
 script = ExtResource("2_ent")
@@ -113,7 +113,7 @@ exercise_id = "lat_pulldown"
 movement_pattern = 1
 ability_class = 1
 muscle_group = "back"
-aliases = Array[String](["Lat Pulldown", "pulldown"])
+aliases = Array[String](["pulldown"])
 
 [sub_resource type="Resource" id="ee15"]
 script = ExtResource("2_ent")
@@ -121,7 +121,7 @@ exercise_id = "bicep_curl"
 movement_pattern = 1
 ability_class = 1
 muscle_group = "biceps"
-aliases = Array[String](["Bicep Curl", "barbell_curl", "dumbbell_curl"])
+aliases = Array[String](["barbell_curl", "dumbbell_curl"])
 
 [sub_resource type="Resource" id="ee16"]
 script = ExtResource("2_ent")
@@ -129,7 +129,7 @@ exercise_id = "face_pull"
 movement_pattern = 1
 ability_class = 1
 muscle_group = "rear_delts"
-aliases = Array[String](["Face Pull"])
+aliases = Array[String]([])
 
 [sub_resource type="Resource" id="ee17"]
 script = ExtResource("2_ent")
@@ -137,7 +137,7 @@ exercise_id = "chin_up"
 movement_pattern = 1
 ability_class = 1
 muscle_group = "back"
-aliases = Array[String](["Chin Up", "chinup"])
+aliases = Array[String](["chinup"])
 
 [sub_resource type="Resource" id="ee18"]
 script = ExtResource("2_ent")
@@ -145,7 +145,7 @@ exercise_id = "power_clean"
 movement_pattern = 1
 ability_class = 1
 muscle_group = "back"
-aliases = Array[String](["Power Clean", "clean"])
+aliases = Array[String](["clean"])
 
 [sub_resource type="Resource" id="ee19"]
 script = ExtResource("2_ent")
@@ -153,7 +153,7 @@ exercise_id = "snatch"
 movement_pattern = 1
 ability_class = 1
 muscle_group = "back"
-aliases = Array[String](["Snatch"])
+aliases = Array[String]([])
 
 [sub_resource type="Resource" id="ee20"]
 script = ExtResource("2_ent")
@@ -161,7 +161,7 @@ exercise_id = "seated_cable_row"
 movement_pattern = 1
 ability_class = 1
 muscle_group = "back"
-aliases = Array[String](["Seated Cable Row", "cable_row"])
+aliases = Array[String](["cable_row"])
 
 [sub_resource type="Resource" id="ee21"]
 script = ExtResource("2_ent")
@@ -169,7 +169,7 @@ exercise_id = "squat"
 movement_pattern = 2
 ability_class = 2
 muscle_group = "quads"
-aliases = Array[String](["Squat", "barbell_squat", "back_squat"])
+aliases = Array[String](["barbell_squat", "back_squat"])
 
 [sub_resource type="Resource" id="ee22"]
 script = ExtResource("2_ent")
@@ -177,7 +177,7 @@ exercise_id = "front_squat"
 movement_pattern = 2
 ability_class = 2
 muscle_group = "quads"
-aliases = Array[String](["Front Squat"])
+aliases = Array[String]([])
 
 [sub_resource type="Resource" id="ee23"]
 script = ExtResource("2_ent")
@@ -185,7 +185,7 @@ exercise_id = "lunge"
 movement_pattern = 2
 ability_class = 2
 muscle_group = "quads"
-aliases = Array[String](["Lunge", "walking_lunge", "dumbbell_lunge"])
+aliases = Array[String](["walking_lunge", "dumbbell_lunge"])
 
 [sub_resource type="Resource" id="ee24"]
 script = ExtResource("2_ent")
@@ -193,7 +193,7 @@ exercise_id = "leg_press"
 movement_pattern = 2
 ability_class = 2
 muscle_group = "quads"
-aliases = Array[String](["Leg Press"])
+aliases = Array[String]([])
 
 [sub_resource type="Resource" id="ee25"]
 script = ExtResource("2_ent")
@@ -201,7 +201,7 @@ exercise_id = "leg_extension"
 movement_pattern = 2
 ability_class = 2
 muscle_group = "quads"
-aliases = Array[String](["Leg Extension"])
+aliases = Array[String]([])
 
 [sub_resource type="Resource" id="ee26"]
 script = ExtResource("2_ent")
@@ -209,7 +209,7 @@ exercise_id = "leg_curl"
 movement_pattern = 2
 ability_class = 2
 muscle_group = "hamstrings"
-aliases = Array[String](["Leg Curl", "hamstring_curl"])
+aliases = Array[String](["hamstring_curl"])
 
 [sub_resource type="Resource" id="ee27"]
 script = ExtResource("2_ent")
@@ -217,7 +217,7 @@ exercise_id = "calf_raise"
 movement_pattern = 2
 ability_class = 2
 muscle_group = "calves"
-aliases = Array[String](["Calf Raise"])
+aliases = Array[String]([])
 
 [sub_resource type="Resource" id="ee28"]
 script = ExtResource("2_ent")
@@ -225,7 +225,7 @@ exercise_id = "bulgarian_split_squat"
 movement_pattern = 2
 ability_class = 2
 muscle_group = "quads"
-aliases = Array[String](["Bulgarian Split Squat", "split_squat"])
+aliases = Array[String](["split_squat"])
 
 [sub_resource type="Resource" id="ee29"]
 script = ExtResource("2_ent")
@@ -233,7 +233,7 @@ exercise_id = "goblet_squat"
 movement_pattern = 2
 ability_class = 2
 muscle_group = "quads"
-aliases = Array[String](["Goblet Squat"])
+aliases = Array[String]([])
 
 [sub_resource type="Resource" id="ee30"]
 script = ExtResource("2_ent")
@@ -241,7 +241,7 @@ exercise_id = "hip_thrust"
 movement_pattern = 2
 ability_class = 2
 muscle_group = "glutes"
-aliases = Array[String](["Hip Thrust", "glute_bridge"])
+aliases = Array[String](["glute_bridge"])
 
 [resource]
 script = ExtResource("1_reg")

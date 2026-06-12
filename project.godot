@@ -17,7 +17,7 @@ config_version=5
 config/name="Mirror Hero"
 config/description="Gym-integrated 2D RPG — real workout data drives avatar progression. Web Export primary target."
 config/version="0.1.0-dev"
-run/main_scene=""
+run/main_scene="res://prototypes/vertical-slice/PlayableSlice.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 config/icon="res://icon.svg"
 
