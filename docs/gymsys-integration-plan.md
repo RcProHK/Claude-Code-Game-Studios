@@ -1,7 +1,37 @@
 # GymSys Integration Plan (Keystone)
 
 > **Created**: 2026-06-13 (after VS-1 Milestone-1 desk-pass PROCEED → keystone investigation)
-> **Status**: PLAN — awaiting a path decision (A vs B) before implementation
+> **Status**: ✅ **Phase 1 (Option B) DONE + LIVE-VALIDATED 2026-06-13** — see Result below. Phase 2 (Option A live per-set) deferred.
+
+## ✅ Result (2026-06-13) — Option B working end-to-end against live GYM
+Proven: real GYM workout → real #2 client → ADR-0002 signal stream → WST → game loop.
+- **Backend**: `GET /api/game/feed?since=<ms>` on GYM (FastAPI). curl round-trip verified:
+  register → login → POST workout → feed returns correct projection (`exercise_id`, sets) +
+  differential cursor (since=cursor → count 0, idempotent). GYM pytest 6 passed.
+- **Client** (`src/autoload/gym_sys_backend_client.gd`): `login()` (POST /api/login → captures
+  session cookie from Set-Cookie) + poll `/api/game/feed` + replay each workout as
+  workout_started→set_logged×N→workout_completed. Live harness
+  `prototypes/vertical-slice/GymsysLiveCheck.tscn` logged into the running GYM and emitted the
+  seeded workout's signals (deadlift→CONTROL, overhead_press→STRIKE) end-to-end.
+- **WST wired**: `workout_state_tracker.gd` binds `_gym_sys_client = GymSysBackendClient` at boot
+  (IDLE until login). Full combined gate 441scr/2975/0 fail — zero regression.
+
+### ⚠️ Two findings that bit us (record for the real deploy)
+1. **GYM runs on `http://127.0.0.1:8090` (HTTP), NOT 9100/HTTPS.** (9100 = nothing listening.)
+2. **Godot native HTTPRequest must use `127.0.0.1`, NOT `localhost`** — GYM binds IPv4 (`0.0.0.0`);
+   Godot resolves `localhost`→`::1` (IPv6) and the request hangs (request_completed never fires).
+   curl falls back to IPv4; Godot does not. Use the dotted IPv4 literal (or bind GYM on `::`).
+
+### Remaining (final live wiring + deploy)
+- Decide WHERE the game calls `GymSysBackendClient.login(base_url, user, pass)` — natural home is
+  the Login/Shell screen (#24). For desktop dev: `http://127.0.0.1:8090`.
+- **Web export CORS** (ADR-0004): a browser build calling GYM cross-origin needs nginx same-origin
+  proxy (`/api/game/` → GYM) OR CORS headers on GYM. Desktop native has no CORS (proven working).
+
+---
+
+(original plan below)
+
 > **Governing**: ADR-0002 (integration protocol), ADR-0004 (CORS/nginx topology)
 
 ## Investigation finding (ground truth)

@@ -24,6 +24,7 @@ signal rest_ended()
 signal workout_completed(completed_at: int)
 signal poll_failed(category: StringName)
 signal poll_recovered()
+signal logged_in(success: bool)          ## fired after login() resolves (desktop/dev auth path)
 
 const FEED_PATH: String = "/api/game/feed"
 const DEFAULT_POLL_SEC: float = 5.0
@@ -33,9 +34,11 @@ var _cursor: int = 0                      ## differential cursor = max workout _
 var _base_url: String = ""                ## e.g. "https://host:port" (relative when same-origin web)
 var _session_cookie: String = ""          ## GYM session cookie (auth); empty = none
 var _http: HTTPRequest = null
+var _login_http: HTTPRequest = null
 var _poll_timer: Timer = null
 var _was_failing: bool = false
 var _polling: bool = false
+var _pending_poll_interval: float = DEFAULT_POLL_SEC
 
 
 func _ready() -> void:
@@ -43,10 +46,47 @@ func _ready() -> void:
 	pass
 
 
-## Wire the client to a reachable GYM and start polling. Until called, the client is inert.
+## Wire the client to a reachable GYM with an existing session cookie and start polling.
+## (Same-origin web export: the browser already holds the GYM cookie → pass it here.)
+## Until configure()/login() is called the client is inert.
 func configure(base_url: String, session_cookie: String = "", poll_interval: float = DEFAULT_POLL_SEC) -> void:
 	_base_url = base_url.rstrip("/")
 	_session_cookie = session_cookie
+	_begin_polling(poll_interval)
+
+
+## Desktop/dev auth path: POST /api/login to obtain a session cookie, then start polling.
+## Emits logged_in(success). (Web export uses configure() with the browser's shared cookie.)
+func login(base_url: String, username: String, password: String, poll_interval: float = DEFAULT_POLL_SEC) -> void:
+	_base_url = base_url.rstrip("/")
+	_pending_poll_interval = poll_interval
+	if _login_http == null:
+		_login_http = HTTPRequest.new()
+		add_child(_login_http)
+		_login_http.request_completed.connect(_on_login_completed)
+	var body := JSON.stringify({"username": username, "password": password})
+	var err: int = _login_http.request(
+		_base_url + "/api/login",
+		PackedStringArray(["Content-Type: application/json"]),
+		HTTPClient.METHOD_POST, body)
+	if err != OK:
+		logged_in.emit(false)
+
+
+func _on_login_completed(result: int, code: int, headers: PackedStringArray, _body: PackedByteArray) -> void:
+	if result != HTTPRequest.RESULT_SUCCESS or code != 200:
+		logged_in.emit(false)
+		return
+	for h: String in headers:
+		if h.to_lower().begins_with("set-cookie:"):
+			_session_cookie = h.substr(h.find(":") + 1).strip_edges().split(";")[0]
+			break
+	logged_in.emit(true)
+	if not _session_cookie.is_empty():
+		_begin_polling(_pending_poll_interval)
+
+
+func _begin_polling(poll_interval: float) -> void:
 	if _http == null:
 		_http = HTTPRequest.new()
 		add_child(_http)

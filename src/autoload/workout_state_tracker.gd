@@ -266,8 +266,12 @@ func _ready() -> void:
 	if _persistence_layer == null:
 		_persistence_layer = PersistenceLayer
 	_restore_from_persistence()
-	# Story 012: wire 7 #2 GymSysBackendClient signals (mock-scoped; no-op if null).
-	# Production: assign _gym_sys_client = GymSysBackendClient when #2 autoload ships.
+	# Wire 7 #2 GymSysBackendClient signals. #2 now ships (Option B feed-replay client,
+	# 2026-06-13): bind the real autoload at boot. It boots IDLE (emits nothing until
+	# login()/configure()), so this is safe; tests inject a FakeGymSysClient via
+	# set(&"_gym_sys_client", ...) before/in before_each, which overrides this. (ADR-0002)
+	if _gym_sys_client == null:
+		_gym_sys_client = GymSysBackendClient
 	_connect_gym_sys_signals()
 	# Story 007: resolve StatSystem reference (untyped DI seam; injected by tests).
 	# ADR-0008: StatSystem (pos 5) boots before WST (pos 8) — by the time _ready() runs,
