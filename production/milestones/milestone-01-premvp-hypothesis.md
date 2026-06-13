@@ -3,7 +3,9 @@
 > **Created**: 2026-06-12 (Production Sprint 1 — PR-PHASE-GATE condition C2)
 > **Type**: Go / No-Go hypothesis gate (NOT a feature milestone — all features are already implemented)
 > **Target date**: TBD (frank sets — depends on Line A backend deploy + Line F playtest availability)
-> **Status**: OPEN
+> **Status**: 🟡 PARTIAL — **desk-pass PROCEED** 2026-06-13 (VS-1 placeholder build, mock workout;
+> see `production/playtests/vs1-fun-check-2026-06-13.md`). Full GO still requires the real
+> mid-workout Pillar-2 test (needs GymSys backend → real workout data, not mock).
 
 ## Why this milestone exists
 
