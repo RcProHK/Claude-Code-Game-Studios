@@ -14,16 +14,6 @@
 extends Node2D
 
 
-class FakeGymSysClient:
-	signal workout_started()
-	signal set_logged(exercise_id: StringName, reps: int, weight: float)
-	signal rest_started(duration_seconds: int)
-	signal rest_ended()
-	signal workout_completed(completed_at: int)
-	signal poll_failed(category: StringName)
-	signal poll_recovered()
-
-
 const STEP := 0.9
 const GROUND_Y := 615.0       ## avatar/enemy feet baseline — aligned to map.png's foreground path
 const FRAME := 64
@@ -39,13 +29,17 @@ const MONSTER_PATH := "res://prototypes/vertical-slice/art/monster.png"
 const SCALE := 2.6
 const AVATAR_X := 430.0
 
+# ── REAL GymSys connection (edit for your own account; don't commit real creds) ──
+const GYM_BASE := "http://127.0.0.1:8090"   ## GYM = 8090 HTTP; 127.0.0.1 NOT localhost (IPv4-only bind)
+const GYM_USER := "mh_e2e"                   ## throwaway test account (has a seeded workout)
+const GYM_PASS := "pass1234"
+
 const RARITY_COLOR := {
 	"COMMON": Color(0.85, 0.85, 0.82), "UNCOMMON": Color(0.40, 0.80, 0.42),
 	"RARE": Color(0.30, 0.60, 0.95), "EPIC": Color(0.70, 0.40, 0.92),
 	"LEGENDARY": Color(0.96, 0.62, 0.20),
 }
 
-var _fake_gym: FakeGymSysClient
 var _log_label: Label
 var _trace: Array[String] = []
 var _headless: bool = false
@@ -371,38 +365,44 @@ func _wire_observers() -> void:
 	_connect("MirrorMomentCoordinator", "ceremony_presented", _on_ceremony)
 
 
-# ── Scripted demo (loops in windowed mode) ───────────────────────────────────
+# ── REAL GymSys feed drives the loop (Option B) ──────────────────────────────
+# WST is already bound to the GymSysBackendClient autoload at boot; we log in to start
+# the live feed, then observe the client's signals to puppet the combat/loot visuals.
+# A real completed workout (cursor starts at 0 → first poll returns this account's saved
+# workouts) replays as set_logged ×N → workout_completed; afterwards the client idles and
+# reacts to any NEW workout you save in GYM (within the poll interval).
 func _run_demo() -> void:
-	var wst := _node("WorkoutStateTracker")
-	if wst == null:
-		_stage_log("FAIL — WorkoutStateTracker missing"); _maybe_quit(); return
-	_fake_gym = FakeGymSysClient.new()
-	wst.set(&"_gym_sys_client", _fake_gym)
-	wst.call("_connect_gym_sys_signals")
+	var gym := _node("GymSysBackendClient")
+	if gym == null:
+		_stage_log("FAIL — GymSysBackendClient missing"); _maybe_quit(); return
+	gym.logged_in.connect(_on_gym_login)
+	gym.workout_started.connect(_on_gym_workout_started)
+	gym.set_logged.connect(_on_gym_set)
+	gym.workout_completed.connect(_on_gym_completed)
+	gym.poll_failed.connect(_on_gym_poll_failed)
+	_stage_log("▶ 連接真 GYM %s as %s …" % [GYM_BASE, GYM_USER])
+	gym.login(GYM_BASE, GYM_USER, GYM_PASS, 3.0)
+	if _headless:
+		await get_tree().create_timer(9.0).timeout
+		_maybe_quit()
 
-	while true:
-		_trace.clear()
-		_stage_log("▶ mock 'push day' workout")
-		await _wait()
-		_stage_log("🏋 workout_started"); _fake_gym.workout_started.emit()
-		await _wait()
-		_stage_log("• bench_press ×8 (push → STRIKE)"); _fake_gym.set_logged.emit(&"bench_press", 8, 60.0); _fight_one()
-		await _wait()
-		_stage_log("• bench_press ×8 @62.5kg"); _fake_gym.set_logged.emit(&"bench_press", 8, 62.5); _fight_one()
-		await _wait()
-		_stage_log("• rest 90s → resume"); _fake_gym.rest_started.emit(90); _fake_gym.rest_ended.emit()
-		await _wait()
-		_stage_log("• overhead_press ×6"); _fake_gym.set_logged.emit(&"overhead_press", 6, 40.0); _fight_one()
-		await _wait()
-		_stage_log("🏁 workout_completed"); _fake_gym.workout_completed.emit(1749700000)
-		await _wait()
-		_stage_log("⚔ boss kill → avatar STRIKES → LOOT"); _fight_one(); _simulate_kill()
-		await _wait()
-		await _wait()
-		_stage_log("✔ loop complete")
-		if _headless:
-			_maybe_quit(); return
-		await _wait(); await _wait()
+
+func _on_gym_login(ok: bool) -> void:
+	_stage_log("GYM login " + ("OK — 等緊 workout feed" if ok else "FAILED — 開咗 GYM (8090)?"))
+
+func _on_gym_workout_started() -> void:
+	_stage_log("🏋 workout 開始")
+
+func _on_gym_set(eid: StringName, reps: int, w: float) -> void:
+	_stage_log("• set %s ×%d @%.1f" % [eid, reps, w])
+	_fight_one()
+
+func _on_gym_completed(_at: int) -> void:
+	_stage_log("🏁 workout 完成 → 爆裝")
+	_simulate_kill()
+
+func _on_gym_poll_failed(cat: StringName) -> void:
+	_stage_log("⚠ GYM poll fail: " + str(cat))
 
 
 func _simulate_kill() -> void:
@@ -411,7 +411,7 @@ func _simulate_kill() -> void:
 		return
 	var p := EnemyKilledPayload.new()
 	p.enemy_id = &"final_boss"; p.enemy_instance_id = 9001; p.killer_id = 1
-	p.killing_ability = &"strike_basic"; p.transition_id = "slice-kill-1"
+	p.killing_ability = &"strike_basic"; p.transition_id = "slice-kill-" + str(Time.get_ticks_msec())
 	ed.enemy_killed.emit(p)
 
 
