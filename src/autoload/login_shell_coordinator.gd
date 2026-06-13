@@ -56,6 +56,7 @@ const ESM := preload("res://src/ui/login_shell/error_severity_map.gd")
 const ShellFormulas := preload("res://src/ui/login_shell/shell_formulas.gd")
 ## AC-UX layout / geometry contract (banner rect, yield glyph, touch floors — story 019).
 const ACUXLayout := preload("res://src/ui/login_shell/acux_layout.gd")
+const LoginForm := preload("res://src/ui/login_shell/login_form.gd")  ## story 015 LZ-Form
 
 ## GymSys base URL for the Option-B login() path (desktop/dev). 127.0.0.1 NOT localhost
 ## (GYM binds IPv4; Godot resolves localhost→::1 and hangs). Web export uses same-origin
@@ -272,9 +273,11 @@ func _instantiate_layers() -> void:
 ## Behaviour is filled in by later stories — here they are shells so the
 ## single-coordinator topology is established and grep-verifiable.
 func _instantiate_sub_controllers() -> void:
-	_login_panel = Node.new()
+	_login_panel = LoginForm.new()      ## story 015 LZ-Form (username/password/toggle/submit)
 	_login_panel.name = "LoginPanel"
 	_shell_layer.add_child(_login_panel)
+	if _login_panel.has_signal("submitted"):
+		_login_panel.submitted.connect(submit_login)
 
 	_connection_status = Node.new()
 	_connection_status.name = "ConnectionStatus"
@@ -670,6 +673,10 @@ func _on_gym_logged_in(ok: bool) -> void:
 		notify_claim_succeeded()
 	else:
 		push_warning("[LoginShell] GymSys login failed")
+	# Credential residue (AC-50): wipe the password field on any resolve. On failure the
+	# username is preserved for re-entry (EC-A3); on success the form leaves the shell.
+	if _login_panel != null and _login_panel.has_method("clear_password"):
+		_login_panel.clear_password()
 
 
 ## Claim completion callback (#2 client or test invokes). Maps the result to a 4-code
