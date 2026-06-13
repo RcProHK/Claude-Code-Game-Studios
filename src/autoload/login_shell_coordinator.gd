@@ -56,6 +56,11 @@ const ESM := preload("res://src/ui/login_shell/error_severity_map.gd")
 const ShellFormulas := preload("res://src/ui/login_shell/shell_formulas.gd")
 ## AC-UX layout / geometry contract (banner rect, yield glyph, touch floors — story 019).
 const ACUXLayout := preload("res://src/ui/login_shell/acux_layout.gd")
+
+## GymSys base URL for the Option-B login() path (desktop/dev). 127.0.0.1 NOT localhost
+## (GYM binds IPv4; Godot resolves localhost→::1 and hangs). Web export uses same-origin
+## (relative) per ADR-0004 — override at deploy. (See docs/gymsys-integration-plan.md.)
+const GYM_BASE := "http://127.0.0.1:8090"
 ## Data-driven severity map instance (designer edits .tres, not code — Rule 6).
 const ERROR_SEVERITY_MAP_PATH: String = "res://assets/data/error_severity_map.tres"
 
@@ -197,6 +202,11 @@ func _ready() -> void:
 	# drain_started/drain_completed = story 014.) #24 never requests a GSM transition.
 	if _client != null and _client.has_signal("auth_required"):
 		_client.auth_required.connect(_on_auth_required)
+	# #2 Option-B client (2026-06-13) emits logged_in(ok) from login(); reflect success into
+	# the shell via the verified notify_claim_succeeded() path. has_signal-guarded so the
+	# full-ADR-0002 (claim/token) client without this signal stays unaffected.
+	if _client != null and _client.has_signal("logged_in"):
+		_client.logged_in.connect(_on_gym_logged_in)
 	# Rule 5: #24 is the sole UI consumer of the 4 upstream error signals.
 	_wire_error_consumers()
 	# Boot-window race close (story 005 / Rule 2): a tail autoload misses any signal a
@@ -641,6 +651,25 @@ func submit_claim(username: String, password: String) -> void:
 	set_process(true)  # arm the injected-clock cancel timer
 	if _client != null and _client.has_method("claim_session"):
 		_client.claim_session(username, password)  # mock-scoped; result via notify_claim_result
+
+
+## Option-B (cookie) login path for the credential form (story 015). Calls the #2 client's
+## login(); success arrives via logged_in → _on_gym_logged_in → notify_claim_succeeded().
+## Distinct from submit_claim() (the full-ADR-0002 session-claim path) — a real form wires to
+## whichever the live #2 client supports. has_method-guarded (no-op for a claim-only client).
+func submit_login(username: String, password: String) -> void:
+	if _client != null and _client.has_method("login"):
+		_client.login(GYM_BASE, username, password)
+
+
+## #2 Option-B logged_in(ok) → reflect into the shell. Success reuses the verified
+## notify_claim_succeeded() path; failure logs (full error-copy mapping for the cookie path
+## is story-015 form work — kept FSM-safe here).
+func _on_gym_logged_in(ok: bool) -> void:
+	if ok:
+		notify_claim_succeeded()
+	else:
+		push_warning("[LoginShell] GymSys login failed")
 
 
 ## Claim completion callback (#2 client or test invokes). Maps the result to a 4-code
