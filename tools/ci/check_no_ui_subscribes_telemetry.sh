@@ -102,9 +102,14 @@ fi
 #   4 error-consumer (Rule 5 — NOT #2 telemetry; from #3/#8/#11/#12 persistence/save):
 #     critical_save_failed, streak_persistence_failed, stat_critical_save_failed,
 #     ability_unlock_save_failed
+#   2 added 2026-06-13 (GymSys Option B login, story 015):
+#     logged_in  — #2 Option-B auth-lifecycle signal (same class as auth_required; NOT
+#                  telemetry — reflects login() success into the shell via notify_claim_succeeded)
+#     submitted  — the LoginForm's own submit signal (UI-internal: the form telling #24 the
+#                  user pressed 登入 → submit_login; definitely not a telemetry surface)
 # GSM state_changed is bound via connect_for_initial_state (not .connect) → excluded.
 if [ -f "$LOGIN_FILE" ]; then
-	ALLOWED=" auth_required drain_started drain_completed critical_save_failed streak_persistence_failed stat_critical_save_failed ability_unlock_save_failed "
+	ALLOWED=" auth_required drain_started drain_completed critical_save_failed streak_persistence_failed stat_critical_save_failed ability_unlock_save_failed logged_in submitted "
 
 	set +e
 	tokens=$(
