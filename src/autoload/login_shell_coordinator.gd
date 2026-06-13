@@ -101,6 +101,7 @@ enum DrainState {
 ## compile-time member check against autoload scripts that expose no class_name). ----
 var _gsm = null          ## GameStateMachine (#1) — cfis subscribe at _ready (AC-27)
 var _client = null       ## GymSysBackendClient (#2) — auth/claim (stories 005/008)
+var _login_in_progress: bool = false   ## Option-B login() in flight — anti-double-submit (story 015)
 var _persistence = null  ## PersistenceLayer (#3) — critical_save_failed + get_pending_errors; #24 NEVER writes
 var _streak = null       ## StreakSystem (#8) — streak_persistence_failed → FEATURE_DEGRADED banner
 var _stat = null         ## StatSystem (#11) — stat_critical_save_failed → FEATURE_DEGRADED banner
@@ -661,7 +662,12 @@ func submit_claim(username: String, password: String) -> void:
 ## Distinct from submit_claim() (the full-ADR-0002 session-claim path) — a real form wires to
 ## whichever the live #2 client supports. has_method-guarded (no-op for a claim-only client).
 func submit_login(username: String, password: String) -> void:
+	if _login_in_progress:
+		return  # anti-double-submit (story 015 / AC-06 spirit)
 	if _client != null and _client.has_method("login"):
+		_login_in_progress = true
+		if _login_panel != null and _login_panel.has_method("set_submitting"):
+			_login_panel.set_submitting(true)
 		_client.login(GYM_BASE, username, password)
 
 
@@ -669,6 +675,9 @@ func submit_login(username: String, password: String) -> void:
 ## notify_claim_succeeded() path; failure logs (full error-copy mapping for the cookie path
 ## is story-015 form work — kept FSM-safe here).
 func _on_gym_logged_in(ok: bool) -> void:
+	_login_in_progress = false
+	if _login_panel != null and _login_panel.has_method("set_submitting"):
+		_login_panel.set_submitting(false)
 	if ok:
 		notify_claim_succeeded()
 	else:

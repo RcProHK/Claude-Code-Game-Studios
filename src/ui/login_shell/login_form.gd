@@ -125,3 +125,14 @@ func clear_credentials() -> void:
 func show_error(copy: String) -> void:
 	_error.text = copy
 	_error.visible = not copy.is_empty()
+
+
+## Loading state while a login is in flight — disables submit (anti-double-submit, AC-06
+## spirit) + shows「登入緊…」. Coordinator calls set_submitting(true) on submit_login and
+## set_submitting(false) when login resolves.
+func set_submitting(on: bool) -> void:
+	_submit.disabled = on
+	_submit.text = "登入緊…" if on else "登入"
+
+func is_submitting() -> bool:
+	return _submit.disabled

@@ -51,3 +51,14 @@ func test_submit_emits_credentials() -> void:
 	(_f.find_child("Password", true, false) as LineEdit).text = "pass1234"
 	(_f.find_child("Submit", true, false) as Button).pressed.emit()
 	assert_signal_emitted_with_parameters(_f, "submitted", ["alice", "pass1234"])
+
+
+func test_set_submitting_disables_submit_with_loading_text() -> void:
+	var submit: Button = _f.find_child("Submit", true, false)
+	assert_false(submit.disabled, "enabled by default")
+	_f.set_submitting(true)
+	assert_true(submit.disabled, "disabled while a login is in flight (anti-double-submit)")
+	assert_eq(submit.text, "登入緊…", "shows loading copy")
+	_f.set_submitting(false)
+	assert_false(submit.disabled, "re-enabled after resolve")
+	assert_eq(submit.text, "登入", "restored")
