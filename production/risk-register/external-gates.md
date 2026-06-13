@@ -30,6 +30,12 @@ Each gate: ETA + Owner are **TBD until the user (frank) sets them** — they dep
 
 **Unblock fan-out**: deploying GymSys + nginx + wiring the real endpoint clears #2 (whole epic), #9/011, #18/G-PR-1, and is the **prerequisite for the vertical slice** (cannot run a real end-to-end loop without it; a *mock-fed* slice can run sooner — see Milestone 1).
 
+> **2026-06-13 keystone investigation** (`docs/gymsys-integration-plan.md`): GYM (`C:\Users\frank\Desktop\GYM`,
+> FastAPI) has completed-workout storage (`/api/workouts`) but **NO live per-set logging / no `/api/game/`
+> event feed**. So ADR-0002's real-time stream (the Pillar-2 mid-set glance) needs a **NEW live-session
+> feature on the live GYM backend** (Option A), OR a pragmatic post-workout read endpoint (Option B). This is
+> a two-sided build + a product fork — decision pending from frank before implementation.
+
 ---
 
 ## Line B — Hardware Profiling (iOS Safari WebGL2 + mobile P95)
